@@ -295,7 +295,9 @@ window.__ModuleLoader__.load({
       // every `el.hidden === true` assertion still passed.
       '[data-dsh-pig] .dp-card[hidden],[data-dsh-pig] .dp-bar[hidden],',
       '[data-dsh-pig] .dp-content[hidden],[data-dsh-pig] .dp-hud[hidden],',
-      '[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden]{display:none}',
+      '[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],',
+      '[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],',
+      '[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}',
 
       /* ---------- the panel: cream parchment, border not shadow ---------- */
       // Taken out of flow on purpose. In flow it would widen the wrapper, and a

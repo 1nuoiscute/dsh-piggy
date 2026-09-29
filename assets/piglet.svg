@@ -1,35 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="小猪">
   <!--
-    小猪：靠「头大身子小」立住幼崽感。
-    脑袋直径 38，身子只有 22×17，四条腿短得几乎贴地。
+    小猪。和 🐖 同一套结构：侧面朝左、纯平涂、零描边。
+    区别只在比例 —— 幼崽脑袋占得更满、腿更短、眼睛更大。
   -->
-  <g stroke="#794F27" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
-    <!-- 卷尾巴 -->
-    <path d="M43.5 45c5-1 7-5 4.5-7s-6 .5-4.5 2.5" fill="none"/>
-    <!-- 后排的腿 -->
-    <rect x="23" y="50" width="7" height="8" rx="3.5" fill="#C98D7C"/>
-    <rect x="34" y="50" width="7" height="8" rx="3.5" fill="#C98D7C"/>
-    <!-- 小身子 -->
-    <ellipse cx="32" cy="46.5" rx="11" ry="8.5" fill="#F7C9B6"/>
-    <!-- 前排的腿 -->
-    <rect x="21" y="52" width="7" height="8" rx="3.5" fill="#F7C9B6"/>
-    <rect x="36" y="52" width="7" height="8" rx="3.5" fill="#F7C9B6"/>
-    <!-- 小耳朵，先画，等脑袋压住根部 -->
-    <path d="M18 15 20.5 3.5l10 6.8z" fill="#E8A08F"/>
-    <path d="M46 15 43.5 3.5l-10 6.8z" fill="#E8A08F"/>
-    <!-- 大脑袋：直径 38，是整个身体的 1.7 倍 -->
-    <circle cx="32" cy="25" r="19" fill="#F7C9B6"/>
-    <!-- 猪鼻子 -->
-    <ellipse cx="32" cy="32" rx="9.5" ry="7" fill="#E8A08F"/>
-    <circle cx="28.8" cy="32" r="1.6" fill="#794F27" stroke="none"/>
-    <circle cx="35.2" cy="32" r="1.6" fill="#794F27" stroke="none"/>
-    <!-- 大眼睛，圆且亮 -->
-    <circle cx="23.5" cy="21" r="3.4" fill="#3D2A1A" stroke="none"/>
-    <circle cx="40.5" cy="21" r="3.4" fill="#3D2A1A" stroke="none"/>
-    <circle cx="24.7" cy="19.7" r="1.2" fill="#FFFFFF" stroke="none"/>
-    <circle cx="41.7" cy="19.7" r="1.2" fill="#FFFFFF" stroke="none"/>
-    <!-- 腮红 -->
-    <ellipse cx="17.5" cy="30" rx="3.2" ry="2.2" fill="#F0A8A8" stroke="none" opacity=".75"/>
-    <ellipse cx="46.5" cy="30" rx="3.2" ry="2.2" fill="#F0A8A8" stroke="none" opacity=".75"/>
-  </g>
+  <!-- 卷尾巴 -->
+  <path d="M47 24.5c3.4-3.6 7-4 7.4-1.1.4 2.6-2.5 4.3-4.3 3" fill="none"
+        stroke="#F0BCA0" stroke-width="2.6" stroke-linecap="round"/>
+  <!-- 后腿 -->
+  <rect x="32" y="39" width="7" height="13" rx="3.5" fill="#F5C0A8"/>
+  <rect x="21" y="41" width="7" height="12" rx="3.5" fill="#F5C0A8"/>
+  <!-- 身子：头与躯干连成一块，后高前低 -->
+  <path d="M8 43C4.5 33 8 19.5 19.5 15.5 31 11.5 43.5 13.5 49 19c4.5 4.5 4.5 12 1 17-2.5 3.5-6.5 5.5-11 5.5H15c-3.5 0-6-1.5-7-3.5z"
+        fill="#FAD2BE"/>
+  <!-- 前腿 -->
+  <rect x="39.5" y="39.5" width="7" height="13" rx="3.5" fill="#FAD2BE"/>
+  <rect x="13.5" y="41" width="7" height="13" rx="3.5" fill="#FAD2BE"/>
+  <!-- 猪鼻子 -->
+  <ellipse cx="12.5" cy="40.5" rx="8" ry="6.4" fill="#F98D8D"/>
+  <ellipse cx="10.4" cy="40.5" rx="1.4" ry="2.1" fill="#262626"/>
+  <ellipse cx="15.4" cy="40.5" rx="1.4" ry="2.1" fill="#262626"/>
+  <!-- 眼睛：幼崽给得大一点、亮一点 -->
+  <circle cx="21.5" cy="30.5" r="3" fill="#232323"/>
+  <circle cx="22.6" cy="29.4" r="1" fill="#FFFFFF"/>
+  <!-- 耳朵：和 emoji 一样的洋红小卷 -->
+  <path d="M14.5 21.5c-2-5-.5-8.5 2.6-8s4.4 4.4 2 7.4" fill="none"
+        stroke="#D6336C" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M31.5 26c-1.4-4.4.6-7.4 3.4-6.6" fill="none"
+        stroke="#D6336C" stroke-width="2.8" stroke-linecap="round"/>
 </svg>

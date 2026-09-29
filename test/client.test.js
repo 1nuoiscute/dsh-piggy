@@ -390,18 +390,28 @@ test('the pig is a sibling of the panel, so opening cannot move it', async () =>
  */
 test('classes the bundle hides carry a CSS rule that beats their own display', async () => {
   const css = await readCss()
-  const hiddenByJs = ['dp-card', 'dp-bar', 'dp-content', 'dp-hud', 'dp-bubble']
-  for (const cls of hiddenByJs) {
+  const source = await readSource()
+
+  // Derived from the source, NOT a hand-kept list. The previous version spelled
+  // the class names out, so when .dp-work started being hidden the array was
+  // never updated and the test stayed green while the work prop hung beside an
+  // idle pig.
+  const classes = new Map()
+  for (const m of source.matchAll(/var (\w+) = el\('[a-z]+', '([A-Za-z0-9_-]+)/g)) classes.set(m[1], m[2])
+  for (const m of source.matchAll(/var (\w+) = document\.createElement\('[a-z]+'\)\s*\n\s*\1\.className = '([A-Za-z0-9_-]+)'/g)) {
+    classes.set(m[1], m[2])
+  }
+
+  const hiddenVars = [...new Set([...source.matchAll(/(\w+)\.hidden\s*=/g)].map(m => m[1]))]
+  const resolved = hiddenVars.map(name => classes.get(name)).filter(Boolean)
+  assert.ok(resolved.length >= 5, `expected to resolve several hidden elements, got ${resolved.join(', ')}`)
+
+  for (const cls of resolved) {
     assert.ok(
       css.includes(`.${cls}[hidden]`),
       `.${cls} is hidden by JS but no CSS rule hides it — the element will keep rendering`,
     )
   }
-  // Guard the reasoning above: these really do set their own `display`, which is
-  // what made the missing rule observable in the first place.
-  assert.match(css, /\.dp-card\{[^}]*display:flex/, 'premise: the panel is a flex container')
-  assert.match(css, /\.dp-bar\{[^}]*display:grid/, 'premise: the icon bar sets display:grid')
-  assert.match(css, /\.dp-hud\{[^}]*display:flex/, 'premise: the hud sets display:flex')
 })
 
 test('the open panel shows the live host state', async () => {

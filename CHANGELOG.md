@@ -5,6 +5,26 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [0.8.1] — 2026-09-29
+
+### Fixed
+- **猪闲着的时候身边也挂着 💼 和进度条。** `.dp-work{display:flex}` 的优先级
+  （`[data-dsh-pig] .dp-work` = 0,2,0）压过 UA 表的 `[hidden]{display:none}`（0,1,0），
+  所以 `work.hidden = true` 只是个摆设 —— 元素照画不误。补上
+  `[data-dsh-pig] .dp-work[hidden]{display:none}`，顺手把同样会踩坑的
+  `.dp-soul` / `.dp-pig-img` / `.dp-pig-emoji` 一起补进那条规则。
+- **而且守护这条规则的测试本身是坏的。** 它把类名写死成
+  `['dp-card','dp-bar','dp-content','dp-hud','dp-bubble']`，我后来加
+  `.dp-work` 等元素时没同步这个数组，所以**测试一直是绿的**。
+  现在改成从源码里自动推导：扫出所有 `X.hidden =` 的赋值，再把变量映射回
+  它创建的 class，逐个断言存在 `[hidden]` 规则。以后再加会隐藏的元素，
+  不补 CSS 就会立刻报红。
+
+  （验证过这条测试真的有效：把 `.dp-work[hidden]` 删掉 → 正好那一条失败；
+  加回来 → 全绿。）
+
+---
+
 ## [0.8.0] — 2026-09-29
 
 ### Changed
