@@ -259,6 +259,8 @@ host [data-dsh-pig]   ← 固定在右下角
 
 **年龄按真实时间走** —— 关掉 DSH 期间猪照样在长大，回来时它老了一天。
 
+![一生](/home/clicgger/Documents/deepseek-harness/default-workspace/dsh-pig/docs/screenshots/15-life-stages.png)
+
 所有阶段都是同一只 🐖，靠**体型**区分；小猪和老年猪另外有两张手绘形象
 （[`assets/piglet.svg`](assets/piglet.svg) / [`assets/elder.svg`](assets/elder.svg)，
 由插件自己的 `/dsh-pig/art/` 路由伺服）。看形象对照：
