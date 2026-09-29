@@ -291,7 +291,7 @@ export function snapshot(store, options = {}) {
     pig: {
       name: state.name,
       // Age is the progression now, not a level.
-      stage: { key: life.key, label: life.label, emoji: life.emoji, size: life.size, line: life.line, art: life.art ?? null },
+      stage: { key: life.key, label: life.label, emoji: life.emoji, size: life.size, line: life.line, art: life.art ?? null, faded: life.faded === true },
       ageDays: Number(ageDays(state, nowMs).toFixed(2)),
       ageLabel: formatAge(ageDays(state, nowMs), state),
       daysToNextStage: daysToNextStage(state, nowMs) === null ? null : Number(daysToNextStage(state, nowMs).toFixed(2)),

@@ -67,15 +67,15 @@ export const AWAY_MULTIPLIER = 1.8
 /** Where the stages change over, in days since birth. */
 export const LIFE_STAGES = Object.freeze([
   Object.freeze({
-    key: 'box', label: '纸盒', emoji: '📦', size: 54, from: 0, box: true,
+    key: 'box', label: '纸盒', emoji: '📦', size: 58, from: 0, box: true,
     line: '一个纸盒，侧面戳了几个透气孔',
   }),
   Object.freeze({
-    key: 'piglet', label: '小猪', emoji: '🐖', art: 'piglet', size: 40, from: 0,
+    key: 'piglet', label: '小猪', emoji: '🐖', size: 38, from: 0,
     line: '刚从纸盒里蹦出来，圆头圆脑',
   }),
   Object.freeze({
-    key: 'young', label: '青年猪', emoji: '🐖', size: 50, from: 1,
+    key: 'young', label: '青年猪', emoji: '🐖', size: 48, from: 1,
     line: '长开了，走路带风',
   }),
   Object.freeze({
@@ -83,7 +83,7 @@ export const LIFE_STAGES = Object.freeze([
     line: '很有分量，会一屁股坐住你的椅子',
   }),
   Object.freeze({
-    key: 'elder', label: '老年猪', emoji: '🐗', size: 56, from: 7,
+    key: 'elder', label: '老年猪', emoji: '🐖', size: 54, faded: true, from: 7,
     line: '鬃毛白了，獠牙还在',
   }),
 ])
@@ -92,7 +92,7 @@ export const LIFE_STAGES = Object.freeze([
 export const LIFESPAN_DAYS = 14
 
 /** The tombstone and the soul that settles on an unclaimed one. */
-export const GRAVE = Object.freeze({ key: 'grave', label: '墓碑', emoji: '🪦', size: 54, line: '这里躺着一只猪' })
+export const GRAVE = Object.freeze({ key: 'grave', label: '墓碑', emoji: '🪦', size: 52, line: '这里躺着一只猪' })
 export const SOUL = Object.freeze({ emoji: '👻', label: '灵魂' })
 /** How long a grave is left alone before the soul turns up. */
 export const SOUL_AFTER_DAYS = 1

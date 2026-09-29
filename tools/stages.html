@@ -1,75 +1,47 @@
 <!doctype html>
 <html lang="zh"><head><meta charset="utf-8"><title>dsh-pig · 一生</title>
 <style>
-  :root{--ink:#794f27;--dim:#9f927d;--line:#794f27;--cream:#f8f8f0}
-  *{box-sizing:border-box}
+  :root{--ink:#794f27;--dim:#9f927d;--cream:#f8f8f0}
   body{margin:0;background:var(--cream);color:var(--ink);
        font-family:Nunito,'Noto Sans SC',system-ui,sans-serif;padding:34px 30px 44px}
   h1{font-size:19px;margin:0 0 4px}
   .sub{color:var(--dim);font-size:12px;margin-bottom:26px}
   h2{font-size:12px;letter-spacing:.08em;color:var(--dim);font-weight:700;
      margin:0 0 14px;text-transform:uppercase}
-
-  /* the real sizes, bottom-aligned on one baseline */
-  .row{display:flex;align-items:flex-end;gap:30px;margin-bottom:34px}
-  .cell{text-align:center;width:104px}
-  .cell .art{height:70px;display:flex;align-items:flex-end;justify-content:center}
-  .cell .art > *{display:block}
-  .cap{font-size:11px;font-weight:700;margin-top:9px;line-height:1.35}
-  .meta{font-size:10px;color:var(--dim);line-height:1.4;margin-top:2px}
+  .row{display:flex;align-items:flex-end;gap:34px;margin-bottom:12px}
+  .cell{text-align:center;width:110px}
+  .cell .art{height:74px;display:flex;align-items:flex-end;justify-content:center}
+  .cap{font-size:12px;font-weight:700;margin-top:10px}
+  .meta{font-size:10px;color:var(--dim);margin-top:3px}
   .px{font-size:9px;color:#bdb2a0}
-
-  /* enlarged, for actually looking at the drawing */
-  .big{display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap;margin-bottom:34px}
-  .big figure{margin:0;text-align:center}
-  /* Fixed-height well so an oversized emoji can never sit on the caption. */
-  /* Colour emoji ink hangs below its line box, so the well keeps a gutter. */
-  .big .well{height:172px;padding-bottom:22px;display:flex;align-items:flex-end;
-             justify-content:center}
-  .big .well > *{display:block;line-height:1}
-  .big img{height:132px;width:auto}
-  .big span{font-size:132px}
-  .big figcaption{font-size:11px;font-weight:700;margin-top:10px}
-
+  .faded{filter:grayscale(.5);opacity:.72}
   .grave{position:relative;display:inline-block;line-height:1}
-  .grave .soul{position:absolute;left:50%;top:-16px;transform:translateX(-50%);
-               font-size:26px;animation:haunt 3.4s ease-in-out infinite}
+  .grave .soul{position:absolute;left:50%;top:-14px;transform:translateX(-50%);
+               font-size:24px;animation:haunt 3.4s ease-in-out infinite}
   @keyframes haunt{0%,100%{transform:translate(-50%,0);opacity:.75}
                    50%{transform:translate(-50%,-8px);opacity:1}}
-  .soul-only{position:static;transform:none;animation:none}
 </style></head>
 <body>
 
 <h1>🐖 dsh-pig · 一生</h1>
-<div class="sub">年龄按真实时间走。下面第一排是面板里<b>实际渲染的尺寸</b>，第二排是放大后的样子。</div>
+<div class="sub">年龄按真实时间走。全部用同一个 🐖，靠<b>体型</b>区分成长，老年猪再加一层褪色。</div>
 
 <h2>面板里的真实大小</h2>
 <div class="row">
-  <div class="cell"><div class="art"><span style="font-size:54px;line-height:1">📦</span></div>
-    <div class="cap">纸盒</div><div class="meta">一开始</div><div class="px">54px</div></div>
-  <div class="cell"><div class="art"><img src="../assets/piglet.svg" style="width:40px;height:40px"></div>
-    <div class="cap">小猪</div><div class="meta">拆开纸盒</div><div class="px">40px</div></div>
-  <div class="cell"><div class="art"><span style="font-size:50px;line-height:1">🐖</span></div>
-    <div class="cap">青年猪</div><div class="meta">第 1 天</div><div class="px">50px</div></div>
+  <div class="cell"><div class="art"><span style="font-size:58px;line-height:1">📦</span></div>
+    <div class="cap">纸盒</div><div class="meta">一开始</div><div class="px">58px</div></div>
+  <div class="cell"><div class="art"><span style="font-size:38px;line-height:1">🐖</span></div>
+    <div class="cap">小猪</div><div class="meta">拆开纸盒</div><div class="px">38px</div></div>
+  <div class="cell"><div class="art"><span style="font-size:48px;line-height:1">🐖</span></div>
+    <div class="cap">青年猪</div><div class="meta">第 1 天</div><div class="px">48px</div></div>
   <div class="cell"><div class="art"><span style="font-size:62px;line-height:1">🐖</span></div>
     <div class="cap">中年猪</div><div class="meta">第 3 天</div><div class="px">62px</div></div>
-  <div class="cell"><div class="art"><img src="../assets/elder.svg" style="width:56px;height:56px"></div>
-    <div class="cap">老年猪</div><div class="meta">第 7 天</div><div class="px">56px</div></div>
-  <div class="cell"><div class="art"><span style="font-size:54px;line-height:1">🪦</span></div>
-    <div class="cap">墓碑</div><div class="meta">第 14 天 / 病死</div><div class="px">54px</div></div>
-  <div class="cell"><div class="art"><span class="grave" style="font-size:54px">🪦<span class="soul">👻</span></span></div>
-    <div class="cap">墓碑 + 灵魂</div><div class="meta">死后 1 天没人管</div><div class="px">54px</div></div>
-</div>
-
-<h2>放大看</h2>
-<div class="big">
-  <figure><div class="well"><span>📦</span></div><figcaption>📦 纸盒</figcaption></figure>
-  <figure><div class="well"><img src="../assets/piglet.svg" alt="小猪"></div><figcaption>🐖 小猪 · 手绘</figcaption></figure>
-  <figure><div class="well"><span>🐖</span></div><figcaption>🐖 青年猪 · emoji</figcaption></figure>
-  <figure><div class="well"><span>🐖</span></div><figcaption>🐖 中年猪 · emoji（更大）</figcaption></figure>
-  <figure><div class="well"><img src="../assets/elder.svg" alt="老年猪"></div><figcaption>🐖 老年猪 · 手绘</figcaption></figure>
-  <figure><div class="well"><span>🪦</span></div><figcaption>🪦 墓碑</figcaption></figure>
-  <figure><div class="well"><span class="grave">🪦<span class="soul">👻</span></span></div><figcaption>🪦👻 墓碑 + 灵魂</figcaption></figure>
+  <div class="cell"><div class="art"><span class="faded" style="font-size:54px;line-height:1">🐖</span></div>
+    <div class="cap">老年猪</div><div class="meta">第 7 天 · 褪色</div><div class="px">54px</div></div>
+  <div class="cell"><div class="art"><span style="font-size:52px;line-height:1">🪦</span></div>
+    <div class="cap">墓碑</div><div class="meta">第 14 天 / 病死</div><div class="px">52px</div></div>
+  <div class="cell"><div class="art"><span class="grave" style="font-size:52px">🪦<span class="soul">👻</span></span></div>
+    <div class="cap">墓碑 + 灵魂</div><div class="meta">死后 1 天没人管</div><div class="px">52px</div></div>
 </div>
 
 </body></html>

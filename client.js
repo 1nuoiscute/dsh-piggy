@@ -102,6 +102,7 @@ window.__ModuleLoader__.load({
             size: num(obj(pig.stage).size, 56),
             line: str(obj(pig.stage).line, ''),
             art: typeof obj(pig.stage).art === 'string' && obj(pig.stage).art !== '' ? obj(pig.stage).art : null,
+            faded: obj(pig.stage).faded === true,
           },
           ageLabel: str(pig.ageLabel, ''),
           daysToNextStage: typeof pig.daysToNextStage === 'number' ? pig.daysToNextStage : null,
@@ -401,6 +402,10 @@ window.__ModuleLoader__.load({
       '.dp-pig-img{width:var(--pig-size);height:var(--pig-size);display:block;',
       '-webkit-user-drag:none;user-select:none}',
       '.dp-pig-emoji{font-size:var(--pig-size);line-height:1}',
+
+      // No drawings yet — every stage is the same 🐖, so age reads as size plus
+      // a faded coat on the last one.
+      '[data-dsh-pig][data-faded="true"] .dp-pig-emoji{filter:grayscale(.5) opacity(.72)}',
 
       /* ---------- the soul that settles on an unclaimed grave ---------- */
       '.dp-soul{position:absolute;left:50%;transform:translateX(-50%);top:-4px;font-size:22px;',
@@ -1378,6 +1383,7 @@ window.__ModuleLoader__.load({
           host.style.setProperty('--pig-size', '52px')
           soul.hidden = true
           host.setAttribute('data-soul', 'false')
+          host.setAttribute('data-faded', 'false')
           hudName.textContent = '一个纸盒'
           hudCoins.textContent = '点开拆开它'
           hudHealth.textContent = ''
@@ -1401,6 +1407,8 @@ window.__ModuleLoader__.load({
           host.style.setProperty('--pig-size', stage.size + 'px')
           pig.setAttribute('data-mood', view.pig.mood)
           host.setAttribute('data-soul', view.pig.soul ? 'true' : 'false')
+          // Old age reads as a faded coat, since every stage is the same 🐖.
+          host.setAttribute('data-faded', stage.faded ? 'true' : 'false')
           soul.hidden = view.pig.soul !== true
           pig.setAttribute('data-stage', stage.key)
           hudName.textContent = view.pig.name + ' · ' + stage.label + (view.pig.ageLabel ? ' · ' + view.pig.ageLabel : '')
