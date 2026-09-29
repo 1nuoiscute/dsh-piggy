@@ -71,7 +71,7 @@ export const LIFE_STAGES = Object.freeze([
     line: '一个纸盒，侧面戳了几个透气孔',
   }),
   Object.freeze({
-    key: 'piglet', label: '小猪', emoji: '🐖', size: 38, from: 0,
+    key: 'piglet', label: '小猪', emoji: '🐖', art: 'piglet', size: 40, from: 0,
     line: '刚从纸盒里蹦出来，圆头圆脑',
   }),
   Object.freeze({
@@ -83,7 +83,7 @@ export const LIFE_STAGES = Object.freeze([
     line: '很有分量，会一屁股坐住你的椅子',
   }),
   Object.freeze({
-    key: 'elder', label: '老年猪', emoji: '🐖', size: 54, faded: true, from: 7,
+    key: 'elder', label: '老年猪', emoji: '🐖', art: 'elder', size: 56, from: 7,
     line: '鬃毛白了，獠牙还在',
   }),
 ])

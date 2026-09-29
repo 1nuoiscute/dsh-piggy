@@ -8,13 +8,13 @@
   .sub{color:var(--dim);font-size:12px;margin-bottom:26px}
   h2{font-size:12px;letter-spacing:.08em;color:var(--dim);font-weight:700;
      margin:0 0 14px;text-transform:uppercase}
-  .row{display:flex;align-items:flex-end;gap:34px;margin-bottom:12px}
-  .cell{text-align:center;width:110px}
-  .cell .art{height:74px;display:flex;align-items:flex-end;justify-content:center}
+  .row{display:flex;align-items:flex-end;gap:30px;margin-bottom:14px}
+  .cell{text-align:center;width:108px}
+  .cell .art{height:76px;display:flex;align-items:flex-end;justify-content:center}
+  .cell img{display:block}
   .cap{font-size:12px;font-weight:700;margin-top:10px}
   .meta{font-size:10px;color:var(--dim);margin-top:3px}
   .px{font-size:9px;color:#bdb2a0}
-  .faded{filter:grayscale(.5);opacity:.72}
   .grave{position:relative;display:inline-block;line-height:1}
   .grave .soul{position:absolute;left:50%;top:-14px;transform:translateX(-50%);
                font-size:24px;animation:haunt 3.4s ease-in-out infinite}
@@ -24,24 +24,34 @@
 <body>
 
 <h1>🐖 dsh-pig · 一生</h1>
-<div class="sub">年龄按真实时间走。全部用同一个 🐖，靠<b>体型</b>区分成长，老年猪再加一层褪色。</div>
+<div class="sub">年龄按真实时间走。小猪和老年猪是手绘形象，其余用 🐖，靠<b>体型</b>区分成长。</div>
 
 <h2>面板里的真实大小</h2>
 <div class="row">
   <div class="cell"><div class="art"><span style="font-size:58px;line-height:1">📦</span></div>
     <div class="cap">纸盒</div><div class="meta">一开始</div><div class="px">58px</div></div>
-  <div class="cell"><div class="art"><span style="font-size:38px;line-height:1">🐖</span></div>
-    <div class="cap">小猪</div><div class="meta">拆开纸盒</div><div class="px">38px</div></div>
+  <div class="cell"><div class="art"><img src="../assets/piglet.svg?v=11" width="40" height="40"></div>
+    <div class="cap">小猪</div><div class="meta">拆开纸盒</div><div class="px">40px</div></div>
   <div class="cell"><div class="art"><span style="font-size:48px;line-height:1">🐖</span></div>
     <div class="cap">青年猪</div><div class="meta">第 1 天</div><div class="px">48px</div></div>
   <div class="cell"><div class="art"><span style="font-size:62px;line-height:1">🐖</span></div>
     <div class="cap">中年猪</div><div class="meta">第 3 天</div><div class="px">62px</div></div>
-  <div class="cell"><div class="art"><span class="faded" style="font-size:54px;line-height:1">🐖</span></div>
-    <div class="cap">老年猪</div><div class="meta">第 7 天 · 褪色</div><div class="px">54px</div></div>
+  <div class="cell"><div class="art"><img src="../assets/elder.svg?v=11" width="56" height="56"></div>
+    <div class="cap">老年猪</div><div class="meta">第 7 天</div><div class="px">56px</div></div>
   <div class="cell"><div class="art"><span style="font-size:52px;line-height:1">🪦</span></div>
     <div class="cap">墓碑</div><div class="meta">第 14 天 / 病死</div><div class="px">52px</div></div>
   <div class="cell"><div class="art"><span class="grave" style="font-size:52px">🪦<span class="soul">👻</span></span></div>
     <div class="cap">墓碑 + 灵魂</div><div class="meta">死后 1 天没人管</div><div class="px">52px</div></div>
+</div>
+
+<h2>放大看</h2>
+<div class="row">
+  <div class="cell"><div class="art"><img src="../assets/piglet.svg?v=11" width="120" height="120"></div>
+    <div class="cap">小猪</div><div class="meta">手绘</div></div>
+  <div class="cell"><div class="art"><span style="font-size:120px;line-height:1">🐖</span></div>
+    <div class="cap">青年 / 中年猪</div><div class="meta">emoji，靠尺寸区分</div></div>
+  <div class="cell"><div class="art"><img src="../assets/elder.svg?v=11" width="120" height="120"></div>
+    <div class="cap">老年猪</div><div class="meta">手绘</div></div>
 </div>
 
 </body></html>
