@@ -1,0 +1,10 @@
+# dsh-pig's layer: one row, no dependencies on other bundles.
+#
+# config keys (both optional):
+#   command:   the slash command name, default "pig". Change it if another
+#              plugin already registered /pig.
+#   statePath: absolute path of the save file, default $DSH_HOME/dsh-pig/state.json.
+- insert:
+    - id: dsh-pig
+      name: dsh-pig
+      config: {}

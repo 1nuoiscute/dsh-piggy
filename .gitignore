@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+
+# scratch files the plugin writes while running
+.smoke.json*
+*.log
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# local backups made while editing
+*.bak
+*.orig

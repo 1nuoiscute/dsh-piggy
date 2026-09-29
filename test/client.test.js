@@ -1,0 +1,991 @@
+/**
+ * dsh-pig client tests — run the browser bundle in a faked DOM.
+ *
+ * The client half is a plain script that self-registers through
+ * `window.__ModuleLoader__`, so it can be loaded and exercised in Node with a
+ * minimal DOM stub. This covers what would otherwise only show up in a real
+ * browser: the pig not moving, the six icons doing nothing, an empty shop, or a
+ * screen full of `undefined` after a host/client version mismatch.
+ *
+ * Run: node --test test/*.test.js
+ */
+
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { test } from 'node:test'
+
+/** The bundle source, as written. */
+const readSource = () => readFile(new URL('../client.js', import.meta.url), 'utf8')
+
+/**
+ * The stylesheet the browser actually receives.
+ *
+ * The bundle assembles `CSS` from many concatenated string literals, so a regex
+ * run against the source can only ever see one fragment at a time — a rule
+ * split across two literals looks absent even when it is there. Joining the
+ * literals back together first is what makes these static assertions mean
+ * something.
+ */
+async function readCss() {
+  const source = await readSource()
+  const start = source.indexOf('var CSS = [')
+  const end = source.indexOf("].join('')", start)
+  assert.ok(start >= 0 && end > start, 'could not locate the CSS array')
+  const body = source.slice(start, end)
+  // Anchor to literals that begin a line. A plain quoted-string scan is fooled
+  // by apostrophes inside the comments ("the UA sheet's ..."), and stripping
+  // comments textually would mangle any string that contains `//`.
+  return [...body.matchAll(/^[ \t]*'((?:[^'\\]|\\.)*)'/gm)].map(match => match[1]).join('')
+}
+
+/** The smallest DOM that satisfies the bundle. */
+function fakeDom() {
+  /** A zero-sized box; tests that care set `element.rect` explicitly. */
+  const emptyRect = () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
+
+  class FakeElement {
+    constructor(tagName) {
+      this.tagName = tagName
+      this.children = []
+      this.style = { setProperty() {}, removeProperty() {} }
+      this.attributes = {}
+      this.className = ''
+      this.textContent = ''
+      this.disabled = false
+      this.hidden = false
+      this.type = ''
+      this.parentNode = null
+      this.listeners = {}
+      this.rect = emptyRect()
+    }
+
+    // The bundle measures the scene to keep itself on screen, so a DOM without
+    // geometry makes mount() throw — and apply() swallows that, which shows up
+    // as "the pig is simply not there".
+    getBoundingClientRect() { return this.rect }
+
+    appendChild(child) {
+      child.parentNode = this
+      this.children.push(child)
+      return child
+    }
+
+    setAttribute(name, value) { this.attributes[name] = String(value) }
+    getAttribute(name) { return this.attributes[name] ?? null }
+    removeAttribute(name) { delete this.attributes[name] }
+    insertBefore(child) { return this.appendChild(child) }
+    remove() {
+      if (this.parentNode !== null) {
+        const index = this.parentNode.children.indexOf(this)
+        if (index >= 0) this.parentNode.children.splice(index, 1)
+        this.parentNode = null
+      }
+    }
+
+    addEventListener(name, fn) { (this.listeners[name] ??= []).push(fn) }
+    setPointerCapture() {}
+    querySelector() { return null }
+
+    /** Fire a listener with `this` bound like a real DOM. */
+    fire(name, event = {}) {
+      for (const fn of this.listeners[name] ?? []) {
+        fn.call(this, { stopPropagation() {}, preventDefault() {}, ...event })
+      }
+    }
+
+    allText() {
+      return [this.textContent, ...this.children.map(c => c.allText())].join(' ')
+    }
+
+    walk(visit) {
+      visit(this)
+      for (const child of this.children) child.walk(visit)
+    }
+  }
+
+  const head = new FakeElement('head')
+  const body = new FakeElement('body')
+  const document = {
+    head,
+    body,
+    createElement(tag) { return new FakeElement(tag) },
+    querySelector() { return null },
+    addEventListener() {},
+    removeEventListener() {},
+  }
+  return { document, head, body, FakeElement }
+}
+
+function fakeNet(status, actResult) {
+  const calls = []
+  const fetch = async (url, options) => {
+    const method = options?.method ?? 'GET'
+    calls.push({ url, method, body: options?.body })
+    const payload = method === 'POST' ? (actResult ?? status) : status
+    return { ok: true, status: 200, async json() { return payload } }
+  }
+  return { fetch, calls }
+}
+
+async function loadClient(options) {
+  const { status = SNAPSHOT, actResult = null } = options ?? {}
+  const dom = fakeDom()
+  const net = fakeNet(status, actResult)
+  const store = new Map()
+
+  const windowListeners = {}
+  globalThis.window = {
+    __ModuleLoader__: { load: () => {} },
+    localStorage: {
+      getItem: key => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => { store.set(key, String(value)) },
+    },
+    setInterval: () => 1,
+    clearInterval: () => {},
+    setTimeout: () => 1,
+    clearTimeout: () => {},
+    // Geometry, so the on-screen clamp is exercised instead of skipped.
+    innerWidth: 1280,
+    innerHeight: 800,
+    addEventListener: (name, fn) => { (windowListeners[name] ??= []).push(fn) },
+    removeEventListener: (name, fn) => {
+      const list = windowListeners[name]
+      if (list) windowListeners[name] = list.filter(entry => entry !== fn)
+    },
+  }
+  const resize = () => { for (const fn of windowListeners.resize ?? []) fn() }
+  globalThis.document = dom.document
+  globalThis.fetch = net.fetch
+  // Read the real inline style back. A constant stub makes every drag start from
+  // the same fictional origin, which quietly invalidates drag assertions.
+  globalThis.getComputedStyle = element => ({
+    right: element?.style?.right || '18px',
+    bottom: element?.style?.bottom || '18px',
+  })
+
+  let registration = null
+  globalThis.window.__ModuleLoader__ = { load: entry => { registration = entry } }
+
+  const url = new URL('../client.js', import.meta.url)
+  url.searchParams.set('t', String(Math.random()))
+  await import(url.href)
+
+  return { dom, net, registration, store, resize, windowListeners }
+}
+
+const hostOf = dom => {
+  const found = []
+  dom.body.walk(node => { if (node.attributes?.['data-dsh-pig'] !== undefined) found.push(node) })
+  return found[0]
+}
+// The pig is a sibling of the panel, not a child of it: host = [panel, scene].
+const cardOf = dom => hostOf(dom).children[0]
+const sceneOf = dom => hostOf(dom).children[1]
+// Inside the panel, content sits above the icon bar.
+const contentOf = dom => cardOf(dom).children[0]
+const barOf = dom => cardOf(dom).children[1]
+
+const findByAttr = (root, attr, value) => {
+  const found = []
+  root.walk(node => { if (node.attributes?.[attr] === value) found.push(node) })
+  return found[0]
+}
+const findByClass = (root, className) => {
+  const found = []
+  root.walk(node => {
+    if (typeof node.className === 'string' && node.className.split(/\s+/).includes(className)) found.push(node)
+  })
+  return found[0]
+}
+
+const settle = () => new Promise(resolve => setImmediate(resolve))
+
+/** Open the panel by tapping the pig. */
+function openPanel(dom) {
+  // The menu lives on the context menu; a left click only pats the pig.
+  sceneOf(dom).fire('contextmenu', { preventDefault() {} })
+}
+
+/** Left-click the pig (a pat, not the menu). */
+function patPig(dom) {
+  sceneOf(dom).fire('pointerdown', { button: 0, clientX: 0, clientY: 0 })
+  sceneOf(dom).fire('pointerup', {})
+}
+
+/** Switch to one of the six icons. */
+function pickTab(dom, key) {
+  findByAttr(barOf(dom), 'data-tab', key).fire('click')
+}
+
+const ACTIONS = {
+  feed: { ready: true, waitSeconds: 0, blocked: null },
+  bathe: { ready: true, waitSeconds: 0, blocked: null },
+  play: { ready: false, waitSeconds: 37, blocked: null },
+  pet: { ready: true, waitSeconds: 0, blocked: null },
+}
+
+const JOBS = [
+  { key: 'odd', label: '打零工', emoji: '🧹', minutes: 1, coins: 12, available: true },
+  { key: 'site', label: '搬砖', emoji: '🧱', minutes: 3, coins: 42, available: true },
+]
+
+const SUBJECTS = [
+  { key: 'chinese', label: '语文', emoji: '📖', traitLabel: '智力', level: 2, available: true },
+  { key: 'art', label: '美术', emoji: '🎨', traitLabel: '魅力', level: 0, available: true },
+  { key: 'wushu', label: '武术', emoji: '🥋', traitLabel: '武力', level: 1, available: true },
+]
+
+const STAGES = [
+  { key: 'primary', label: '小学', minutes: 2, tuition: 10, gain: 1 },
+  { key: 'college', label: '大学', minutes: 6, tuition: 45, gain: 2 },
+  { key: 'graduate', label: '研究生', minutes: 15, tuition: 130, gain: 4 },
+]
+
+const TRIPS = [
+  { key: 'suburb', label: '郊游', emoji: '🏞', minutes: 3, cost: 15, affordable: true, available: true },
+  { key: 'abroad', label: '出国', emoji: '🌍', minutes: 40, cost: 400, affordable: false, available: true },
+]
+
+const SHOP = [
+  { key: 'apple', label: '苹果', emoji: '🍎', price: 6, kind: 'food', tier: null, affordable: true, needed: false },
+  { key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', tier: 1, affordable: true, needed: true },
+  { key: 'soul', label: '还魂丹', emoji: '✨', price: 150, kind: 'revive', tier: null, affordable: false, needed: false },
+]
+
+const PIG = {
+  name: '大花', level: 3, title: '圆滚猪', emoji: '🐖',
+  mood: 'happy', moodEmoji: '❤️', moodLabel: '很开心',
+  satiety: 62, happiness: 74, cleanliness: 41,
+  health: 4, healthPercent: 80,
+  weight: '8.4 kg', xp: 168, xpToNext: 232, coins: 88,
+  traits: { intel: 5, charm: 3, strong: 2 },
+  courses: { chinese: 2 }, souvenirs: ['贝壳', '松果'],
+  illness: null, stageLine: '圆滚滚的，走路会晃',
+  memories: ['[16:53] 长成了「圆滚猪」🐖'],
+}
+
+const SNAPSHOT = {
+  ok: true, hatched: true, dead: false, pig: PIG,
+  actions: ACTIONS, jobs: JOBS, subjects: SUBJECTS, stages: STAGES, trips: TRIPS,
+  shop: SHOP, inventory: { apple: 2, med1: 0, soul: 0 },
+  activity: null, canGoOut: true, awayBlocked: null, pending: [],
+  reviveItem: 'soul', maxHealth: 5,
+}
+
+// ===========================================================================
+// Registration, mounting, the collapsed form
+// ===========================================================================
+
+test('client bundle registers itself under the package id', async () => {
+  const { registration } = await loadClient()
+  assert.equal(registration.id, 'dsh-pig')
+  assert.equal(typeof registration.factory, 'function')
+})
+
+test('client exports name and apply in the shape DSH expects', async () => {
+  const { registration } = await loadClient()
+  const exports = registration.factory(() => {})
+  assert.equal(exports.name, 'dsh-pig')
+  assert.equal(typeof exports.apply, 'function')
+})
+
+test('apply mounts a floating pig and returns a disposer', async () => {
+  const { registration, dom } = await loadClient()
+  const dispose = registration.factory(() => {}).apply({})
+  assert.equal(typeof dispose, 'function')
+  assert.equal(cardOf(dom).className, 'dp-card')
+  await settle()
+  assert.ok(hostOf(dom).allText().includes('🐖'))
+})
+
+test('the pig carries an animation and a mood the CSS keys off', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.notEqual(findByAttr(hostOf(dom), 'data-mood', 'happy'), undefined)
+})
+
+test('there is no decorative background on the scene', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(findByClass(hostOf(dom), 'dp-cloud'), undefined)
+  assert.equal(findByClass(hostOf(dom), 'dp-grass'), undefined)
+})
+
+test('the pig starts collapsed and tapping it opens the panel', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(hostOf(dom).attributes['data-open'], 'false')
+  openPanel(dom)
+  assert.equal(hostOf(dom).attributes['data-open'], 'true')
+  openPanel(dom)
+  assert.equal(hostOf(dom).attributes['data-open'], 'false')
+})
+
+/**
+ * Regression: collapsing used to only strip the card's background, leaving the
+ * six icons, the content area and the hud all floating on a transparent card.
+ * Collapsed must be the pig and nothing else.
+ */
+test('collapsing hides the whole panel and leaves only the pig', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+
+  const card = cardOf(dom)
+  assert.equal(hostOf(dom).attributes['data-open'], 'false')
+  assert.equal(card.hidden, true, 'the panel must be hidden while collapsed')
+
+  openPanel(dom)
+  assert.equal(card.hidden, false, 'the panel returns when opened')
+
+  openPanel(dom)
+  assert.equal(card.hidden, true, 'and goes away again')
+})
+
+test('the collapsed widget contains the pig and nothing else', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+
+  // Treat `hidden` as display:none so "visible text" means something.
+  const visibleText = node => (node.hidden ? '' : [node.textContent, ...node.children.map(visibleText)].join(' '))
+  const text = visibleText(hostOf(dom))
+  assert.ok(text.includes('🐖'), `the pig should still show: ${text}`)
+  assert.ok(!text.includes('状态'), `the icons should be gone: ${text}`)
+  assert.ok(!text.includes('大花'), `the hud should be gone: ${text}`)
+  assert.ok(!text.includes('🪙'), `no coin readout while collapsed: ${text}`)
+
+  openPanel(dom)
+  const openText = visibleText(hostOf(dom))
+  assert.ok(openText.includes('状态'), `the icons return when opened: ${openText}`)
+  assert.ok(openText.includes('大花'), `the hud returns when opened: ${openText}`)
+})
+
+test('the pig is a sibling of the panel, so opening cannot move it', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  const host = hostOf(dom)
+  // host = [panel, scene]; the pig is NOT inside the panel.
+  assert.equal(host.children.length, 2)
+  assert.equal(host.children[0].className, 'dp-card')
+  assert.equal(host.children[1].className, 'dp-scene')
+  assert.equal(findByClass(host.children[0], 'dp-pig'), undefined, 'the pig must not live inside the panel')
+  assert.notEqual(findByClass(host.children[1], 'dp-pig'), undefined, 'the pig lives in the scene')
+})
+
+/**
+ * Regression, and a lesson about what a test can prove.
+ *
+ * A fake DOM has no CSS engine, so `bar.hidden = true` looked correct in every
+ * assertion above while the real browser kept painting the icon bar: `.dp-bar`
+ * sets `display:grid`, which ties on specificity with the UA sheet's
+ * `[hidden]{display:none}` and wins by source order. `hidden` is therefore only
+ * as good as the CSS behind it, and that has to be checked statically.
+ */
+test('classes the bundle hides carry a CSS rule that beats their own display', async () => {
+  const css = await readCss()
+  const hiddenByJs = ['dp-card', 'dp-bar', 'dp-content', 'dp-hud', 'dp-bubble']
+  for (const cls of hiddenByJs) {
+    assert.ok(
+      css.includes(`.${cls}[hidden]`),
+      `.${cls} is hidden by JS but no CSS rule hides it — the element will keep rendering`,
+    )
+  }
+  // Guard the reasoning above: these really do set their own `display`, which is
+  // what made the missing rule observable in the first place.
+  assert.match(css, /\.dp-card\{[^}]*display:flex/, 'premise: the panel is a flex container')
+  assert.match(css, /\.dp-bar\{[^}]*display:grid/, 'premise: the icon bar sets display:grid')
+  assert.match(css, /\.dp-hud\{[^}]*display:flex/, 'premise: the hud sets display:flex')
+})
+
+test('the open panel shows the live host state', async () => {
+  const { registration, dom, net } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(net.calls[0].url, '/dsh-pig/state')
+  openPanel(dom)
+  const text = hostOf(dom).allText()
+  assert.ok(text.includes('大花'), text)
+  assert.ok(text.includes('圆滚猪'), text)
+  assert.ok(text.includes('88'), `expected coins, got: ${text}`)
+  assert.ok(text.includes('4/5'), `expected health, got: ${text}`)
+})
+
+// ===========================================================================
+// THE regression: a legacy host must not paint `undefined`
+// ===========================================================================
+
+test('a legacy host payload renders defaults, never "undefined"', async () => {
+  // Exactly what the old host returned before coins/health/jobs/shop existed.
+  const legacy = {
+    ok: true,
+    pig: {
+      name: '猪猪', level: 3, title: '圆滚猪', emoji: '🐖',
+      mood: 'happy', moodEmoji: '❤️', moodLabel: '很开心',
+      satiety: 100, happiness: 76, weight: '2.2 kg', xp: 295, xpToNext: 105,
+      canFeed: true, feedWaitSeconds: 0, stageLine: '圆滚滚的，走路会晃',
+      memories: ['[17:59] 从蛋壳里钻出来了 🐣'],
+    },
+  }
+  const { registration, dom } = await loadClient({ status: legacy })
+  registration.factory(() => {}).apply({})
+  await settle()
+
+  const collapsed = hostOf(dom).allText()
+  assert.ok(!collapsed.includes('undefined'), `collapsed shows undefined: ${collapsed}`)
+  assert.ok(!collapsed.includes('NaN'), `collapsed shows NaN: ${collapsed}`)
+  assert.ok(collapsed.includes('🪙 0'), `coins should default to 0, got: ${collapsed}`)
+
+  openPanel(dom)
+  for (const tab of ['status', 'study', 'work', 'shop', 'travel', 'bag']) {
+    pickTab(dom, tab)
+    const text = hostOf(dom).allText()
+    assert.ok(!text.includes('undefined'), `tab ${tab} shows undefined: ${text}`)
+    assert.ok(!text.includes('NaN'), `tab ${tab} shows NaN: ${text}`)
+  }
+})
+
+test('a legacy host is called out instead of silently showing gaps', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ok: true, pig: { name: '猪猪', level: 2, title: '小猪崽', emoji: '🐖', mood: 'fine', satiety: 50, happiness: 50, weight: '1.5 kg', xp: 40 } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  const text = hostOf(dom).allText()
+  assert.ok(text.includes('宿主是旧版本'), text)
+  assert.ok(text.includes('重启 dsh'), text)
+})
+
+test('a truncated payload still renders without throwing', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ok: true, pig: { name: '猪猪' }, actions: null, jobs: 'nope', shop: 42, inventory: null, pending: null },
+  })
+  assert.doesNotThrow(() => registration.factory(() => {}).apply({}))
+  await settle()
+  openPanel(dom)
+  for (const tab of ['status', 'study', 'work', 'shop', 'travel', 'bag']) {
+    pickTab(dom, tab)
+    assert.ok(!hostOf(dom).allText().includes('undefined'), `tab ${tab} broke`)
+  }
+})
+
+// ===========================================================================
+// The six-icon bar
+// ===========================================================================
+
+test('the icon bar holds exactly the six QQ Pet entries in order', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+
+  // allText() joins sibling text with spaces, so collapse runs of whitespace.
+  const labelOf = key => findByAttr(barOf(dom), 'data-tab', key).allText().replace(/\s+/g, ' ').trim()
+  assert.deepEqual(
+    ['status', 'study', 'work', 'shop', 'travel', 'bag'].map(labelOf),
+    ['📋 状态', '📚 学习', '💼 打工', '🛒 商店', '🧳 旅行', '🎒 背包'],
+  )
+  assert.equal(barOf(dom).children.length, 6)
+  assert.equal(findByAttr(barOf(dom), 'data-tab', 'status').attributes['data-active'], 'true')
+})
+
+test('clicking an icon marks it active and switches the content', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+
+  pickTab(dom, 'work')
+  assert.equal(findByAttr(barOf(dom), 'data-tab', 'work').attributes['data-active'], 'true')
+  assert.equal(findByAttr(barOf(dom), 'data-tab', 'status').attributes['data-active'], 'false')
+  assert.ok(contentOf(dom).allText().includes('打零工'), contentOf(dom).allText())
+})
+
+test('the shop icon flags itself when the pig is sick', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, pig: { ...PIG, illness: { name: '感冒', cure: '板蓝根', stage: 1 } } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(findByAttr(barOf(dom), 'data-tab', 'shop').attributes['data-alert'], 'true')
+})
+
+// ===========================================================================
+// Per-tab content
+// ===========================================================================
+
+test('the status tab shows labelled bars, traits and the care buttons', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+
+  const text = contentOf(dom).allText()
+  for (const label of ['饱食', '心情', '清洁', '健康', '智力', '魅力', '武力', '体重', '经验']) {
+    assert.ok(text.includes(label), `expected "${label}" in: ${text}`)
+  }
+  for (const key of ['feed', 'bathe', 'play', 'pet']) {
+    assert.notEqual(findByAttr(contentOf(dom), 'data-action', key), undefined, `care button ${key}`)
+  }
+  const play = findByAttr(contentOf(dom), 'data-action', 'play')
+  assert.equal(play.disabled, true, 'cooling-down action is disabled')
+  assert.ok(play.allText().includes('37'), play.allText())
+})
+
+test('the study tab lists stages and subjects, and studying POSTs both', async () => {
+  const { registration, dom, net } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'study')
+
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('小学'), text)
+  assert.ok(text.includes('语文'), text)
+  assert.ok(text.includes('美术'), text)
+  assert.ok(text.includes('已上 2 次'), text)
+
+  findByAttr(contentOf(dom), 'data-stage', 'college').fire('click')
+  findByAttr(contentOf(dom), 'data-subject', 'art').fire('click')
+  await settle()
+  await settle()
+
+  const post = net.calls.find(call => call.method === 'POST')
+  assert.deepEqual(JSON.parse(post.body), { action: 'study', subject: 'art', stage: 'college' })
+})
+
+test('the work tab lists jobs and sending the pig out POSTs the job', async () => {
+  const { registration, dom, net } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'work')
+
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('打零工'), text)
+  assert.ok(text.includes('12'), text)
+
+  findByAttr(contentOf(dom), 'data-job', 'odd').fire('click')
+  await settle()
+  await settle()
+  const post = net.calls.find(call => call.method === 'POST')
+  assert.deepEqual(JSON.parse(post.body), { action: 'work', job: 'odd' })
+})
+
+test('the shop tab disables what the pig cannot afford and flags the needed medicine', async () => {
+  const { registration, dom, net } = await loadClient({
+    status: { ...SNAPSHOT, pig: { ...PIG, illness: { name: '感冒', cure: '板蓝根', stage: 1 } } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').disabled, true)
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'apple').disabled, false)
+  assert.ok(contentOf(dom).allText().includes('现在需要'), contentOf(dom).allText())
+
+  findByAttr(contentOf(dom), 'data-buy', 'apple').fire('click')
+  await settle()
+  await settle()
+  const post = net.calls.find(call => call.method === 'POST')
+  assert.deepEqual(JSON.parse(post.body), { action: 'buy', item: 'apple' })
+})
+
+test('the travel tab lists destinations and the souvenir collection', async () => {
+  const { registration, dom, net } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'travel')
+
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('郊游'), text)
+  assert.ok(text.includes('纪念品 2'), `expected the collection count, got: ${text}`)
+  assert.ok(text.includes('贝壳'), text)
+  assert.equal(findByAttr(contentOf(dom), 'data-trip', 'abroad').disabled, true, 'unaffordable trip is disabled')
+
+  findByAttr(contentOf(dom), 'data-trip', 'suburb').fire('click')
+  await settle()
+  await settle()
+  const post = net.calls.find(call => call.method === 'POST')
+  assert.deepEqual(JSON.parse(post.body), { action: 'trip', trip: 'suburb' })
+})
+
+test('the bag tab lists owned items with a use button', async () => {
+  const { registration, dom, net } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'bag')
+
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('苹果'), text)
+  assert.ok(text.includes('×2'), text)
+  assert.equal(findByAttr(contentOf(dom), 'data-use', 'med1'), undefined, 'zero-count items are hidden')
+
+  findByAttr(contentOf(dom), 'data-use', 'apple').fire('click')
+  await settle()
+  await settle()
+  const post = net.calls.find(call => call.method === 'POST')
+  assert.deepEqual(JSON.parse(post.body), { action: 'use', item: 'apple' })
+})
+
+test('an empty bag says so instead of showing nothing', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, inventory: { apple: 0, med1: 0, soul: 0 } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'bag')
+  assert.ok(contentOf(dom).allText().includes('背包空空的'))
+})
+
+// ===========================================================================
+// Banners: away, sick, dead, unhatched
+// ===========================================================================
+
+test('an active trip shows a countdown banner and a recall button', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, canGoOut: false, activity: { kind: 'trip', key: 'sea', label: '看海', emoji: '🌊', secondsLeft: 42 } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('42'), text)
+  assert.ok(text.includes('看海'), text)
+  assert.notEqual(findByAttr(contentOf(dom), 'data-action', 'calloff'), undefined)
+})
+
+test('a sick pig shows its illness and what it needs', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, pig: { ...PIG, illness: { name: '肺炎', cure: '金色消炎药水', stage: 4 } } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('肺炎'), text)
+  assert.ok(text.includes('金色消炎药水'), text)
+})
+
+test('a dead pig shows the revive banner and greys out', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, dead: true, pig: { ...PIG, health: 0, healthPercent: 0, mood: 'dead' } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('已经走了'), text)
+  assert.ok(text.includes('还魂丹'), text)
+  assert.equal(hostOf(dom).attributes['data-dead'], 'true')
+  for (const key of ['feed', 'bathe', 'play']) {
+    assert.equal(findByAttr(contentOf(dom), 'data-action', key).disabled, true)
+  }
+})
+
+test('an unhatched pig offers a hatch button instead of a command', async () => {
+  const { registration, dom, net } = await loadClient({
+    status: { ok: true, hatched: false, dead: false, pig: null, actions: ACTIONS, jobs: [], subjects: [], stages: STAGES, trips: [], shop: [], inventory: {}, activity: null, canGoOut: false, awayBlocked: 'absent', pending: [], maxHealth: 5 },
+    actResult: { ...SNAPSHOT, ok: true },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+
+  const hatch = findByAttr(contentOf(dom), 'data-action', 'hatch')
+  assert.notEqual(hatch, undefined, 'the empty panel must offer hatching without typing')
+  assert.ok(hatch.allText().includes('孵一只'), hatch.allText())
+
+  hatch.fire('click')
+  await settle()
+  await settle()
+  const post = net.calls.find(call => call.method === 'POST')
+  assert.deepEqual(JSON.parse(post.body), { action: 'hatch' })
+})
+
+// ===========================================================================
+// Announcements and failures
+// ===========================================================================
+
+test('queued host announcements surface as toasts', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, pending: [{ kind: 'trip', text: '大花 从看海回来了，带回「贝壳」🧳', at: 111 }] },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  const toast = findByClass(hostOf(dom), 'dp-toast')
+  assert.notEqual(toast, undefined, 'a toast should be mounted')
+  assert.ok(toast.allText().includes('看海'), toast.allText())
+})
+
+test('a refused operation explains itself in the bubble', async () => {
+  const { registration, dom } = await loadClient({
+    actResult: { ...SNAPSHOT, ok: false, reason: 'poor', price: 400 },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'work')
+  findByAttr(contentOf(dom), 'data-job', 'odd').fire('click')
+  await settle()
+  await settle()
+  const bubble = findByClass(hostOf(dom), 'dp-bubble')
+  assert.notEqual(bubble, undefined)
+  assert.ok(bubble.allText().includes('钱不够'), bubble.allText())
+})
+
+test('being away shows what the pig is doing and how far along it is', async () => {
+  const cases = [
+    ['work', 'working', '💻'],
+    ['study', 'studying', '📖'],
+    ['trip', 'traveling', '🌊'],
+  ]
+  for (const [kind, mood, emoji] of cases) {
+    const { registration, dom } = await loadClient({
+      status: {
+        ...SNAPSHOT,
+        pig: { ...PIG, mood },
+        canGoOut: false,
+        activity: { kind, key: 'x', label: '出门', emoji, secondsLeft: 900, progress: 42 },
+      },
+    })
+    registration.factory(() => {}).apply({})
+    await settle()
+
+    const host = hostOf(dom)
+    assert.equal(host.attributes['data-away'], kind, `${kind}: the host must announce the activity`)
+    const work = findByClass(host, 'dp-work')
+    assert.notEqual(work, undefined, `${kind}: a work block must exist`)
+    assert.equal(work.hidden, false, `${kind}: it must be visible while away`)
+    assert.equal(findByClass(host, 'dp-prop').textContent, emoji, `${kind}: the prop emoji`)
+    assert.equal(findByClass(host, 'dp-progress').children[0].style.width, '42%', `${kind}: progress`)
+    // The pig carries the pose the stylesheet keys its animation off.
+    assert.notEqual(findByAttr(host, 'data-mood', mood), undefined, `${kind}: the pig needs the ${mood} pose`)
+  }
+})
+
+test('coming home hides the work block again', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, canGoOut: false, activity: { kind: 'work', key: 'x', label: '上班', emoji: '💻', secondsLeft: 60, progress: 10 } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(hostOf(dom).attributes['data-away'], 'work')
+  assert.equal(findByClass(hostOf(dom), 'dp-work').hidden, false)
+})
+
+test('an empty shelf is explained in the pig\'s own words', async () => {
+  const cases = [
+    ['feed', 'food', '没有吃的啦，快去买一点'],
+    ['bathe', 'bath', '没有洗浴用品了'],
+    ['play', 'toy', '没有玩具了'],
+  ]
+  for (const [action, kind, expected] of cases) {
+    const { registration, dom } = await loadClient({
+      // No items on this shelf, so the host refuses with `no-item`.
+      status: { ...SNAPSHOT, care: { feed: [], bathe: [], play: [] } },
+      actResult: { ...SNAPSHOT, ok: false, reason: 'no-item', kind },
+    })
+    registration.factory(() => {}).apply({})
+    await settle()
+    openPanel(dom)
+    findByAttr(contentOf(dom), 'data-action', action).fire('click')
+    await settle()
+    await settle()
+    const bubble = findByClass(hostOf(dom), 'dp-bubble')
+    assert.notEqual(bubble, undefined, `${action}: the pig should say something`)
+    assert.ok(
+      bubble.allText().includes(expected),
+      `${action}: expected "${expected}", got "${bubble.allText()}"`,
+    )
+  }
+})
+
+test('a failing host route degrades instead of throwing', async () => {
+  const { registration, dom } = await loadClient()
+  globalThis.fetch = async () => { throw new Error('ECONNREFUSED') }
+  registration.factory(() => {}).apply({})
+  await settle()
+  await settle()
+  assert.ok(findByClass(hostOf(dom), 'dp-bubble').allText().includes('连接不上宿主'))
+})
+
+test('apply survives a shell with no body yet', async () => {
+  const { registration, dom } = await loadClient()
+  let deferred = null
+  dom.document.body = null
+  dom.document.addEventListener = (name, fn) => { if (name === 'DOMContentLoaded') deferred = fn }
+  let dispose
+  assert.doesNotThrow(() => { dispose = registration.factory(() => {}).apply({}) })
+  assert.equal(typeof dispose, 'function')
+  assert.equal(typeof deferred, 'function')
+  assert.doesNotThrow(() => deferred())
+})
+
+test('apply never throws, even against a hostile DOM', async () => {
+  const { registration } = await loadClient()
+  globalThis.document = {
+    head: { appendChild() {} },
+    body: { appendChild() {} },
+    createElement() { throw new Error('CSP says no') },
+    querySelector() { return null },
+    addEventListener() {},
+    removeEventListener() {},
+  }
+  let dispose
+  assert.doesNotThrow(() => { dispose = registration.factory(() => {}).apply({}) })
+  assert.equal(typeof dispose, 'function')
+  assert.doesNotThrow(() => dispose())
+})
+
+test('dispose removes the floating pig', async () => {
+  const { registration, dom } = await loadClient()
+  const dispose = registration.factory(() => {}).apply({})
+  assert.equal(dom.body.children.length, 1)
+  dispose()
+  assert.equal(dom.body.children.length, 0)
+})
+
+/**
+ * Regression: the widget is anchored at right:18px/bottom:18px, which is exactly
+ * where the harness parks its composer and its send button. With `pointer-events`
+ * left at its default the wrapper swallowed those clicks — the message never left
+ * the browser while the model, the server and the network were all healthy, and
+ * the only visible symptom was "sending a message does nothing". A fake DOM has
+ * no layout and no hit-testing, so both guarantees are checked statically.
+ */
+test('the widget lets clicks through without steering the user', async () => {
+  const source = await readSource()
+  const css = await readCss()
+  assert.match(css, /\[data-dsh-pig\]\{[^}]*pointer-events:none/, 'the wrapper must not take clicks')
+  assert.match(css, /\[data-dsh-pig\]>\*\{pointer-events:auto\}/, 'the pig and the panel must still take clicks')
+
+  // A composer-avoidance floor used to force the widget above the input box,
+  // because the wrapper was swallowing clicks aimed at the send button.
+  // `pointer-events` fixes that properly, and the floor only ever stopped the
+  // user from parking their pet where they wanted it — including beside the
+  // composer, which is where a desktop pet belongs.
+  assert.doesNotMatch(source, /contenteditable="true"/, 'the composer floor must be gone')
+  assert.doesNotMatch(source, /Math\.max\(userBottom, floor\)/, 'placement is the user\'s choice')
+
+  // What remains is only "keep the widget on screen".
+  assert.match(source, /function clampPig\(\)/, 'the pig is still kept on screen')
+  assert.match(source, /function fitPanel\(\)/, 'the panel is fitted to the window')
+  assert.match(source, /addEventListener\?\.\('resize', onResize\)/, 'both follow viewport changes')
+  assert.match(source, /removeEventListener\?\.\('resize', onResize\)/, 'and both are released on dispose')
+})
+
+test('the pig is clamped to the window but never pushed around', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+
+  const host = hostOf(dom)
+  const scene = sceneOf(dom)
+  const pigEl = findByClass(scene, 'dp-pig')
+  scene.rect = { x: 0, y: 0, top: 700, left: 1200, right: 1260, bottom: 768, width: 60, height: 68 }
+  // The horizontal bound is the pig itself, not the scene: the scene widens to
+  // the panel when open, and clamping against that would shove the pig sideways
+  // on any window resize.
+  pigEl.rect = { x: 0, y: 0, top: 712, left: 1200, right: 1260, bottom: 768, width: 60, height: 56 }
+
+  const dragBy = (dx, dy) => {
+    scene.fire('pointerdown', { button: 0, clientX: 0, clientY: 0 })
+    scene.fire('pointermove', { clientX: dx, clientY: dy })
+    scene.fire('pointerup', {})
+  }
+
+  // Dragged far past the top-left: pulled back just far enough to stay visible.
+  // The horizontal footprint is the glyph plus the scene's 6px side padding.
+  dragBy(-1200, -1200)
+  assert.equal(parseFloat(host.style.right), 1280 - (60 + 12) - 4, 'right is clamped to leave the pig on screen')
+  // The vertical reserve is the OPEN scene (132), not the collapsed box (68):
+  // clamping by the collapsed height let the pig be parked so high that opening
+  // its own panel pushed the hud off the top of the window.
+  assert.equal(parseFloat(host.style.bottom), 800 - 132 - 4, 'bottom reserves the open scene')
+
+  // Anywhere inside the window is the user's business — including the corner
+  // beside the composer, which is the whole point of dropping the old floor.
+  const before = parseFloat(host.style.right)
+  dragBy(400, 400)
+  const parked = { right: parseFloat(host.style.right), bottom: parseFloat(host.style.bottom) }
+  assert.equal(parked.right, before - 400, 'a legal horizontal move is kept exactly')
+  assert.equal(parked.bottom, 800 - 132 - 4 - 400, 'and so is a legal vertical one')
+  assert.ok(parked.bottom < 800 - 132 - 4, 'it really did move lower')
+
+  // Coming back to rest changes nothing.
+  dragBy(0, 0)
+  assert.equal(parseFloat(host.style.right), parked.right)
+  assert.equal(parseFloat(host.style.bottom), parked.bottom)
+})
+
+test('the panel uses one anchor at a time, never top and bottom together', async () => {
+  const { registration, dom, resize } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  const card = cardOf(dom)
+  const scene = sceneOf(dom)
+
+  // Plenty of room above: the panel hangs upward off the pig.
+  scene.rect = { x: 0, y: 0, top: 500, left: 1100, right: 1180, bottom: 632, width: 80, height: 132 }
+  openPanel(dom)
+  assert.equal(card.style.top, 'auto', 'the top anchor must be released')
+  assert.match(card.style.bottom, /100%/, 'and the bottom anchor used')
+
+  // Parked near the top: it must flip rather than open off the screen.
+  scene.rect = { x: 0, y: 0, top: 8, left: 1100, right: 1180, bottom: 140, width: 80, height: 132 }
+  resize()
+  assert.equal(card.style.bottom, 'auto', 'the bottom anchor must be released')
+  assert.match(card.style.top, /100%/, 'and the panel flipped below the pig')
+
+  // Regression: clearing an anchor with '' falls back to the stylesheet, so both
+  // edges end up pinned and an absolutely positioned box collapses to nothing.
+  assert.notEqual(card.style.top, '', 'the top anchor is always explicit')
+  assert.notEqual(card.style.bottom, '', 'the bottom anchor is always explicit')
+})
+
+test('the JS scene reserve tracks the CSS token it stands in for', async () => {
+  const source = await readSource()
+  const css = await readCss()
+  const fromCss = /--scene-open:\s*(\d+)px/.exec(css)
+  const fromJs = /var SCENE_RESERVE = (\d+)/.exec(source)
+  assert.ok(fromCss !== null, 'the CSS must declare --scene-open')
+  assert.ok(fromJs !== null, 'the bundle must declare SCENE_RESERVE')
+  assert.equal(fromJs[1], fromCss[1], 'SCENE_RESERVE must match --scene-open')
+})
+
+test('right-click opens the menu and left-click only pats the pig', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+
+  const host = hostOf(dom)
+  assert.equal(host.attributes['data-open'], 'false')
+
+  // A left click is a pat: the panel stays shut.
+  patPig(dom)
+  assert.equal(host.attributes['data-open'], 'false', 'left click must not open the panel')
+  assert.equal(findByClass(sceneOf(dom), 'dp-pig').attributes['data-react'], 'pet', 'but the pig reacts')
+
+  // The menu is on the context menu.
+  let prevented = false
+  sceneOf(dom).fire('contextmenu', { preventDefault() { prevented = true } })
+  assert.equal(prevented, true, 'the native context menu must be suppressed')
+  assert.equal(host.attributes['data-open'], 'true')
+
+  sceneOf(dom).fire('contextmenu', { preventDefault() {} })
+  assert.equal(host.attributes['data-open'], 'false', 'and it toggles back')
+
+  // The tooltip is the only discoverability right-click gets.
+  assert.match(sceneOf(dom).title, /右键/, 'the pig must say how to open the menu')
+})

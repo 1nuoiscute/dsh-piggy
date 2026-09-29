@@ -1,0 +1,63 @@
+{
+  "name": "dsh-piggy",
+  "version": "0.7.0",
+  "description": "🐖 一只住在 DeepSeek Harness 里的猪：吃你的真实工作长大，会学习、打工、旅行、生病，玩法照 QQ 宠物复刻",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "pet",
+    "pig",
+    "tamagotchi",
+    "qq-pet",
+    "desktop-pet"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./core": "./core.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "core.js",
+    "data.js",
+    "store.js",
+    "render.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "docs",
+    "tools"
+  ],
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "preview": "echo \"open tools/preview.html in a browser\""
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clicgger/dsh-piggy.git"
+  },
+  "homepage": "https://github.com/clicgger/dsh-piggy#readme",
+  "bugs": {
+    "url": "https://github.com/clicgger/dsh-piggy/issues"
+  },
+  "author": "clicgger"
+}

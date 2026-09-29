@@ -1,0 +1,521 @@
+/**
+ * dsh-pig host tests — the glue between core, the store and the HTTP routes.
+ *
+ * The unit tests cover the game model and the client bundle; this file covers
+ * the part in between, which is exactly where a spread-order mistake once made
+ * every refused operation report success.
+ *
+ * Run: node --test test/*.test.js
+ */
+
+import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { test } from 'node:test'
+
+import { apply, dispatch, snapshot } from '../index.js'
+import { JOBS, SHOP, hatchEgg, layEgg } from '../core.js'
+import { DEFAULT_TOY } from '../data.js'
+
+const MIN = 60_000
+
+/**
+ * Stand up the plugin against a throwaway save and capture what it registers.
+ * @param seed - optional `(nowMs) => state` written before the plugin loads.
+ * @param options.webServer - `'now'` (default) hands the service to inject
+ *   immediately; `'later'` holds it back until `releaseWebServer()` is called,
+ *   which is what profile activation actually looked like; `'never'` models a
+ *   host with no web seam at all.
+ */
+function boot(seed, options = {}) {
+  const webServerMode = options.webServer ?? 'now'
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-pig-'))
+  const statePath = join(dir, 'state.json')
+  const nowMs = Date.now()
+  if (seed) writeFileSync(statePath, JSON.stringify(seed(nowMs)))
+
+  const listeners = {}
+  const routes = {}
+  let command = null
+  let pendingWebServer = null
+  const server = { register: route => { routes[route.path] = route; return () => {} } }
+
+  const ctx = {
+    on: (event, fn) => { (listeners[event] ??= []).push(fn) },
+    effect: fn => { const dispose = fn(); return () => dispose?.() },
+    // Deliberately absent: the plugin must not depend on `ctx.get` at all.
+    get: () => undefined,
+    inject: (deps, fn) => {
+      if (deps.includes('webServer')) {
+        if (webServerMode === 'now') fn({ webServer: server, ...ctx })
+        else if (webServerMode === 'later') pendingWebServer = fn
+        // 'never': drop it on the floor, exactly like a host without the seam.
+        return
+      }
+      if (deps.includes('commands')) fn({ commands: { register: entry => { command = entry } } })
+    },
+  }
+  apply(ctx, { statePath })
+
+  /** Simulate the web seam arriving after activation. */
+  const releaseWebServer = () => {
+    if (pendingWebServer === null) return false
+    const fn = pendingWebServer
+    pendingWebServer = null
+    fn({ webServer: server, ...ctx })
+    return true
+  }
+
+  const fire = (event, ...args) => { for (const fn of listeners[event] ?? []) fn(...args) }
+  // Keep the HTTP status alongside the body so status assertions work.
+  const get = async () => withStatus(await call(routes['/dsh-pig/state'], 'GET'))
+  const post = async body => withStatus(await call(routes['/dsh-pig/act'], 'POST', body))
+  const cleanup = () => rmSync(dir, { recursive: true, force: true })
+  return { routes, listeners, command, fire, get, post, releaseWebServer, statePath, cleanup }
+}
+
+/** `{ status, ...body }` for a route result. */
+function withStatus(result) {
+  let body = {}
+  try { body = JSON.parse(result.text) } catch { body = {} }
+  return { status: result.status, ...body }
+}
+
+async function call(route, method, body) {
+  const req = method === 'POST'
+    ? { method, async *[Symbol.asyncIterator]() { yield JSON.stringify(body) } }
+    : { method }
+  let out = ''
+  let status = 0
+  const res = { writeHead(code) { status = code }, end(chunk) { out = chunk } }
+  await route.handler(req, res)
+  return { status, text: out }
+}
+
+// ===========================================================================
+// Registration
+// ===========================================================================
+
+test('the host registers both routes, the four diet events and the command', () => {
+  const app = boot()
+  try {
+    assert.notEqual(app.routes['/dsh-pig/state'], undefined)
+    assert.notEqual(app.routes['/dsh-pig/act'], undefined)
+    assert.deepEqual(
+      Object.keys(app.listeners).sort(),
+      ['agent/error', 'agent/inbox/claimed', 'agent/turn-stopping', 'tools/result'],
+    )
+    assert.equal(app.command.name, 'pig')
+    assert.equal(typeof app.command.handler, 'function')
+  } finally {
+    app.cleanup()
+  }
+})
+
+/**
+ * Regression: the plugin used to read `ctx.get('webServer')` at apply time and
+ * bail out when it came back undefined. During profile activation the service
+ * was not up yet, so the routes were never registered and the panel polled a
+ * 404 forever — while the plugin itself reported a clean activation. Waiting
+ * through `ctx.inject` is the fix.
+ */
+test('routes still register when the web seam arrives after activation', () => {
+  const app = boot(null, { webServer: 'later' })
+  try {
+    assert.deepEqual(app.routes, {}, 'nothing to register against yet')
+    assert.equal(app.releaseWebServer(), true, 'the seam arrives')
+    assert.notEqual(app.routes['/dsh-pig/state'], undefined, 'state route must register late')
+    assert.notEqual(app.routes['/dsh-pig/act'], undefined, 'act route must register late')
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('the plugin never depends on ctx.get for its routes', () => {
+  // boot() deliberately exposes a `get` that always returns undefined. If the
+  // plugin used it, neither mode below could ever register a route.
+  const immediate = boot()
+  const late = boot(null, { webServer: 'later' })
+  try {
+    assert.notEqual(immediate.routes['/dsh-pig/state'], undefined)
+    late.releaseWebServer()
+    assert.notEqual(late.routes['/dsh-pig/state'], undefined)
+  } finally {
+    immediate.cleanup()
+    late.cleanup()
+  }
+})
+
+test('a host with no web seam stays command-only and does not throw', () => {
+  let app
+  assert.doesNotThrow(() => { app = boot(null, { webServer: 'never' }) })
+  try {
+    assert.deepEqual(app.routes, {}, 'no routes without a seam')
+    assert.equal(app.releaseWebServer(), false, 'nothing was ever queued')
+    // The command path still works, which is the point of degrading.
+    assert.equal(app.command.name, 'pig')
+    const result = app.command.handler({ rawInput: 'about' })
+    assert.equal(result.kind, 'success')
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('routes reject the wrong method and unknown operations', async () => {
+  const app = boot()
+  try {
+    assert.equal((await call(app.routes['/dsh-pig/state'], 'POST')).status, 405)
+    assert.equal((await call(app.routes['/dsh-pig/act'], 'GET')).status, 405)
+    const bad = await app.post({ action: 'fly' })
+    assert.equal(bad.status, 400)
+    assert.ok(bad.allowed.includes('work'))
+    assert.ok(bad.allowed.includes('buy'))
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('an oversized action body is rejected', async () => {
+  const app = boot()
+  try {
+    const huge = { action: 'feed', pad: 'x'.repeat(4096) }
+    const result = await app.post(huge)
+    assert.equal(result.status, 413)
+  } finally {
+    app.cleanup()
+  }
+})
+
+// ===========================================================================
+// Snapshot shape
+// ===========================================================================
+
+test('the snapshot reports the unhatched state before anything exists', async () => {
+  const app = boot()
+  try {
+    const snap = await app.get()
+    assert.equal(snap.hatched, false)
+    assert.equal(snap.pig, null)
+    assert.equal(snap.dead, false)
+    assert.equal(snap.activity, null)
+    assert.deepEqual(Object.keys(snap.actions).sort(), ['bathe', 'feed', 'pet', 'play'])
+    assert.equal(snap.jobs.length, JOBS.length)
+    assert.equal(snap.shop.length, SHOP.length)
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('the snapshot exposes everything the panel draws', async () => {
+  const app = boot(nowMs => hatchEgg(nowMs))
+  try {
+    const snap = await app.get()
+    assert.equal(snap.hatched, true)
+    for (const key of ['name', 'level', 'title', 'emoji', 'mood', 'satiety', 'happiness', 'cleanliness', 'health', 'healthPercent', 'coins', 'weight', 'xp', 'illness', 'memories']) {
+      assert.ok(key in snap.pig, `pig.${key} is missing from the snapshot`)
+    }
+    assert.equal(snap.pig.health, 5)
+    assert.equal(snap.pig.healthPercent, 100)
+    assert.deepEqual(
+      Object.keys(snap.inventory).sort(),
+      [...SHOP.map(i => i.key), DEFAULT_TOY.key].sort(),
+      'every shop item plus the free default toy',
+    )
+    assert.equal(snap.maxHealth, 5)
+  } finally {
+    app.cleanup()
+  }
+})
+
+// ===========================================================================
+// THE regression: a refusal must not report success
+// ===========================================================================
+
+test('a refused operation reports ok:false instead of the snapshot\'s ok', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs - 3 * MIN)
+    pig.inventory = { apple: 4 }
+    return pig
+  })
+  try {
+    // A shift that has already ended: the pig is home, so this is a normal feed.
+    // (The seed below stocks apples, because feeding now costs one.)
+    const fed = await app.post({ action: 'feed', item: 'apple' })
+    assert.equal(fed.ok, true, 'the first feed succeeds')
+
+    // The second one is on cooldown — this is the case the spread order broke.
+    const again = await app.post({ action: 'feed', item: 'apple' })
+    assert.equal(again.ok, false, 'a cooling-down action must not report success')
+    assert.equal(again.reason, 'cooldown')
+    assert.ok(again.wait > 0)
+    // …and the snapshot still rides along so the panel can repaint.
+    assert.notEqual(again.pig, null)
+    assert.equal(typeof again.actions.feed.ready, 'boolean')
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('an away pig reports how far through its activity it is', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs - 30 * MIN)
+    pig.activity = {
+      kind: 'work', key: 'office', label: '上班', emoji: '💼',
+      startedAt: nowMs - 2 * 60 * MIN, endsAt: nowMs + 2 * 60 * MIN,
+    }
+    pig.lastSeenAt = nowMs - 2 * 60 * MIN
+    return pig
+  })
+  try {
+    const snap = await app.get()
+    assert.equal(snap.activity.kind, 'work')
+    // Half of a four-hour shift has gone by.
+    assert.equal(snap.activity.progress, 50)
+    assert.ok(snap.activity.secondsLeft > 7000 && snap.activity.secondsLeft < 7300, 'about two hours left')
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('care is refused while working, and the refusal is honest', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs)
+    pig.satiety = 80
+    return pig
+  })
+  try {
+    const started = await app.post({ action: 'work', job: 'office' })
+    assert.equal(started.ok, true)
+    assert.equal(started.canGoOut, false)
+    assert.equal(started.activity.kind, 'work')
+    assert.equal(started.activity.key, 'office')
+    assert.ok(started.activity.secondsLeft > 0)
+
+    const feed = await app.post({ action: 'feed' })
+    assert.equal(feed.ok, false)
+    assert.equal(feed.reason, 'away')
+
+    const second = await app.post({ action: 'work', job: 'odd' })
+    assert.equal(second.ok, false)
+    assert.equal(second.reason, 'away')
+
+    // Petting is still allowed.
+    assert.equal((await app.post({ action: 'pet' })).ok, true)
+
+    assert.equal((await app.post({ action: 'calloff' })).ok, true)
+    assert.equal((await app.get()).activity, null)
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('buying is refused when broke, and the refusal is honest', async () => {
+  const app = boot(nowMs => { const pig = hatchEgg(nowMs); pig.coins = 2; return pig })
+  try {
+    const poor = await app.post({ action: 'buy', item: 'bone' })
+    assert.equal(poor.ok, false)
+    assert.equal(poor.reason, 'poor')
+    assert.equal(poor.pig.coins, 2, 'nothing was spent')
+    assert.equal(poor.shop.find(i => i.key === 'bone').affordable, false)
+  } finally {
+    app.cleanup()
+  }
+})
+
+// ===========================================================================
+// Work through the route
+// ===========================================================================
+
+test('a finished shift pays out on the next read and is announced once', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs - 10 * MIN)
+    pig.coins = 0
+    pig.activity = { kind: 'work', key: 'site', label: '搬砖', emoji: '🧱', startedAt: nowMs - 4 * MIN, endsAt: nowMs - MIN }
+    pig.lastSeenAt = nowMs - 4 * MIN
+    return pig
+  })
+  try {
+    const first = await app.get()
+    assert.equal(first.pig.coins, JOBS[1].coins)
+    assert.equal(first.activity, null)
+    assert.equal(first.pending.length, 1)
+    assert.equal(first.pending[0].kind, 'work')
+
+    // Reading again does not re-announce.
+    const second = await app.get()
+    assert.deepEqual(second.pending, [])
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('snapshot() can be asked not to drain the queue', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs - 10 * MIN)
+    pig.activity = { kind: 'work', key: 'odd', label: '打零工', emoji: '🧹', startedAt: nowMs - 2 * MIN, endsAt: nowMs - MIN }
+    pig.lastSeenAt = nowMs - 2 * MIN
+    return pig
+  })
+  try {
+    const store = { freshen: () => null, drainPending: () => [] }
+    // With no live store this only checks the option is honoured structurally.
+    const snap = snapshot(store, { drain: false })
+    assert.equal(snap.hatched, false)
+  } finally {
+    app.cleanup()
+  }
+})
+
+// ===========================================================================
+// Illness through the route
+// ===========================================================================
+
+test('a neglected pig falls ill, and the shop marks the right medicine', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs - 40 * MIN)
+    pig.satiety = 10
+    pig.cleanliness = 10
+    pig.lastSeenAt = nowMs - 40 * MIN
+    return pig
+  })
+  try {
+    const snap = await app.get()
+    assert.equal(snap.dead, false)
+    assert.notEqual(snap.pig.illness, null, 'neglect should have made it sick')
+    assert.equal(snap.pig.illness.stage, 1)
+    assert.ok(snap.pig.health < 5)
+    const wanted = snap.shop.filter(item => item.needed)
+    assert.equal(wanted.length, 1, 'exactly one medicine is flagged as needed')
+    assert.equal(wanted[0].tier, 1)
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('the whole illness loop works through the routes: sick → buy → cure', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs - 5 * MIN)
+    pig.illness = { chain: 2, stage: 1, since: nowMs - 5 * MIN }
+    pig.health = 4
+    pig.coins = 200
+    return pig
+  })
+  try {
+    const sick = await app.get()
+    assert.equal(sick.pig.illness.name, '肚子胀')
+    const med = sick.shop.find(item => item.needed)
+    assert.equal(med.kind, 'medicine')
+
+    assert.equal((await app.post({ action: 'buy', item: med.key })).ok, true)
+    const cured = await app.post({ action: 'use', item: med.key })
+    assert.equal(cured.ok, true)
+    assert.equal(cured.pig.illness, null)
+    assert.equal(cured.pig.health, 5)
+
+    // Using a second dose on a healthy pig is refused honestly.
+    await app.post({ action: 'buy', item: med.key })
+    const wrong = await app.post({ action: 'use', item: med.key })
+    assert.equal(wrong.ok, false)
+    assert.equal(wrong.reason, 'not-sick')
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('a dead pig only answers to the revive item', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs - 5 * MIN)
+    pig.dead = true
+    pig.health = 0
+    pig.coins = 300
+    pig.inventory = { apple: 3 }
+    return pig
+  })
+  try {
+    const dead = await app.get()
+    assert.equal(dead.dead, true)
+    for (const action of ['feed', 'bathe', 'play']) {
+      const refused = await app.post({ action })
+      assert.equal(refused.ok, false, `${action} must be refused`)
+      assert.equal(refused.reason, 'dead')
+    }
+    assert.equal((await app.post({ action: 'work', job: 'odd' })).reason, 'dead')
+
+    const reviveKey = dead.shop.find(i => i.kind === 'revive').key
+    assert.equal((await app.post({ action: 'buy', item: reviveKey })).ok, true)
+    const revived = await app.post({ action: 'use', item: reviveKey })
+    assert.equal(revived.ok, true)
+    assert.equal(revived.dead, false)
+    assert.equal(revived.pig.health, 5)
+
+    // And now normal life resumes.
+    assert.equal((await app.post({ action: 'feed' })).ok, true)
+  } finally {
+    app.cleanup()
+  }
+})
+
+// ===========================================================================
+// Slash command (the fallback path)
+// ===========================================================================
+
+test('the slash command answers about, shop and status', () => {
+  const app = boot(nowMs => hatchEgg(nowMs))
+  try {
+    const run = input => app.command.handler({ rawInput: input })
+    assert.match(run('about').text, /dsh-pig/)
+    assert.match(run('about').text, /还魂丹/)
+    assert.match(run('shop').text, /商店/)
+    assert.match(run('').text, /圆滚猪|小猪崽/)
+    assert.equal(run('nonsense').kind, 'error')
+    assert.match(run('').text, /金币/)
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('the slash command line for work and the shop agree with the tables', () => {
+  const app = boot(nowMs => hatchEgg(nowMs))
+  try {
+    const run = input => app.command.handler({ rawInput: input })
+    const shop = run('shop').text
+    for (const item of SHOP) assert.ok(shop.includes(item.label), `${item.label} missing from /pig shop`)
+    const bought = run('buy 苹果')
+    assert.match(bought.text, /苹果/)
+    const work = run('work odd')
+    assert.match(work.text, /打零工/)
+    assert.match(run('calloff').text, /提前回来/)
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('the pure dispatch helper routes every documented subcommand', () => {
+  const store = makeFakeStore(hatchEgg(Date.now()))
+  assert.equal(dispatch(store, 'pig', 'about').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'status').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'weigh').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'feed').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'name 大花').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'bogus').kind, 'error')
+})
+
+/** A store stub good enough for the pure dispatcher. */
+function makeFakeStore(state) {
+  let live = state
+  return {
+    get state() { return live },
+    freshen: () => live,
+    act: () => ({ ok: true, crossed: [] }),
+    startWork: () => ({ ok: true, job: JOBS[0], endsAt: Date.now() + MIN }),
+    callOffWork: () => ({ ok: true }),
+    buy: () => ({ ok: true, item: SHOP[0] }),
+    useItem: () => ({ ok: true, item: SHOP[0], crossed: [] }),
+    hatch: () => false,
+    rename: raw => String(raw).trim() || null,
+    drainPending: () => [],
+    dispose: () => {},
+    set live(next) { live = next },
+  }
+}
