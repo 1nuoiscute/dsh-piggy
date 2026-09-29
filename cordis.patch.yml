@@ -1,4 +1,9 @@
-# dsh-pig's layer: one row, no dependencies on other bundles.
+# dsh-piggy's layer: one row, no dependencies on other bundles.
+#
+# `name` must match package.json's `name` exactly. It was left as `dsh-pig`
+# after the package was renamed, and the mismatch silently dropped this
+# plugin's CLIENT half — the host routes kept working (the loader resolved the
+# stale node_modules symlink) while the widget never mounted at all.
 #
 # config keys (both optional):
 #   command:   the slash command name, default "pig". Change it if another
@@ -6,5 +11,5 @@
 #   statePath: absolute path of the save file, default $DSH_HOME/dsh-pig/state.json.
 - insert:
     - id: dsh-pig
-      name: dsh-pig
+      name: dsh-piggy
       config: {}

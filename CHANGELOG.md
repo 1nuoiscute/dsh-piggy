@@ -5,6 +5,37 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [0.9.2] — 2026-09-30
+
+### Fixed
+- **改名后猪整个消失了。** 包从 `dsh-pig` 改名成 `dsh-piggy` 时，漏改了插件自带的
+  `cordis.patch.yml`：
+
+  ```yaml
+  - insert:
+      - id: dsh-pig
+        name: dsh-pig          # ← 包已经不叫这个名字了
+  ```
+
+  宿主那一半**看起来是好的** —— 路由 `/dsh-pig/state` 照常 200，快照也正常，
+  因为加载器靠 `node_modules` 里残留的旧符号链接仍然解析得到这个目录。
+  但**客户端那一半被静默丢掉了**：注册时按 `dsh-pig` 去读 `package.json`，
+  读出来的 `name` 是 `dsh-piggy`，对不上，于是这个插件的 client 根本没有进入
+  客户端的 bundle 清单 —— 组件永远不挂载，屏幕上就是没有猪。
+
+  验证方式是把 `/plugins/??...` 那两个实际发出的 bundle 请求抓下来，
+  清单里列了 `modlens` / `dshmarket` / `dsh-context` / `dsh-better-sidebar`，
+  **唯独没有 `dsh-pig`**。
+
+  修：`name: dsh-piggy`，并清掉 `node_modules/dsh-pig` 那个残留链接。
+
+### Added
+- 一条回归测试：**`cordis.patch.yml` 里的 `name` 必须和 `package.json` 的 `name` 完全一致**。
+  已验证它有效（把名字改回 `dsh-pig` → 那条立刻失败）。
+  这和 0.8.1 修掉的「写死类名的测试」是同一类问题：**静默失效的引用**。
+
+---
+
 ## [0.9.1] — 2026-09-29
 
 ### Fixed

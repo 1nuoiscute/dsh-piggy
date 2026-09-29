@@ -521,3 +521,22 @@ function makeFakeStore(state) {
     set live(next) { live = next },
   }
 }
+
+test('the cordis patch names the package exactly as package.json does', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const here = new URL('../', import.meta.url)
+  const pkg = JSON.parse(await readFile(new URL('package.json', here), 'utf8'))
+  const patch = await readFile(new URL('cordis.patch.yml', here), 'utf8')
+
+  const names = [...patch.matchAll(/^\s*name:\s*(\S+)\s*$/gm)].map(m => m[1])
+  assert.ok(names.length > 0, 'the patch declares at least one plugin name')
+  for (const name of names) {
+    assert.equal(
+      name,
+      pkg.name,
+      `cordis.patch.yml says name: ${name} but the package is ${pkg.name}. ` +
+        'A mismatch resolves the host half through a stale node_modules link and ' +
+        'silently drops the client half, so the widget never mounts.',
+    )
+  }
+})
