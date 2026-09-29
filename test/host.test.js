@@ -212,7 +212,7 @@ test('the snapshot exposes everything the panel draws', async () => {
   try {
     const snap = await app.get()
     assert.equal(snap.hatched, true)
-    for (const key of ['name', 'level', 'title', 'emoji', 'mood', 'satiety', 'happiness', 'cleanliness', 'health', 'healthPercent', 'coins', 'weight', 'xp', 'illness', 'memories']) {
+    for (const key of ['name', 'stage', 'ageDays', 'ageLabel', 'daysToNextStage', 'soul', 'mood', 'satiety', 'happiness', 'cleanliness', 'health', 'healthPercent', 'coins', 'weight', 'xp', 'illness', 'memories']) {
       assert.ok(key in snap.pig, `pig.${key} is missing from the snapshot`)
     }
     assert.equal(snap.pig.health, 5)
@@ -469,7 +469,7 @@ test('the slash command answers about, shop and status', () => {
     assert.match(run('about').text, /dsh-pig/)
     assert.match(run('about').text, /还魂丹/)
     assert.match(run('shop').text, /商店/)
-    assert.match(run('').text, /圆滚猪|小猪崽/)
+    assert.match(run('').text, /小猪|青年猪|中年猪/)
     assert.equal(run('nonsense').kind, 'error')
     assert.match(run('').text, /金币/)
   } finally {

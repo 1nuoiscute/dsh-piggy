@@ -13,6 +13,8 @@
  * @module dsh-pig
  */
 
+import { readFileSync } from 'node:fs'
+
 import {
   ACTIONS,
   ACTION_ORDER,
@@ -34,11 +36,13 @@ import {
   formatWeight,
   healthPercent,
   inventoryView,
+  ageDays,
+  daysToNextStage,
+  hasSoul,
+  lifeStageFor,
   mood,
-  stageFor,
   studyView,
   traitView,
-  xpToNext,
 } from './core.js'
 import { jobByKey } from './data.js'
 import {
@@ -70,6 +74,7 @@ export const inject = []
 
 const STATE_ROUTE = '/dsh-pig/state'
 const ACT_ROUTE = '/dsh-pig/act'
+const ART_ROUTE = '/dsh-pig/art'
 const BODY_LIMIT_BYTES = 2048
 
 const contained = fn => (...args) => {
@@ -102,6 +107,7 @@ async function readJsonBody(req) {
  */
 const OPERATIONS = {
   hatch: store => ({ ok: true, hatched: store.hatch() }),
+  adopt: store => ({ ok: store.adopt(), adopted: true }),
   // The three care actions spend an item; `item` says which one.
   feed: (store, body) => store.act('feed', str(body.item)),
   bathe: (store, body) => store.act('bathe', str(body.item)),
@@ -158,6 +164,29 @@ export function apply(ctx, config = {}) {
           }
         },
       }))
+      // The hand-drawn sprites for the piglet and the elder pig. Serving them
+      // from the package keeps the art as real .svg files in the repository
+      // rather than a blob embedded in the client bundle.
+      disposers.push(webServer.register({
+        kind: 'prefix',
+        path: ART_ROUTE,
+        handler: (req, res) => {
+          if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed; use GET' }, { allow: 'GET' })
+          const raw = String(req.url ?? '').split('?')[0]
+          const name = raw.startsWith(ART_ROUTE + '/') ? raw.slice(ART_ROUTE.length + 1) : ''
+          // Only the files this package ships: a fixed, boring name pattern, so
+          // nothing from the request can ever walk out of ./assets.
+          if (!/^[a-z][a-z0-9-]{0,31}\.svg$/.test(name)) return sendJson(res, 404, { error: 'not found' })
+          try {
+            const svg = readFileSync(new URL('./assets/' + name, import.meta.url))
+            res.writeHead(200, { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'no-cache' })
+            res.end(svg)
+          } catch {
+            sendJson(res, 404, { error: 'not found' })
+          }
+        },
+      }))
+
       disposers.push(webServer.register({
         kind: 'exact',
         path: ACT_ROUTE,
@@ -213,6 +242,13 @@ export function apply(ctx, config = {}) {
 // Snapshot — the single shape both routes and the panel read
 // ---------------------------------------------------------------------------
 
+/** "今天刚出生" / "3 天大" / "刚拆开纸盒" — the pig's age in words. */
+function formatAge(days, state) {
+  if (state.hatched !== true) return '还没拆开'
+  if (days < 1) return '今天刚出生'
+  return `${Math.floor(days)} 天大`
+}
+
 /** 0-100 through the current activity, for the scene's progress line. */
 function activityProgress(activity, nowMs) {
   const span = activity.endsAt - activity.startedAt
@@ -241,7 +277,7 @@ export function snapshot(store, options = {}) {
     }
   }
 
-  const stage = stageFor(state.xp)
+  const life = lifeStageFor(state, nowMs)
   const current = mood(state, nowMs)
   const illness = currentIllness(state)
   const activity = state.activity
@@ -254,9 +290,12 @@ export function snapshot(store, options = {}) {
     dead: state.dead === true,
     pig: {
       name: state.name,
-      level: stage.level,
-      title: stage.title,
-      emoji: stage.emoji,
+      // Age is the progression now, not a level.
+      stage: { key: life.key, label: life.label, emoji: life.emoji, size: life.size, line: life.line, art: life.art ?? null },
+      ageDays: Number(ageDays(state, nowMs).toFixed(2)),
+      ageLabel: formatAge(ageDays(state, nowMs), state),
+      daysToNextStage: daysToNextStage(state, nowMs) === null ? null : Number(daysToNextStage(state, nowMs).toFixed(2)),
+      soul: hasSoul(state, nowMs),
       mood: current.key,
       moodEmoji: current.emoji,
       moodLabel: current.label,
@@ -267,12 +306,11 @@ export function snapshot(store, options = {}) {
       healthPercent: healthPercent(state),
       weight: formatWeight(state.weightG),
       xp: state.xp,
-      xpToNext: xpToNext(state.xp),
       coins: state.coins,
       traits: traitView(state),
       courses: courseView(state),
       souvenirs: (state.souvenirs ?? []).slice(-30),
-      stageLine: stage.line,
+      stageLine: life.line,
       illness: illness === null ? null : { name: illness.name, cure: illness.cure, stage: illness.stage, chain: illness.chain },
       memories: state.memories.slice(-3),
     },

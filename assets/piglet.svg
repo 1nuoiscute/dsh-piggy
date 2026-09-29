@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="小猪">
+  <!--
+    小猪：靠「头大身子小」立住幼崽感。
+    脑袋直径 38，身子只有 22×17，四条腿短得几乎贴地。
+  -->
+  <g stroke="#794F27" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <!-- 卷尾巴 -->
+    <path d="M43.5 45c5-1 7-5 4.5-7s-6 .5-4.5 2.5" fill="none"/>
+    <!-- 后排的腿 -->
+    <rect x="23" y="50" width="7" height="8" rx="3.5" fill="#C98D7C"/>
+    <rect x="34" y="50" width="7" height="8" rx="3.5" fill="#C98D7C"/>
+    <!-- 小身子 -->
+    <ellipse cx="32" cy="46.5" rx="11" ry="8.5" fill="#F7C9B6"/>
+    <!-- 前排的腿 -->
+    <rect x="21" y="52" width="7" height="8" rx="3.5" fill="#F7C9B6"/>
+    <rect x="36" y="52" width="7" height="8" rx="3.5" fill="#F7C9B6"/>
+    <!-- 小耳朵，先画，等脑袋压住根部 -->
+    <path d="M18 15 20.5 3.5l10 6.8z" fill="#E8A08F"/>
+    <path d="M46 15 43.5 3.5l-10 6.8z" fill="#E8A08F"/>
+    <!-- 大脑袋：直径 38，是整个身体的 1.7 倍 -->
+    <circle cx="32" cy="25" r="19" fill="#F7C9B6"/>
+    <!-- 猪鼻子 -->
+    <ellipse cx="32" cy="32" rx="9.5" ry="7" fill="#E8A08F"/>
+    <circle cx="28.8" cy="32" r="1.6" fill="#794F27" stroke="none"/>
+    <circle cx="35.2" cy="32" r="1.6" fill="#794F27" stroke="none"/>
+    <!-- 大眼睛，圆且亮 -->
+    <circle cx="23.5" cy="21" r="3.4" fill="#3D2A1A" stroke="none"/>
+    <circle cx="40.5" cy="21" r="3.4" fill="#3D2A1A" stroke="none"/>
+    <circle cx="24.7" cy="19.7" r="1.2" fill="#FFFFFF" stroke="none"/>
+    <circle cx="41.7" cy="19.7" r="1.2" fill="#FFFFFF" stroke="none"/>
+    <!-- 腮红 -->
+    <ellipse cx="17.5" cy="30" rx="3.2" ry="2.2" fill="#F0A8A8" stroke="none" opacity=".75"/>
+    <ellipse cx="46.5" cy="30" rx="3.2" ry="2.2" fill="#F0A8A8" stroke="none" opacity=".75"/>
+  </g>
+</svg>

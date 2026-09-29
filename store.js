@@ -26,6 +26,7 @@ import {
   decay,
   drainPending,
   feed as coreFeed,
+  adopt as coreAdopt,
   hatchEgg,
   migrate,
   rename as coreRename,
@@ -166,10 +167,22 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
     /** Use one item from the backpack. */
     useItem: itemKey => mutate(live => coreUseItem(live, itemKey, now())),
 
-    /** Lay the egg and crack it in one step. */
+    /** Open the box. Only works when there is no pig at all. */
     hatch() {
       if (state !== null) return false
       state = hatchEgg(now())
+      scheduleSave()
+      return true
+    },
+
+    /**
+     * Start over with a fresh box, keeping the old pig's memories. Only offered
+     * once a pig has died — you cannot throw a living one away.
+     */
+    adopt() {
+      if (state === null) return false
+      if (state.dead !== true) return false
+      state = coreAdopt(state, now())
       scheduleSave()
       return true
     },

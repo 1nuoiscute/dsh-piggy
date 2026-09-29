@@ -26,11 +26,9 @@ import {
   courseView,
   formatWeight,
   healthPercent,
+  lifeStageFor,
   mood,
-  nextStageFor,
-  stageFor,
   traitView,
-  xpToNext,
 } from './core.js'
 import { illnessAt } from './data.js'
 
@@ -53,7 +51,7 @@ function face(currentMood) {
 
 /** 🐖 with a face that follows the mood. */
 export function portrait(stage, currentMood) {
-  if (stage.level === 1) {
+  if (stage.key === 'box') {
     return [
       '      🥚',
       '   ╭───────╮',
@@ -73,9 +71,7 @@ export function portrait(stage, currentMood) {
 }
 
 function xpLine(state) {
-  const next = nextStageFor(state.xp)
-  if (next === null) return `✨ 经验  ${state.xp}  ·  已到顶 🏔`
-  return `✨ 经验  ${state.xp} / ${next.xp}   还差 ${xpToNext(state.xp)}`
+  return `✨ 成长  ${state.xp}   （只喂体重，不再决定形态）`
 }
 
 function statusLine(state, nowMs) {
@@ -105,11 +101,13 @@ function memoriesBlock(state) {
 
 /** The full `/pig` card. */
 export function renderStatus(state, nowMs) {
-  const stage = stageFor(state.xp)
+  const stage = lifeStageFor(state, nowMs)
   const current = mood(state, nowMs)
   const special = statusLine(state, nowMs)
+  const days = (nowMs - state.bornAt) / 86_400_000
+  const age = state.hatched !== true ? '还没拆开' : (days < 1 ? '今天刚出生' : `${Math.floor(days)} 天大`)
   const lines = [
-    `${stage.emoji} ${state.name}  Lv.${stage.level}「${stage.title}」   ${current.emoji} ${current.label}`,
+    `${stage.emoji} ${state.name}  ${stage.label} · ${age}   ${current.emoji} ${current.label}`,
     RULE,
     `🍚 饱食  ${bar(state.satiety)}  ${Math.round(state.satiety)}`,
     `❤️  心情  ${bar(state.happiness)}  ${Math.round(state.happiness)}`,
@@ -134,13 +132,13 @@ export function renderStatus(state, nowMs) {
 
 /** The hatching ceremony. */
 export function renderHatch(state, nowMs) {
-  const stage = stageFor(state.xp)
+  const stage = lifeStageFor(state, nowMs)
   return [
-    '   蛋壳裂开了 ——',
+    '   纸盒打开了 ——',
     '',
     ...portrait(stage, mood(state, nowMs)),
     '',
-    `✨ ${stage.emoji} ${state.name} 出生了（Lv.${stage.level}「${stage.title}」）`,
+    `✨ ${stage.emoji} ${state.name} 蹦了出来（${stage.label}）`,
     `   「${stage.line}」`,
     '',
     `初始盘缠：🪙 ${state.coins} 金币。`,
@@ -156,13 +154,12 @@ export function renderAction(state, nowMs, action, crossed) {
   const lines = [
     `${state.name} ${spec.verb}`,
     '',
-    ...portrait(stageFor(state.xp), current),
+    ...portrait(lifeStageFor(state, nowMs), current),
     '',
     `🍚 饱食  ${bar(state.satiety)}  ${Math.round(state.satiety)}`,
     `❤️  心情  ${bar(state.happiness)}  ${Math.round(state.happiness)}`,
     `🫧 清洁  ${bar(state.cleanliness)}  ${Math.round(state.cleanliness)}`,
   ]
-  for (const stage of crossed ?? []) lines.push('', `🎉 长成了「${stage.title}」${stage.emoji}`)
   const wait = actionCooldownSeconds(state, action, nowMs)
   if (wait > 0) lines.push('', `（${wait} 秒后还能再来一次）`)
   return lines.join('\n')
@@ -282,13 +279,12 @@ export function renderUse(state, result, item) {
       `🫧 清洁  ${bar(state.cleanliness)}  ${Math.round(state.cleanliness)}`,
     )
   }
-  for (const stage of result.crossed ?? []) lines.push('', `🎉 长成了「${stage.title}」${stage.emoji}`)
   return lines.join('\n')
 }
 
 /** The scales. */
 export function renderWeigh(state, nowMs) {
-  const stage = stageFor(state.xp)
+  const stage = lifeStageFor(state, nowMs)
   const kilos = state.weightG / 1000
   let verdict = '还算苗条，继续保持'
   if (kilos >= 40) verdict = '这已经是一头正经的猪了'

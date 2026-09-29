@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="老年猪">
+  <!--
+    老年猪：和小猪正好相反 —— 头小、身子大而沉，背线往下塌。
+    再加上垂到脸侧的长耳朵、花白的口鼻和眉毛、半眯的眼睛。
+  -->
+  <g stroke="#794F27" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <!-- 尾巴垂着，卷不起来了 -->
+    <path d="M48 49c4.5-.5 6-4 3.8-5.6s-5.3.3-4.1 2.3" fill="none"/>
+    <!-- 后排的腿 -->
+    <rect x="20" y="51" width="7" height="8" rx="3.5" fill="#B9836F"/>
+    <rect x="37" y="51" width="7" height="8" rx="3.5" fill="#B9836F"/>
+    <!-- 又大又沉的身子，背线向头部塌下去 -->
+    <ellipse cx="32" cy="45" rx="19" ry="13" fill="#EFD6CB" transform="rotate(-9 32 45)"/>
+    <!-- 前排的腿 -->
+    <rect x="18.5" y="52.5" width="7.5" height="8" rx="3.7" fill="#EFD6CB"/>
+    <rect x="39" y="52.5" width="7.5" height="8" rx="3.7" fill="#EFD6CB"/>
+    <!-- 长垂耳：从头顶挂到脸颊两侧 -->
+    <path d="M20.5 15c-4.5 3.4-7.2 9.4-6.2 14.4.8 4 4.6 4.4 6.8 1 2-3.1 2.6-7.6 2.4-13z" fill="#DCA894"/>
+    <path d="M43.5 15c4.5 3.4 7.2 9.4 6.2 14.4-.8 4-4.6 4.4-6.8 1-2-3.1-2.6-7.6-2.4-13z" fill="#DCA894"/>
+    <!-- 小了一圈的脑袋 -->
+    <circle cx="32" cy="27" r="15" fill="#EFD6CB"/>
+    <!-- 花白的口鼻 -->
+    <ellipse cx="32" cy="33" rx="8.5" ry="6.2" fill="#E3BFB2"/>
+    <ellipse cx="32" cy="33" rx="8.5" ry="6.2" fill="none" stroke="#BFAEA4"/>
+    <circle cx="29.2" cy="33" r="1.5" fill="#794F27" stroke="none"/>
+    <circle cx="34.8" cy="33" r="1.5" fill="#794F27" stroke="none"/>
+    <!-- 半眯的眼睛：眼珠被上眼睑压掉一半 -->
+    <circle cx="25" cy="24.5" r="2.4" fill="#3D2A1A" stroke="none"/>
+    <circle cx="39" cy="24.5" r="2.4" fill="#3D2A1A" stroke="none"/>
+    <path d="M22.2 22.6c1.5-1.5 4.3-1.5 5.8 0" fill="#EFD6CB"/>
+    <path d="M36.2 22.6c1.5-1.5 4.3-1.5 5.8 0" fill="#EFD6CB"/>
+    <!-- 花白的眉毛 -->
+    <path d="M21.8 18.4c1.7-1.2 4-1.4 5.6-.9" stroke="#BFAEA4" fill="none"/>
+    <path d="M42.2 18.4c-1.7-1.2-4-1.4-5.6-.9" stroke="#BFAEA4" fill="none"/>
+    <!-- 下巴的杂毛 -->
+    <path d="M28.6 41.4c1 1.5 2.2 2.3 3.4 2.3s2.4-.8 3.4-2.3" stroke="#BFAEA4" fill="none"/>
+    <path d="M30.4 44.6v2.2M33.6 44.6v2.2" stroke="#BFAEA4" fill="none"/>
+  </g>
+</svg>

@@ -23,6 +23,11 @@ import {
   AWAY_MULTIPLIER,
   CARE_KIND,
   DEFAULT_TOY,
+  GRAVE,
+  LIFE_STAGES,
+  LIFESPAN_DAYS,
+  SOUL,
+  SOUL_AFTER_DAYS,
   ILLNESS_CHAINS,
   ILLNESS_STAGE_MINUTES,
   JOBS,
@@ -70,15 +75,6 @@ const PENDING_LIMIT = 6
  * out to work or study is worth several hours of watching you type, so playing
  * the game is the fast lane.
  */
-export const STAGES = Object.freeze([
-  { level: 1, xp: 0, emoji: '🥚', title: '猪蛋', line: '还没孵出来，安静地躺着' },
-  { level: 2, xp: 20, emoji: '🐖', title: '小猪崽', line: '刚睁眼，什么都想吃' },
-  { level: 3, xp: 120, emoji: '🐖', title: '圆滚猪', line: '圆滚滚的，走路会晃' },
-  { level: 4, xp: 600, emoji: '🐖', title: '大猪猪', line: '很有分量，会一屁股坐住你的椅子' },
-  { level: 5, xp: 2200, emoji: '🐖', title: '猪皇', line: '👑 猪中至尊，吃饭要人喂' },
-  { level: 6, xp: 6000, emoji: '🐖', title: '猪王', line: '村里最体面的猪，走路带风' },
-  { level: 7, xp: 15000, emoji: '🐗', title: '野猪王', line: '返祖了，獠牙毕露' },
-])
 
 /**
  * Passive diet — what the pig gets for watching you actually work.
@@ -134,20 +130,80 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 const clamp100 = value => clamp(value, 0, 100)
 
 // ---------------------------------------------------------------------------
-// Growth
+// Life — the pig is measured in days, not in points
+//
+// QQ Pet's pets hatch, grow up and eventually die; nothing in it is a level to
+// grind. This is that idea, on a clock the pig can actually be watched against.
+// XP still accumulates from real work, but it feeds *weight*: a fatter pig, not
+// a higher one.
 // ---------------------------------------------------------------------------
 
-export function stageFor(xp) {
-  let stage = STAGES[0]
-  for (const candidate of STAGES) if (xp >= candidate.xp) stage = candidate
+const DAY_MS = 86_400_000
+
+/** The pig's age in fractional days since it was born. */
+export function ageDays(state, nowMs) {
+  if (state === null || typeof state.bornAt !== 'number') return 0
+  return Math.max(0, (nowMs - state.bornAt) / DAY_MS)
+}
+
+/** Which stage the pig is at right now: a box, a pig of some age, or a grave. */
+export function lifeStageFor(state, nowMs) {
+  if (state === null) return LIFE_STAGES[0]
+  if (state.dead === true) return GRAVE
+  if (state.hatched !== true) return LIFE_STAGES[0]
+  const days = ageDays(state, nowMs)
+  let stage = LIFE_STAGES[1]
+  for (const candidate of LIFE_STAGES) {
+    if (candidate.box === true) continue
+    if (days >= candidate.from) stage = candidate
+  }
   return stage
 }
 
-export const nextStageFor = xp => STAGES.find(candidate => candidate.xp > xp) ?? null
+/** The next rung, or null once the pig is as grown as it gets. */
+export function nextLifeStage(state, nowMs) {
+  if (state === null || state.dead === true || state.hatched !== true) return null
+  const days = ageDays(state, nowMs)
+  return LIFE_STAGES.find(stage => stage.box !== true && stage.from > days) ?? null
+}
 
-export function xpToNext(xp) {
-  const next = nextStageFor(xp)
-  return next === null ? null : next.xp - xp
+/** Days remaining until that next rung, or null at the end of the line. */
+export function daysToNextStage(state, nowMs) {
+  const next = nextLifeStage(state, nowMs)
+  return next === null ? null : Math.max(0, next.from - ageDays(state, nowMs))
+}
+
+/** Has the pig outlived its span? */
+export const isElderly = (state, nowMs) => ageDays(state, nowMs) >= LIFESPAN_DAYS
+
+/** Has the grave been left alone long enough for the soul to settle on it? */
+export const hasSoul = (state, nowMs) =>
+  state !== null && state.dead === true && (nowMs - (state.diedAt ?? nowMs)) / DAY_MS >= SOUL_AFTER_DAYS
+
+/**
+ * Let the pig go. Used by illness at the end of a chain and by old age.
+ * @param {string} why - shown in the announcement.
+ */
+function die(state, nowMs, why) {
+  if (state.dead === true) return
+  state.dead = true
+  state.health = 0
+  state.illness = null
+  state.activity = null
+  state.diedAt = nowMs
+  state.stats.deaths = (state.stats.deaths ?? 0) + 1
+  remember(state, `${why} ${GRAVE.emoji}`, nowMs)
+  announce(state, 'death', `${state.name} ${why}…用${REVIVE_ITEM.label}可以救回来，也可以领养一只新的`)
+}
+
+/** Start over with a fresh box. The old pig's story stays in `memories`. */
+export function adopt(state, nowMs) {
+  const fresh = layEgg(nowMs)
+  if (state !== null && Array.isArray(state.memories)) {
+    fresh.memories = state.memories.slice(-MEMORY_LIMIT)
+    remember(fresh, '又领养了一只，纸盒里传来窸窸窣窣的声音 📦', nowMs)
+  }
+  return Object.assign(state ?? {}, fresh)
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +217,10 @@ export function layEgg(nowMs) {
     bornAt: nowMs,
     hatched: false,
     dead: false,
+    /** When the pig died, so the grave can be left alone long enough for a soul. */
+    diedAt: null,
+    /** Last stage the panel announced; drives the "grew up" message. */
+    stage: 'box',
     xp: 0,
     weightG: BIRTH_WEIGHT_G,
     satiety: 70,
@@ -193,15 +253,17 @@ export function layEgg(nowMs) {
   }
 }
 
-export const HATCH_XP = STAGES[1].xp
-
+/**
+ * Open the box. The piglet falls out — it does not start as a fully grown pig,
+ * and `ageDays` starts counting from the moment it does.
+ */
 export function hatchEgg(nowMs) {
   const state = layEgg(nowMs)
-  state.xp = HATCH_XP
   state.hatched = true
+  state.bornAt = nowMs
   state.weightG += HATCH_WEIGHT_G
-  state.stats.levelUps = 1
-  remember(state, '从蛋壳里钻出来了 🐣', nowMs)
+  state.stage = 'piglet'
+  remember(state, '纸盒打开了，一只小猪蹦了出来 🐷', nowMs)
   return state
 }
 
@@ -229,6 +291,8 @@ export function migrate(raw) {
   if (typeof raw.cleanliness !== 'number') state.cleanliness = egg.cleanliness
   if (typeof raw.health !== 'number') state.health = raw.dead === true ? 0 : MAX.health
   if (typeof raw.coins !== 'number') state.coins = egg.coins
+  if (typeof raw.diedAt !== 'number') state.diedAt = state.dead === true ? (raw.lastSeenAt ?? egg.bornAt) : null
+  if (typeof state.stage !== 'string') state.stage = state.hatched === true ? 'piglet' : 'box'
   if (typeof state.name !== 'string' || state.name.trim() === '') state.name = egg.name
 
   state.health = clamp(Math.round(state.health), 0, MAX.health)
@@ -479,6 +543,18 @@ export function decay(state, nowMs) {
     }
   }
 
+  // Time does the growing now, not XP. Age passes whether or not anyone is
+  // watching, so a pig left alone comes back a day older.
+  if (state.dead !== true && state.hatched === true) {
+    const stage = lifeStageFor(state, nowMs)
+    if (state.stage !== stage.key) {
+      state.stage = stage.key
+      remember(state, `长成了${stage.label} ${stage.emoji}`, nowMs)
+      announce(state, 'stage', `${state.name} 长成了${stage.label} ${stage.emoji}`)
+    }
+    if (ageDays(state, nowMs) >= LIFESPAN_DAYS) die(state, nowMs, '老了')
+  }
+
   return state
 }
 
@@ -500,10 +576,9 @@ function finishWork(state, activity, nowMs) {
   state.cleanliness = clamp100(state.cleanliness + job.cleanliness)
   state.stats.jobs += 1
   state.stats.coinsEarned += job.coins
-  const crossed = applyEffects(state, { xp: job.xp }, nowMs)
+  applyEffects(state, { xp: job.xp }, nowMs)
   remember(state, `${job.emoji} ${job.label}回来，赚了 ${job.coins} 金币`, nowMs)
   announce(state, 'work', `${state.name} 打工回来了！赚到 ${job.coins} 金币 💰`)
-  for (const stage of crossed) announce(state, 'levelup', `长成了「${stage.title}」${stage.emoji}`)
 }
 
 function finishStudy(state, activity, nowMs) {
@@ -521,10 +596,9 @@ function finishStudy(state, activity, nowMs) {
   state.happiness = clamp100(state.happiness + stage.happiness)
   state.stats.courses += 1
   state.stats.lessons += 1
-  const crossed = applyEffects(state, { xp: stage.xp }, nowMs)
+  applyEffects(state, { xp: stage.xp }, nowMs)
   remember(state, `${subject.emoji} 上完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain}`, nowMs)
   announce(state, 'study', `${state.name} 学完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain} 📚`)
-  for (const stage_ of crossed) announce(state, 'levelup', `长成了「${stage_.title}」${stage_.emoji}`)
 }
 
 function finishTrip(state, activity, nowMs) {
@@ -536,10 +610,9 @@ function finishTrip(state, activity, nowMs) {
   state.happiness = clamp100(state.happiness + trip.happiness)
   state.satiety = clamp100(state.satiety + trip.satiety)
   state.stats.trips += 1
-  const crossed = applyEffects(state, { xp: trip.xp }, nowMs)
+  applyEffects(state, { xp: trip.xp }, nowMs)
   remember(state, `${trip.emoji} ${trip.label}回来，带回「${souvenir}」`, nowMs)
   announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${souvenir}」🧳`)
-  for (const stage of crossed) announce(state, 'levelup', `长成了「${stage.title}」${stage.emoji}`)
 }
 
 function catchIllness(state, nowMs) {
@@ -560,13 +633,7 @@ function advanceIllness(state, nowMs) {
   const worse = nextIllness(chain, stage)
 
   if (worse === null) {
-    state.health = 0
-    state.dead = true
-    state.illness = null
-    state.activity = null
-    state.stats.deaths = (state.stats.deaths ?? 0) + 1
-    remember(state, '撑不住了 💀', nowMs)
-    announce(state, 'death', `${state.name} 没能撑过去…用${REVIVE_ITEM.label}可以救回来`)
+    die(state, nowMs, '没能撑过去')
     return
   }
 
@@ -581,7 +648,6 @@ function advanceIllness(state, nowMs) {
 // ---------------------------------------------------------------------------
 
 function applyEffects(state, effects, nowMs) {
-  const before = stageFor(state.xp).level
   if (effects.xp) state.xp += effects.xp
   if (effects.satiety) state.satiety = clamp100(state.satiety + effects.satiety)
   if (effects.happiness) state.happiness = clamp100(state.happiness + effects.happiness)
@@ -589,18 +655,6 @@ function applyEffects(state, effects, nowMs) {
   if (effects.weightG) state.weightG = Math.max(400, state.weightG + effects.weightG)
   if (effects.health) state.health = clamp(Math.round(state.health + effects.health), 0, MAX.health)
   state.lastActiveAt = nowMs
-
-  const crossed = []
-  const after = stageFor(state.xp).level
-  for (let level = before + 1; level <= after; level += 1) {
-    const stage = STAGES.find(s => s.level === level)
-    if (stage !== undefined) {
-      crossed.push(stage)
-      state.stats.levelUps += 1
-      remember(state, `长成了「${stage.title}」${stage.emoji}`, nowMs)
-    }
-  }
-  return crossed
 }
 
 // ---------------------------------------------------------------------------
@@ -670,9 +724,9 @@ export function act(state, action, nowMs, itemKey) {
   else if (action === 'play') state.stats.plays += 1
   else if (action === 'pet') state.stats.pets += 1
 
-  const crossed = applyEffects(state, careEffects(item, spec), nowMs)
+  applyEffects(state, careEffects(item, spec), nowMs)
   remember(state, item === null ? spec.verb : `${item.emoji} ${spec.label}用了「${item.label}」`, nowMs)
-  return { ok: true, crossed, item: item === null ? null : item.key, spent: item !== null && item.default !== true }
+  return { ok: true, item: item === null ? null : item.key, spent: item !== null && item.default !== true }
 }
 
 /**
@@ -878,7 +932,7 @@ export function useItem(state, itemKey, nowMs) {
     if (!state.dead) return { ok: false, reason: 'not-dead' }
     state.inventory[itemKey] = have - 1
     revive(state, nowMs)
-    return { ok: true, item, crossed: [] }
+    return { ok: true, item }
   }
   if (state.dead) return { ok: false, reason: 'dead' }
 
@@ -894,18 +948,19 @@ export function useItem(state, itemKey, nowMs) {
     state.stats.cures = (state.stats.cures ?? 0) + 1
     remember(state, `吃了 ${item.emoji} ${item.label}，病好了`, nowMs)
     announce(state, 'cured', `${state.name} 吃了 ${item.label}，痊愈了 💚`)
-    return { ok: true, item, crossed: [] }
+    return { ok: true, item }
   }
 
   if (state.activity !== null) return { ok: false, reason: 'away' }
   state.inventory[itemKey] = have - 1
-  const crossed = applyEffects(state, item, nowMs)
+  applyEffects(state, item, nowMs)
   remember(state, `用了 ${item.emoji} ${item.label}`, nowMs)
-  return { ok: true, item, crossed }
+  return { ok: true, item }
 }
 
 export function revive(state, nowMs) {
   state.dead = false
+  state.diedAt = null
   state.health = MAX.health
   state.satiety = Math.max(state.satiety, 60)
   state.cleanliness = Math.max(state.cleanliness, 60)
@@ -972,3 +1027,5 @@ export function bar(value, width = 10) {
 }
 
 export { JOBS, SHOP, MAX, THRESHOLDS, REVIVE_ITEM, SUBJECTS, SCHOOL_STAGES, TRIPS, TRAITS, TRAIT_ORDER }
+export { LIFE_STAGES, GRAVE, SOUL, LIFESPAN_DAYS, SOUL_AFTER_DAYS }
+export { DIET }

@@ -20,6 +20,8 @@ window.__ModuleLoader__.load({
     var exports = module.exports
 
     var STATE_URL = '/dsh-pig/state'
+    // Hand-drawn stages are served from the plugin's own /art route.
+    var ART_URL = '/dsh-pig/art/'
     var ACT_URL = '/dsh-pig/act'
     var POLL_MS = 4000
     var MOUNTED = 'data-dsh-pig'
@@ -91,9 +93,19 @@ window.__ModuleLoader__.load({
         dead: d.dead === true || (pig !== null && num(pig.health, 5) <= 0),
         pig: pig === null ? null : {
           name: str(pig.name, '猪猪'),
-          level: num(pig.level, 1),
-          title: str(pig.title, '小猪崽'),
-          emoji: str(pig.emoji, '🐖'),
+          // The pig is measured in days now; `stage` carries how big it is and
+          // what it looks like.
+          stage: {
+            key: str(obj(pig.stage).key, 'piglet'),
+            label: str(obj(pig.stage).label, '小猪'),
+            emoji: str(obj(pig.stage).emoji, '🐖'),
+            size: num(obj(pig.stage).size, 56),
+            line: str(obj(pig.stage).line, ''),
+            art: typeof obj(pig.stage).art === 'string' && obj(pig.stage).art !== '' ? obj(pig.stage).art : null,
+          },
+          ageLabel: str(pig.ageLabel, ''),
+          daysToNextStage: typeof pig.daysToNextStage === 'number' ? pig.daysToNextStage : null,
+          soul: pig.soul === true,
           mood: str(pig.mood, 'fine'),
           moodEmoji: str(pig.moodEmoji, '😊'),
           moodLabel: str(pig.moodLabel, '还不错'),
@@ -105,7 +117,6 @@ window.__ModuleLoader__.load({
           coins: num(pig.coins, 0),
           weight: str(pig.weight, '—'),
           xp: num(pig.xp, 0),
-          xpToNext: typeof pig.xpToNext === 'number' ? pig.xpToNext : null,
           stageLine: str(pig.stageLine, ''),
           illness: isObj(pig.illness) ? {
             name: str(pig.illness.name, '生病'),
@@ -312,7 +323,7 @@ window.__ModuleLoader__.load({
       // opening moves it by exactly zero pixels.
       '[data-dsh-pig][data-open="false"] .dp-scene{height:calc(var(--pig-size) + var(--pig-gap-below));',
       'cursor:pointer}',
-      '.dp-pig{font-size:var(--pig-size);line-height:1;transform-origin:50% 85%;cursor:pointer;',
+      '.dp-pig{line-height:1;transform-origin:50% 85%;cursor:pointer;',
       'filter:drop-shadow(0 4px 6px rgba(61,52,40,.28));animation:dp-bob 1.8s ease-in-out infinite}',
       '[data-dsh-pig][data-open="false"] .dp-pig{filter:drop-shadow(0 5px 9px rgba(61,52,40,.26))}',
       // A petting hand rather than an arrow. Drawn inline as an SVG data URI so
@@ -382,6 +393,24 @@ window.__ModuleLoader__.load({
       'background:var(--ac-bg);border:2px solid var(--ac-border-light);padding:5px 10px;',
       'border-radius:var(--ac-radius-sm);box-shadow:var(--ac-shadow-sm)}',
       '.dp-hud b{font-weight:700}',
+
+      // A drawn sprite is sized by the same variable as the emoji, so growing up
+      // works identically either way.
+      '.dp-pig-img{width:var(--pig-size);height:var(--pig-size);display:block;',
+      '-webkit-user-drag:none;user-select:none}',
+      '.dp-pig-emoji{font-size:var(--pig-size);line-height:1}',
+
+      /* ---------- the soul that settles on an unclaimed grave ---------- */
+      '.dp-soul{position:absolute;left:50%;transform:translateX(-50%);top:-4px;font-size:22px;',
+      'line-height:1;opacity:.9;pointer-events:none;z-index:1;',
+      'animation:dp-haunt 3.4s ease-in-out infinite}',
+      '@keyframes dp-haunt{0%,100%{transform:translate(-50%,0) scale(1);opacity:.75}',
+      '50%{transform:translate(-50%,-9px) scale(1.08);opacity:1}}',
+      // A grave does not bob about like a living pig.
+      '.dp-pig[data-stage="grave"]{animation:none;filter:grayscale(.35) drop-shadow(0 4px 6px rgba(61,52,40,.3))}',
+      '.dp-pig[data-stage="box"]{animation:dp-box-wobble 3.2s ease-in-out infinite}',
+      '@keyframes dp-box-wobble{0%,100%{transform:rotate(0)}30%{transform:rotate(-4deg)}',
+      '45%{transform:rotate(3deg)}60%{transform:rotate(-2deg)}}',
 
       /* ---------- speech bubble ---------- */
       // `z-index` matters: the pig comes later in the DOM, so without it the pig
@@ -737,7 +766,20 @@ window.__ModuleLoader__.load({
       work.hidden = true
       scene.appendChild(work)
 
-      var pig = el('div', 'dp-pig', '🐖')
+      var soul = el('span', 'dp-soul', '👻')
+      soul.hidden = true
+      scene.appendChild(soul)
+
+      // Drawn stages (the piglet, the elder pig) use an <img>; the rest fall
+      // back to the emoji. Both live in the pig box so the layout never cares.
+      var pigArt = document.createElement('img')
+      pigArt.className = 'dp-pig-img'
+      pigArt.alt = ''
+      pigArt.hidden = true
+      var pigEmoji = el('span', 'dp-pig-emoji', '🐖')
+      var pig = el('div', 'dp-pig')
+      pig.appendChild(pigArt)
+      pig.appendChild(pigEmoji)
       scene.appendChild(pig)
       // Right-click is not discoverable on its own, so the native tooltip says so.
       scene.title = '左键摸摸 · 右键打开面板 · 拖动可移动'
@@ -781,7 +823,7 @@ window.__ModuleLoader__.load({
       // Which care action's item picker is open, if any.
       var picker = null
       var isOpen = readStore(OPEN_KEY) === 'true'
-      var lastLevel = null
+      var lastStage = null
       var lastPendingAt = 0
       var pollTimer = null
       var reactTimer = null
@@ -930,10 +972,14 @@ window.__ModuleLoader__.load({
         info.appendChild(el('b', null, '🪙 ' + p.coins))
         content.appendChild(info)
 
-        var xp = el('div', 'dp-row')
-        xp.appendChild(el('span', null, '✨ 经验'))
-        xp.appendChild(el('b', null, p.xpToNext === null ? p.xp + ' · 已到顶' : p.xp + ' / ' + (p.xp + p.xpToNext)))
-        content.appendChild(xp)
+        var age = el('div', 'dp-row')
+        age.appendChild(el('span', null, '🎂 年龄'))
+        age.appendChild(el('b', null, p.ageLabel + (p.daysToNextStage === null ? ' · 已长成' : '')))
+        content.appendChild(age)
+        if (p.daysToNextStage !== null) {
+          content.appendChild(el('div', 'dp-empty',
+            '再过 ' + formatDays(p.daysToNextStage) + ' 就长成下一阶段了'))
+        }
 
         var grid = el('div', 'dp-actions')
         for (var i = 0; i < MODES.length; i += 1) {
@@ -1211,6 +1257,13 @@ window.__ModuleLoader__.load({
         content.appendChild(el('div', 'dp-empty', souvenirs.length === 0 ? '收藏册还空着。' : souvenirs.join(' · ')))
       }
 
+      /** "3 天" / "12 小时" / "40 分钟" for an upcoming stage. */
+      function formatDays(days) {
+        if (days >= 1) return Math.round(days) + ' 天'
+        const hours = days * 24
+        return hours >= 1 ? Math.round(hours) + ' 小时' : Math.max(1, Math.round(hours * 60)) + ' 分钟'
+      }
+
       function kindLabel(item) {
         if (item.kind === 'medicine') return item.needed ? '对症！' : '药'
         if (item.kind === 'revive') return '复活用'
@@ -1236,9 +1289,19 @@ window.__ModuleLoader__.load({
         }
         if (view.pig !== null && view.dead) {
           var dead = el('div', 'dp-alert dp-dead')
-          dead.appendChild(el('b', null, '💀 ' + view.pig.name + ' 已经走了'))
-          dead.appendChild(el('div', null, '在「背包」里用还魂丹就能救回来（等级、金币、收藏都保留）'))
+          dead.appendChild(el('b', null, '🪦 ' + view.pig.name + ' 走了' + (view.pig.soul ? '，灵魂还留在墓碑上 👻' : '')))
+          dead.appendChild(el('div', null, view.pig.soul
+            ? '用还魂丹可以把它叫回来，或者领养一只新的小猪'
+            : '在「背包」里用还魂丹就能救回来（金币、收藏、上过的课都保留）'))
           content.appendChild(dead)
+          if (view.pig.soul) {
+            var adoptWrap = el('div', 'dp-actions')
+            var adopt = button('dp-btn dp-btn-wide', { 'data-action': 'adopt' }, function () { send('adopt') })
+            adopt.appendChild(el('span', null, '📦'))
+            adopt.appendChild(el('span', null, '领养新猪'))
+            adoptWrap.appendChild(adopt)
+            content.appendChild(adoptWrap)
+          }
         } else if (view.pig !== null && view.pig.illness !== null) {
           var sick = el('div', 'dp-alert dp-sick')
           sick.appendChild(el('b', null, '🤒 ' + view.pig.illness.name + '（第 ' + view.pig.illness.stage + '/4 期）'))
@@ -1258,14 +1321,14 @@ window.__ModuleLoader__.load({
         }
 
         if (view.pig === null) {
-          content.appendChild(el('div', 'dp-empty', '这里还没有猪 🥚'))
+          content.appendChild(el('div', 'dp-empty', '门口放着一个纸盒，里面窸窸窣窣 📦'))
           var grid = el('div', 'dp-actions')
           var hatch = button('dp-btn dp-btn-wide', { 'data-action': 'hatch' }, function () { send('hatch') })
           hatch.appendChild(el('span', null, '🥚'))
-          hatch.appendChild(el('span', null, '孵一只'))
+          hatch.appendChild(el('span', null, '拆开纸盒'))
           grid.appendChild(hatch)
           content.appendChild(grid)
-          content.appendChild(el('div', 'dp-empty', '点一下就能孵出来 —— 不用敲命令'))
+          content.appendChild(el('div', 'dp-empty', '拆开就会蹦出一只小猪 —— 不用敲命令'))
           return
         }
 
@@ -1304,23 +1367,50 @@ window.__ModuleLoader__.load({
         }
 
         if (view.pig === null) {
-          pig.textContent = '🥚'
-          pig.setAttribute('data-mood', 'egg')
-          hudName.textContent = '还没有猪'
-          hudCoins.textContent = '点开孵一只'
+          pigArt.hidden = true
+          pigArt.removeAttribute('src')
+          pigEmoji.hidden = false
+          pigEmoji.textContent = '📦'
+          pig.removeAttribute('data-art')
+          pig.setAttribute('data-mood', 'box')
+          host.style.setProperty('--pig-size', '52px')
+          soul.hidden = true
+          host.setAttribute('data-soul', 'false')
+          hudName.textContent = '一个纸盒'
+          hudCoins.textContent = '点开拆开它'
           hudHealth.textContent = ''
-          lastLevel = null
+          lastStage = null
         } else {
-          pig.textContent = view.pig.emoji
+          const stage = view.pig.stage
+          // A drawn stage shows its sprite; everything else is the emoji.
+          if (stage.art !== null) {
+            pigArt.src = ART_URL + stage.art + '.svg'
+            pigArt.hidden = false
+            pigEmoji.hidden = true
+            pig.setAttribute('data-art', stage.art)
+          } else {
+            pigArt.hidden = true
+            pigArt.removeAttribute('src')
+            pigEmoji.hidden = false
+            pigEmoji.textContent = stage.emoji
+            pig.removeAttribute('data-art')
+          }
+          // Literally grows up: the stage carries its own size.
+          host.style.setProperty('--pig-size', stage.size + 'px')
           pig.setAttribute('data-mood', view.pig.mood)
-          hudName.textContent = view.pig.name + ' Lv.' + view.pig.level + ' ' + view.pig.title
+          host.setAttribute('data-soul', view.pig.soul ? 'true' : 'false')
+          soul.hidden = view.pig.soul !== true
+          pig.setAttribute('data-stage', stage.key)
+          hudName.textContent = view.pig.name + ' · ' + stage.label + (view.pig.ageLabel ? ' · ' + view.pig.ageLabel : '')
           hudCoins.textContent = '🪙 ' + view.pig.coins
           hudHealth.textContent = '💚 ' + view.pig.health + '/' + view.maxHealth
-          if (lastLevel !== null && view.pig.level > lastLevel) {
+          // Growing up is announced with the same flourish a level-up used to get.
+          if (lastStage !== null && stage.key !== lastStage) {
             react('levelup', 950)
             burst(['✨', '🎉', '⭐'], 4)
+            showBubble('我长大啦！' + stage.emoji, 2600)
           }
-          lastLevel = view.pig.level
+          lastStage = stage.key
         }
 
         // Alerts on the icon bar itself, so a collapsed pig still warns.

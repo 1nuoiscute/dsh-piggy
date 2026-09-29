@@ -253,7 +253,9 @@ const SHOP = [
 ]
 
 const PIG = {
-  name: '大花', level: 3, title: '圆滚猪', emoji: '🐖',
+  name: '大花',
+  stage: { key: 'middle', label: '中年猪', emoji: '🐖', size: 62, line: '很有分量' },
+  ageLabel: '4 天大', daysToNextStage: 3, soul: false,
   mood: 'happy', moodEmoji: '❤️', moodLabel: '很开心',
   satiety: 62, happiness: 74, cleanliness: 41,
   health: 4, healthPercent: 80,
@@ -424,7 +426,9 @@ test('a legacy host payload renders defaults, never "undefined"', async () => {
   const legacy = {
     ok: true,
     pig: {
-      name: '猪猪', level: 3, title: '圆滚猪', emoji: '🐖',
+      name: '猪猪',
+      stage: { key: 'middle', label: '中年猪', emoji: '🐖', size: 62 },
+      ageLabel: '4 天大',
       mood: 'happy', moodEmoji: '❤️', moodLabel: '很开心',
       satiety: 100, happiness: 76, weight: '2.2 kg', xp: 295, xpToNext: 105,
       canFeed: true, feedWaitSeconds: 0, stageLine: '圆滚滚的，走路会晃',
@@ -451,7 +455,7 @@ test('a legacy host payload renders defaults, never "undefined"', async () => {
 
 test('a legacy host is called out instead of silently showing gaps', async () => {
   const { registration, dom } = await loadClient({
-    status: { ok: true, pig: { name: '猪猪', level: 2, title: '小猪崽', emoji: '🐖', mood: 'fine', satiety: 50, happiness: 50, weight: '1.5 kg', xp: 40 } },
+    status: { ok: true, pig: { name: '猪猪', stage: { key: 'piglet', label: '小猪', emoji: '🐖', size: 40 }, ageLabel: '今天刚出生', mood: 'fine', satiety: 50, happiness: 50, weight: '1.5 kg', xp: 40 } },
   })
   registration.factory(() => {}).apply({})
   await settle()
@@ -526,7 +530,7 @@ test('the status tab shows labelled bars, traits and the care buttons', async ()
   openPanel(dom)
 
   const text = contentOf(dom).allText()
-  for (const label of ['饱食', '心情', '清洁', '健康', '智力', '魅力', '武力', '体重', '经验']) {
+  for (const label of ['饱食', '心情', '清洁', '健康', '智力', '魅力', '武力', '体重', '年龄']) {
     assert.ok(text.includes(label), `expected "${label}" in: ${text}`)
   }
   for (const key of ['feed', 'bathe', 'play', 'pet']) {
@@ -685,7 +689,7 @@ test('a dead pig shows the revive banner and greys out', async () => {
   await settle()
   openPanel(dom)
   const text = contentOf(dom).allText()
-  assert.ok(text.includes('已经走了'), text)
+  assert.ok(text.includes('走了'), text)
   assert.ok(text.includes('还魂丹'), text)
   assert.equal(hostOf(dom).attributes['data-dead'], 'true')
   for (const key of ['feed', 'bathe', 'play']) {
@@ -704,7 +708,7 @@ test('an unhatched pig offers a hatch button instead of a command', async () => 
 
   const hatch = findByAttr(contentOf(dom), 'data-action', 'hatch')
   assert.notEqual(hatch, undefined, 'the empty panel must offer hatching without typing')
-  assert.ok(hatch.allText().includes('孵一只'), hatch.allText())
+  assert.ok(hatch.allText().includes('拆开纸盒'), hatch.allText())
 
   hatch.fire('click')
   await settle()
@@ -742,6 +746,32 @@ test('a refused operation explains itself in the bubble', async () => {
   const bubble = findByClass(hostOf(dom), 'dp-bubble')
   assert.notEqual(bubble, undefined)
   assert.ok(bubble.allText().includes('钱不够'), bubble.allText())
+})
+
+test('a drawn stage shows a sprite, the others show the emoji', async () => {
+  const drawn = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      pig: { ...PIG, stage: { key: 'piglet', label: '小猪', emoji: '🐖', size: 40, art: 'piglet' } },
+    },
+  })
+  drawn.registration.factory(() => {}).apply({})
+  await settle()
+  const img = findByClass(hostOf(drawn.dom), 'dp-pig-img')
+  const emoji = findByClass(hostOf(drawn.dom), 'dp-pig-emoji')
+  assert.notEqual(img, undefined, 'the sprite element must exist')
+  assert.equal(img.hidden, false, 'the sprite is shown')
+  assert.equal(img.src, '/dsh-pig/art/piglet.svg', 'the sprite points at the plugin art route')
+  assert.equal(emoji.hidden, true, 'and the emoji is hidden')
+
+  const plain = await loadClient()
+  plain.registration.factory(() => {}).apply({})
+  await settle()
+  const img2 = findByClass(hostOf(plain.dom), 'dp-pig-img')
+  const emoji2 = findByClass(hostOf(plain.dom), 'dp-pig-emoji')
+  assert.equal(img2.hidden, true, 'a stage with no art keeps the emoji')
+  assert.ok(!img2.src, 'and no sprite is requested at all')
+  assert.equal(emoji2.hidden, false)
 })
 
 test('being away shows what the pig is doing and how far along it is', async () => {

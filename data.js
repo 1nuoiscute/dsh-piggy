@@ -53,6 +53,53 @@ export const SLEEPY_AFTER_MINUTES = 30
 export const AWAY_MULTIPLIER = 1.8
 
 // ---------------------------------------------------------------------------
+// Life — the pig is measured in days, not in points.
+//
+// QQ Pet's pets hatch, grow up and eventually die; there is no "level 40" to
+// grind toward. This ladder is that idea with the numbers the pig can actually
+// be observed at: a box arrives, something small falls out of it, and then it
+// simply gets older. XP still accumulates from your real work, but it feeds the
+// pig's *weight* — a fatter pig, not a higher one.
+//
+// Age is wall-clock time since `bornAt`, so a pig left alone still grows up.
+// ---------------------------------------------------------------------------
+
+/** Where the stages change over, in days since birth. */
+export const LIFE_STAGES = Object.freeze([
+  Object.freeze({
+    key: 'box', label: '纸盒', emoji: '📦', size: 54, from: 0, box: true,
+    line: '一个纸盒，侧面戳了几个透气孔',
+  }),
+  Object.freeze({
+    key: 'piglet', label: '小猪', emoji: '🐖', art: 'piglet', size: 40, from: 0,
+    line: '刚从纸盒里蹦出来，圆头圆脑',
+  }),
+  Object.freeze({
+    key: 'young', label: '青年猪', emoji: '🐖', size: 50, from: 1,
+    line: '长开了，走路带风',
+  }),
+  Object.freeze({
+    key: 'middle', label: '中年猪', emoji: '🐖', size: 62, from: 3,
+    line: '很有分量，会一屁股坐住你的椅子',
+  }),
+  Object.freeze({
+    key: 'elder', label: '老年猪', emoji: '🐗', size: 56, from: 7,
+    line: '鬃毛白了，獠牙还在',
+  }),
+])
+
+/** Days a pig lives before old age takes it. */
+export const LIFESPAN_DAYS = 14
+
+/** The tombstone and the soul that settles on an unclaimed one. */
+export const GRAVE = Object.freeze({ key: 'grave', label: '墓碑', emoji: '🪦', size: 54, line: '这里躺着一只猪' })
+export const SOUL = Object.freeze({ emoji: '👻', label: '灵魂' })
+/** How long a grave is left alone before the soul turns up. */
+export const SOUL_AFTER_DAYS = 1
+
+export const lifeStageByKey = key => LIFE_STAGES.find(stage => stage.key === key) ?? null
+
+// ---------------------------------------------------------------------------
 // Time — QQ Pet hands out timers measured in hours, not seconds. The desktop
 // pet sits in a corner for a working day; the pig should too.
 // ---------------------------------------------------------------------------

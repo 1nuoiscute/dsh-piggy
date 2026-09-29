@@ -12,13 +12,12 @@ import { test } from 'node:test'
 import {
   ACTIONS,
   ACTION_ORDER,
-  HATCH_XP,
   JOBS,
   MAX,
   REVIVE_ITEM,
   SCHOOL_STAGES,
   SHOP,
-  STAGES,
+  LIFE_STAGES,
   SUBJECTS,
   THRESHOLDS,
   TRAITS,
@@ -37,15 +36,18 @@ import {
   feed,
   formatWeight,
   hatchEgg,
+  hasSoul,
   healthPercent,
   inventoryView,
   layEgg,
   careView,
   migrate,
   mood,
-  nextStageFor,
+  ageDays,
+  adopt,
+  daysToNextStage,
+  lifeStageFor,
   rename,
-  stageFor,
   startStudy,
   studyView,
   startTrip,
@@ -53,9 +55,8 @@ import {
   traitView,
   useItem,
   workSecondsLeft,
-  xpToNext,
 } from '../core.js'
-import { DEFAULT_TOY, ILLNESS_CHAINS, ILLNESS_STAGE_MINUTES, SICK_RISK_MINUTES, illnessAt, medicineForStage } from '../data.js'
+import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, ILLNESS_STAGE_MINUTES, SICK_RISK_MINUTES, illnessAt, medicineForStage } from '../data.js'
 
 const T0 = 1_700_000_000_000
 const MIN = 60_000
@@ -102,28 +103,71 @@ test('layEgg produces a complete, sane save', () => {
   assert.equal(egg.stats.trips, 0)
 })
 
-test('hatchEgg never leaves a "born" pig that is still an egg', () => {
+test('a fresh pig is a cardboard box, and opening it lets a piglet out', () => {
+  const box = layEgg(T0)
+  assert.equal(box.hatched, false)
+  assert.equal(lifeStageFor(box, T0).key, 'box')
+
   const piglet = hatchEgg(T0)
-  assert.equal(piglet.xp, HATCH_XP)
-  assert.equal(stageFor(piglet.xp).level, 2)
-  assert.equal(stageFor(piglet.xp).title, '小猪崽')
-  assert.ok(piglet.memories.some(m => m.includes('蛋壳')))
+  assert.equal(piglet.hatched, true)
+  assert.equal(lifeStageFor(piglet, T0).key, 'piglet')
+  assert.equal(ageDays(piglet, T0), 0, 'the clock starts when the box opens')
+  assert.ok(piglet.memories.some(m => m.includes('纸盒')), 'it remembers the box')
 })
 
-test('stageFor picks the highest rung reached', () => {
-  assert.equal(stageFor(0).title, '猪蛋')
-  assert.equal(stageFor(30).title, '小猪崽')
-  assert.equal(stageFor(120).title, '圆滚猪')
-  assert.equal(stageFor(999_999).title, STAGES.at(-1).title)
+test('the pig grows up on the clock, not on XP', () => {
+  const DAY = 86_400_000
+  const pig = hatchEgg(T0)
+  // XP is irrelevant to the shape it takes.
+  pig.xp = 999_999
+  assert.equal(lifeStageFor(pig, T0).key, 'piglet')
+
+  const at = days => lifeStageFor(pig, T0 + days * DAY).key
+  assert.equal(at(0.9), 'piglet')
+  assert.equal(at(1), 'young')
+  assert.equal(at(3), 'middle')
+  assert.equal(at(7), 'elder')
+  assert.equal(at(13.9), 'elder')
+  // Every stage has its own size, so the pig literally grows.
+  const sizes = LIFE_STAGES.map(stage => stage.size)
+  assert.equal(new Set(sizes).size, sizes.length, 'no two stages share a size')
 })
 
-test('xpToNext reports the remaining gap, null at the top', () => {
-  // 小猪崽 is at 20 in the rebalanced ladder.
-  assert.equal(xpToNext(0), 20)
-  assert.equal(xpToNext(15), 5)
-  assert.equal(xpToNext(100), STAGES[2].xp - 100)
-  assert.equal(xpToNext(STAGES.at(-1).xp), null)
-  assert.equal(nextStageFor(STAGES.at(-1).xp), null)
+test('daysToNextStage counts down, and stops at the end of the line', () => {
+  const DAY = 86_400_000
+  const pig = hatchEgg(T0)
+  assert.equal(daysToNextStage(pig, T0), 1)
+  assert.equal(daysToNextStage(pig, T0 + 0.5 * DAY), 0.5)
+  assert.equal(daysToNextStage(pig, T0 + 8 * DAY), null, 'no stage past 老年猪')
+})
+
+test('old age takes the pig, and a grave can be left for a new pig', () => {
+  const DAY = 86_400_000
+  const pig = hatchEgg(T0)
+  pig.satiety = 100
+  pig.cleanliness = 100
+  pig.happiness = 100
+  decay(pig, T0 + LIFESPAN_DAYS * DAY + 1000)
+  assert.equal(pig.dead, true, 'a pig outlives its span')
+  assert.equal(lifeStageFor(pig, T0 + 15 * DAY).key, 'grave')
+  assert.ok(typeof pig.diedAt === 'number')
+
+  // Its story is kept when a new one arrives.
+  const before = pig.memories.length
+  adopt(pig, T0 + 16 * DAY)
+  assert.equal(pig.dead, false)
+  assert.equal(pig.hatched, false, 'a new pig starts as a box again')
+  assert.equal(lifeStageFor(pig, T0 + 16 * DAY).key, 'box')
+  assert.ok(pig.memories.length >= before - 1, 'the old memories are still there')
+})
+
+test('a soul settles on a grave nobody came back for', () => {
+  const DAY = 86_400_000
+  const pig = hatchEgg(T0)
+  pig.dead = true
+  pig.diedAt = T0
+  assert.equal(hasSoul(pig, T0 + 0.5 * DAY), false)
+  assert.equal(hasSoul(pig, T0 + 1.1 * DAY), true)
 })
 
 test('migrate tolerates junk', () => {
