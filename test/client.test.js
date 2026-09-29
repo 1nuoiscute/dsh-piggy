@@ -32,10 +32,15 @@ async function readCss() {
   const end = source.indexOf("].join('')", start)
   assert.ok(start >= 0 && end > start, 'could not locate the CSS array')
   const body = source.slice(start, end)
-  // Anchor to literals that begin a line. A plain quoted-string scan is fooled
-  // by apostrophes inside the comments ("the UA sheet's ..."), and stripping
-  // comments textually would mangle any string that contains `//`.
-  return [...body.matchAll(/^[ \t]*'((?:[^'\\]|\\.)*)'/gm)].map(match => match[1]).join('')
+  // Two shapes of literal: one that begins a line, and one appended to a
+  // previous literal with `+`. The cursor data-URI is split across seven of the
+  // latter, so matching only line-anchored literals silently truncated the sheet
+  // and made the brace-balance check below meaningless.
+  // Anchoring matters: a plain quoted-string scan is fooled by apostrophes
+  // inside comments ("the UA sheet's ...").
+  return [...body.matchAll(/(?:^[ \t]*|\+[ \t]*)'((?:[^'\\]|\\.)*)'/gm)]
+    .map(match => match[1])
+    .join('')
 }
 
 /** The smallest DOM that satisfies the bundle. */
@@ -388,6 +393,23 @@ test('the pig is a sibling of the panel, so opening cannot move it', async () =>
  * `[hidden]{display:none}` and wins by source order. `hidden` is therefore only
  * as good as the CSS behind it, and that has to be checked statically.
  */
+test('the composed stylesheet is balanced and complete', async () => {
+  const css = await readCss()
+  let depth = 0
+  for (const ch of css) {
+    if (ch === '{') depth += 1
+    else if (ch === '}') depth -= 1
+    assert.ok(depth >= 0, 'the sheet closes a block it never opened')
+  }
+  assert.equal(depth, 0, `the sheet is unbalanced by ${depth} — a rule is swallowing the rest`)
+
+  // A truncated data-URI is exactly how the sheet went unbalanced before.
+  const cursor = css.slice(css.indexOf('.dp-pig{cursor:url('))
+  const uri = cursor.slice(0, cursor.indexOf("')"))
+  assert.ok(uri.includes('</svg>'), 'the petting-hand cursor data-URI must be complete')
+  assert.ok(css.includes('.dp-pig-img{'), 'the sprite sizing rule survived')
+})
+
 test('classes the bundle hides carry a CSS rule that beats their own display', async () => {
   const css = await readCss()
   const source = await readSource()

@@ -24,6 +24,7 @@
   用 <code>window.pigStub.setOpen(true/false)</code> 切换收起/展开。
 </div>
 
+<script src="./.live.js"></script>
 <script>
   // A realistic snapshot — same shape the real host sends.
   const SNAPSHOT = {
@@ -120,9 +121,11 @@
   let entry = null
   window.__ModuleLoader__ = { load: e => { entry = e } }
   // Serve the snapshot from the route the bundle polls.
-  window.fetch = async () => ({ ok: true, status: 200, async json() { return SNAPSHOT } })
+  const liveOrStub = () => window.__LIVE || SNAPSHOT
+  window.fetch = async () => ({ ok: true, status: 200, async json() { return liveOrStub() } })
 
   window.pigStub = {
+    get snap() { return liveOrStub() },
     ready: false,
     /** The menu is on the context menu; a left click only pats the pig. */
     setOpen(open) {
