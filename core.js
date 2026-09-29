@@ -61,22 +61,40 @@ const MEMORY_LIMIT = 8
 const PENDING_LIMIT = 6
 
 /** Growth ladder, ascending by xp. */
+/**
+ * Growth ladder, ascending by xp.
+ *
+ * Tuned so that ordinary passive work alone takes roughly: 7 minutes to 小猪崽,
+ * 40 minutes to 圆滚猪, an afternoon to 大猪猪, a few days to 猪皇, a week or so
+ * to 猪王, and the best part of a month of real use to 野猪王. Sending the pig
+ * out to work or study is worth several hours of watching you type, so playing
+ * the game is the fast lane.
+ */
 export const STAGES = Object.freeze([
   { level: 1, xp: 0, emoji: '🥚', title: '猪蛋', line: '还没孵出来，安静地躺着' },
-  { level: 2, xp: 30, emoji: '🐖', title: '小猪崽', line: '刚睁眼，什么都想吃' },
+  { level: 2, xp: 20, emoji: '🐖', title: '小猪崽', line: '刚睁眼，什么都想吃' },
   { level: 3, xp: 120, emoji: '🐖', title: '圆滚猪', line: '圆滚滚的，走路会晃' },
-  { level: 4, xp: 400, emoji: '🐖', title: '大猪猪', line: '很有分量，会一屁股坐住你的椅子' },
-  { level: 5, xp: 1200, emoji: '🐖', title: '猪皇', line: '👑 猪中至尊，吃饭要人喂' },
-  { level: 6, xp: 3000, emoji: '🐖', title: '猪王', line: '村里最体面的猪，走路带风' },
-  { level: 7, xp: 8000, emoji: '🐗', title: '野猪王', line: '返祖了，獠牙毕露' },
+  { level: 4, xp: 600, emoji: '🐖', title: '大猪猪', line: '很有分量，会一屁股坐住你的椅子' },
+  { level: 5, xp: 2200, emoji: '🐖', title: '猪皇', line: '👑 猪中至尊，吃饭要人喂' },
+  { level: 6, xp: 6000, emoji: '🐖', title: '猪王', line: '村里最体面的猪，走路带风' },
+  { level: 7, xp: 15000, emoji: '🐗', title: '野猪王', line: '返祖了，獠牙毕露' },
 ])
 
+/**
+ * Passive diet — what the pig gets for watching you actually work.
+ *
+ * These numbers are deliberately small. A single tool call used to be worth 3,
+ * and a heavy agent session fires hundreds of them an hour: one afternoon of
+ * ordinary use was 2232 XP, 94% of the whole pig, and it hit 「猪皇」 without the
+ * player ever sending it to work or school. Passive work is now a trickle; the
+ * activities are where the growth is.
+ */
 const DIET = Object.freeze({
-  message: { xp: 2, satiety: 1, happiness: 1, weightG: 6 },
-  turn: { xp: 5, satiety: 2, happiness: 1, weightG: 14 },
-  tool: { xp: 3, satiety: 2, happiness: 0, weightG: 9 },
+  message: { xp: 1, satiety: 1, happiness: 1, weightG: 6 },
+  turn: { xp: 2, satiety: 2, happiness: 1, weightG: 14 },
+  tool: { xp: 1, satiety: 2, happiness: 0, weightG: 9 },
   toolError: { xp: 1, satiety: 0, happiness: 1, weightG: 2 },
-  agentError: { xp: 2, satiety: 0, happiness: 0, weightG: 2 },
+  agentError: { xp: 1, satiety: 0, happiness: 0, weightG: 2 },
 })
 
 export const ACTIONS = Object.freeze({

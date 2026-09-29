@@ -339,8 +339,10 @@ test('a finished shift pays out on the next read and is announced once', async (
     const first = await app.get()
     assert.equal(first.pig.coins, JOBS[1].coins)
     assert.equal(first.activity, null)
-    assert.equal(first.pending.length, 1)
-    assert.equal(first.pending[0].kind, 'work')
+    // A shift is worth enough XP to cross a level too, so there may be more
+    // than one announcement — the payday is the one that must be there.
+    assert.ok(first.pending.length >= 1)
+    assert.ok(first.pending.some(entry => entry.kind === 'work'), 'the payday is announced')
 
     // Reading again does not re-announce.
     const second = await app.get()

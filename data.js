@@ -106,9 +106,9 @@ export const REVIVE_ITEM = Object.freeze({ key: 'soul', label: '还魂丹', emoj
 // ---------------------------------------------------------------------------
 
 export const JOBS = Object.freeze([
-  Object.freeze({ key: 'odd', label: '打零工', emoji: '🧹', minutes: MINUTES.quarter, coins: 30, xp: 12, satiety: -6, cleanliness: -4 }),
-  Object.freeze({ key: 'site', label: '搬砖', emoji: '🧱', minutes: MINUTES.hour, coins: 160, xp: 60, satiety: -16, cleanliness: -14 }),
-  Object.freeze({ key: 'office', label: '上班', emoji: '💼', minutes: MINUTES.fourHours, coins: 900, xp: 320, satiety: -34, cleanliness: -26 }),
+  Object.freeze({ key: 'odd', label: '打零工', emoji: '🧹', minutes: MINUTES.quarter, coins: 30, xp: 40, satiety: -6, cleanliness: -4 }),
+  Object.freeze({ key: 'site', label: '搬砖', emoji: '🧱', minutes: MINUTES.hour, coins: 160, xp: 200, satiety: -16, cleanliness: -14 }),
+  Object.freeze({ key: 'office', label: '上班', emoji: '💼', minutes: MINUTES.fourHours, coins: 900, xp: 900, satiety: -34, cleanliness: -26 }),
 ])
 
 // ---------------------------------------------------------------------------
@@ -145,16 +145,16 @@ export const SUBJECTS = Object.freeze([
 export const SCHOOL_STAGES = Object.freeze([
   Object.freeze({
     key: 'primary', label: '小学', minutes: MINUTES.half,
-    tuition: 40, gain: 1, xp: 20, satiety: -8, happiness: -2, requires: null,
+    tuition: 40, gain: 1, xp: 60, satiety: -8, happiness: -2, requires: null,
   }),
   Object.freeze({
     key: 'college', label: '大学', minutes: MINUTES.twoHours,
-    tuition: 220, gain: 2, xp: 95, satiety: -20, happiness: -5,
+    tuition: 220, gain: 2, xp: 320, satiety: -20, happiness: -5,
     requires: Object.freeze({ stage: 'primary', lessons: 9, label: '小学九门课各上一次' }),
   }),
   Object.freeze({
     key: 'graduate', label: '研究生', minutes: MINUTES.sixHours,
-    tuition: 900, gain: 4, xp: 340, satiety: -45, happiness: -11,
+    tuition: 900, gain: 4, xp: 1100, satiety: -45, happiness: -11,
     requires: Object.freeze({ stage: 'college', lessons: 9, label: '大学九门课各上一次' }),
   }),
 ])
@@ -165,10 +165,10 @@ export const SCHOOL_STAGES = Object.freeze([
 // ---------------------------------------------------------------------------
 
 export const TRIPS = Object.freeze([
-  Object.freeze({ key: 'suburb', label: '郊游', emoji: '🏞', minutes: MINUTES.hour, cost: 60, happiness: 10, xp: 22, satiety: -8, souvenirs: Object.freeze(['四叶草', '松果', '野花']) }),
-  Object.freeze({ key: 'mountain', label: '名山大川', emoji: '🏔', minutes: MINUTES.threeHours, cost: 200, happiness: 16, xp: 75, satiety: -20, souvenirs: Object.freeze(['云海照片', '山石', '竹杖']) }),
-  Object.freeze({ key: 'sea', label: '看海', emoji: '🌊', minutes: MINUTES.eightHours, cost: 620, happiness: 24, xp: 210, satiety: -42, souvenirs: Object.freeze(['贝壳', '海盐', '漂流瓶']) }),
-  Object.freeze({ key: 'abroad', label: '出国', emoji: '🌍', minutes: MINUTES.day, cost: 2000, happiness: 38, xp: 620, satiety: -80, souvenirs: Object.freeze(['外国硬币', '异国邮票', '手写明信片']) }),
+  Object.freeze({ key: 'suburb', label: '郊游', emoji: '🏞', minutes: MINUTES.hour, cost: 60, happiness: 10, xp: 80, satiety: -8, souvenirs: Object.freeze(['四叶草', '松果', '野花']) }),
+  Object.freeze({ key: 'mountain', label: '名山大川', emoji: '🏔', minutes: MINUTES.threeHours, cost: 200, happiness: 16, xp: 260, satiety: -20, souvenirs: Object.freeze(['云海照片', '山石', '竹杖']) }),
+  Object.freeze({ key: 'sea', label: '看海', emoji: '🌊', minutes: MINUTES.eightHours, cost: 620, happiness: 24, xp: 700, satiety: -42, souvenirs: Object.freeze(['贝壳', '海盐', '漂流瓶']) }),
+  Object.freeze({ key: 'abroad', label: '出国', emoji: '🌍', minutes: MINUTES.day, cost: 2000, happiness: 38, xp: 2000, satiety: -80, souvenirs: Object.freeze(['外国硬币', '异国邮票', '手写明信片']) }),
 ])
 
 // ---------------------------------------------------------------------------

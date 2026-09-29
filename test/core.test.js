@@ -118,8 +118,10 @@ test('stageFor picks the highest rung reached', () => {
 })
 
 test('xpToNext reports the remaining gap, null at the top', () => {
-  assert.equal(xpToNext(0), 30)
-  assert.equal(xpToNext(25), 5)
+  // 小猪崽 is at 20 in the rebalanced ladder.
+  assert.equal(xpToNext(0), 20)
+  assert.equal(xpToNext(15), 5)
+  assert.equal(xpToNext(100), STAGES[2].xp - 100)
   assert.equal(xpToNext(STAGES.at(-1).xp), null)
   assert.equal(nextStageFor(STAGES.at(-1).xp), null)
 })
@@ -183,7 +185,8 @@ test('migrate drops unknown inventory keys and bad illness records', () => {
 test('passive events accumulate xp, satiety and weight', () => {
   const pig = layEgg(T0)
   feed(pig, 'turn', T0)
-  assert.equal(pig.xp, 5)
+  // A turn is worth 2 after the rebalance; tool calls used to drown everything.
+  assert.equal(pig.xp, 2)
   assert.equal(pig.stats.turns, 1)
   assert.deepEqual(feed(pig, 'not-a-thing', T0), [])
 })
