@@ -565,6 +565,9 @@ test('a neglected pig falls ill, and the shop marks the right medicine', async (
   // thing after 40 minutes; two days of it is ~99.98%.
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs - 48 * 60 * MIN)
+    // A fixed seed: illness is a random walk (it can heal and catch it again),
+    // so without one this assertion flickered ~40% of runs.
+    pig.seed = 20261001
     pig.satiety = 10
     pig.cleanliness = 10
     pig.lastSeenAt = nowMs - 48 * 60 * MIN
