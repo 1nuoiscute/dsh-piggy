@@ -1077,6 +1077,170 @@
     ui.content.appendChild(list);
   }
 
+  // src/client/effects.js
+  function createEffects(deps) {
+    var scene = deps.scene;
+    var pig = deps.pig;
+    var card = deps.card;
+    var bubble = deps.bubble;
+    var isStopped = deps.isStopped;
+    var reactTimer = null;
+    var bubbleTimer = null;
+    function react(kind, ms) {
+      if (reactTimer !== null) window.clearTimeout(reactTimer);
+      pig.removeAttribute("data-react");
+      void pig.offsetWidth;
+      pig.setAttribute("data-react", kind);
+      reactTimer = window.setTimeout(function() {
+        pig.removeAttribute("data-react");
+        reactTimer = null;
+      }, ms || 900);
+    }
+    function burst(emojis, count) {
+      for (var i = 0; i < (count || 1); i += 1) {
+        (function(index) {
+          window.setTimeout(function() {
+            if (isStopped()) return;
+            var node = el("span", "dp-fx", emojis[index % emojis.length]);
+            node.style.setProperty("--dx", Math.round((Math.random() - 0.5) * 46) + "px");
+            var spot = headSpot();
+            node.style.left = spot.x + Math.round((Math.random() - 0.5) * 22) + "px";
+            node.style.top = spot.y + "px";
+            scene.appendChild(node);
+            window.setTimeout(function() {
+              node.remove();
+            }, 1200);
+          }, index * 110);
+        })(i);
+      }
+    }
+    function headSpot() {
+      var fallback = { x: 24, y: 8 };
+      if (typeof pig.getBoundingClientRect !== "function" || typeof scene.getBoundingClientRect !== "function") return fallback;
+      var p = pig.getBoundingClientRect();
+      var s = scene.getBoundingClientRect();
+      if (p.width === 0 && p.height === 0) return fallback;
+      return { x: p.left - s.left + p.width / 2, y: p.top - s.top - 20 };
+    }
+    var REACTIONS = {
+      hatch: { kind: "levelup", ms: 980, fx: ["\u{1F95A}", "\u2728", "\u{1F416}", "\u{1F389}"], count: 4, say: "\u5B75\u51FA\u6765\u5566\uFF01" },
+      feed: { kind: "feed", ms: 900, fx: ["\u{1F34E}", "\u{1F60B}", "\u2728"], count: 3, say: "\u5403\u6389\u4E86\uFF01" },
+      bathe: { kind: "bathe", ms: 1050, fx: ["\u{1FAE7}", "\u{1FAE7}", "\u{1F4A7}", "\u2728"], count: 4, say: "\u6D17\u5E72\u51C0\u5566\uFF5E" },
+      play: { kind: "play", ms: 900, fx: ["\u{1F3BE}", "\u2B50", "\u{1F4A8}"], count: 3, say: "\u597D\u5F00\u5FC3\uFF01" },
+      pet: { kind: "pet", ms: 420, fx: ["\u2764\uFE0F"], count: 1, say: "\u597D\u8212\u670D\u2026" },
+      work: { kind: "away", ms: 900, fx: ["\u{1F4BC}", "\u{1F9F1}", "\u{1FA99}"], count: 3, say: "\u51FA\u95E8\u6253\u5DE5\uFF01" },
+      study: { kind: "away", ms: 900, fx: ["\u{1F4DA}", "\u270F\uFE0F", "\u{1F9E0}"], count: 3, say: "\u4E0A\u5B66\u53BB\uFF01" },
+      trip: { kind: "away", ms: 900, fx: ["\u{1F9F3}", "\u{1F5FA}", "\u2728"], count: 3, say: "\u51FA\u53D1\u65C5\u884C\uFF01" },
+      calloff: { kind: "refuse", ms: 520, fx: ["\u{1F4A8}"], count: 1, say: "\u63D0\u524D\u56DE\u6765\u4E86\u2026" },
+      buy: { kind: "pet", ms: 620, fx: ["\u{1FA99}", "\u{1F6D2}"], count: 2, say: "\u4E70\u5230\u4E86\uFF01" },
+      use: { kind: "pet", ms: 620, fx: ["\u2728"], count: 2, say: "\u7528\u6389\u4E86\u3002" }
+    };
+    function flash(action) {
+      var spec = REACTIONS[action];
+      if (spec === void 0) return;
+      react(spec.kind, spec.ms);
+      burst(spec.fx, spec.count);
+      var lines = action === "pet" ? PET_LINES : null;
+      showBubble(lines === null ? spec.say : lines[Math.floor(Math.random() * lines.length)], 1600);
+    }
+    var bubbleTimer = null;
+    function showBubble(text, ms) {
+      if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
+      bubble.textContent = text;
+      bubble.hidden = false;
+      bubbleTimer = window.setTimeout(function() {
+        bubble.hidden = true;
+        bubbleTimer = null;
+      }, ms || 2600);
+    }
+    function toast(text) {
+      var node = el("div", "dp-toast", text);
+      card.insertBefore(node, card.firstChild);
+      window.setTimeout(function() {
+        node.remove();
+      }, 4800);
+    }
+    function dispose() {
+      if (reactTimer !== null) window.clearTimeout(reactTimer);
+      if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
+      reactTimer = null;
+      bubbleTimer = null;
+    }
+    return { react, burst, flash, showBubble, toast, dispose };
+  }
+
+  // src/client/scene.js
+  function createScene() {
+    var font = document.createElement("link");
+    font.rel = "stylesheet";
+    font.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700&display=swap";
+    document.head.appendChild(font);
+    var style = document.createElement("style");
+    style.textContent = CSS;
+    document.head.appendChild(style);
+    var host = document.createElement("div");
+    host.setAttribute(MOUNTED, "");
+    var card = el("div", "dp-card");
+    var scene = el("div", "dp-scene");
+    var hud = el("div", "dp-hud");
+    var hudName = el("div", null, "\u732A\u732A");
+    var hudCoins = el("div", null, "\u{1FA99} 0");
+    var hudHealth = el("div", null, "\u{1F49A} 5/5");
+    hud.appendChild(hudName);
+    hud.appendChild(hudCoins);
+    hud.appendChild(hudHealth);
+    scene.appendChild(hud);
+    var bubble = el("div", "dp-bubble", "");
+    bubble.hidden = true;
+    scene.appendChild(bubble);
+    var work = el("div", "dp-work");
+    var prop = el("span", "dp-prop", "\u{1F4BC}");
+    var progressWrap = el("div", "dp-progress");
+    var progressFill = document.createElement("i");
+    progressWrap.appendChild(progressFill);
+    work.appendChild(prop);
+    work.appendChild(progressWrap);
+    work.hidden = true;
+    scene.appendChild(work);
+    var pokeHint = el("div", "dp-poke-hint");
+    pokeHint.appendChild(el("span", null, "\u{1F446}"));
+    pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
+    pokeHint.hidden = true;
+    scene.appendChild(pokeHint);
+    var soul = el("span", "dp-soul", "\u{1F47B}");
+    soul.hidden = true;
+    scene.appendChild(soul);
+    var pigArt = document.createElement("img");
+    pigArt.className = "dp-pig-img";
+    pigArt.alt = "";
+    pigArt.hidden = true;
+    var pigEmoji = el("span", "dp-pig-emoji", "\u{1F416}");
+    var pig = el("div", "dp-pig");
+    pig.appendChild(pigArt);
+    pig.appendChild(pigEmoji);
+    var dressSlots = el("div", "dp-dress");
+    pig.appendChild(dressSlots);
+    scene.appendChild(pig);
+    scene.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
+    var bar = el("div", "dp-bar");
+    var content = el("div", "dp-content");
+    card.appendChild(content);
+    card.appendChild(bar);
+    host.appendChild(card);
+    host.appendChild(scene);
+    if (document.body !== null && document.body !== void 0) {
+      document.body.appendChild(host);
+    } else {
+      document.addEventListener("DOMContentLoaded", function() {
+        try {
+          document.body.appendChild(host);
+        } catch (error) {
+        }
+      }, { once: true });
+    }
+    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
+  }
+
   // src/client/normalize.js
   function normalize(raw) {
     var d = obj(raw);
@@ -1365,15 +1529,31 @@
           return () => {
           };
         }
-        var font = document.createElement("link");
-        font.rel = "stylesheet";
-        font.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700&display=swap";
-        document.head.appendChild(font);
-        var style = document.createElement("style");
-        style.textContent = CSS;
-        document.head.appendChild(style);
-        var host = document.createElement("div");
-        host.setAttribute(MOUNTED, "");
+        var parts = createScene();
+        var {
+          font,
+          style,
+          host,
+          card,
+          scene,
+          hud,
+          hudName,
+          hudCoins,
+          hudHealth,
+          bubble,
+          work,
+          prop,
+          progressWrap,
+          progressFill,
+          pokeHint,
+          soul,
+          pigArt,
+          pigEmoji,
+          pig,
+          dressSlots,
+          bar,
+          content
+        } = parts;
         var savedPos = readStore(POSITION_KEY);
         var userRight = 18;
         var userBottom = 18;
@@ -1424,49 +1604,6 @@
           var cardLeft = Math.max(rect.right - width, PANEL_MARGIN);
           hud.style.left = Math.max(9, Math.round(cardLeft - rect.left)) + "px";
         }
-        var card = el("div", "dp-card");
-        var scene = el("div", "dp-scene");
-        var hud = el("div", "dp-hud");
-        var hudName = el("div", null, "\u732A\u732A");
-        var hudCoins = el("div", null, "\u{1FA99} 0");
-        var hudHealth = el("div", null, "\u{1F49A} 5/5");
-        hud.appendChild(hudName);
-        hud.appendChild(hudCoins);
-        hud.appendChild(hudHealth);
-        scene.appendChild(hud);
-        var bubble = el("div", "dp-bubble", "");
-        bubble.hidden = true;
-        scene.appendChild(bubble);
-        var work = el("div", "dp-work");
-        var prop = el("span", "dp-prop", "\u{1F4BC}");
-        var progressWrap = el("div", "dp-progress");
-        var progressFill = document.createElement("i");
-        progressWrap.appendChild(progressFill);
-        work.appendChild(prop);
-        work.appendChild(progressWrap);
-        work.hidden = true;
-        scene.appendChild(work);
-        var pokeHint = el("div", "dp-poke-hint");
-        pokeHint.appendChild(el("span", null, "\u{1F446}"));
-        pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
-        pokeHint.hidden = true;
-        scene.appendChild(pokeHint);
-        var soul = el("span", "dp-soul", "\u{1F47B}");
-        soul.hidden = true;
-        scene.appendChild(soul);
-        var pigArt = document.createElement("img");
-        pigArt.className = "dp-pig-img";
-        pigArt.alt = "";
-        pigArt.hidden = true;
-        var pigEmoji = el("span", "dp-pig-emoji", "\u{1F416}");
-        var pig = el("div", "dp-pig");
-        pig.appendChild(pigArt);
-        pig.appendChild(pigEmoji);
-        var dressSlots = el("div", "dp-dress");
-        pig.appendChild(dressSlots);
-        scene.appendChild(pig);
-        scene.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
-        var bar = el("div", "dp-bar");
         var icons = {};
         function visibleTabs() {
           return devMode ? TABS.concat([DEV_TAB]) : TABS;
@@ -1491,21 +1628,6 @@
           })(tab2);
         }
         for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t]);
-        var content = el("div", "dp-content");
-        card.appendChild(content);
-        card.appendChild(bar);
-        host.appendChild(card);
-        host.appendChild(scene);
-        if (document.body !== null && document.body !== void 0) {
-          document.body.appendChild(host);
-        } else {
-          document.addEventListener("DOMContentLoaded", function() {
-            try {
-              document.body.appendChild(host);
-            } catch (error) {
-            }
-          }, { once: true });
-        }
         var view = normalize(null);
         var tab = "status";
         var stage = "primary";
@@ -1557,83 +1679,19 @@
         var lastStage = null;
         var lastPendingAt = 0;
         var pollTimer = null;
-        var reactTimer = null;
+        var fx = createEffects({
+          scene,
+          pig,
+          card,
+          bubble,
+          isStopped: function() {
+            return stopped;
+          }
+        });
+        var react = fx.react, burst = fx.burst, flash = fx.flash;
+        var showBubble = fx.showBubble, toast = fx.toast;
         var stopped = false;
         var busy = false;
-        function react(kind, ms) {
-          if (reactTimer !== null) window.clearTimeout(reactTimer);
-          pig.removeAttribute("data-react");
-          void pig.offsetWidth;
-          pig.setAttribute("data-react", kind);
-          reactTimer = window.setTimeout(function() {
-            pig.removeAttribute("data-react");
-            reactTimer = null;
-          }, ms || 900);
-        }
-        function burst(emojis, count) {
-          for (var i = 0; i < (count || 1); i += 1) {
-            (function(index) {
-              window.setTimeout(function() {
-                if (stopped) return;
-                var node = el("span", "dp-fx", emojis[index % emojis.length]);
-                node.style.setProperty("--dx", Math.round((Math.random() - 0.5) * 46) + "px");
-                var spot = headSpot();
-                node.style.left = spot.x + Math.round((Math.random() - 0.5) * 22) + "px";
-                node.style.top = spot.y + "px";
-                scene.appendChild(node);
-                window.setTimeout(function() {
-                  node.remove();
-                }, 1200);
-              }, index * 110);
-            })(i);
-          }
-        }
-        function headSpot() {
-          var fallback = { x: 24, y: 8 };
-          if (typeof pig.getBoundingClientRect !== "function" || typeof scene.getBoundingClientRect !== "function") return fallback;
-          var p = pig.getBoundingClientRect();
-          var s = scene.getBoundingClientRect();
-          if (p.width === 0 && p.height === 0) return fallback;
-          return { x: p.left - s.left + p.width / 2, y: p.top - s.top - 20 };
-        }
-        var REACTIONS = {
-          hatch: { kind: "levelup", ms: 980, fx: ["\u{1F95A}", "\u2728", "\u{1F416}", "\u{1F389}"], count: 4, say: "\u5B75\u51FA\u6765\u5566\uFF01" },
-          feed: { kind: "feed", ms: 900, fx: ["\u{1F34E}", "\u{1F60B}", "\u2728"], count: 3, say: "\u5403\u6389\u4E86\uFF01" },
-          bathe: { kind: "bathe", ms: 1050, fx: ["\u{1FAE7}", "\u{1FAE7}", "\u{1F4A7}", "\u2728"], count: 4, say: "\u6D17\u5E72\u51C0\u5566\uFF5E" },
-          play: { kind: "play", ms: 900, fx: ["\u{1F3BE}", "\u2B50", "\u{1F4A8}"], count: 3, say: "\u597D\u5F00\u5FC3\uFF01" },
-          pet: { kind: "pet", ms: 420, fx: ["\u2764\uFE0F"], count: 1, say: "\u597D\u8212\u670D\u2026" },
-          work: { kind: "away", ms: 900, fx: ["\u{1F4BC}", "\u{1F9F1}", "\u{1FA99}"], count: 3, say: "\u51FA\u95E8\u6253\u5DE5\uFF01" },
-          study: { kind: "away", ms: 900, fx: ["\u{1F4DA}", "\u270F\uFE0F", "\u{1F9E0}"], count: 3, say: "\u4E0A\u5B66\u53BB\uFF01" },
-          trip: { kind: "away", ms: 900, fx: ["\u{1F9F3}", "\u{1F5FA}", "\u2728"], count: 3, say: "\u51FA\u53D1\u65C5\u884C\uFF01" },
-          calloff: { kind: "refuse", ms: 520, fx: ["\u{1F4A8}"], count: 1, say: "\u63D0\u524D\u56DE\u6765\u4E86\u2026" },
-          buy: { kind: "pet", ms: 620, fx: ["\u{1FA99}", "\u{1F6D2}"], count: 2, say: "\u4E70\u5230\u4E86\uFF01" },
-          use: { kind: "pet", ms: 620, fx: ["\u2728"], count: 2, say: "\u7528\u6389\u4E86\u3002" }
-        };
-        function flash(action) {
-          var spec = REACTIONS[action];
-          if (spec === void 0) return;
-          react(spec.kind, spec.ms);
-          burst(spec.fx, spec.count);
-          var lines = action === "pet" ? PET_LINES : null;
-          showBubble(lines === null ? spec.say : lines[Math.floor(Math.random() * lines.length)], 1600);
-        }
-        var bubbleTimer = null;
-        function showBubble(text, ms) {
-          if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
-          bubble.textContent = text;
-          bubble.hidden = false;
-          bubbleTimer = window.setTimeout(function() {
-            bubble.hidden = true;
-            bubbleTimer = null;
-          }, ms || 2600);
-        }
-        function toast(text) {
-          var node = el("div", "dp-toast", text);
-          card.insertBefore(node, card.firstChild);
-          window.setTimeout(function() {
-            node.remove();
-          }, 4800);
-        }
         function setOpen(next) {
           isOpen = next;
           host.setAttribute("data-open", next ? "true" : "false");
@@ -2027,11 +2085,8 @@
           stopped = true;
           window.removeEventListener?.("resize", onResize);
           if (pollTimer !== null) window.clearInterval(pollTimer);
-          if (reactTimer !== null) window.clearTimeout(reactTimer);
-          if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
+          fx.dispose();
           pollTimer = null;
-          reactTimer = null;
-          bubbleTimer = null;
           host.remove();
           style.remove();
           font.remove();

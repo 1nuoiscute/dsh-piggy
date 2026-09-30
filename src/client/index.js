@@ -20,6 +20,8 @@ import { renderStatusTab } from './tabs/status.js'
 import { renderStudyTab } from './tabs/study.js'
 import { renderTravelTab } from './tabs/travel.js'
 import { renderWorkTab } from './tabs/work.js'
+import { createEffects } from './effects.js'
+import { createScene } from './scene.js'
 import { CSS } from './styles.js'
 import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_KEY, DEV_TAB, KIND_ORDER, KIND_TITLE, MOUNTED, MODES, NO_ITEM_LINE, OPEN_KEY, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PET_LINES, PIG_PADDING_X, POLL_MS, POSITION_KEY, SCENE_RESERVE, STAGES, STATE_URL, TABS } from './constants.js'
 import { button, el, meter } from './dom.js'
@@ -56,18 +58,10 @@ window.__ModuleLoader__.load({
       // request is non-blocking (`display=swap`) and the token font stack falls
       // back to system faces, so an offline or blocked load degrades quietly
       // instead of breaking the panel.
-      var font = document.createElement('link')
-      font.rel = 'stylesheet'
-      font.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900'
-        + '&family=Noto+Sans+SC:wght@400;500;700&display=swap'
-      document.head.appendChild(font)
+      var parts = createScene()
+      var { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop,
+        progressWrap, progressFill, pokeHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content } = parts
 
-      var style = document.createElement('style')
-      style.textContent = CSS
-      document.head.appendChild(style)
-
-      var host = document.createElement('div')
-      host.setAttribute(MOUNTED, '')
       var savedPos = readStore(POSITION_KEY)
       // The pig's position as the user set it, before any on-screen clamp.
       var userRight = 18
@@ -156,67 +150,6 @@ window.__ModuleLoader__.load({
         hud.style.left = Math.max(9, Math.round(cardLeft - rect.left)) + 'px'
       }
 
-      var card = el('div', 'dp-card')
-      // The pig lives beside the panel, not inside it, so it stays transparent
-      // and unmoved when the panel opens.
-      var scene = el('div', 'dp-scene')
-
-      var hud = el('div', 'dp-hud')
-      var hudName = el('div', null, '猪猪')
-      var hudCoins = el('div', null, '🪙 0')
-      var hudHealth = el('div', null, '💚 5/5')
-      hud.appendChild(hudName)
-      hud.appendChild(hudCoins)
-      hud.appendChild(hudHealth)
-      scene.appendChild(hud)
-
-      var bubble = el('div', 'dp-bubble', '')
-      bubble.hidden = true
-      scene.appendChild(bubble)
-
-      // What the pig is doing while it is out: a prop to work/read/travel with,
-      // and a line showing how far through it is. Sits to the pig's left, so the
-      // pig itself never shifts when it appears.
-      var work = el('div', 'dp-work')
-      var prop = el('span', 'dp-prop', '💼')
-      var progressWrap = el('div', 'dp-progress')
-      var progressFill = document.createElement('i')
-      progressWrap.appendChild(progressFill)
-      work.appendChild(prop)
-      work.appendChild(progressWrap)
-      work.hidden = true
-      scene.appendChild(work)
-
-      // Shown while the box is still shut, so it reads as something to poke
-      // rather than a decorative cardboard box sitting in the corner.
-      var pokeHint = el('div', 'dp-poke-hint')
-      pokeHint.appendChild(el('span', null, '👆'))
-      pokeHint.appendChild(el('span', null, '戳三下'))
-      pokeHint.hidden = true
-      scene.appendChild(pokeHint)
-
-      var soul = el('span', 'dp-soul', '👻')
-      soul.hidden = true
-      scene.appendChild(soul)
-
-      // Drawn stages (the piglet, the elder pig) use an <img>; the rest fall
-      // back to the emoji. Both live in the pig box so the layout never cares.
-      var pigArt = document.createElement('img')
-      pigArt.className = 'dp-pig-img'
-      pigArt.alt = ''
-      pigArt.hidden = true
-      var pigEmoji = el('span', 'dp-pig-emoji', '🐖')
-      var pig = el('div', 'dp-pig')
-      pig.appendChild(pigArt)
-      pig.appendChild(pigEmoji)
-      // 装扮点位：每个点位挂一件，位置全在 CSS 里（.dp-slot[data-slot=…]）。
-      var dressSlots = el('div', 'dp-dress')
-      pig.appendChild(dressSlots)
-      scene.appendChild(pig)
-      // Right-click is not discoverable on its own, so the native tooltip says so.
-      scene.title = '左键摸摸 · 右键打开面板 · 拖动可移动'
-
-      var bar = el('div', 'dp-bar')
       var icons = {}
 
       /** The tabs on show right now: the normal six, plus 调试 when dev mode is on. */
@@ -248,23 +181,6 @@ window.__ModuleLoader__.load({
 
       for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t])
 
-      var content = el('div', 'dp-content')
-
-      // Panel first, pig second: as flex siblings in a bottom-anchored column,
-      // the pig ends up at a fixed screen position whether the panel is open or
-      // not, and the panel can only ever grow upwards from it.
-      card.appendChild(content)
-      card.appendChild(bar)
-      host.appendChild(card)
-      host.appendChild(scene)
-      if (document.body !== null && document.body !== undefined) {
-        document.body.appendChild(host)
-      } else {
-        document.addEventListener('DOMContentLoaded', function () {
-          try { document.body.appendChild(host) } catch (error) { /* shell not ready */ }
-        }, { once: true })
-      }
-
       // ---- state ----
       var view = normalize(null)
       var tab = 'status'
@@ -291,95 +207,14 @@ window.__ModuleLoader__.load({
       var lastStage = null
       var lastPendingAt = 0
       var pollTimer = null
-      var reactTimer = null
+      var fx = createEffects({
+        scene: scene, pig: pig, card: card, bubble: bubble,
+        isStopped: function () { return stopped },
+      })
+      var react = fx.react, burst = fx.burst, flash = fx.flash
+      var showBubble = fx.showBubble, toast = fx.toast
       var stopped = false
       var busy = false
-
-      // ---- animation ----
-      function react(kind, ms) {
-        if (reactTimer !== null) window.clearTimeout(reactTimer)
-        // Re-assigning the same value does NOT restart a CSS animation, so
-        // clicking three times quickly only played it once. Dropping the
-        // attribute and forcing a reflow makes every click start from zero.
-        pig.removeAttribute('data-react')
-        void pig.offsetWidth
-        pig.setAttribute('data-react', kind)
-        reactTimer = window.setTimeout(function () {
-          pig.removeAttribute('data-react')
-          reactTimer = null
-        }, ms || 900)
-      }
-
-      function burst(emojis, count) {
-        for (var i = 0; i < (count || 1); i += 1) {
-          (function (index) {
-            window.setTimeout(function () {
-              if (stopped) return
-              var node = el('span', 'dp-fx', emojis[index % emojis.length])
-              node.style.setProperty('--dx', Math.round((Math.random() - 0.5) * 46) + 'px')
-              // Anchor to the pig, not the scene. The scene is panel-wide when
-              // open, so fixed coordinates put every particle off to one side.
-              var spot = headSpot()
-              node.style.left = (spot.x + Math.round((Math.random() - 0.5) * 22)) + 'px'
-              node.style.top = spot.y + 'px'
-              scene.appendChild(node)
-              window.setTimeout(function () { node.remove() }, 1200)
-            }, index * 110)
-          })(i)
-        }
-      }
-
-      /** Just above the pig's head, in scene coordinates. */
-      function headSpot() {
-        var fallback = { x: 24, y: 8 }
-        if (typeof pig.getBoundingClientRect !== 'function' || typeof scene.getBoundingClientRect !== 'function') return fallback
-        var p = pig.getBoundingClientRect()
-        var s = scene.getBoundingClientRect()
-        if (p.width === 0 && p.height === 0) return fallback
-        return { x: p.left - s.left + p.width / 2, y: p.top - s.top - 20 }
-      }
-
-      var REACTIONS = {
-        hatch: { kind: 'levelup', ms: 980, fx: ['🥚', '✨', '🐖', '🎉'], count: 4, say: '孵出来啦！' },
-        feed: { kind: 'feed', ms: 900, fx: ['🍎', '😋', '✨'], count: 3, say: '吃掉了！' },
-        bathe: { kind: 'bathe', ms: 1050, fx: ['🫧', '🫧', '💧', '✨'], count: 4, say: '洗干净啦～' },
-        play: { kind: 'play', ms: 900, fx: ['🎾', '⭐', '💨'], count: 3, say: '好开心！' },
-        pet: { kind: 'pet', ms: 420, fx: ['❤️'], count: 1, say: '好舒服…' },
-        work: { kind: 'away', ms: 900, fx: ['💼', '🧱', '🪙'], count: 3, say: '出门打工！' },
-        study: { kind: 'away', ms: 900, fx: ['📚', '✏️', '🧠'], count: 3, say: '上学去！' },
-        trip: { kind: 'away', ms: 900, fx: ['🧳', '🗺', '✨'], count: 3, say: '出发旅行！' },
-        calloff: { kind: 'refuse', ms: 520, fx: ['💨'], count: 1, say: '提前回来了…' },
-        buy: { kind: 'pet', ms: 620, fx: ['🪙', '🛒'], count: 2, say: '买到了！' },
-        use: { kind: 'pet', ms: 620, fx: ['✨'], count: 2, say: '用掉了。' },
-      }
-
-      function flash(action) {
-        var spec = REACTIONS[action]
-        if (spec === undefined) return
-        react(spec.kind, spec.ms)
-        burst(spec.fx, spec.count)
-        // Patting is the one thing you do over and over, so it gets a pool of
-        // lines rather than the same four characters every time.
-        var lines = action === 'pet' ? PET_LINES : null
-        showBubble(lines === null ? spec.say : lines[Math.floor(Math.random() * lines.length)], 1600)
-      }
-
-      var bubbleTimer = null
-      function showBubble(text, ms) {
-        if (bubbleTimer !== null) window.clearTimeout(bubbleTimer)
-        bubble.textContent = text
-        bubble.hidden = false
-        bubbleTimer = window.setTimeout(function () {
-          bubble.hidden = true
-          bubbleTimer = null
-        }, ms || 2600)
-      }
-
-      function toast(text) {
-        var node = el('div', 'dp-toast', text)
-        card.insertBefore(node, card.firstChild)
-        window.setTimeout(function () { node.remove() }, 4800)
-      }
 
       // ---- open / close ----
       function setOpen(next) {
@@ -834,11 +669,8 @@ window.__ModuleLoader__.load({
         stopped = true
         window.removeEventListener?.('resize', onResize)
         if (pollTimer !== null) window.clearInterval(pollTimer)
-        if (reactTimer !== null) window.clearTimeout(reactTimer)
-        if (bubbleTimer !== null) window.clearTimeout(bubbleTimer)
+        fx.dispose()
         pollTimer = null
-        reactTimer = null
-        bubbleTimer = null
         host.remove()
         style.remove()
         font.remove()
