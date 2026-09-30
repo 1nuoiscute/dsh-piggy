@@ -25,7 +25,9 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
   `core.js` → `core/` 15 个模块、`index.js` → `snapshot/commands/routes`、
   `store.js` → `store/{api,state-file}`。公开导出面逐项比对无变化。
 - 领域层不再读系统时间（`nowMs` 一律作参数）；代码注释去掉 emoji；
-  新增三条静态守卫（领域层时间、注释 emoji、文件 400 行上限）。
+  新增静态守卫（领域层时间、注释 emoji、文件 400 行上限、发布 files 覆盖）。
+- 客户端源码按职责拆成 `styles/constants/values/normalize/storage/dom` 等模块，
+  由 esbuild 打包；界面渲染结果与拆分前逐页签比对一致。
 
 ### Verification
 - `node --test`：**175 / 175 通过**（新增：产物新鲜度、单文件契约、版本字段、

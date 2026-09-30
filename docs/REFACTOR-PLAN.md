@@ -18,7 +18,8 @@
 | 1 index.js 拆 snapshot/commands/routes | 完成（导出面 15→15） | `48a829c` |
 | 1 store.js 抽出 state-file + api | 完成 | `3722e7b` |
 | 1 文件行数守卫 | 完成 | `test(pig)` 提交 |
-| 2 客户端拆分 + 打包 | 未开始（唯一剩余项） | |
+| 2 客户端抽出 styles/constants/values/normalize/storage/dom | 完成（index.js 2192→1397） | `6f7ea8e` |
+| 2 客户端页签与外壳拆分 | 未开始（唯一剩余项） | |
 | 3 类型收尾 | 未开始 | |
 
 **阶段 1 已完成**：Node 侧没有任何文件超过 400 行（最大 351），全部导入路径保持不变。
