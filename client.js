@@ -119,6 +119,7 @@ window.__ModuleLoader__.load({
             faded: obj(pig.stage).faded === true,
           },
           ageLabel: str(pig.ageLabel, ''),
+          ageForced: pig.ageForced === true,
           daysToNextStage: typeof pig.daysToNextStage === 'number' ? pig.daysToNextStage : null,
           soul: pig.soul === true,
           mood: str(pig.mood, 'fine'),
@@ -1045,6 +1046,10 @@ window.__ModuleLoader__.load({
        */
       function devTab() {
         content.appendChild(el('div', 'dp-dev-note', '🔧 开发者模式 · Ctrl+Shift+D 关闭'))
+        if (view.pig !== null && view.pig.ageForced) {
+          content.appendChild(el('div', 'dp-dev-note',
+            '⚠️ 年龄是调试改的（HUD 上有 🔧）—— 按「⏪ 年龄归零」才会重新按真实时间算'))
+        }
 
         var p = view.pig
         if (p === null) {
@@ -1093,6 +1098,7 @@ window.__ModuleLoader__.load({
           { key: 'middle', label: '中年', run: function () { patch({ ageDays: 5 }) } },
           { key: 'elder', label: '老年', run: function () { patch({ ageDays: 9 }) } },
           { key: 'gone', label: '🪦 老死', run: function () { patch({ ageDays: 20 }) } },
+          { key: 'real', label: '⏪ 年龄归零', run: function () { send('ageFromNow') } },
         ])
 
         group('资源', [
@@ -1150,7 +1156,7 @@ window.__ModuleLoader__.load({
 
         var age = el('div', 'dp-row')
         age.appendChild(el('span', null, '🎂 年龄'))
-        age.appendChild(el('b', null, p.ageLabel + (p.daysToNextStage === null ? ' · 已长成' : '')))
+        age.appendChild(el('b', null, p.ageLabel + (p.ageForced ? ' 🔧' : '') + (p.daysToNextStage === null ? ' · 已长成' : '')))
         content.appendChild(age)
         if (p.daysToNextStage !== null) {
           content.appendChild(el('div', 'dp-empty',
@@ -1611,7 +1617,9 @@ window.__ModuleLoader__.load({
           pokeHint.hidden = true
           soul.hidden = view.pig.soul !== true
           pig.setAttribute('data-stage', stage.key)
-          hudName.textContent = view.pig.name + ' · ' + stage.label + (view.pig.ageLabel ? ' · ' + view.pig.ageLabel : '')
+          hudName.textContent = view.pig.name + ' · ' + stage.label
+            + (view.pig.ageLabel ? ' · ' + view.pig.ageLabel : '')
+            + (view.pig.ageForced ? ' 🔧' : '')
           hudCoins.textContent = '🪙 ' + view.pig.coins
           hudHealth.textContent = '💚 ' + view.pig.health + '/' + view.maxHealth
           // Growing up is announced with the same flourish a level-up used to get.

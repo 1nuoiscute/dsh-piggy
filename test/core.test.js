@@ -45,6 +45,8 @@ import {
   migrate,
   mood,
   ageDays,
+  reset,
+  ageFromNow,
   applyDevPatch,
   adopt,
   daysToNextStage,
@@ -1066,5 +1068,27 @@ test('developer mode can force any state, but only valid ones', () => {
   } finally {
     Math.random = real
   }
+})
+
+test('a forced age is marked, and can be put back on the real clock', () => {
+  const pig = hatchEgg(T0)
+  assert.equal(pig.ageForced, false, 'hatching is not a forced age')
+
+  applyDevPatch(pig, { ageDays: 5 }, T0)
+  assert.equal(pig.ageForced, true, 'the panel has to be able to say so')
+  assert.equal(lifeStageFor(pig, T0).key, 'middle')
+
+  ageFromNow(pig, T0)
+  assert.equal(pig.ageForced, false)
+  assert.equal(pig.bornAt, T0, 'the clock restarts now')
+  assert.equal(lifeStageFor(pig, T0).key, 'piglet')
+
+  // And a real birth clears any earlier force.
+  const fresh = hatchEgg(T0)
+  applyDevPatch(fresh, { ageDays: 9 }, T0)
+  assert.equal(fresh.ageForced, true)
+  reset(T0)
+  const next = layEgg(T0)
+  assert.equal(next.ageForced, false)
 })
 

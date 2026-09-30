@@ -5,6 +5,31 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [0.14.2] — 2026-09-30
+
+### Fixed
+- **调试改过的年龄在面板上看不出来，所以会被当成「猪长太快」。** 实测有一只猪
+  `bornAt` 是 5.01 天前、stage 是中年 —— 正好等于调试页「中年」按钮的
+  `ageDays: 5`，但面板上没有任何迹象说明这是按出来的。
+
+  现在：
+
+  | | |
+  |---|---|
+  | `applyDevPatch` 设了 `ageDays` | 记 `ageForced = true` |
+  | 正常出生 / 开盒 / 重置 | 清掉这个标记 |
+  | HUD 和状态页的年龄 | 带一个 🔧 |
+  | 调试页顶部 | 明确写「年龄是调试改的」 |
+
+  **自动长大本身是真实的**：`bornAt` 只有 `layEgg` / `hatch` / `hatchEgg`
+  写当前时间、`migrate` 保留原值、以及调试的 `ageDays` —— 没有别的地方会动它。
+  阈值也是真实天数：小猪 0 · 青年 1 · 中年 3 · 老年 7。
+
+- 新增 **`ageFromNow`**（调试页「⏪ 年龄归零」）：把 `bornAt` 拨回现在，
+  从此重新按真实时间计算。
+
+---
+
 ## [0.14.1] — 2026-09-30
 
 ### Fixed

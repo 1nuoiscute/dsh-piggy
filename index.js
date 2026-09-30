@@ -111,6 +111,7 @@ const OPERATIONS = {
   adopt: store => ({ ok: store.adopt(), adopted: true }),
   reset: store => ({ ok: store.reset(), reset: true }),
   dev: (store, body) => ({ ok: store.dev(body.patch ?? {}), dev: true }),
+  ageFromNow: store => ({ ok: store.ageFromNow(), ageFromNow: true }),
   // The three care actions spend an item; `item` says which one.
   feed: (store, body) => store.act('feed', str(body.item)),
   bathe: (store, body) => store.act('bathe', str(body.item)),
@@ -322,6 +323,8 @@ export function snapshot(store, options = {}) {
       stage: { key: life.key, label: life.label, emoji: life.emoji, size: life.size, line: life.line, art: life.art ?? null, faded: life.faded === true },
       ageDays: Number(ageDays(state, nowMs).toFixed(2)),
       ageLabel: formatAge(ageDays(state, nowMs), state, nowMs),
+      // Shown as a 🔧 beside the age so a forced age is never mistaken for real growth.
+      ageForced: state.ageForced === true,
       daysToNextStage: daysToNextStage(state, nowMs) === null ? null : Number(daysToNextStage(state, nowMs).toFixed(2)),
       soul: hasSoul(state, nowMs),
       mood: current.key,

@@ -27,6 +27,7 @@ import {
   drainPending,
   feed as coreFeed,
   adopt as coreAdopt,
+  ageFromNow as coreAgeFromNow,
   hatch as coreHatch,
   applyDevPatch as coreDevPatch,
   reset as coreReset,
@@ -176,6 +177,14 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
       // produce one. Refusing because `state !== null` left the box unopenable.
       if (state !== null && state.hatched === true) return false
       state = state === null ? hatchEgg(now()) : coreHatch(state, now())
+      scheduleSave()
+      return true
+    },
+
+    /** Put the age back on the real clock. */
+    ageFromNow() {
+      if (state === null) return false
+      state = coreAgeFromNow(state, now())
       scheduleSave()
       return true
     },

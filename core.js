@@ -212,6 +212,17 @@ export function reset(nowMs) {
   return layEgg(nowMs)
 }
 
+/** Put the pig's clock back to now, so its age counts real time again. */
+export function ageFromNow(state, nowMs) {
+  if (state === null) return state
+  state.bornAt = nowMs
+  state.ageForced = false
+  state.stage = lifeStageFor(state, nowMs).key
+  state.lastSeenAt = nowMs
+  remember(state, '🔧 年龄归零，从现在开始按真实时间算', nowMs)
+  return state
+}
+
 /**
  * ---------------------------------------------------------------------------
  * Developer mode
@@ -268,6 +279,8 @@ export function applyDevPatch(state, patch, nowMs) {
   // Age is the one thing worth jumping: it is what takes days to see.
   if (typeof patch.ageDays === 'number' && Number.isFinite(patch.ageDays)) {
     state.bornAt = nowMs - Math.max(0, patch.ageDays) * 86_400_000
+    // Mark it, so a forced age is never mistaken for the pig simply growing up.
+    state.ageForced = true
   }
 
   if (patch.dead === true) {
@@ -318,6 +331,8 @@ export function layEgg(nowMs) {
     diedAt: null,
     /** Last stage the panel announced; drives the "grew up" message. */
     stage: 'box',
+    /** True when developer mode forced the age; the panel says so. */
+    ageForced: false,
     xp: 0,
     weightG: BIRTH_WEIGHT_G,
     satiety: 70,
@@ -363,6 +378,7 @@ export function layEgg(nowMs) {
 export function hatch(state, nowMs) {
   state.hatched = true
   state.bornAt = nowMs
+  state.ageForced = false
   state.dead = false
   state.diedAt = null
   state.stage = 'piglet'
@@ -376,6 +392,7 @@ export function hatchEgg(nowMs) {
   const state = layEgg(nowMs)
   state.hatched = true
   state.bornAt = nowMs
+  state.ageForced = false
   state.weightG += HATCH_WEIGHT_G
   state.stage = 'piglet'
   remember(state, '纸盒打开了，一只小猪蹦了出来 🐷', nowMs)
