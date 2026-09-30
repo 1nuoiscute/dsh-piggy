@@ -6,13 +6,14 @@
  * @module dsh-pig/core/care
  */
 
-import { CARE_KIND, careItems } from '../data.js'
+import { CARE_KIND, ILLNESS_ONSET, careItems } from '../data.js'
 import { ACTIONS, DIET } from './constants.js'
 import { applyEffects, remember } from './effects.js'
 import { growFromRealWork } from './growth.js'
 import { rollForOverfeeding } from './illness.js'
 import { say } from './lines.js'
 import { decay } from './settlement.js'
+import { noteToday } from './diary.js'
 
 /** Which line scene each care action makes the pig speak from. */
 const CARE_SCENE = Object.freeze({ feed: 'eat', bathe: 'bathe', play: 'play', pet: 'pet' })
@@ -41,6 +42,7 @@ export function feed(state, event, nowMs) {
   if (state.hatched !== true) return []
   applyEffects(state, diet, nowMs)
   growFromRealWork(state, event, nowMs)
+  noteToday(state, event)
   return []
 }
 
@@ -96,7 +98,9 @@ export function act(state, action, nowMs, itemKey) {
   applyEffects(state, careEffects(item, spec), nowMs)
   remember(state, item === null ? spec.verb : `${item.emoji} ${spec.label}用了「${item.label}」`, nowMs)
   if (action === 'feed') rollForOverfeeding(state, satietyBefore, nowMs)
-  say(state, CARE_SCENE[action], nowMs)
+  // Feeding a pig that was already stuffed gets a different complaint.
+  say(state, action === 'feed' && satietyBefore >= ILLNESS_ONSET.overfullAt ? 'overfull' : CARE_SCENE[action], nowMs)
+  noteToday(state, action)
   return { ok: true, item: item === null ? null : item.key, spent: item !== null && item.default !== true }
 }
 

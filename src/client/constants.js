@@ -12,6 +12,12 @@ export const STATE_URL = '/dsh-pig/state'
 export const ART_URL = '/dsh-pig/art/'
 export const ACT_URL = '/dsh-pig/act'
 export const POLL_MS = 4000
+
+/** How often the pig speaks up unprompted, in minutes (mirrors data/lines.js IDLE_CHAT_MINUTES). */
+export const IDLE_CHAT_MINUTES = { min: 20, max: 40 }
+
+/** Wait this long after the page opens before the pig says hello. */
+export const GREET_DELAY_MS = 1500
 export const MOUNTED = 'data-dsh-pig'
 export const OPEN_KEY = 'dsh-pig:open'
 export const POSITION_KEY = 'dsh-pig:position'

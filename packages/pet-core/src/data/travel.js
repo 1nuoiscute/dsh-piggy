@@ -24,7 +24,7 @@ export const rarityByKey = key => SOUVENIR_RARITY[key] ?? SOUVENIR_RARITY.common
 const souvenir = (key, emoji, label, rarity, story) => Object.freeze({ key, emoji, label, rarity, story })
 
 export const TRIPS = Object.freeze([
-  Object.freeze({ key: 'suburb', label: '郊游', emoji: '🏞', minutes: MINUTES.hour, cost: 60, happiness: 10, satiety: -8, souvenirs: Object.freeze([
+  Object.freeze({ key: 'suburb', label: '郊游', emoji: '🧺', minutes: MINUTES.hour, cost: 60, happiness: 10, satiety: -8, souvenirs: Object.freeze([
     souvenir('clover', '🍀', '四叶草', 'common', '在草堆里翻到一片四叶草，据说会带来好运。'),
     souvenir('pinecone', '🌰', '松果', 'common', '捡了一颗松果，捏起来有点扎手。'),
     souvenir('wildflower', '🌼', '野花', 'rare', '摘了一朵小野花，一路上都小心护着。'),

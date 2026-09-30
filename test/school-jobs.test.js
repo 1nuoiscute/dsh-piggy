@@ -62,7 +62,7 @@ test('the ninth lesson is a graduation: three gifts, extra growth, 我没有留�
   assert.equal(bagAfter - bagBefore, 3)
   assert.equal(pig.xp - growthBefore, 40 + 500)
   assert.ok(pig.pending.some(entry => entry.kind === 'graduate'))
-  assert.ok(pig.pending.some(entry => entry.kind === 'line' && entry.text.includes('没有留级')))
+  assert.ok(pig.pending.some(entry => entry.kind === 'line' && entry.scene === 'graduate'), 'the pig says a graduation line')
 })
 
 test('thirty-three jobs: the original eighteen plus fifteen, all gates well formed', () => {

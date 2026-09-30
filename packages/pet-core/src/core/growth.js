@@ -22,6 +22,7 @@ import {
 import { dayKeyFor, levelFor, levelTitle, lifeStageFor } from './clock.js'
 import { announce, remember } from './effects.js'
 import { say } from './lines.js'
+import { noteToday } from './diary.js'
 
 /**
  * How fast the pig is growing right now, as a multiplier on the base rate.
@@ -60,11 +61,14 @@ export function grow(state, amount, nowMs) {
     state.stage = stage.key
     remember(state, `长成了${stage.label} ${stage.emoji}`, nowMs)
     announce(state, 'stage', `${state.name} 长成了${stage.label} ${stage.emoji}`, nowMs)
+    noteToday(state, 'stage')
+    say(state, 'growUp', nowMs)
   }
 }
 
 function announceLevelUp(state, before, after, nowMs) {
   state.stats.levelUps = (state.stats.levelUps ?? 0) + (after - before)
+  noteToday(state, 'levelUp', after - before)
   const title = levelTitle(after)
   const newTitle = levelTitle(before).level !== title.level
   remember(state, `升到 Lv.${after}${newTitle ? `，成了「${title.label}」` : ''}`, nowMs)

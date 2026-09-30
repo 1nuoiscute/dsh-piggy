@@ -10,6 +10,12 @@ import { button, el } from '../dom.js'
 import { kindLabel } from '../format.js'
 import { num } from '../values.js'
 
+/** 日记折叠时露出来的那句（到第一个句号为止）。 */
+function firstSentence(text) {
+  var stop = text.indexOf('。')
+  return stop < 0 ? text : text.slice(0, stop + 1)
+}
+
 export function renderBagTab(ui) {
   var owned = []
   for (var i = 0; i < ui.view.shop.length; i += 1) {
@@ -70,6 +76,37 @@ export function renderBagTab(ui) {
       }
       ui.content.appendChild(dlist)
     }
+  }
+
+  // ---- 日记：新到旧，先露首句，点开看全文 ----
+  var diary = ui.view.diary
+  if (diary.length > 0) {
+    var dhead = el('div', 'dp-title')
+    dhead.style.marginTop = '10px'
+    dhead.appendChild(el('b', null, '📔 日记 ' + diary.length))
+    ui.content.appendChild(dhead)
+    var dlist = el('div', 'dp-list')
+    for (var d = 0; d < diary.length; d += 1) {
+      (function (entry) {
+        var row = el('div', 'dp-item dp-diary')
+        row.setAttribute('data-diary', entry.day)
+        row.setAttribute('data-open', 'false')
+        var grow = el('div', 'dp-grow')
+        var head = el('div', null, entry.day + '　' + firstSentence(entry.text))
+        var full = el('div', 'dp-dim dp-diary-full', entry.text)
+        full.hidden = true
+        grow.appendChild(head)
+        grow.appendChild(full)
+        row.appendChild(grow)
+        row.addEventListener('click', function (event) {
+          if (event && typeof event.stopPropagation === 'function') event.stopPropagation()
+          full.hidden = !full.hidden
+          row.setAttribute('data-open', full.hidden ? 'false' : 'true')
+        })
+        dlist.appendChild(row)
+      })(diary[d])
+    }
+    ui.content.appendChild(dlist)
   }
 
   var souvenirs = ui.view.pig.souvenirs

@@ -88,46 +88,61 @@ export const JOBS = Object.freeze([
 export const jobByKey = key => JOBS.find(entry => entry.key === key) ?? null
 
 /**
- * @typedef {object} Shortfall
+ * @typedef {object} Condition
  * @property {'level'|'lesson'|'every'|'anyOf'|'certificate'} kind
- * @property {string} text - 给面板看的一小段，如「🔢 数学 9 节」
+ * @property {string} text - 给面板看的一小段，如「🔢数学 9 节」
  * @property {number} need
  * @property {number} have
+ * @property {boolean} met
  */
+
+/**
+ * Every condition a job has, met or not — the panel's 详情 lists them all
+ * with a tick or a cross, rather than only what is missing.
+ * @param {{requires: JobRequires}} target
+ * @param {{level: number, lessons: Record<string, number>, interests: Record<string, number>}} pig
+ * @returns {Condition[]}
+ */
+export function jobChecklist(target, pig) {
+  const need = target.requires
+  /** @type {Condition[]} */
+  const out = []
+  const lessonsOf = key => pig.lessons?.[key] ?? 0
+  out.push({ kind: 'level', text: `Lv.${need.level}`, need: need.level, have: pig.level, met: pig.level >= need.level })
+  for (const [key, count] of Object.entries(need.lessons ?? {})) {
+    const subject = subjectByKey(key)
+    if (subject === null) continue
+    const have = lessonsOf(key)
+    out.push({ kind: 'lesson', text: `${subject.emoji}${subject.label} ${count} 节`, need: count, have, met: have >= count })
+  }
+  if (need.every !== undefined) {
+    const every = need.every
+    const reached = SUBJECTS.filter(subject => lessonsOf(subject.key) >= every).length
+    out.push({ kind: 'every', text: `九门课各 ${every} 节`, need: SUBJECTS.length, have: reached, met: reached >= SUBJECTS.length })
+  }
+  if (need.anyOf !== undefined) {
+    const { count, lessons } = need.anyOf
+    const reached = SUBJECTS.filter(subject => lessonsOf(subject.key) >= lessons).length
+    out.push({ kind: 'anyOf', text: `任意 ${count} 门课各 ${lessons} 节`, need: count, have: reached, met: reached >= count })
+  }
+  if (need.certificate !== undefined) {
+    const interest = interestByKey(need.certificate)
+    const have = pig.interests?.[need.certificate] ?? 0
+    if (interest !== null) out.push({ kind: 'certificate', text: `${interest.emoji}${interest.certificate}`, need: CERTIFICATE_AFTER, have, met: have >= CERTIFICATE_AFTER })
+  }
+  return out
+}
 
 /**
  * Everything a job asks for that the pig does not have yet — all of it, not
  * just the first, so a locked job can say exactly why.
  * @param {{requires: JobRequires}|null} target
  * @param {{level: number, lessons: Record<string, number>, interests: Record<string, number>}} pig
- * @returns {{ok: boolean, missing: Shortfall[]}|null}
+ * @returns {{ok: boolean, missing: Condition[]}|null}
  */
 export function jobRequirement(target, pig) {
   if (target === null || target === undefined) return null
-  const need = target.requires
-  /** @type {Shortfall[]} */
-  const missing = []
-  const lessonsOf = key => pig.lessons?.[key] ?? 0
-  if (pig.level < need.level) missing.push({ kind: 'level', text: `Lv.${need.level}`, need: need.level, have: pig.level })
-  for (const [key, count] of Object.entries(need.lessons ?? {})) {
-    const have = lessonsOf(key)
-    const subject = subjectByKey(key)
-    if (have < count && subject !== null) missing.push({ kind: 'lesson', text: `${subject.emoji}${subject.label} ${count} 节`, need: count, have })
-  }
-  if (need.every !== undefined) {
-    const behind = SUBJECTS.filter(subject => lessonsOf(subject.key) < /** @type {number} */ (need.every)).length
-    if (behind > 0) missing.push({ kind: 'every', text: `九门课各 ${need.every} 节`, need: SUBJECTS.length, have: SUBJECTS.length - behind })
-  }
-  if (need.anyOf !== undefined) {
-    const { count, lessons } = need.anyOf
-    const reached = SUBJECTS.filter(subject => lessonsOf(subject.key) >= lessons).length
-    if (reached < count) missing.push({ kind: 'anyOf', text: `任意 ${count} 门课各 ${lessons} 节`, need: count, have: reached })
-  }
-  if (need.certificate !== undefined) {
-    const interest = interestByKey(need.certificate)
-    const have = pig.interests?.[need.certificate] ?? 0
-    if (interest !== null && have < CERTIFICATE_AFTER) missing.push({ kind: 'certificate', text: `${interest.emoji}${interest.certificate}`, need: CERTIFICATE_AFTER, have })
-  }
+  const missing = jobChecklist(target, pig).filter(condition => !condition.met)
   return { ok: missing.length === 0, missing }
 }
 

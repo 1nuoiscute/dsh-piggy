@@ -6,7 +6,7 @@
  * @module dsh-pig/core/settlement
  */
 
-import { CERTIFICATE_AFTER, DEFAULT_TIME_SCALE, GRADUATION_GROWTH, GRADUATION_LESSONS, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, STUDY_GROWTH_PER_LESSON, TRAITS, illnessStageMs, interestByKey, jobByKey, rarityByKey, schoolStageByKey, stageForNextLesson, subjectByKey, traitBonus, tripByKey } from '../data.js'
+import { CERTIFICATE_AFTER, DEFAULT_TIME_SCALE, ILLNESS_ONSET, GRADUATION_GROWTH, GRADUATION_LESSONS, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, STUDY_GROWTH_PER_LESSON, TRAITS, illnessStageMs, interestByKey, jobByKey, rarityByKey, schoolStageByKey, stageForNextLesson, subjectByKey, traitBonus, tripByKey } from '../data.js'
 import { AWAY_DECAY_MULTIPLIER, AWAY_FLOOR, CLEANLINESS_DECAY_PER_MIN, HAPPINESS_DECAY_PER_MIN, SATIETY_DECAY_PER_MIN, SETTLE_STEP_MS } from './constants.js'
 import { announce, clamp100, remember } from './effects.js'
 import { growWithTime, grow, outingGrowth } from './growth.js'
@@ -14,6 +14,7 @@ import { describeDrops, graduationDrops, studyDrops, workDrops } from './drops.j
 import { advanceIllness, noteOuting, restAtHome, rollForIllness } from './illness.js'
 import { say } from './lines.js'
 import { rollerFor } from './random.js'
+import { noteToday } from './diary.js'
 
 export { currentIllness, die } from './illness.js'
 
@@ -190,6 +191,7 @@ export function finishInterest(state, activity, nowMs) {
   grow(state, STUDY_GROWTH_PER_LESSON, nowMs)
   remember(state, `${interest.emoji} 学完${interest.label}，${TRAITS[interest.trait].label} +${interest.gain}`, nowMs)
   announce(state, 'study', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`, nowMs)
+  noteToday(state, 'study')
   if (certified) {
     remember(state, `📜 拿到了${interest.certificate}`, nowMs)
     announce(state, 'certificate', `${state.name} 拿到了${interest.certificate} 📜`, nowMs)
@@ -216,6 +218,8 @@ export function finishWork(state, activity, nowMs, next = rollerFor(state)) {
   }
   state.stats.jobs += 1
   state.stats.coinsEarned += coins
+  noteToday(state, 'work')
+  noteToday(state, 'coinsEarned', coins)
   noteOuting(state)
   grow(state, outingGrowth(job === null ? activity.minutes ?? 0 : job.minutes), nowMs)
   const brought = workDrops(state, coins, next)
@@ -227,6 +231,7 @@ export function finishWork(state, activity, nowMs, next = rollerFor(state)) {
   announce(state, 'work', sick
     ? `${state.name} 带病打工回来了，只赚到 ${coins} 金币 🤒${extra}`
     : `${state.name} 打工回来了！赚到 ${coins} 金币 💰${extra}`, nowMs)
+  say(state, (state.outingStreak ?? 0) >= ILLNESS_ONSET.overworkStreak ? 'tired' : 'workDone', nowMs)
 }
 
 /**
@@ -260,6 +265,7 @@ export function finishStudy(state, activity, nowMs, next = rollerFor(state)) {
     state.stats.graduations = (state.stats.graduations ?? 0) + 1
     remember(state, `🎓 ${subject.label}${stage.label}毕业（第 ${taken + 1} 节）`, nowMs)
     announce(state, 'graduate', `${state.name} ${subject.label}${stage.label}毕业啦 🎓 ${gains}，带回${describeDrops(gifts)}`, nowMs)
+    noteToday(state, 'graduate')
     say(state, 'graduate', nowMs)
     return
   }
@@ -267,6 +273,8 @@ export function finishStudy(state, activity, nowMs, next = rollerFor(state)) {
   const extra = brought.length > 0 ? `，还带回了${describeDrops(brought)}` : ''
   remember(state, `${subject.emoji} 上完${subject.label}第 ${taken + 1} 节，${gains}`, nowMs)
   announce(state, 'study', `${state.name} 上完${subject.label}第 ${taken + 1} 节，${gains} 📚${extra}`, nowMs)
+  noteToday(state, 'study')
+  say(state, (state.outingStreak ?? 0) >= ILLNESS_ONSET.overworkStreak ? 'tired' : 'study', nowMs)
 }
 
 export function finishTrip(state, activity, nowMs) {
@@ -288,6 +296,9 @@ export function finishTrip(state, activity, nowMs) {
   grow(state, outingGrowth(trip.minutes), nowMs)
   remember(state, `${trip.emoji} ${trip.label}回来，带回「${pick.label}」${tier.emoji}`, nowMs)
   announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${pick.label}」${tier.emoji}🧳`, nowMs)
+  noteToday(state, 'trip')
+  noteToday(state, 'souvenirs')
+  say(state, 'tripBack', nowMs)
 }
 
 export { advanceIllness, catchIllness } from './illness.js'

@@ -47,6 +47,10 @@
   }
 
   // src/client/tabs/bag.js
+  function firstSentence(text) {
+    var stop = text.indexOf("\u3002");
+    return stop < 0 ? text : text.slice(0, stop + 1);
+  }
   function renderBagTab(ui) {
     var owned = [];
     for (var i = 0; i < ui.view.shop.length; i += 1) {
@@ -105,6 +109,35 @@
         }
         ui.content.appendChild(dlist);
       }
+    }
+    var diary = ui.view.diary;
+    if (diary.length > 0) {
+      var dhead = el("div", "dp-title");
+      dhead.style.marginTop = "10px";
+      dhead.appendChild(el("b", null, "\u{1F4D4} \u65E5\u8BB0 " + diary.length));
+      ui.content.appendChild(dhead);
+      var dlist = el("div", "dp-list");
+      for (var d = 0; d < diary.length; d += 1) {
+        (function(entry) {
+          var row = el("div", "dp-item dp-diary");
+          row.setAttribute("data-diary", entry.day);
+          row.setAttribute("data-open", "false");
+          var grow = el("div", "dp-grow");
+          var head2 = el("div", null, entry.day + "\u3000" + firstSentence(entry.text));
+          var full = el("div", "dp-dim dp-diary-full", entry.text);
+          full.hidden = true;
+          grow.appendChild(head2);
+          grow.appendChild(full);
+          row.appendChild(grow);
+          row.addEventListener("click", function(event) {
+            if (event && typeof event.stopPropagation === "function") event.stopPropagation();
+            full.hidden = !full.hidden;
+            row.setAttribute("data-open", full.hidden ? "false" : "true");
+          });
+          dlist.appendChild(row);
+        })(diary[d]);
+      }
+      ui.content.appendChild(dlist);
     }
     var souvenirs = ui.view.pig.souvenirs;
     var head = el("div", "dp-title");
@@ -273,6 +306,8 @@
   var ART_URL = "/dsh-pig/art/";
   var ACT_URL = "/dsh-pig/act";
   var POLL_MS = 4e3;
+  var IDLE_CHAT_MINUTES = { min: 20, max: 40 };
+  var GREET_DELAY_MS = 1500;
   var MOUNTED = "data-dsh-pig";
   var OPEN_KEY = "dsh-pig:open";
   var POSITION_KEY = "dsh-pig:position";
@@ -350,7 +385,7 @@
           list.appendChild(el("div", "dp-shelf", KIND_TITLE[shelf] ?? shelf));
         }
         var cell = button(
-          "dp-cell" + (item.needed ? " dp-wanted" : "") + (item.kind === "dress" ? " dp-dress" : item.affordable ? "" : " dp-poor") + (item.owned ? " dp-owned" : ""),
+          "dp-cell" + (item.needed ? " dp-wanted" : "") + (item.kind === "dress" ? " dp-cell-dress" : item.affordable ? "" : " dp-poor") + (item.owned ? " dp-owned" : ""),
           { "data-buy": item.key },
           function() {
             ui.send("buy", { item: item.key });
@@ -448,6 +483,11 @@
     info.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD " + p.weight));
     info.appendChild(el("b", null, "\u{1FA99} " + p.coins));
     ui.content.appendChild(info);
+    var daily = ui.view.daily;
+    var dailyLine = el("div", "dp-row");
+    dailyLine.appendChild(el("span", null, "\u{1F4C5} \u7B7E\u5230"));
+    dailyLine.appendChild(el("b", null, "\u7B2C " + daily.signInDay + "/" + daily.cycle + " \u5929" + (daily.canSignIn ? " \xB7 \u4ECA\u5929\u8FD8\u6CA1\u7B7E" : "") + (daily.unclaimed > 0 ? " \xB7 \u{1F381} " + daily.unclaimed : "")));
+    ui.content.appendChild(dailyLine);
     var lvl = el("div", "dp-row");
     lvl.appendChild(el("span", null, "\u2B50 \u7B49\u7EA7"));
     lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.maxed ? " \xB7 \u6EE1\u7EA7" : " \xB7 \u8FD8\u5DEE " + Math.ceil(p.level.toNext) + " \u6210\u957F")));
@@ -486,9 +526,55 @@
     }
     ui.content.appendChild(grid);
     if (ui.picker !== null && (ui.view.care[ui.picker] ?? []).length > 0) ui.content.appendChild(pickerPanel(ui, ui.picker));
+    ui.content.appendChild(talkRow(ui));
     if (p.memories.length > 0) {
       ui.content.appendChild(el("div", "dp-memo", p.memories.slice(-3).join("\n")));
     }
+  }
+  function talkRow(ui) {
+    var row = el("div", "dp-row dp-talk");
+    if (ui.ownerEdit !== null) {
+      var input = (
+        /** @type {HTMLInputElement} */
+        el("input", "dp-input")
+      );
+      input.value = ui.ownerEdit;
+      input.maxLength = 12;
+      input.setAttribute("data-owner-input", "true");
+      input.addEventListener("input", function() {
+        ui.ownerEdit = input.value;
+      });
+      var save = button("dp-mini", { "data-owner-save": "true" }, function() {
+        var name = (ui.ownerEdit || "").trim();
+        ui.ownerEdit = null;
+        if (name !== "") ui.send("owner", { name });
+        ui.renderContent();
+      });
+      save.textContent = "\u597D";
+      var cancel = button("dp-mini dp-mini-plain", { "data-owner-cancel": "true" }, function() {
+        ui.ownerEdit = null;
+        ui.renderContent();
+      });
+      cancel.textContent = "\u7B97\u4E86";
+      row.appendChild(input);
+      row.appendChild(save);
+      row.appendChild(cancel);
+      return row;
+    }
+    var who = el("span", null, "\u{1F64B} \u53EB\u4F60\u300C" + ui.view.dialogue.ownerName + "\u300D");
+    var rename = button("dp-mini dp-mini-plain", { "data-owner-edit": "true" }, function() {
+      ui.ownerEdit = ui.view.dialogue.ownerName;
+      ui.renderContent();
+    });
+    rename.textContent = "\u6539";
+    var quiet = button("dp-mini dp-mini-plain", { "data-quiet": ui.view.dialogue.quiet ? "on" : "off" }, function() {
+      ui.send("quiet", { on: !ui.view.dialogue.quiet });
+    });
+    quiet.textContent = ui.view.dialogue.quiet ? "\u{1F515} \u514D\u6253\u6270\u4E2D" : "\u{1F514} \u514D\u6253\u6270";
+    row.appendChild(who);
+    row.appendChild(rename);
+    row.appendChild(quiet);
+    return row;
   }
   function renderCoronation(ui) {
     var choice = ui.view.pig.coronation;
@@ -530,7 +616,7 @@
           ui.stage = entry.key;
           ui.renderContent();
         });
-        btn.textContent = entry.label + (locked ? " \u{1F512}" : "");
+        btn.textContent = entry.label;
         btn.setAttribute("data-active", entry.key === ui.stage ? "true" : "false");
         btn.setAttribute("data-locked", locked ? "true" : "false");
         seg.appendChild(btn);
@@ -682,7 +768,7 @@
     "[data-dsh-pig] .dp-content[hidden],[data-dsh-pig] .dp-hud[hidden],",
     "[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],",
     "[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],",
-    "[data-dsh-pig] .dp-poke-hint[hidden],",
+    "[data-dsh-pig] .dp-poke-hint[hidden],[data-dsh-pig] .dp-daily[hidden],",
     "[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}",
     /* ---------- the panel: cream parchment, border not shadow ---------- */
     // Taken out of flow on purpose. In flow it would widen the wrapper, and a
@@ -883,6 +969,18 @@
     // Reply buttons under a line: small pills, the mint of the primary colour
     // without the 3D base, which the spec keeps for real primary buttons.
     ".dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
+    // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
+    ".dp-daily{position:absolute;top:-6px;left:50%;transform:translateX(-50%);",
+    "font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;",
+    "border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);",
+    "box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-bob 2.4s var(--ac-ease) infinite}",
+    ".dp-daily:hover{border-color:var(--ac-border-hover)}",
+    ".dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
+    "@keyframes dp-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}",
+    // 日记：折叠时只有首句，展开是全文。
+    ".dp-diary{cursor:pointer}",
+    '.dp-diary[data-open="true"] .dp-diary-full{display:block}',
+    ".dp-diary-full{margin-top:4px;line-height:1.5}",
     ".dp-reply{font:inherit;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;",
     "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);background:var(--ac-bg);",
     "color:var(--ac-text);transition:border-color .15s var(--ac-ease)}",
@@ -963,8 +1061,17 @@
     ".dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);",
     "cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);",
     "border:2px solid var(--ac-border-light);background:var(--ac-bg-input);",
+    // One line, always: a label that wraps makes its button taller than the rest.
+    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;",
     "transition:all .2s var(--ac-ease)}",
     ".dp-seg button:hover{background:var(--ac-hover)}",
+    // The work tab has three skills, not four stages.
+    ".dp-seg.dp-seg-3{grid-template-columns:repeat(3,minmax(0,1fr))}",
+    // Work rows: two small buttons on the right, 详情 opens the checklist below.
+    ".dp-job-locked{opacity:.75}",
+    ".dp-job-detail{margin-top:-2px}",
+    ".dp-req{font-size:10.5px;font-weight:600;color:var(--ac-error);line-height:1.6}",
+    ".dp-req.dp-req-ok{color:var(--ac-success)}",
     '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
     "color:var(--ac-text);font-weight:700}",
     /* ---------- list rows ---------- */
@@ -981,6 +1088,14 @@
     ".dp-item .dp-dim{color:var(--ac-text-2);font-size:10px;font-weight:500;overflow:hidden;",
     "text-overflow:ellipsis;white-space:nowrap}",
     ".dp-item.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
+    // B6 talk row: name + 改 + 免打扰, and the inline name input.
+    ".dp-talk{gap:6px;margin-top:8px}",
+    ".dp-talk>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}",
+    ".dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}",
+    ".dp-input{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 8px;border-radius:var(--ac-pill);",
+    "border:2px solid var(--ac-border);background:var(--ac-bg-input);color:var(--ac-text)}",
+    ".dp-input:focus{outline:2px solid var(--ac-primary);outline-offset:1px}",
     /* ---------- primary buttons: teal pill with the game 3D bottom edge --- */
     ".dp-mini{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#fff;",
     "cursor:pointer;padding:6px 13px;border-radius:var(--ac-pill);",
@@ -1106,52 +1221,82 @@
   }
 
   // src/client/tabs/work.js
+  var SKILLS = [
+    { key: "strong", label: "\u{1F4AA} \u6B66\u529B" },
+    { key: "charm", label: "\u2728 \u9B45\u529B" },
+    { key: "intel", label: "\u{1F9E0} \u667A\u529B" }
+  ];
   function renderWorkTab(ui) {
     if (ui.view.jobs.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u5DE5\u4F5C\u5217\u8868\u3002"));
       return;
     }
-    var TIERS = [[45, "\u{1F331} \u8D77\u6B65"], [60, "\u{1F4DA} \u5C0F\u5B66\u6BD5\u4E1A"], [120, "\u{1F3EB} \u4E2D\u5B66\u6BD5\u4E1A"], [240, "\u{1F3DB} \u5927\u5B66\u6BD5\u4E1A"], [Infinity, "\u{1F52C} \u7814\u7A76\u751F"]];
-    var tierOf = function(job) {
-      var minutes = job.baseMinutes || job.minutes;
-      for (var t = 0; t < TIERS.length; t += 1) if (minutes <= TIERS[t][0]) return TIERS[t][1];
-      return "";
-    };
+    var bySkill = ui.view.jobs.some(function(job) {
+      return job.trait !== "";
+    });
+    var jobs = ui.view.jobs;
+    if (bySkill) {
+      var seg = el("div", "dp-seg dp-seg-3");
+      for (var s = 0; s < SKILLS.length; s += 1) {
+        (function(skill) {
+          var count = ui.view.jobs.filter(function(job) {
+            return job.trait === skill.key && job.qualified;
+          }).length;
+          var btn = button(null, { "data-skill": skill.key }, function() {
+            ui.workTrait = skill.key;
+            ui.jobDetail = null;
+            ui.renderContent();
+          });
+          btn.textContent = skill.label + (count > 0 ? " " + count : "");
+          btn.setAttribute("data-active", skill.key === ui.workTrait ? "true" : "false");
+          seg.appendChild(btn);
+        })(SKILLS[s]);
+      }
+      ui.content.appendChild(seg);
+      jobs = ui.view.jobs.filter(function(job) {
+        return job.trait === ui.workTrait;
+      });
+    }
     var list = el("div", "dp-list");
-    var lastTier = null;
-    for (var i = 0; i < ui.view.jobs.length; i += 1) {
+    for (var i = 0; i < jobs.length; i += 1) {
       (function(job) {
-        var tier = tierOf(job);
-        if (tier !== lastTier && ui.view.jobs.length > 12) {
-          lastTier = tier;
-          var head = el("div", "dp-title");
-          head.appendChild(el("b", null, tier));
-          list.appendChild(head);
-        }
-        var row = el("div", "dp-item");
+        var locked = job.qualified === false;
+        var row = el("div", "dp-item" + (locked ? " dp-job-locked" : ""));
         row.appendChild(el("span", null, job.emoji));
         var grow = el("div", "dp-grow");
         grow.appendChild(el("div", null, job.label));
-        var line = job.minutes + " \u5206\u949F \xB7 \u8D5A " + job.coins + " \u{1FA99}";
-        if (job.traitPoints > 0) {
-          line += " \xB7 \u7701 " + job.speedPercent + "% \u65F6\u95F4";
-        }
-        grow.appendChild(el("div", "dp-dim", line));
-        var byTrait = job.traitEmoji + job.traitLabel + " " + job.traitPoints + (job.payPercent > 0 ? " \xB7 \u62A5\u916C +" + job.payPercent + "%" : "");
-        grow.appendChild(el("div", "dp-dim", byTrait));
-        var locked = job.qualified === false;
-        if (locked) grow.appendChild(el("div", "dp-lock", "\u{1F512} \u9700\u8981 " + job.lockText));
+        grow.appendChild(el("div", "dp-dim", (locked ? "\u{1F512} " : "") + job.minutes + " \u5206\u949F \xB7 " + job.coins + " \u{1FA99}"));
         row.appendChild(grow);
+        var open = ui.jobDetail === job.key;
+        var more = button("dp-mini dp-mini-plain", { "data-job-detail": job.key }, function() {
+          ui.jobDetail = open ? null : job.key;
+          ui.renderContent();
+        });
+        more.textContent = open ? "\u6536\u8D77" : "\u8BE6\u60C5";
+        row.appendChild(more);
         var go = button("dp-mini", { "data-job": job.key }, function() {
           ui.send("work", { job: job.key });
         });
-        go.textContent = locked ? "\u6CA1\u8D44\u683C" : "\u51FA\u53D1";
+        go.textContent = "\u51FA\u53D1";
         go.disabled = !ui.view.canGoOut || locked;
         row.appendChild(go);
         list.appendChild(row);
-      })(ui.view.jobs[i]);
+        if (open) list.appendChild(jobDetails(job));
+      })(jobs[i]);
     }
     ui.content.appendChild(list);
+  }
+  function jobDetails(job) {
+    var box = el("div", "dp-pick dp-job-detail");
+    box.appendChild(el("div", "dp-pick-head", job.qualified ? "\u2713 \u6761\u4EF6\u90FD\u591F\u4E86" : "\u8FD8\u5DEE\u8FD9\u4E9B"));
+    for (var r = 0; r < job.requirements.length; r += 1) {
+      var need = job.requirements[r];
+      var have = need.kind === "level" ? "\uFF08\u73B0\u5728 Lv." + need.have + "\uFF09" : need.kind === "certificate" ? "\uFF08" + need.have + "/" + need.need + " \u6B21\uFF09" : need.kind === "every" || need.kind === "anyOf" ? "\uFF08" + need.have + "/" + need.need + " \u95E8\uFF09" : "\uFF08\u73B0\u5728 " + need.have + " \u8282\uFF09";
+      box.appendChild(el("div", need.met ? "dp-req dp-req-ok" : "dp-req", (need.met ? "\u2713 " : "\u2717 ") + need.text + (need.met ? "" : " " + have)));
+    }
+    if (job.requirements.length === 0 && job.lockText) box.appendChild(el("div", "dp-req", "\u2717 " + job.lockText));
+    box.appendChild(el("div", "dp-dim", job.traitEmoji + job.traitLabel + " " + job.traitPoints + (job.payPercent > 0 ? " \xB7 \u62A5\u916C +" + job.payPercent + "%" : "") + " \xB7 \u9971\u98DF " + job.satiety + " \xB7 \u6E05\u6D01 " + job.cleanliness));
+    return box;
   }
 
   // src/client/art.js
@@ -1311,6 +1456,7 @@
         ctx.render(next);
         if (next && next.ok === false) {
           if (next.reason === "stale-line") return;
+          if (next.reason === "silent") return;
           ctx.react("refuse", 520);
           if (next.reason === "no-item") {
             var emptyKind = str(next.kind, "");
@@ -1550,7 +1696,17 @@
         // "qualified" — the opposite default would lock every job on upgrade.
         qualified: obj(job).qualified !== false,
         lockText: str(obj(job).lockText, ""),
-        level: num(obj(job).level, 1)
+        level: num(obj(job).level, 1),
+        trait: str(obj(job).trait, ""),
+        satiety: num(obj(job).satiety, 0),
+        cleanliness: num(obj(job).cleanliness, 0),
+        requirements: arr(obj(job).requirements).filter(isObj).map((entry) => ({
+          text: str(entry.text, ""),
+          need: num(entry.need, 0),
+          have: num(entry.have, 0),
+          kind: str(entry.kind, ""),
+          met: entry.met === true
+        }))
       })).filter((job) => job.key !== ""),
       // B4: nine subjects, each with its own lesson count and stage.
       subjects: arr(d.subjects).map((sub) => ({
@@ -1656,6 +1812,19 @@
         needed: obj(item).needed === true
       })).filter((item) => item.key !== ""),
       inventory: obj(d.inventory),
+      daily: {
+        canSignIn: obj(d.daily).canSignIn === true,
+        signInDay: num(obj(d.daily).signInDay, 1),
+        signInTotal: num(obj(d.daily).signInTotal, 0),
+        cycle: num(obj(d.daily).cycle, 12),
+        unclaimed: num(obj(d.daily).unclaimed, 0),
+        onlineMinutes: num(obj(d.daily).onlineMinutes, 0)
+      },
+      // 新到旧；老宿主没有 diary 时是空数组，面板不显示这一栏。
+      diary: arr(d.diary).map((entry) => ({
+        day: str(obj(entry).day, ""),
+        text: str(obj(entry).text, "")
+      })).filter((entry) => entry.day !== "" && entry.text !== ""),
       // Which items each care action could spend right now.
       care: (() => {
         const out = {};
@@ -1691,6 +1860,11 @@
         size: num(d.boxStage.size, 58)
       } : { key: "box", label: "\u7EB8\u76D2", emoji: "\u{1F4E6}", size: 58 },
       awayBlocked: typeof d.awayBlocked === "string" ? d.awayBlocked : null,
+      // B6: what the pig calls its owner, and 免打扰. Older hosts send neither.
+      dialogue: {
+        ownerName: str(obj(d.dialogue).ownerName, "\u4E3B\u4EBA"),
+        quiet: obj(d.dialogue).quiet === true
+      },
       pending: arr(d.pending).filter((e) => isObj(e) && typeof e.at === "number").map((e) => ({
         id: num(e.id, 0),
         kind: str(e.kind, ""),
@@ -1732,6 +1906,7 @@
   }
 
   // src/client/panel.js
+  var URGENT_KINDS = ["sick", "worse", "death", "cured", "revived"];
   function createPanel(ctx) {
     var AWAY_LINE = {
       work: "\u5728\u5FD9",
@@ -1951,6 +2126,14 @@
         }
         ctx.lastStage = pigStage.key;
       }
+      var daily = ctx.view.daily;
+      var dailyAction = daily.canSignIn ? "signIn" : daily.unclaimed > 0 ? "openGift" : null;
+      ctx.dailyHint.hidden = dailyAction === null || ctx.view.pig === null;
+      if (dailyAction !== null) {
+        ctx.dailyHint.textContent = dailyAction === "signIn" ? "\u{1F4C5}" : "\u{1F381}";
+        ctx.dailyHint.title = dailyAction === "signIn" ? "\u7B7E\u5230\u7B2C " + daily.signInDay + "/" + daily.cycle + " \u5929" : "\u6709 " + daily.unclaimed + " \u4E2A\u5728\u7EBF\u793C\u5305";
+        ctx.dailyHint.setAttribute("data-action", dailyAction);
+      }
       var studyStage = null;
       for (var st = 0; st < ctx.view.stages.length; st += 1) {
         if (ctx.view.stages[st].key === ctx.stage) studyStage = ctx.view.stages[st];
@@ -1972,6 +2155,7 @@
           showPigLine(event);
           continue;
         }
+        if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue;
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
         if (event.kind === "coronation") {
           ctx.react("levelup", 950);
@@ -1994,6 +2178,7 @@
           ctx.burst(["\u{1F9F3}", "\u{1F381}"], 3);
         }
       }
+      if (ctx.ownerEdit !== null && ctx.tab === "status") return;
       renderContent();
     }
     function showPigLine(event) {
@@ -2043,6 +2228,9 @@
     pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
     pokeHint.hidden = true;
     scene.appendChild(pokeHint);
+    var dailyHint = el("button", "dp-daily");
+    dailyHint.hidden = true;
+    scene.appendChild(dailyHint);
     var soul = el("span", "dp-soul", "\u{1F47B}");
     soul.hidden = true;
     scene.appendChild(soul);
@@ -2074,7 +2262,7 @@
         }
       }, { once: true });
     }
-    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
+    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
   }
 
   // src/client/index.js
@@ -2116,6 +2304,7 @@
           progressWrap,
           progressFill,
           pokeHint,
+          dailyHint,
           soul,
           pigArt,
           pigEmoji,
@@ -2143,6 +2332,9 @@
         var stage = "primary";
         var souvenirPick = null;
         var picker = null;
+        var ownerEdit = null;
+        var workTrait = "strong";
+        var jobDetail = null;
         var ui = {
           get view() {
             return view;
@@ -2179,6 +2371,24 @@
           },
           set souvenirPick(next) {
             souvenirPick = next;
+          },
+          get ownerEdit() {
+            return ownerEdit;
+          },
+          set ownerEdit(next) {
+            ownerEdit = next;
+          },
+          get workTrait() {
+            return workTrait;
+          },
+          set workTrait(next) {
+            workTrait = next;
+          },
+          get jobDetail() {
+            return jobDetail;
+          },
+          set jobDetail(next) {
+            jobDetail = next;
           }
         };
         var isOpen = readStore(OPEN_KEY) === "true";
@@ -2215,6 +2425,7 @@
           progressWrap,
           progressFill,
           pokeHint,
+          dailyHint,
           soul,
           pigArt,
           pigEmoji,
@@ -2252,6 +2463,12 @@
           },
           set picker(next) {
             picker = next;
+          },
+          get ownerEdit() {
+            return ownerEdit;
+          },
+          set ownerEdit(next) {
+            ownerEdit = next;
           },
           get isOpen() {
             return isOpen;
@@ -2328,6 +2545,14 @@
         ui.setOpen = setOpen;
         ui.fitPanel = fitPanel;
         ui.flash = flash;
+        dailyHint.addEventListener("pointerdown", function(event) {
+          event.stopPropagation();
+        });
+        dailyHint.addEventListener("click", function(event) {
+          event.stopPropagation();
+          var action = dailyHint.getAttribute("data-action");
+          if (action !== null && action !== "") send(action);
+        });
         var drag = null;
         scene.addEventListener("pointerdown", function(event) {
           if (event.button !== 0) return;
@@ -2398,6 +2623,18 @@
         render(view);
         refresh();
         pollTimer = window.setInterval(refresh, POLL_MS);
+        var chatTimer = null;
+        function scheduleChat() {
+          var minutes = IDLE_CHAT_MINUTES.min + Math.random() * (IDLE_CHAT_MINUTES.max - IDLE_CHAT_MINUTES.min);
+          chatTimer = window.setTimeout(function() {
+            if (!stopped && !busy && view.pig !== null) send("chat", { reason: "idle" });
+            scheduleChat();
+          }, minutes * 6e4);
+        }
+        var greetTimer = window.setTimeout(function() {
+          if (!stopped && view.pig !== null) send("chat", { reason: "enter" });
+        }, GREET_DELAY_MS);
+        scheduleChat();
         function onResize() {
           clampPig();
           fitPanel();
@@ -2451,6 +2688,8 @@
           } catch (error) {
           }
           if (pollTimer !== null) window.clearInterval(pollTimer);
+          if (chatTimer !== null) window.clearTimeout(chatTimer);
+          window.clearTimeout(greetTimer);
           fx.dispose();
           pollTimer = null;
           host.remove();

@@ -68,6 +68,18 @@ export const CSS_TABS = [
   // Reply buttons under a line: small pills, the mint of the primary colour
   // without the 3D base, which the spec keeps for real primary buttons.
   '.dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}',
+  // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
+  '.dp-daily{position:absolute;top:-6px;left:50%;transform:translateX(-50%);',
+  'font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;',
+  'border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);',
+  'box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-bob 2.4s var(--ac-ease) infinite}',
+  '.dp-daily:hover{border-color:var(--ac-border-hover)}',
+  '.dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',
+  '@keyframes dp-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}',
+  // 日记：折叠时只有首句，展开是全文。
+  '.dp-diary{cursor:pointer}',
+  '.dp-diary[data-open="true"] .dp-diary-full{display:block}',
+  '.dp-diary-full{margin-top:4px;line-height:1.5}',
   '.dp-reply{font:inherit;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;',
   'border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);background:var(--ac-bg);',
   'color:var(--ac-text);transition:border-color .15s var(--ac-ease)}',
@@ -154,8 +166,17 @@ export const CSS_TABS = [
   '.dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);',
   'cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);',
   'border:2px solid var(--ac-border-light);background:var(--ac-bg-input);',
+  // One line, always: a label that wraps makes its button taller than the rest.
+  'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;',
   'transition:all .2s var(--ac-ease)}',
   '.dp-seg button:hover{background:var(--ac-hover)}',
+  // The work tab has three skills, not four stages.
+  '.dp-seg.dp-seg-3{grid-template-columns:repeat(3,minmax(0,1fr))}',
+  // Work rows: two small buttons on the right, 详情 opens the checklist below.
+  '.dp-job-locked{opacity:.75}',
+  '.dp-job-detail{margin-top:-2px}',
+  '.dp-req{font-size:10.5px;font-weight:600;color:var(--ac-error);line-height:1.6}',
+  '.dp-req.dp-req-ok{color:var(--ac-success)}',
   '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
   'color:var(--ac-text);font-weight:700}',
 
@@ -173,6 +194,14 @@ export const CSS_TABS = [
   '.dp-item .dp-dim{color:var(--ac-text-2);font-size:10px;font-weight:500;overflow:hidden;',
   'text-overflow:ellipsis;white-space:nowrap}',
   '.dp-item.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}',
+  // B6 talk row: name + 改 + 免打扰, and the inline name input.
+  '.dp-talk{gap:6px;margin-top:8px}',
+  '.dp-talk>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '.dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}',
+  '.dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}',
+  '.dp-input{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 8px;border-radius:var(--ac-pill);',
+  'border:2px solid var(--ac-border);background:var(--ac-bg-input);color:var(--ac-text)}',
+  '.dp-input:focus{outline:2px solid var(--ac-primary);outline-offset:1px}',
 
   /* ---------- primary buttons: teal pill with the game 3D bottom edge --- */
   '.dp-mini{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#fff;',

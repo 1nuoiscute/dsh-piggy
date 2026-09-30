@@ -26,7 +26,7 @@ import { createLayout } from './layout.js'
 import { createPanel } from './panel.js'
 import { createScene } from './scene.js'
 import { CSS } from './styles.js'
-import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_KEY, DEV_TAB, KIND_ORDER, KIND_TITLE, MOUNTED, MODES, NO_ITEM_LINE, OPEN_KEY, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PET_LINES, PIG_PADDING_X, POLL_MS, POSITION_KEY, SCENE_RESERVE, STAGES, STATE_URL, TABS } from './constants.js'
+import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_KEY, DEV_TAB, KIND_ORDER, KIND_TITLE, MOUNTED, MODES, NO_ITEM_LINE, OPEN_KEY, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PET_LINES, PIG_PADDING_X, GREET_DELAY_MS, IDLE_CHAT_MINUTES, POLL_MS, POSITION_KEY, SCENE_RESERVE, STAGES, STATE_URL, TABS } from './constants.js'
 import { button, el, meter } from './dom.js'
 import { normalize } from './normalize.js'
 import { readStore, writeStore } from './storage.js'
@@ -63,7 +63,7 @@ import { arr, num, obj, str } from './values.js'
       // instead of breaking the panel.
       var parts = createScene()
       var { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop,
-        progressWrap, progressFill, pokeHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content } = parts
+        progressWrap, progressFill, pokeHint, dailyHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content } = parts
 
       var savedPos = readStore(POSITION_KEY)
       // The pig's position as the user set it, before any on-screen clamp.
@@ -105,6 +105,11 @@ import { arr, num, obj, str } from './values.js'
       var souvenirPick = null
       // Which care action's item picker is open, if any.
       var picker = null
+      // The owner-name draft while it is being edited on the status tab (null = not editing).
+      var ownerEdit = null
+      // Work tab: which skill's jobs are shown, and whose 详情 is open.
+      var workTrait = 'strong'
+      var jobDetail = null
 
       /** The tabs get an explicit context instead of closing over the shell locals. */
       var ui = {
@@ -114,6 +119,9 @@ import { arr, num, obj, str } from './values.js'
         get picker() { return picker }, set picker(next) { picker = next },
         get stage() { return stage }, set stage(next) { stage = next },
         get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
+        get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
+        get workTrait() { return workTrait }, set workTrait(next) { workTrait = next },
+        get jobDetail() { return jobDetail }, set jobDetail(next) { jobDetail = next },
       }
       var isOpen = readStore(OPEN_KEY) === 'true'
       var lastStage = null
@@ -145,6 +153,7 @@ import { arr, num, obj, str } from './values.js'
         progressWrap: progressWrap,
         progressFill: progressFill,
         pokeHint: pokeHint,
+        dailyHint: dailyHint,
         soul: soul,
         pigArt: pigArt,
         pigEmoji: pigEmoji,
@@ -163,6 +172,7 @@ import { arr, num, obj, str } from './values.js'
         get tab() { return tab }, set tab(next) { tab = next },
         get stage() { return stage }, set stage(next) { stage = next },
         get picker() { return picker }, set picker(next) { picker = next },
+        get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
         get isOpen() { return isOpen }, set isOpen(next) { isOpen = next },
         get lastStage() { return lastStage }, set lastStage(next) { lastStage = next },
         get lastPendingAt() { return lastPendingAt }, set lastPendingAt(next) { lastPendingAt = next },
@@ -197,6 +207,15 @@ import { arr, num, obj, str } from './values.js'
       ui.setOpen = setOpen
       ui.fitPanel = fitPanel
       ui.flash = flash
+
+      // 日常气泡（签到/礼包）的点击只在这里绑一次；它压在猪上面，事件不能冒泡给
+      // 拖动和摸摸。
+      dailyHint.addEventListener('pointerdown', function (event) { event.stopPropagation() })
+      dailyHint.addEventListener('click', function (event) {
+        event.stopPropagation()
+        var action = dailyHint.getAttribute('data-action')
+        if (action !== null && action !== '') send(action)
+      })
 
       // ---- open / close ----
 
@@ -288,6 +307,21 @@ import { arr, num, obj, str } from './values.js'
       render(view)
       refresh()
       pollTimer = window.setInterval(refresh, POLL_MS)
+
+      // B6: the pig greets the owner once per page load (the host decides
+      // whether it has been away long enough), then speaks up now and then.
+      var chatTimer = null
+      function scheduleChat() {
+        var minutes = IDLE_CHAT_MINUTES.min + Math.random() * (IDLE_CHAT_MINUTES.max - IDLE_CHAT_MINUTES.min)
+        chatTimer = window.setTimeout(function () {
+          if (!stopped && !busy && view.pig !== null) send('chat', { reason: 'idle' })
+          scheduleChat()
+        }, minutes * 60000)
+      }
+      var greetTimer = window.setTimeout(function () {
+        if (!stopped && view.pig !== null) send('chat', { reason: 'enter' })
+      }, GREET_DELAY_MS)
+      scheduleChat()
       // Optional call: minimal test environments stub a window without listeners.
       // Optional call: minimal test environments stub a window without listeners.
       function onResize() {
@@ -341,6 +375,8 @@ import { arr, num, obj, str } from './values.js'
         window.removeEventListener?.('keydown', onKeyDown)
         try { delete (/** @type {any} */ (window)).dshPigDev } catch (error) { /* frozen window */ }
         if (pollTimer !== null) window.clearInterval(pollTimer)
+        if (chatTimer !== null) window.clearTimeout(chatTimer)
+        window.clearTimeout(greetTimer)
         fx.dispose()
         pollTimer = null
         host.remove()

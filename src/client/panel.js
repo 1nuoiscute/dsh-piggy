@@ -20,6 +20,9 @@ import { renderTravelTab } from './tabs/travel.js'
 import { renderWorkTab } from './tabs/work.js'
 import { str } from './values.js'
 
+/** News that gets through 免打扰. */
+var URGENT_KINDS = ['sick', 'worse', 'death', 'cured', 'revived']
+
 export function createPanel(ctx) {
       var AWAY_LINE = {
         work: '在忙',
@@ -279,6 +282,21 @@ export function createPanel(ctx) {
           ctx.lastStage = pigStage.key
         }
 
+        // 猪头上的日常提示：能签到就先显示签到，否则显示礼包。
+        // 点一下直接领；点击不再冒泡到场景，免得同时被当成摸猪/拖动。
+        var daily = ctx.view.daily
+        var dailyAction = daily.canSignIn ? 'signIn' : (daily.unclaimed > 0 ? 'openGift' : null)
+        ctx.dailyHint.hidden = dailyAction === null || ctx.view.pig === null
+        if (dailyAction !== null) {
+          ctx.dailyHint.textContent = dailyAction === 'signIn' ? '📅' : '🎁'
+          ctx.dailyHint.title = dailyAction === 'signIn'
+            ? '签到第 ' + daily.signInDay + '/' + daily.cycle + ' 天'
+            : '有 ' + daily.unclaimed + ' 个在线礼包'
+          // 动作放在 data-action 上，监听只在外壳里注册一次（见 index.js），
+          // 免得每 4 秒重绘都往上挂一个 listener。
+          ctx.dailyHint.setAttribute('data-action', dailyAction)
+        }
+
         // Alerts on the icon bar itself, so a collapsed pig still warns.
         // The study icon lights when there is a course to take right now:
         // idle, the stage on screen is unlocked, and it still has a subject.
@@ -309,6 +327,8 @@ export function createPanel(ctx) {
             showPigLine(event)
             continue
           }
+          // 免打扰: routine news stays quiet; illness and death still speak.
+          if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue
           ctx.toast(str(event.text, '猪有新消息'))
           if (event.kind === 'coronation') { ctx.react('levelup', 950); ctx.burst(['👑', '✨'], 3) }
           else if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
@@ -319,6 +339,8 @@ export function createPanel(ctx) {
           else if (event.kind === 'trip') { ctx.react('away', 900); ctx.burst(['🧳', '🎁'], 3) }
         }
 
+        // Typing a new name: a repaint would drop the input and its focus.
+        if (ctx.ownerEdit !== null && ctx.tab === 'status') return
         renderContent()
       }
 

@@ -281,17 +281,17 @@ test('the snapshot reports the package version', async () => {
 test('a refused operation reports ok:false instead of the snapshot\'s ok', async () => {
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs - 3 * MIN)
-    pig.inventory = { apple: 4 }
+    pig.inventory = { apple: 4, soap: 2 }
     return pig
   })
   try {
-    // A shift that has already ended: the pig is home, so this is a normal feed.
-    // (The seed below stocks apples, because feeding now costs one.)
-    const fed = await app.post({ action: 'feed', item: 'apple' })
-    assert.equal(fed.ok, true, 'the first feed succeeds')
+    // A shift that has already ended: the pig is home, so this is a normal bath.
+    // (Feeding has no cooldown since 2026-10-01, so the bath is the one to test.)
+    const fed = await app.post({ action: 'bathe', item: 'soap' })
+    assert.equal(fed.ok, true, 'the first bath succeeds')
 
     // The second one is on cooldown — this is the case the spread order broke.
-    const again = await app.post({ action: 'feed', item: 'apple' })
+    const again = await app.post({ action: 'bathe', item: 'soap' })
     assert.equal(again.ok, false, 'a cooling-down action must not report success')
     assert.equal(again.reason, 'cooldown')
     assert.ok(again.wait > 0)
@@ -385,7 +385,8 @@ test('the snapshot offers the interest courses, and taking one feeds a trait', a
   })
   try {
     const board = await app.get()
-    assert.deepEqual(board.interests.map(entry => entry.key), ['photography', 'coding', 'dancing', 'fitness'])
+    assert.deepEqual(board.interests.map(entry => entry.key).slice(0, 4), ['photography', 'coding', 'dancing', 'fitness'])
+    assert.equal(board.interests.length, 16, 'twelve more since 2026-10-01')
     assert.equal(board.interests.every(entry => entry.times === 0), true)
     assert.equal(board.skills, undefined, 'no fourth stat axis')
 
@@ -453,7 +454,7 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
     assert.equal(board.shop.find(item => item.key === 'scarf').owned, true)
     const crown = board.shop.find(item => item.key === 'crown')
     assert.equal(crown.unlocked, false)
-    assert.equal(crown.level, 13)
+    assert.equal(crown.level, 40, 're-spread on the 60-level curve (2026-10-01)')
 
     const on = await app.post({ action: 'wear', item: 'scarf' })
     assert.equal(on.ok, true)
@@ -471,7 +472,7 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
     const locked = await app.post({ action: 'buy', item: 'crown' })
     assert.equal(locked.ok, false)
     assert.equal(locked.reason, 'low-level')
-    assert.equal(locked.need, 13)
+    assert.equal(locked.need, 40)
 
     // A dress is worn, never eaten.
     assert.equal((await app.post({ action: 'use', item: 'scarf' })).reason, 'not-consumable')

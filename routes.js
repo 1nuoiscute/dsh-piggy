@@ -55,6 +55,13 @@ const OPERATIONS = {
   pet: store => store.act('pet'),
   // Answer the pig's latest line: `line` is the message id, `index` the button.
   reply: (store, body) => store.reply(Number(body.line), Number(body.index)),
+  // 日常：签到（在线礼包在 B5 的第二步接上）。
+  signIn: store => store.signIn(),
+  openGift: store => store.openGift(),
+  // The panel's timers ask the pig to speak up; the pig decides whether to.
+  chat: (store, body) => store.chat(str(body.reason)),
+  quiet: (store, body) => store.setQuiet(body.on === true),
+  owner: (store, body) => store.setOwnerName(str(body.name)),
   work: (store, body) => store.startWork(str(body.job)),
   study: (store, body) => store.startStudy(str(body.subject), str(body.stage)),
   interest: (store, body) => store.startInterest(str(body.interest)),

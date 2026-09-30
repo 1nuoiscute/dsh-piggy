@@ -47,5 +47,6 @@ export * from './data/travel.js'
 export * from './data/shop.js'
 export * from './data/drops.js'
 export * from './data/lines.js'
+export * from './data/daily.js'
 
 export * from './data/evolution.js'

@@ -69,7 +69,7 @@ export const CSS_BASE = [
   '[data-dsh-pig] .dp-content[hidden],[data-dsh-pig] .dp-hud[hidden],',
   '[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],',
   '[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],',
-  '[data-dsh-pig] .dp-poke-hint[hidden],',
+  '[data-dsh-pig] .dp-poke-hint[hidden],[data-dsh-pig] .dp-daily[hidden],',
   '[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}',
 
   /* ---------- the panel: cream parchment, border not shadow ---------- */
