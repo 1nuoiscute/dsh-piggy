@@ -13,7 +13,7 @@
 | 卡 | 内容 | 谁做 | 状态 |
 |---|---|---|---|
 | B0 | 框架：pet-core 库、分段结算、随机数种子、存档逐级升级、台词框架 | Claude | ✅ 已合入 main |
-| [B1](B1-stability.md) | 稳定：修审查出的 bug | **DSH agent** | ✅ 已合入，Claude 已验收（鉴权一条待用户拍板） |
+| [B1](B1-stability.md) | 稳定：修审查出的 bug | **DSH agent** | ✅ 已合入，Claude 已验收（鉴权：用户决定不做） |
 | B2 | 成长：成长值 + 照顾系数、60 级、幼年/青年/成年、性别、去掉老年和老死（[数值单](numbers/B2-growth.md) ✅） | Claude | ✅ 已合入 |
 | B3 | 疾病：5 条链、20 种专用药、概率发病、吃错药加重（[数值单](numbers/B3-illness.md) ✅） | Claude | ✅ 已合入 |
 | B4 | 学习→职业：九门课课时、33 种职业、证书、掉落（[数值单](numbers/B4-study-jobs.md) ✅） | Claude | ✅ 已合入 |

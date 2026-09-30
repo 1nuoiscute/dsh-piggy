@@ -42,7 +42,7 @@
 - [x] **mutate 半路抛错也会保存**：`store.js` 的 `mutate` 在 core 抛异常时不保存、把内存状态回滚到调用前（`structuredClone` 快照）
 - [x] **轮询覆盖刚做的动作**：`io.js` 的 `refresh` 加 in-flight 序号，比最近一次 `send` 早发出的轮询结果直接丢弃
 - [x] **面板每 4 秒整页重建**：`panel.js:~65` 渲染前记下内容区 `scrollTop`，渲染后还原（最小改动，不做 diff）
-- [ ]（方案已写好，等 Claude/用户拍板再动手）**`/dsh-pig/act` 没有鉴权**：任何网页都能 POST `reset/dev/giveAll`。
+- [~] **不做（用户 2026-10-01：本地插件没必要搞权限）** ~~`/dsh-pig/act` 没有鉴权~~：任何网页都能 POST `reset/dev/giveAll`。
   **方案（已调研，代码未动，等 Claude / 用户过目）**
 
   宿主侧现状（查过 `/zyx/DSH/deepseek-harness`）：
