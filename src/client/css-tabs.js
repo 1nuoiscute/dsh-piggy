@@ -219,7 +219,7 @@ export const CSS_TABS = [
   'border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}',
 
   /* ---------- the care item picker ---------- */
-  '.dp-pick{margin-top:9px;padding:9px 10px;border-radius:var(--ac-radius-sm);',
+  '.dp-pick{margin-top:9px;padding:9px 10px;border-radius:var(--ac-radius-sm);font-size:10.5px;',
   'background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}',
   '.dp-pick-head{font-size:10.5px;font-weight:700;color:var(--ac-text);margin-bottom:7px}',
   '.dp-cancel{display:block;width:100%;margin-top:8px;font:inherit;font-size:10.5px;',

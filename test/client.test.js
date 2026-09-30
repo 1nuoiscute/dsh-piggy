@@ -659,6 +659,18 @@ test('a repaint keeps the reader where they were', async () => {
   assert.equal(contentOf(dom).scrollTop, 140, 'the scroll offset survived the repaint')
 })
 
+test('the panel pins its own base font size instead of inheriting the page', async () => {
+  // The job detail box left font-size to inheritance and picked up the host
+  // page's 16px: one block of text twice the size of everything around it.
+  const css = await readCss()
+  const card = /\.dp-card\{([^}]*)\}/.exec(css)
+  assert.notEqual(card, null)
+  assert.match(card[1], /font-size:\s*1[01](\.\d+)?px/, 'the panel needs a small base size of its own')
+  const pick = /\.dp-pick\{([^}]*)\}/.exec(css)
+  assert.notEqual(pick, null)
+  assert.match(pick[1], /font-size:/, 'boxes inside the panel set their size explicitly too')
+})
+
 test('each @keyframes is defined once, and the pig idles in place', async () => {
   // The sign-in bubble introduced a second `@keyframes dp-bob`, which silently
   // overrode the pig's idle bob (it centres with translateX(-50%)). Every

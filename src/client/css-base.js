@@ -81,7 +81,9 @@ export const CSS_BASE = [
   'border-radius:var(--ac-radius-card);overflow:hidden;',
   'display:flex;flex-direction:column;',
   'background:var(--ac-bg);border:2px solid var(--ac-border-light);',
-  'box-shadow:var(--ac-shadow-lg);color:var(--ac-text-body)}',
+  // 面板自己钉住基准字号与字体：不钉就会继承宿主页面的 16px，
+  // 详情框那种「没写 font-size 的容器」就会比周围大一倍（用户反馈 #2）。
+  'box-shadow:var(--ac-shadow-lg);color:var(--ac-text-body);font-family:var(--ac-font);font-size:11px}',
 
   /* ---------- the pig: never moved, never boxed ---------- */
   '.dp-scene{position:relative;height:var(--scene-open);background:none;cursor:grab;',

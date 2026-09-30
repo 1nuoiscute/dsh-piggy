@@ -765,7 +765,9 @@
     "border-radius:var(--ac-radius-card);overflow:hidden;",
     "display:flex;flex-direction:column;",
     "background:var(--ac-bg);border:2px solid var(--ac-border-light);",
-    "box-shadow:var(--ac-shadow-lg);color:var(--ac-text-body)}",
+    // 面板自己钉住基准字号与字体：不钉就会继承宿主页面的 16px，
+    // 详情框那种「没写 font-size 的容器」就会比周围大一倍（用户反馈 #2）。
+    "box-shadow:var(--ac-shadow-lg);color:var(--ac-text-body);font-family:var(--ac-font);font-size:11px}",
     /* ---------- the pig: never moved, never boxed ---------- */
     ".dp-scene{position:relative;height:var(--scene-open);background:none;cursor:grab;",
     "overflow:visible;display:flex;align-items:flex-end;justify-content:flex-end;",
@@ -1089,7 +1091,7 @@
     ".dp-mini:disabled{background:var(--ac-bg-disabled);color:var(--ac-text-disabled);",
     "border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}",
     /* ---------- the care item picker ---------- */
-    ".dp-pick{margin-top:9px;padding:9px 10px;border-radius:var(--ac-radius-sm);",
+    ".dp-pick{margin-top:9px;padding:9px 10px;border-radius:var(--ac-radius-sm);font-size:10.5px;",
     "background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
     ".dp-pick-head{font-size:10.5px;font-weight:700;color:var(--ac-text);margin-bottom:7px}",
     ".dp-cancel{display:block;width:100%;margin-top:8px;font:inherit;font-size:10.5px;",
