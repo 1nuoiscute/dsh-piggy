@@ -35,6 +35,9 @@ export function createIo(ctx) {
           var next = await res.json()
           ctx.render(next)
           if (next && next.ok === false) {
+            // Answering a line that has already moved on is normal (a second
+            // window, a slow poll): say nothing rather than scold the user.
+            if (next.reason === 'stale-line') return
             ctx.react('refuse', 520)
             if (next.reason === 'no-item') {
               var emptyKind = str(next.kind, '')

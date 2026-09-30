@@ -1304,6 +1304,23 @@ test('a refused operation explains itself in the bubble', async () => {
   assert.ok(bubble.allText().includes('钱不够'), bubble.allText())
 })
 
+test('a stale reply is dropped silently instead of scolding the user', async () => {
+  // Answering a line that has already been superseded is normal (two windows,
+  // a slow poll) — it must not pop a refusal bubble (B1 小缺口).
+  const { registration, dom } = await loadClient({
+    actResult: { ...SNAPSHOT, ok: false, reason: 'stale-line' },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  findByAttr(contentOf(dom), 'data-action', 'pet').fire('click')
+  await settle()
+  await settle()
+  const bubble = findByClass(hostOf(dom), 'dp-bubble')
+  const text = bubble === undefined ? '' : bubble.allText()
+  assert.ok(!text.includes('没成') && !text.includes('这个操作'), `nothing should be said: ${text}`)
+})
+
 test('a drawn stage shows a sprite, the others show the emoji', async () => {
   const drawn = await loadClient({
     status: {

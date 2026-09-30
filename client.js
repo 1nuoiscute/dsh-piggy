@@ -1224,6 +1224,7 @@
         var next = await res.json();
         ctx.render(next);
         if (next && next.ok === false) {
+          if (next.reason === "stale-line") return;
           ctx.react("refuse", 520);
           if (next.reason === "no-item") {
             var emptyKind = str(next.kind, "");
