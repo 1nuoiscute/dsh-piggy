@@ -176,6 +176,15 @@ export function createPanel(ctx) {
 
       function render(next) {
         ctx.view = normalize(next)
+        // Never leave the study tab parked on a stage the pig cannot attend.
+        var stageEntry = null
+        var firstOpen = null
+        for (var s = 0; s < ctx.view.stages.length; s += 1) {
+          var entry = ctx.view.stages[s]
+          if (entry.unlocked !== false && firstOpen === null) firstOpen = entry.key
+          if (entry.key === ctx.stage) stageEntry = entry
+        }
+        if (firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen
         ctx.host.setAttribute('data-dead', ctx.view.dead ? 'true' : 'false')
         ctx.host.setAttribute('data-open', ctx.isOpen ? 'true' : 'false')
         ctx.host.setAttribute('data-dev', ctx.devMode ? 'true' : 'false')

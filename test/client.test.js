@@ -1321,6 +1321,19 @@ test('a stale reply is dropped silently instead of scolding the user', async () 
   assert.ok(!text.includes('没成') && !text.includes('这个操作'), `nothing should be said: ${text}`)
 })
 
+test('the study tab opens on a stage the pig can actually attend', async () => {
+  // The client hard-coded 'primary'; if that stage is still locked the whole tab
+  // opened on a padlocked shelf (B1 小缺口).
+  const stages = STAGES.map(entry => (entry.key === 'primary' ? { ...entry, unlocked: false } : entry))
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, stages } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'study')
+  assert.equal(findByAttr(contentOf(dom), 'data-stage', 'preschool').attributes['data-active'], 'true')
+  assert.equal(findByAttr(contentOf(dom), 'data-stage', 'primary').attributes['data-active'], 'false')
+})
+
 test('a drawn stage shows a sprite, the others show the emoji', async () => {
   const drawn = await loadClient({
     status: {
