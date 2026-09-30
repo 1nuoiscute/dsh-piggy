@@ -48,9 +48,7 @@ test('code identifiers, comments and logs carry no emoji', () => {
     new URL('render.js', packageRoot),
     ...jsFiles(new URL('core/', packageRoot)),
     ...jsFiles(new URL('store/', packageRoot)),
-    // TODO(2026-09-30): src/client/index.js is still one file (1397 lines) —
-    // its tabs and shell are the last piece of stage 2 in docs/REFACTOR-PLAN.md.
-    // It joins this list once that lands; every other client module already does.
+    ...jsFiles(new URL('src/client/', packageRoot)),
   ]
   const offenders = []
   for (const url of files) {
@@ -75,9 +73,7 @@ test('source files stay under the 400-line ceiling', () => {
     ...jsFiles(new URL('data/', packageRoot)),
     ...jsFiles(new URL('core/', packageRoot)),
     ...jsFiles(new URL('store/', packageRoot)),
-    // TODO(2026-09-30): src/client/index.js is still one file (1397 lines) —
-    // its tabs and shell are the last piece of stage 2 in docs/REFACTOR-PLAN.md.
-    // It joins this list once that lands; every other client module already does.
+    ...jsFiles(new URL('src/client/', packageRoot)),
   ]
   const lineCount = url => read(url).replace(/\n$/, '').split('\n').length
   const offenders = files.filter(url => lineCount(url) > 400).map(url => `${shortName(url)}:${lineCount(url)}`)

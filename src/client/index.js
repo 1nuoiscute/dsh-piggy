@@ -21,6 +21,7 @@ import { renderStudyTab } from './tabs/study.js'
 import { renderTravelTab } from './tabs/travel.js'
 import { renderWorkTab } from './tabs/work.js'
 import { createEffects } from './effects.js'
+import { createIo } from './io.js'
 import { createLayout } from './layout.js'
 import { createPanel } from './panel.js'
 import { createScene } from './scene.js'
@@ -109,7 +110,7 @@ window.__ModuleLoader__.load({
       var ui = {
         get view() { return view }, set view(next) { view = next },
         get content() { return content }, set content(next) { content = next },
-        send: send,
+        flash: flash,
         renderContent: renderContent,
         get host() { return host }, set host(next) { host = next },
         setOpen: setOpen,
@@ -154,7 +155,7 @@ window.__ModuleLoader__.load({
         dressSlots: dressSlots,
         bar: bar,
         icons: icons,
-        send: send,
+        flash: flash,
         ui: ui,
         react: react,
         burst: burst,
@@ -169,6 +170,8 @@ window.__ModuleLoader__.load({
         get lastPendingAt() { return lastPendingAt }, set lastPendingAt(next) { lastPendingAt = next },
         get userRight() { return userRight }, set userRight(next) { userRight = next },
         get userBottom() { return userBottom }, set userBottom(next) { userBottom = next },
+        get busy() { return busy }, set busy(next) { busy = next },
+        get stopped() { return stopped }, set stopped(next) { stopped = next },
         get devMode() { return devMode },
       }
       var layout = createLayout(ctx)
@@ -185,6 +188,12 @@ window.__ModuleLoader__.load({
       var paintBar = layout.paintBar, buildIcon = layout.buildIcon
       for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t])
       // `ui` was built before these existed; point it at the real ones now.
+      var io = createIo(ctx)
+      var send = io.send, refresh = io.refresh
+      ctx.send = send
+      ctx.render = render
+      ctx.renderContent = renderContent
+      ui.send = send
       ui.renderContent = renderContent
       ui.setOpen = setOpen
       ui.fitPanel = fitPanel
@@ -197,91 +206,6 @@ window.__ModuleLoader__.load({
        * hard to reach by playing (dying, the last illness stage, an elder pig)
        * can be checked at all.
        */
-
-      // ---- panel rendering ----
-
-      /** The pig's bag for one care action: pick what to spend. */
-
-      /** "+35 清洁" and friends, so the picker says what each item does. */
-
-      /** "3 天" / "12 小时" / "40 分钟" for an upcoming stage. */
-
-      /**
-       * Long trips read better in hours, and the row has to fit a 292px panel:
-       * "720 分钟" is three characters of noise that push the rarity hint off.
-       */
-
-      var AWAY_LINE = {
-        work: '在忙',
-        study: '在念书',
-        trip: '在路上',
-      }
-
-      // ---- talking to the host ----
-      async function refresh() {
-        if (stopped) return
-        // A poll can change the live content (a job finishing, an illness
-        // starting), so re-check the panel still fits.
-        fitPanel()
-        try {
-          var res = await fetch(STATE_URL, { cache: 'no-store' })
-          if (!res.ok) throw new Error('HTTP ' + res.status)
-          render(await res.json())
-        } catch (error) {
-          if (stopped) return
-          showBubble('连接不上宿主', 4000)
-        }
-      }
-
-      async function send(action, extra) {
-        if (busy || stopped) return
-        if (view.pig === null && action !== 'hatch') return
-        busy = true
-        flash(action)
-        try {
-          var body = { action: action }
-          if (extra) for (var k in extra) body[k] = extra[k]
-          var res = await fetch(ACT_URL, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(body),
-          })
-          var next = await res.json()
-          render(next)
-          if (next && next.ok === false) {
-            react('refuse', 520)
-            if (next.reason === 'no-item') {
-              var emptyKind = str(next.kind, '')
-              showBubble(NO_ITEM_LINE[emptyKind] ?? '背包里没有能用的东西', 3200)
-              return
-            }
-            var reasons = {
-              cooldown: '还要等 ' + num(next.wait, 0) + ' 秒',
-              poor: '钱不够',
-              away: '它在外面',
-              weak: '太虚弱了，先养好再出门',
-              hungry: '太饿了',
-              'wrong-medicine': '药不对症',
-              empty: '背包里没有',
-              'not-sick': '它没生病',
-              dead: '它已经走了…',
-              idle: '它没在外面',
-              owned: '这件已经有了',
-              'low-level': '等级不够（要 Lv.' + num(next.need, 0) + '，现在 Lv.' + num(next.have, 0) + '）',
-              'not-owned': '还没有这件东西',
-              'not-consumable': '这个是穿的，不是用的',
-              'wrong-stage': '这个学段没有这门课',
-              underqualified: '它还没这个本事，先去上课',
-            }
-            showBubble(reasons[next.reason] ?? '这个操作没成', 2400)
-          }
-        } catch (error) {
-          showBubble('操作没送到宿主', 2600)
-          react('refuse', 520)
-        } finally {
-          busy = false
-        }
-      }
 
       // ---- drag the pig; right-click it for the menu ----
       var drag = null

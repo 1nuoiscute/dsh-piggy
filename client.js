@@ -1169,6 +1169,72 @@
     return { react, burst, flash, showBubble, toast, dispose };
   }
 
+  // src/client/io.js
+  function createIo(ctx) {
+    async function send(action, extra) {
+      if (ctx.busy || ctx.stopped) return;
+      if (ctx.view.pig === null && action !== "hatch") return;
+      ctx.busy = true;
+      ctx.flash(action);
+      try {
+        var body = { action };
+        if (extra) for (var k in extra) body[k] = extra[k];
+        var res = await fetch(ACT_URL, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        var next = await res.json();
+        ctx.render(next);
+        if (next && next.ok === false) {
+          ctx.react("refuse", 520);
+          if (next.reason === "no-item") {
+            var emptyKind = str(next.kind, "");
+            ctx.showBubble(NO_ITEM_LINE[emptyKind] ?? "\u80CC\u5305\u91CC\u6CA1\u6709\u80FD\u7528\u7684\u4E1C\u897F", 3200);
+            return;
+          }
+          var reasons = {
+            cooldown: "\u8FD8\u8981\u7B49 " + num(next.wait, 0) + " \u79D2",
+            poor: "\u94B1\u4E0D\u591F",
+            away: "\u5B83\u5728\u5916\u9762",
+            weak: "\u592A\u865A\u5F31\u4E86\uFF0C\u5148\u517B\u597D\u518D\u51FA\u95E8",
+            hungry: "\u592A\u997F\u4E86",
+            "wrong-medicine": "\u836F\u4E0D\u5BF9\u75C7",
+            empty: "\u80CC\u5305\u91CC\u6CA1\u6709",
+            "not-sick": "\u5B83\u6CA1\u751F\u75C5",
+            dead: "\u5B83\u5DF2\u7ECF\u8D70\u4E86\u2026",
+            idle: "\u5B83\u6CA1\u5728\u5916\u9762",
+            owned: "\u8FD9\u4EF6\u5DF2\u7ECF\u6709\u4E86",
+            "low-level": "\u7B49\u7EA7\u4E0D\u591F\uFF08\u8981 Lv." + num(next.need, 0) + "\uFF0C\u73B0\u5728 Lv." + num(next.have, 0) + "\uFF09",
+            "not-owned": "\u8FD8\u6CA1\u6709\u8FD9\u4EF6\u4E1C\u897F",
+            "not-consumable": "\u8FD9\u4E2A\u662F\u7A7F\u7684\uFF0C\u4E0D\u662F\u7528\u7684",
+            "wrong-stage": "\u8FD9\u4E2A\u5B66\u6BB5\u6CA1\u6709\u8FD9\u95E8\u8BFE",
+            underqualified: "\u5B83\u8FD8\u6CA1\u8FD9\u4E2A\u672C\u4E8B\uFF0C\u5148\u53BB\u4E0A\u8BFE"
+          };
+          ctx.showBubble(reasons[next.reason] ?? "\u8FD9\u4E2A\u64CD\u4F5C\u6CA1\u6210", 2400);
+        }
+      } catch (error) {
+        ctx.showBubble("\u64CD\u4F5C\u6CA1\u9001\u5230\u5BBF\u4E3B", 2600);
+        ctx.react("refuse", 520);
+      } finally {
+        ctx.busy = false;
+      }
+    }
+    async function refresh() {
+      if (ctx.stopped) return;
+      ctx.fitPanel();
+      try {
+        var res = await fetch(STATE_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        ctx.render(await res.json());
+      } catch (error) {
+        if (ctx.stopped) return;
+        ctx.showBubble("\u8FDE\u63A5\u4E0D\u4E0A\u5BBF\u4E3B", 4e3);
+      }
+    }
+    return { send, refresh };
+  }
+
   // src/client/layout.js
   function createLayout(ctx) {
     function clampPig() {
@@ -1870,7 +1936,7 @@
           set content(next) {
             content = next;
           },
-          send,
+          flash,
           renderContent,
           get host() {
             return host;
@@ -1938,7 +2004,7 @@
           dressSlots,
           bar,
           icons,
-          send,
+          flash,
           ui,
           react,
           burst,
@@ -1998,6 +2064,18 @@
           set userBottom(next) {
             userBottom = next;
           },
+          get busy() {
+            return busy;
+          },
+          set busy(next) {
+            busy = next;
+          },
+          get stopped() {
+            return stopped;
+          },
+          set stopped(next) {
+            stopped = next;
+          },
           get devMode() {
             return devMode;
           }
@@ -2015,75 +2093,15 @@
         var fitPanel = layout.fitPanel, clampPig = layout.clampPig;
         var paintBar = layout.paintBar, buildIcon = layout.buildIcon;
         for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t]);
+        var io = createIo(ctx);
+        var send = io.send, refresh = io.refresh;
+        ctx.send = send;
+        ctx.render = render;
+        ctx.renderContent = renderContent;
+        ui.send = send;
         ui.renderContent = renderContent;
         ui.setOpen = setOpen;
         ui.fitPanel = fitPanel;
-        var AWAY_LINE = {
-          work: "\u5728\u5FD9",
-          study: "\u5728\u5FF5\u4E66",
-          trip: "\u5728\u8DEF\u4E0A"
-        };
-        async function refresh() {
-          if (stopped) return;
-          fitPanel();
-          try {
-            var res = await fetch(STATE_URL, { cache: "no-store" });
-            if (!res.ok) throw new Error("HTTP " + res.status);
-            render(await res.json());
-          } catch (error) {
-            if (stopped) return;
-            showBubble("\u8FDE\u63A5\u4E0D\u4E0A\u5BBF\u4E3B", 4e3);
-          }
-        }
-        async function send(action, extra) {
-          if (busy || stopped) return;
-          if (view.pig === null && action !== "hatch") return;
-          busy = true;
-          flash(action);
-          try {
-            var body = { action };
-            if (extra) for (var k in extra) body[k] = extra[k];
-            var res = await fetch(ACT_URL, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(body)
-            });
-            var next = await res.json();
-            render(next);
-            if (next && next.ok === false) {
-              react("refuse", 520);
-              if (next.reason === "no-item") {
-                var emptyKind = str(next.kind, "");
-                showBubble(NO_ITEM_LINE[emptyKind] ?? "\u80CC\u5305\u91CC\u6CA1\u6709\u80FD\u7528\u7684\u4E1C\u897F", 3200);
-                return;
-              }
-              var reasons = {
-                cooldown: "\u8FD8\u8981\u7B49 " + num(next.wait, 0) + " \u79D2",
-                poor: "\u94B1\u4E0D\u591F",
-                away: "\u5B83\u5728\u5916\u9762",
-                weak: "\u592A\u865A\u5F31\u4E86\uFF0C\u5148\u517B\u597D\u518D\u51FA\u95E8",
-                hungry: "\u592A\u997F\u4E86",
-                "wrong-medicine": "\u836F\u4E0D\u5BF9\u75C7",
-                empty: "\u80CC\u5305\u91CC\u6CA1\u6709",
-                "not-sick": "\u5B83\u6CA1\u751F\u75C5",
-                dead: "\u5B83\u5DF2\u7ECF\u8D70\u4E86\u2026",
-                idle: "\u5B83\u6CA1\u5728\u5916\u9762",
-                owned: "\u8FD9\u4EF6\u5DF2\u7ECF\u6709\u4E86",
-                "low-level": "\u7B49\u7EA7\u4E0D\u591F\uFF08\u8981 Lv." + num(next.need, 0) + "\uFF0C\u73B0\u5728 Lv." + num(next.have, 0) + "\uFF09",
-                "not-owned": "\u8FD8\u6CA1\u6709\u8FD9\u4EF6\u4E1C\u897F",
-                "not-consumable": "\u8FD9\u4E2A\u662F\u7A7F\u7684\uFF0C\u4E0D\u662F\u7528\u7684",
-                "wrong-stage": "\u8FD9\u4E2A\u5B66\u6BB5\u6CA1\u6709\u8FD9\u95E8\u8BFE",
-                underqualified: "\u5B83\u8FD8\u6CA1\u8FD9\u4E2A\u672C\u4E8B\uFF0C\u5148\u53BB\u4E0A\u8BFE"
-              };
-              showBubble(reasons[next.reason] ?? "\u8FD9\u4E2A\u64CD\u4F5C\u6CA1\u6210", 2400);
-            }
-          } catch (error) {
-            showBubble("\u64CD\u4F5C\u6CA1\u9001\u5230\u5BBF\u4E3B", 2600);
-            react("refuse", 520);
-          } finally {
-            busy = false;
-          }
-        }
         var drag = null;
         scene.addEventListener("pointerdown", function(event) {
           if (event.button !== 0) return;
