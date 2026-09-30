@@ -41,7 +41,38 @@
 - [ ] **mutate 半路抛错也会保存**：`store.js` 的 `mutate` 在 core 抛异常时不保存、把内存状态回滚到调用前（`structuredClone` 快照）
 - [ ] **轮询覆盖刚做的动作**：`io.js` 的 `refresh` 加 in-flight 序号，比最近一次 `send` 早发出的轮询结果直接丢弃
 - [ ] **面板每 4 秒整页重建**：`panel.js:~65` 渲染前记下内容区 `scrollTop`，渲染后还原（最小改动，不做 diff）
-- [ ] **`/dsh-pig/act` 没有鉴权**：任何网页都能 POST `reset/dev/giveAll`。先查 DSH 宿主有没有给插件路由的 token 校验钩子（`/zyx/DSH/deepseek-harness` 里搜 web-server 的 route 注册）；没有的话至少校验 `content-type: application/json` + `Origin`/`Sec-Fetch-Site` 同源。**做之前把方案写在这里给 Claude 看一眼**
+- [ ] **`/dsh-pig/act` 没有鉴权**：任何网页都能 POST `reset/dev/giveAll`。
+  **方案（已调研，代码未动，等 Claude / 用户过目）**
+
+  宿主侧现状（查过 `/zyx/DSH/deepseek-harness`）：
+  - `packages/host/webserver` 只做 node:http 路由注册，文件头自述「knows no harness concepts」，
+    `register({ kind, path, handler })` 没有 filter/中间件位，**没有给插件路由的鉴权钩子**。
+  - 宿主自己的浏览器会话鉴权在 `packages/client/connection/src/browser-auth.ts`（HMAC 签名的
+    `dsh-auth-*` cookie / `?token=`），另有 `api-request-trust.ts` 做 Host/authority 白名单；
+    两者都只作用于 connection 插件的 RPC 载体，**没有作为服务暴露给插件**。
+  - 结论：插件路由目前只有 loopback 一层。用户浏览器里任何页面都能
+    `fetch('http://127.0.0.1:3080/dsh-pig/act', { method:'POST', body:'{"action":"reset"}' })` ——
+    简单请求不触发预检，响应读不到也不影响，**副作用已经发生**（dev/reset/giveAll 尤其危险）。
+
+  建议分三步，代价从低到高；第 1 步可以直接做，第 2/3 步需要拍板：
+  1. **同源校验（建议先做）**：`content-type` 必须是 `application/json`；带 `Sec-Fetch-Site`
+     时只接受 `same-origin` / `none`；带 `Origin` 时其 origin 必须与请求 Host 同源。不满足返回
+     403 `{ ok: false, reason: 'forbidden' }`。跨站表单发不出 `application/json`，跨站 fetch 会带
+     `Sec-Fetch-Site: cross-site`，两条都能挡；本地 curl/脚本没有任何这些头，不受影响（本来就能
+     直接写存档文件，不是威胁模型的一部分）。
+  2. **动作令牌**：插件启动时生成进程内随机 token，随快照下发（`GET /dsh-pig/state` 加
+     `actionToken`），客户端 POST 时带 `x-dsh-pig-token`。跨源读不到快照正文（我们没有 CORS 头），
+     拿不到 token；自定义头还会触发预检，而我们不应答预检 → 浏览器直接拦。需要留老客户端不带
+     token 的过渡（例如「带对了 token」或「无 token 但 `Sec-Fetch-Site: same-origin`」都放行）。
+  3. **Host 白名单**：只接受 Host 为 `127.0.0.1:<port>` / `localhost:<port>`（对齐宿主
+     `api-request-trust` 的思路）。挡 DNS rebinding：恶意域名解析到 127.0.0.1 时浏览器视作同源，
+     第 1、2 步都挡不住。
+
+  需要定的：
+  - 第 2、3 步做不做？第 1 步我可以直接实现并补测试（几行 + 一条 403 用例）；
+  - 令牌放进快照，等于把「本进程的写权限」放在一个 GET 里 —— 跨源读不到，但用户浏览器装了
+    恶意扩展的话任何方案都挡不住，这一点要接受；
+  - 斜杠命令不走 HTTP，不受影响。
 
 ## 小缺口（有空就做）
 
