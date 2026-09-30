@@ -58,7 +58,7 @@ import {
 } from './data.js'
 
 /** Bumped when the saved shape changes in a way migrate() must handle. */
-export const STATE_VERSION = 4
+export const STATE_VERSION = 5
 
 const BIRTH_WEIGHT_G = 1200
 const HATCH_WEIGHT_G = 160
@@ -227,7 +227,9 @@ export function layEgg(nowMs) {
     happiness: 70,
     cleanliness: 90,
     health: MAX.health,
-    coins: 60,
+    // Enough to buy medicine on day one: at 60 a sick pig could not afford the
+    // cheapest cure and had nothing left to earn it with.
+    coins: 500,
     inventory: {},
     traits: { intel: 0, charm: 0, strong: 0 },
     courses: {},
@@ -291,6 +293,12 @@ export function migrate(raw) {
   if (typeof raw.cleanliness !== 'number') state.cleanliness = egg.cleanliness
   if (typeof raw.health !== 'number') state.health = raw.dead === true ? 0 : MAX.health
   if (typeof raw.coins !== 'number') state.coins = egg.coins
+  // Starting money went 60 -> 500. A pig that hatched under the old number is
+  // broke through no fault of its owner, so top it up once — and only once, by
+  // keying off the version that was on disk when it was loaded.
+  if ((typeof raw.version !== 'number' || raw.version < 5) && state.coins >= 0 && state.coins < egg.coins) {
+    state.coins = egg.coins
+  }
   if (typeof raw.diedAt !== 'number') state.diedAt = state.dead === true ? (raw.lastSeenAt ?? egg.bornAt) : null
   if (typeof state.stage !== 'string') state.stage = state.hatched === true ? 'piglet' : 'box'
   if (typeof state.name !== 'string' || state.name.trim() === '') state.name = egg.name
@@ -781,12 +789,26 @@ export function careOptions(state, action) {
 // Activities: work · study · trip
 // ---------------------------------------------------------------------------
 
-/** Why the pig cannot head out right now, or null when it can. */
+/**
+ * Health at or below which the pig is too weak to leave the house. The scale is
+ * 5 = full, and the four illness stages set it to 4/3/2/1, so 1 is the last
+ * stage before it dies.
+ */
+const TOO_WEAK_HEALTH = 1
+
+/**
+ * Why the pig cannot head out right now, or null when it can.
+ *
+ * Illness used to block this outright, which deadlocked the whole game:
+ * sick → cannot work → no coins → cannot buy medicine → still sick, and the
+ * only way out was to wait to die. A pig that can still stand up can go and
+ * earn its own prescription; only one at death's door has to stay in bed.
+ */
 export function awayBlockedReason(state) {
   if (state === null) return 'absent'
   if (state.dead) return 'dead'
   if (state.activity !== null) return 'away'
-  if (state.illness !== null) return 'sick'
+  if (state.health <= TOO_WEAK_HEALTH) return 'weak'
   return null
 }
 
@@ -813,7 +835,7 @@ export function startWork(state, jobKey, nowMs) {
   if (job === null) return { ok: false, reason: 'unknown' }
   if (state.dead) return { ok: false, reason: 'dead' }
   if (state.activity !== null) return { ok: false, reason: 'away' }
-  if (state.illness !== null) return { ok: false, reason: 'sick' }
+  if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
   if (state.satiety < 15) return { ok: false, reason: 'hungry' }
   const result = begin(state, {
     kind: 'work', key: job.key, label: job.label, emoji: job.emoji, minutes: job.minutes, cost: 0,
@@ -828,7 +850,7 @@ export function startStudy(state, subjectKey, stageKey, nowMs) {
   if (subject === null || stage === null) return { ok: false, reason: 'unknown' }
   if (state.dead) return { ok: false, reason: 'dead' }
   if (state.activity !== null) return { ok: false, reason: 'away' }
-  if (state.illness !== null) return { ok: false, reason: 'sick' }
+  if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
   // The stage ladder: 小学 first, then every subject once before 大学 opens.
   if (!stageUnlocked(stage, state.lessonsByStage)) {
     return { ok: false, reason: 'locked', need: stageProgress(stage, state.lessonsByStage) }
@@ -855,7 +877,7 @@ export function startTrip(state, tripKey, nowMs) {
   if (trip === null) return { ok: false, reason: 'unknown' }
   if (state.dead) return { ok: false, reason: 'dead' }
   if (state.activity !== null) return { ok: false, reason: 'away' }
-  if (state.illness !== null) return { ok: false, reason: 'sick' }
+  if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
   if (state.coins < trip.cost) return { ok: false, reason: 'poor', price: trip.cost }
   if (state.satiety < 15) return { ok: false, reason: 'hungry' }
 

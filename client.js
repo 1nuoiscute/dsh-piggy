@@ -1313,6 +1313,16 @@ window.__ModuleLoader__.load({
           var sick = el('div', 'dp-alert dp-sick')
           sick.appendChild(el('b', null, '🤒 ' + view.pig.illness.name + '（第 ' + view.pig.illness.stage + '/4 期）'))
           sick.appendChild(el('div', null, '需要「' + view.pig.illness.cure + '」—— 去商店买对应的药'))
+          // If it cannot afford the cure, say the way out plainly: being ill is
+          // not a reason to stay home, so it can go out and earn the medicine.
+          // careView only carries the consumable shelves (feed/bathe/play), so
+          // the price has to come from the shop listing.
+          var cures = (view.shop || []).filter(function (i) { return i.kind === 'medicine' })
+          var cheapest = cures.length === 0 ? null : cures.reduce(function (a, b) { return a.price <= b.price ? a : b })
+          if (cheapest !== null && view.canGoOut && view.pig.coins < cheapest.price) {
+            sick.appendChild(el('div', 'dp-dim',
+              '钱不够也没关系 —— 生病照样能出门打工，先赚 ' + cheapest.price + ' 🪙 买「' + cheapest.label + '」'))
+          }
           content.appendChild(sick)
         } else if (view.pig !== null && view.activity !== null) {
           var away = el('div', 'dp-alert dp-work')
@@ -1486,7 +1496,7 @@ window.__ModuleLoader__.load({
               cooldown: '还要等 ' + num(next.wait, 0) + ' 秒',
               poor: '钱不够',
               away: '它在外面',
-              sick: '病着，出不了门',
+              weak: '太虚弱了，先养好再出门',
               hungry: '太饿了',
               'wrong-medicine': '药不对症',
               empty: '背包里没有',

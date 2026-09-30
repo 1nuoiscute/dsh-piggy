@@ -18,6 +18,7 @@ import {
   SCHOOL_STAGES,
   SHOP,
   LIFE_STAGES,
+  STATE_VERSION,
   SUBJECTS,
   THRESHOLDS,
   TRAITS,
@@ -83,14 +84,14 @@ function give(state, key, count = 1) {
 
 test('layEgg produces a complete, sane save', () => {
   const egg = layEgg(T0)
-  assert.equal(egg.version, 4)
+  assert.equal(egg.version, STATE_VERSION)
   assert.equal(egg.name, '猪猪')
   assert.equal(egg.hatched, false)
   assert.equal(egg.dead, false)
   assert.equal(egg.weightG, 1200)
   assert.equal(egg.cleanliness, 90)
   assert.equal(egg.health, MAX.health)
-  assert.equal(egg.coins, 60)
+  assert.equal(egg.coins, 500, 'enough to buy medicine on day one')
   assert.deepEqual(egg.inventory, {})
   assert.deepEqual(egg.traits, { intel: 0, charm: 0, strong: 0 })
   assert.deepEqual(egg.courses, {})
@@ -182,18 +183,18 @@ test('migrate tolerates junk', () => {
   assert.deepEqual(repaired.inventory, {})
 })
 
-test('migrate upgrades a v1 save all the way to v4', () => {
+test('migrate upgrades a v1 save all the way to the current version', () => {
   const upgraded = migrate({
     version: 1, name: '大花', bornAt: T0, xp: 200, weightG: 5000,
     satiety: 50, happiness: 50, lastSeenAt: T0,
     // no cleanliness, no health, no coins, no inventory, no traits
   })
-  assert.equal(upgraded.version, 4)
+  assert.equal(upgraded.version, STATE_VERSION)
   assert.equal(upgraded.name, '大花')
   assert.equal(upgraded.xp, 200)
   assert.equal(upgraded.cleanliness, 90)
   assert.equal(upgraded.health, MAX.health)
-  assert.equal(upgraded.coins, 60)
+  assert.equal(upgraded.coins, 500)
   assert.deepEqual(upgraded.inventory, {})
   assert.deepEqual(upgraded.traits, { intel: 0, charm: 0, strong: 0 })
   assert.deepEqual(upgraded.souvenirs, [])
@@ -474,8 +475,13 @@ test('work is refused while away, sick, hungry or dead', () => {
 
   const sick = hatchEgg(T0)
   sick.illness = { chain: 0, stage: 1, since: T0 }
-  assert.equal(canWork(sick), false)
-  assert.equal(startWork(sick, 'odd', T0).reason, 'sick')
+  assert.equal(canWork(sick), true, 'illness alone does not ground the pig')
+  // Being ill no longer grounds the pig: that deadlocked the game, because a
+  // sick pig with no coins could not buy the medicine it needed.
+  assert.equal(startWork(sick, 'odd', T0).ok, true, 'a sick pig can still go to work')
+  const weak = hatchEgg(T0)
+  weak.health = 1
+  assert.equal(startWork(weak, 'odd', T0).reason, 'weak', 'death\'s door is another matter')
 
   const hungry = hatchEgg(T0)
   hungry.satiety = 5
@@ -723,7 +729,7 @@ test('study is refused when broke, away, sick or dead', () => {
   const sick = hatchEgg(T0)
   sick.coins = 500
   sick.illness = { chain: 0, stage: 1, since: T0 }
-  assert.equal(startStudy(sick, 'chinese', 'primary', T0).reason, 'sick')
+  assert.equal(startStudy(sick, 'chinese', 'primary', T0).ok, true, 'a sick pig can still go to school')
 
   const dead = hatchEgg(T0)
   dead.dead = true

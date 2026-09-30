@@ -713,6 +713,37 @@ test('a sick pig shows its illness and what it needs', async () => {
   assert.ok(text.includes('金色消炎药水'), text)
 })
 
+test('a sick pig with no money is told it can still go out and earn', async () => {
+  const broke = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      canGoOut: true,
+      shop: [{ key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', affordable: true }],
+      pig: { ...PIG, coins: 3, illness: { name: '感冒', cure: '板蓝根', stage: 1 } },
+    },
+  })
+  broke.registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(broke.dom)
+  const text = contentOf(broke.dom).allText()
+  assert.ok(text.includes('生病照样能出门打工'), `the way out must be spelled out: ${text}`)
+  assert.ok(text.includes('12'), `and how much it needs: ${text}`)
+
+  // With enough money there is no need for the hint.
+  const rich = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      canGoOut: true,
+      shop: [{ key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', affordable: true }],
+      pig: { ...PIG, coins: 900, illness: { name: '感冒', cure: '板蓝根', stage: 1 } },
+    },
+  })
+  rich.registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(rich.dom)
+  assert.ok(!contentOf(rich.dom).allText().includes('生病照样能出门打工'))
+})
+
 test('a dead pig shows the revive banner and greys out', async () => {
   const { registration, dom } = await loadClient({
     status: { ...SNAPSHOT, dead: true, pig: { ...PIG, health: 0, healthPercent: 0, mood: 'dead' } },
