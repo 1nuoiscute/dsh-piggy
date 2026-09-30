@@ -56,6 +56,10 @@ export const workSecondsLeft = activitySecondsLeft
 
 /** Bring the pig home early. Work forfeits pay; study and trips are refunded. */
 export function callOffActivity(state, nowMs) {
+  // Settle first: a shift/lesson/trip that already ended must pay out (and be
+  // announced) before anyone decides it was "called off". Without this the
+  // panel's 召回 button voided the wages of a finished shift.
+  decay(state, nowMs)
   if (state.activity === null) return { ok: false, reason: 'idle' }
   const activity = state.activity
   state.activity = null

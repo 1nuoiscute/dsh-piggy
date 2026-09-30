@@ -612,6 +612,20 @@ test('a shift pays out when the clock passes its end', () => {
   assert.ok(pig.pending.some(e => e.kind === 'work'), 'the payout is announced')
 })
 
+test('recalling a pig whose shift already ended pays the wages, not a void', () => {
+  // The panel's 召回 was the first thing to touch a finished-but-unsettled shift,
+  // and it cancelled it: the pay was thrown away and study/trip costs refunded.
+  const pig = hatchEgg(T0)
+  const before = pig.coins
+  assert.equal(startWork(pig, 'odd', T0).ok, true)
+  const endsAt = pig.activity.endsAt
+
+  callOffActivity(pig, endsAt + 60_000)
+  assert.equal(pig.activity, null, 'the shift is over either way')
+  assert.equal(pig.coins, before + JOBS[0].coins, 'a finished shift still pays')
+  assert.equal(pig.stats.jobs, 1)
+})
+
 test('a shift drains satiety and cleanliness faster than idling', () => {
   const working = hatchEgg(T0)
   const idle = hatchEgg(T0)
