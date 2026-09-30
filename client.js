@@ -32,6 +32,548 @@
     return wrap;
   }
 
+  // src/client/format.js
+  function formatMinutes(minutes) {
+    if (minutes < 60) return minutes + " \u5206\u949F";
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return rest === 0 ? hours + " \u5C0F\u65F6" : hours + " \u5C0F\u65F6" + rest + " \u5206";
+  }
+  function kindLabel(item) {
+    if (item.kind === "medicine") return item.needed ? "\u5BF9\u75C7\uFF01" : "\u836F";
+    if (item.kind === "revive") return "\u590D\u6D3B\u7528";
+    if (item.kind === "bath") return "\u6D17\u6D74";
+    return "\u98DF\u7269";
+  }
+
+  // src/client/tabs/bag.js
+  function renderBagTab(ui) {
+    var owned = [];
+    for (var i = 0; i < ui.view.shop.length; i += 1) {
+      if (num(ui.view.inventory[ui.view.shop[i].key], 0) > 0) owned.push(ui.view.shop[i]);
+    }
+    if (owned.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u80CC\u5305\u7A7A\u7A7A\u7684 \u2014\u2014 \u53BB\u300C\u5546\u5E97\u300D\u4E70\u70B9\u4E1C\u897F\u3002"));
+    } else {
+      var list = el("div", "dp-list");
+      for (var j = 0; j < owned.length; j += 1) {
+        (function(item) {
+          var row = el("div", "dp-item" + (item.needed ? " dp-wanted" : ""));
+          row.appendChild(el("span", null, item.emoji));
+          var grow = el("div", "dp-grow");
+          grow.appendChild(el("div", null, item.label + " \xD7" + num(ui.view.inventory[item.key], 0)));
+          grow.appendChild(el("div", "dp-dim", kindLabel(item)));
+          row.appendChild(grow);
+          var use = button("dp-mini", { "data-use": item.key }, function() {
+            ui.send("use", { item: item.key });
+          });
+          use.textContent = "\u4F7F\u7528";
+          row.appendChild(use);
+          list.appendChild(row);
+        })(owned[j]);
+      }
+      ui.content.appendChild(list);
+    }
+    if (ui.view.dress.length > 0) {
+      var dhead = el("div", "dp-title");
+      dhead.style.marginTop = "10px";
+      var wornCount = 0;
+      for (var w = 0; w < ui.view.dress.length; w += 1) if (ui.view.dress[w].worn) wornCount += 1;
+      dhead.appendChild(el("b", null, "\u{1F455} \u5BB6\u5F53 " + wornCount + "/" + ui.view.dress.length + " \u7A7F\u7740\u4E2D"));
+      ui.content.appendChild(dhead);
+      var ownedDress = [];
+      for (var m = 0; m < ui.view.dress.length; m += 1) if (ui.view.dress[m].owned) ownedDress.push(ui.view.dress[m]);
+      if (ownedDress.length === 0) {
+        ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u88C5\u626E \u2014\u2014 \u5546\u5E97\u300C\u88C5\u626E\u300D\u90A3\u4E00\u680F\uFF0C\u7B49\u7EA7\u591F\u4E86\u5C31\u80FD\u4E70\u3002"));
+      } else {
+        var dlist = el("div", "dp-list");
+        for (var n = 0; n < ownedDress.length; n += 1) {
+          (function(item) {
+            var row = el("div", "dp-item");
+            row.appendChild(el("span", null, item.emoji));
+            var grow = el("div", "dp-grow");
+            grow.appendChild(el("div", null, item.label + (item.worn ? " \xB7 \u7A7F\u7740" : "")));
+            grow.appendChild(el("div", "dp-dim", (item.slotLabel === "" ? "" : item.slotLabel + " \xB7 ") + (item.blurb === "" ? "Lv." + item.level + " \u89E3\u9501" : item.blurb)));
+            row.appendChild(grow);
+            var toggle = button("dp-mini", { "data-wear": item.key }, function() {
+              ui.send("wear", { item: item.key, on: !item.worn });
+            });
+            toggle.textContent = item.worn ? "\u8131\u4E0B" : "\u7A7F\u4E0A";
+            row.appendChild(toggle);
+            dlist.appendChild(row);
+          })(ownedDress[n]);
+        }
+        ui.content.appendChild(dlist);
+      }
+    }
+    var souvenirs = ui.view.pig.souvenirs;
+    var head = el("div", "dp-title");
+    head.style.marginTop = "10px";
+    head.appendChild(el("b", null, "\u{1F381} \u7EAA\u5FF5\u54C1 " + souvenirs.length));
+    ui.content.appendChild(head);
+    ui.content.appendChild(el("div", "dp-empty", souvenirs.length === 0 ? "\u6536\u85CF\u518C\u8FD8\u7A7A\u7740\u3002" : souvenirs.map((entry) => entry.emoji + entry.label).join(" \xB7 ")));
+  }
+
+  // src/client/tabs/dev.js
+  function renderDevTab(ui) {
+    ui.content.appendChild(el("div", "dp-dev-note", "\u{1F527} \u5F00\u53D1\u8005\u6A21\u5F0F \xB7 \u6784\u5EFA v" + (ui.view.version === "" ? "\u672A\u77E5" : ui.view.version) + " \xB7 Ctrl+Shift+D \u5173\u95ED"));
+    if (ui.view.pig !== null && ui.view.pig.ageForced) {
+      ui.content.appendChild(el(
+        "div",
+        "dp-dev-note",
+        "\u26A0\uFE0F \u5E74\u9F84\u662F\u8C03\u8BD5\u6539\u7684\uFF08HUD \u4E0A\u6709 \u{1F527}\uFF09\u2014\u2014 \u6309\u300C\u23EA \u5E74\u9F84\u5F52\u96F6\u300D\u624D\u4F1A\u91CD\u65B0\u6309\u771F\u5B9E\u65F6\u95F4\u7B97"
+      ));
+    }
+    var p = ui.view.pig;
+    if (p === null) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u732A\u3002\u5148\u300C\u62C6\u5F00\u7EB8\u76D2\u300D\u518D\u8C03\u3002"));
+      return;
+    }
+    function group(title, entries) {
+      var head = el("div", "dp-title");
+      head.appendChild(el("b", null, title));
+      ui.content.appendChild(head);
+      var wrap = el("div", "dp-dev-row");
+      for (var i = 0; i < entries.length; i += 1) {
+        (function(entry) {
+          var btn = button("dp-mini dp-dev-btn", { "data-dev": entry.key }, function() {
+            entry.run();
+          });
+          btn.textContent = entry.label;
+          wrap.appendChild(btn);
+        })(entries[i]);
+      }
+      ui.content.appendChild(wrap);
+    }
+    var patch = function(body) {
+      ui.send("dev", { patch: body });
+    };
+    group("\u72B6\u6001", [
+      { key: "full", label: "\u{1F60A} \u6EE1\u72B6\u6001", run: function() {
+        patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 });
+      } },
+      { key: "hungry", label: "\u{1F34E} \u997F", run: function() {
+        patch({ satiety: 10 });
+      } },
+      { key: "dirty", label: "\u{1FAE7} \u810F", run: function() {
+        patch({ cleanliness: 10 });
+      } },
+      { key: "lonely", label: "\u{1F97A} \u5B64\u5355", run: function() {
+        patch({ happiness: 10 });
+      } },
+      { key: "sleepy", label: "\u{1F4A4} \u56F0", run: function() {
+        patch({ satiety: 90, happiness: 90, cleanliness: 90 });
+      } }
+    ]);
+    group("\u751F\u75C5", [
+      { key: "cold1", label: "\u{1F912} \u611F\u5192\u4E00\u671F", run: function() {
+        patch({ illness: { chain: 0, stage: 1 }, health: 4 });
+      } },
+      { key: "cold4", label: "\u2620\uFE0F \u80BA\u708E", run: function() {
+        patch({ illness: { chain: 0, stage: 4 }, health: 1 });
+      } },
+      { key: "cough", label: "\u{1FAC1} \u80BA\u7ED3\u6838", run: function() {
+        patch({ illness: { chain: 1, stage: 4 }, health: 1 });
+      } },
+      { key: "belly", label: "\u{1F922} \u80C3\u764C", run: function() {
+        patch({ illness: { chain: 2, stage: 4 }, health: 1 });
+      } },
+      { key: "cure", label: "\u{1F49A} \u6CBB\u597D", run: function() {
+        patch({ illness: null, health: 5 });
+      } }
+    ]);
+    group("\u5E74\u9F84", [
+      { key: "box", label: "\u{1F4E6} \u7EB8\u76D2", run: function() {
+        patch({ hatched: false });
+      } },
+      { key: "piglet", label: "\u5C0F\u732A", run: function() {
+        patch({ hatched: true, ageDays: 0.2 });
+      } },
+      { key: "young", label: "\u9752\u5E74", run: function() {
+        patch({ ageDays: 2 });
+      } },
+      { key: "middle", label: "\u4E2D\u5E74", run: function() {
+        patch({ ageDays: 5 });
+      } },
+      { key: "elder", label: "\u8001\u5E74", run: function() {
+        patch({ ageDays: 9 });
+      } },
+      { key: "gone", label: "\u{1FAA6} \u8001\u6B7B", run: function() {
+        patch({ ageDays: 20 });
+      } },
+      { key: "real", label: "\u23EA \u5E74\u9F84\u5F52\u96F6", run: function() {
+        ui.send("ageFromNow");
+      } }
+    ]);
+    group("\u8D44\u6E90", [
+      { key: "coin100", label: "\u{1FA99} +100", run: function() {
+        patch({ coins: p.coins + 100 });
+      } },
+      { key: "coin999", label: "\u{1FA99} 9999", run: function() {
+        patch({ coins: 9999 });
+      } },
+      { key: "traits", label: "\u{1F9E0}+5 \u2728+5 \u{1F4AA}+5", run: function() {
+        patch({ traits: { intel: 5, charm: 5, strong: 5 } });
+      } },
+      { key: "all", label: "\u{1F381} \u4E00\u952E\u62FF\u9F50", run: function() {
+        ui.send("giveAll");
+      } }
+    ]);
+    group("\u65F6\u95F4", [
+      { key: "real", label: "\xD71 \u771F\u5B9E", run: function() {
+        ui.send("timeScale", { scale: 1 });
+      } },
+      { key: "fast12", label: "\xD712", run: function() {
+        ui.send("timeScale", { scale: 12 });
+      } },
+      { key: "fast30", label: "\xD730", run: function() {
+        ui.send("timeScale", { scale: 30 });
+      } },
+      { key: "fast60", label: "\xD760", run: function() {
+        ui.send("timeScale", { scale: 60 });
+      } }
+    ]);
+    group("\u751F\u6B7B", [
+      { key: "kill", label: "\u{1F480} \u5F04\u6B7B", run: function() {
+        patch({ dead: true });
+      } },
+      { key: "revive", label: "\u2728 \u590D\u6D3B", run: function() {
+        patch({ dead: false, health: 5 });
+      } },
+      { key: "adopt", label: "\u{1F4E6} \u9886\u517B", run: function() {
+        ui.send("adopt");
+      } },
+      { key: "reset", label: "\u{1F504} \u91CD\u7F6E", run: function() {
+        ui.send("reset");
+      } }
+    ]);
+    group("\u9762\u677F", [
+      { key: "open", label: "\u5C55\u5F00/\u6536\u8D77", run: function() {
+        ui.setOpen(ui.host.getAttribute("data-open") !== "true");
+      } },
+      { key: "away1", label: "\u23E9 +1 \u5C0F\u65F6", run: function() {
+        patch({ __advanceMs: 36e5 });
+      } },
+      { key: "away24", label: "\u23E9 +1 \u5929", run: function() {
+        patch({ __advanceMs: 864e5 });
+      } }
+    ]);
+    ui.content.appendChild(el(
+      "div",
+      "dp-dev-note",
+      "\u5F53\u524D\uFF1A" + p.stage.label + " \xB7 \u5065\u5EB7 " + p.health + " \xB7 \u{1FA99} " + p.coins + (p.illness === null ? "" : " \xB7 " + p.illness.name)
+    ));
+  }
+
+  // src/client/constants.js
+  var STATE_URL = "/dsh-pig/state";
+  var ART_URL = "/dsh-pig/art/";
+  var ACT_URL = "/dsh-pig/act";
+  var POLL_MS = 4e3;
+  var MOUNTED = "data-dsh-pig";
+  var OPEN_KEY = "dsh-pig:open";
+  var POSITION_KEY = "dsh-pig:position";
+  var PANEL_WIDTH = 292;
+  var PANEL_GAP = 8;
+  var PANEL_MARGIN = 10;
+  var PANEL_MIN_HEIGHT = 120;
+  var SCENE_RESERVE = 132;
+  var PIG_PADDING_X = 6;
+  var TABS = [
+    { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
+    { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
+    { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
+    { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
+    { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
+    { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" }
+  ];
+  var DEV_KEY = "dsh-pig:dev";
+  var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
+  var PET_LINES = [
+    "\u597D\u8212\u670D\u2026",
+    "\u518D\u6478\u6478\uFF5E",
+    "\u563F\u563F",
+    "\u547C\u565C\u547C\u565C\u2026",
+    "\u8FD9\u91CC\u8FD9\u91CC\uFF01",
+    "\uFF08\u772F\u8D77\u773C\u775B\uFF09",
+    "\u4ECA\u5929\u5FC3\u60C5\u4E0D\u9519",
+    "\u5514\u2026\u597D\u75D2",
+    "\u4F60\u5728\u5FD9\u4EC0\u4E48\u5440",
+    "\u518D\u591A\u5F85\u4E00\u4F1A\u513F"
+  ];
+  var MODES = ["feed", "bathe", "play", "pet"];
+  var CARE_LABEL = { feed: ["\u5582\u98DF", "\u{1F34E}"], bathe: ["\u6D17\u6FA1", "\u{1F6C1}"], play: ["\u73A9\u800D", "\u{1F3BE}"], pet: ["\u6478\u6478", "\u2764\uFE0F"] };
+  var BOX_POKES_TO_OPEN = 3;
+  var BOX_POKE_LINES = [
+    "\u91CC\u9762\u597D\u50CF\u6709\u4E1C\u897F\u2026",
+    "\u52A8\u4E86\uFF01\u518D\u6233\u4E00\u4E0B\uFF01"
+  ];
+  var NO_ITEM_LINE = {
+    food: "\u6CA1\u6709\u5403\u7684\u5566\uFF0C\u5FEB\u53BB\u4E70\u4E00\u70B9 \u{1F34E}",
+    bath: "\u6CA1\u6709\u6D17\u6D74\u7528\u54C1\u4E86\uFF0C\u53BB\u4E70\u70B9\u5427 \u{1F9FC}",
+    toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
+  };
+  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B" };
+  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive"];
+  var STAGES = [
+    { key: "preschool", label: "\u5E7C\u513F\u56ED" },
+    { key: "extracurricular", label: "\u8BFE\u5916" },
+    { key: "primary", label: "\u5C0F\u5B66" },
+    { key: "middle", label: "\u4E2D\u5B66" },
+    { key: "high", label: "\u9AD8\u4E2D" },
+    { key: "college", label: "\u5927\u5B66" },
+    { key: "graduate", label: "\u7814\u7A76\u751F" }
+  ];
+
+  // src/client/tabs/shop.js
+  function renderShopTab(ui) {
+    if (ui.view.shop.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8D27\u67B6\u3002"));
+      return;
+    }
+    var head = el("div", "dp-title");
+    head.appendChild(el("b", null, "\u{1F6D2} \u5546\u5E97"));
+    head.appendChild(el("span", null, "\u{1FA99} " + ui.view.pig.coins));
+    ui.content.appendChild(head);
+    var list = el("div", "dp-shopgrid");
+    var shelf = "";
+    var ordered = ui.view.shop.slice().sort(
+      (a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)
+    );
+    for (var i = 0; i < ordered.length; i += 1) {
+      (function(item) {
+        if (item.kind !== shelf) {
+          shelf = item.kind;
+          list.appendChild(el("div", "dp-shelf", KIND_TITLE[shelf] ?? shelf));
+        }
+        var cell = button(
+          "dp-cell" + (item.needed ? " dp-wanted" : "") + (item.kind === "dress" ? " dp-dress" : item.affordable ? "" : " dp-poor") + (item.owned ? " dp-owned" : ""),
+          { "data-buy": item.key },
+          function() {
+            ui.send("buy", { item: item.key });
+          }
+        );
+        cell.appendChild(el("span", "dp-cell-e", item.emoji));
+        cell.appendChild(el("span", "dp-cell-n", item.label));
+        if (item.owned) {
+          cell.appendChild(el("span", "dp-cell-p", "\u5DF2\u62E5\u6709"));
+          cell.disabled = true;
+        } else if (item.kind === "dress" && item.unlocked === false) {
+          cell.appendChild(el("span", "dp-cell-p", "\u{1F512} Lv." + item.level));
+        } else {
+          cell.appendChild(el("span", "dp-cell-p", item.price + " \u{1FA99}"));
+        }
+        if (item.count > 0) cell.appendChild(el("b", "dp-cell-c", "\xD7" + item.count));
+        if (item.needed) cell.appendChild(el("b", "dp-cell-tag", "\u9700\u8981"));
+        if (item.owned && item.worn) cell.appendChild(el("b", "dp-cell-tag", "\u7A7F\u7740"));
+        list.appendChild(cell);
+      })(ordered[i]);
+    }
+    ui.content.appendChild(list);
+  }
+
+  // src/client/widgets.js
+  function labelledBar(ui, label, value, valueText, variant) {
+    var row = el("div", "dp-row");
+    row.appendChild(el("span", null, label));
+    row.appendChild(el("b", null, valueText));
+    ui.content.appendChild(row);
+    ui.content.appendChild(meter(value, variant));
+  }
+  function pickerPanel(ui, action) {
+    var wrap = el("div", "dp-pick");
+    var asks = { feed: "\u5582\u70B9\u4EC0\u4E48\uFF1F", bathe: "\u7528\u54EA\u4E2A\u6D17\u6FA1\uFF1F", play: "\u62FF\u54EA\u4E2A\u73A9\u5177\uFF1F" };
+    wrap.appendChild(el("div", "dp-pick-head", asks[action] ?? "\u7528\u54EA\u4E2A\uFF1F"));
+    var list = el("div", "dp-list");
+    var shelf = ui.view.care[action] ?? [];
+    for (var i = 0; i < shelf.length; i += 1) {
+      (function(item) {
+        var row = el("div", "dp-item");
+        row.appendChild(el("span", null, item.emoji));
+        var grow = el("div", "dp-grow");
+        grow.appendChild(el("div", null, item.label + (item.default ? "\uFF08\u81EA\u5E26\uFF09" : " \xD7" + num(item.count, 0))));
+        grow.appendChild(el("div", "dp-dim", careEffectLine(action, item)));
+        row.appendChild(grow);
+        var use = button("dp-mini", { "data-care": action + ":" + item.key }, function() {
+          ui.picker = null;
+          ui.send(action, { item: item.key });
+        });
+        use.textContent = "\u7528";
+        row.appendChild(use);
+        list.appendChild(row);
+      })(shelf[i]);
+    }
+    wrap.appendChild(list);
+    var cancel = button("dp-cancel", {}, function() {
+      ui.picker = null;
+      ui.renderContent();
+    });
+    cancel.textContent = "\u7B97\u4E86";
+    wrap.appendChild(cancel);
+    return wrap;
+  }
+  function careEffectLine(action, item) {
+    var parts = [];
+    if (action === "feed") {
+      parts.push("\u9971\u98DF +" + item.satiety);
+      if (item.happiness) parts.push("\u5FC3\u60C5 +" + item.happiness);
+    } else if (action === "bathe") {
+      parts.push("\u6E05\u6D01 +" + item.cleanliness);
+      if (item.happiness) parts.push("\u5FC3\u60C5 +" + item.happiness);
+    } else {
+      parts.push("\u5FC3\u60C5 +" + item.happiness);
+      if (item.satiety) parts.push("\u9971\u98DF " + item.satiety);
+    }
+    return parts.join(" \xB7 ");
+  }
+
+  // src/client/tabs/status.js
+  function renderStatusTab(ui) {
+    var p = ui.view.pig;
+    if (p === null) return;
+    labelledBar(ui, "\u{1F35A} \u9971\u98DF", p.satiety, p.satiety + "%");
+    labelledBar(ui, "\u2764\uFE0F \u5FC3\u60C5", p.happiness, p.happiness + "%", "dp-mood");
+    labelledBar(ui, "\u{1FAE7} \u6E05\u6D01", p.cleanliness, p.cleanliness + "%", "dp-clean");
+    labelledBar(ui, "\u{1F49A} \u5065\u5EB7", p.healthPercent, p.health + "/" + ui.view.maxHealth, "dp-health");
+    var traits = el("div", "dp-traits");
+    traits.appendChild(el("span", null, "\u{1F9E0} \u667A\u529B " + p.traits.intel));
+    traits.appendChild(el("span", null, "\u2728 \u9B45\u529B " + p.traits.charm));
+    traits.appendChild(el("span", null, "\u{1F4AA} \u6B66\u529B " + p.traits.strong));
+    ui.content.appendChild(traits);
+    var info = el("div", "dp-row");
+    info.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD " + p.weight));
+    info.appendChild(el("b", null, "\u{1FA99} " + p.coins));
+    ui.content.appendChild(info);
+    var lvl = el("div", "dp-row");
+    lvl.appendChild(el("span", null, "\u2B50 \u7B49\u7EA7"));
+    lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.toNext > 0 ? " \xB7 \u8FD8\u5DEE " + p.level.toNext + " xp" : "")));
+    ui.content.appendChild(lvl);
+    var age = el("div", "dp-row");
+    age.appendChild(el("span", null, "\u{1F382} \u5E74\u9F84"));
+    age.appendChild(el("b", null, p.ageLabel + (p.ageForced ? " \u{1F527}" : "") + (p.daysToNextStage === null ? " \xB7 \u5DF2\u957F\u6210" : "")));
+    ui.content.appendChild(age);
+    var grid = el("div", "dp-actions");
+    for (var i = 0; i < MODES.length; i += 1) {
+      (function(key) {
+        var info2 = ui.view.actions[key];
+        var shelf = ui.view.care[key] ?? [];
+        var needsItem = shelf.length > 0;
+        var btn = button("dp-btn", { "data-action": key }, function() {
+          if (needsItem) {
+            ui.picker = ui.picker === key ? null : key;
+            ui.renderContent();
+          } else {
+            ui.send(key);
+          }
+        });
+        btn.setAttribute("data-open-picker", ui.picker === key ? "true" : "false");
+        btn.appendChild(el("span", null, CARE_LABEL[key][1]));
+        btn.appendChild(el("span", null, CARE_LABEL[key][0]));
+        if (needsItem) btn.appendChild(el("span", "dp-count", String(shelf.length)));
+        if (!info2.ready || ui.view.dead) {
+          btn.disabled = true;
+          if (ui.view.dead) btn.appendChild(el("span", "dp-wait", "\u2014"));
+          else if (info2.waitSeconds > 0) btn.appendChild(el("span", "dp-wait", info2.waitSeconds + "s"));
+          else if (info2.blocked === "away") btn.appendChild(el("span", "dp-wait", "\u4E0D\u5728\u5BB6"));
+        }
+        grid.appendChild(btn);
+      })(MODES[i]);
+    }
+    ui.content.appendChild(grid);
+    if (ui.picker !== null && (ui.view.care[ui.picker] ?? []).length > 0) ui.content.appendChild(pickerPanel(ui, ui.picker));
+    if (p.memories.length > 0) {
+      ui.content.appendChild(el("div", "dp-memo", p.memories.slice(-3).join("\n")));
+    }
+  }
+
+  // src/client/tabs/study.js
+  function renderStudyTab(ui) {
+    if (ui.view.subjects.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8BFE\u7A0B\u8868\u3002"));
+      return;
+    }
+    var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES;
+    var seg = el("div", "dp-seg");
+    for (var s = 0; s < stageList.length; s += 1) {
+      (function(entry) {
+        var detail2 = null;
+        for (var k = 0; k < ui.view.stages.length; k += 1) if (ui.view.stages[k].key === entry.key) detail2 = ui.view.stages[k];
+        var locked = detail2 !== null && detail2.unlocked === false;
+        var btn = button(null, { "data-stage": entry.key }, function() {
+          ui.stage = entry.key;
+          ui.renderContent();
+        });
+        btn.textContent = entry.label + (locked ? " \u{1F512}" : "");
+        btn.setAttribute("data-active", entry.key === ui.stage ? "true" : "false");
+        btn.setAttribute("data-locked", locked ? "true" : "false");
+        seg.appendChild(btn);
+      })(stageList[s]);
+    }
+    ui.content.appendChild(seg);
+    var detail = null;
+    for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === ui.stage) detail = ui.view.stages[d];
+    if (detail !== null) {
+      var note = el("div", "dp-empty", detail.minutes + " \u5206\u949F \xB7 \u5B66\u8D39 " + detail.tuition + " \u{1FA99} \xB7 \u5C5E\u6027 +" + detail.gain);
+      note.style.marginBottom = "7px";
+      note.style.marginTop = "0";
+      ui.content.appendChild(note);
+      if (detail.unlocked === false && detail.progress !== null) {
+        ui.content.appendChild(el(
+          "div",
+          "dp-locked",
+          "\u{1F512} \u8981\u5148\u5FF5\u5B8C" + detail.progress.label + "\uFF08" + detail.progress.done + "/" + detail.progress.need + "\uFF09"
+        ));
+      }
+    }
+    var wanted = detail !== null && detail.subjects.length > 0 ? detail.subjects : null;
+    var grid = el("div", "dp-grid");
+    for (var i = 0; i < ui.view.subjects.length; i += 1) {
+      (function(sub) {
+        if (wanted !== null && wanted.indexOf(sub.key) < 0) return;
+        var btn = button("dp-item", { "data-subject": sub.key }, function() {
+          ui.send("study", { subject: sub.key, stage: ui.stage });
+        });
+        if (detail !== null && detail.unlocked === false) btn.disabled = true;
+        btn.style.cursor = "pointer";
+        btn.style.textAlign = "left";
+        btn.appendChild(el("span", null, sub.emoji));
+        var grow = el("div", "dp-grow");
+        grow.appendChild(el("div", null, sub.label));
+        var perStage = sub.levels[ui.stage];
+        var times = typeof perStage === "number" ? perStage : sub.level;
+        grow.appendChild(el("div", "dp-dim", sub.traitLabel + " \xB7 \u672C\u7EA7 " + times + " \u6B21"));
+        btn.appendChild(grow);
+        grid.appendChild(btn);
+      })(ui.view.subjects[i]);
+    }
+    ui.content.appendChild(grid);
+    if (ui.view.interests.length > 0) {
+      var ihead = el("div", "dp-title");
+      ihead.style.marginTop = "10px";
+      ihead.appendChild(el("b", null, "\u{1F3AF} \u5174\u8DA3"));
+      ui.content.appendChild(ihead);
+      var ilist = el("div", "dp-list");
+      for (var n = 0; n < ui.view.interests.length; n += 1) {
+        (function(entry) {
+          var row = el("div", "dp-item");
+          row.appendChild(el("span", null, entry.emoji));
+          var grow = el("div", "dp-grow");
+          grow.appendChild(el("div", null, entry.label));
+          grow.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain + (entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "")));
+          row.appendChild(grow);
+          var go = button("dp-mini", { "data-interest": entry.key }, function() {
+            ui.send("interest", { interest: entry.key });
+          });
+          go.textContent = entry.times > 0 ? "\u518D\u5B66" : "\u53BB\u5B66";
+          go.disabled = !ui.view.canGoOut || !entry.affordable;
+          row.appendChild(go);
+          ilist.appendChild(row);
+        })(ui.view.interests[n]);
+      }
+      ui.content.appendChild(ilist);
+    }
+  }
+
   // src/client/css-base.js
   var CSS_BASE = [
     // ---------------------------------------------------------------------
@@ -431,65 +973,109 @@
   // src/client/styles.js
   var CSS = CSS_BASE + CSS_TABS;
 
-  // src/client/constants.js
-  var STATE_URL = "/dsh-pig/state";
-  var ART_URL = "/dsh-pig/art/";
-  var ACT_URL = "/dsh-pig/act";
-  var POLL_MS = 4e3;
-  var MOUNTED = "data-dsh-pig";
-  var OPEN_KEY = "dsh-pig:open";
-  var POSITION_KEY = "dsh-pig:position";
-  var PANEL_WIDTH = 292;
-  var PANEL_GAP = 8;
-  var PANEL_MARGIN = 10;
-  var PANEL_MIN_HEIGHT = 120;
-  var SCENE_RESERVE = 132;
-  var PIG_PADDING_X = 6;
-  var TABS = [
-    { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
-    { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
-    { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
-    { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
-    { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
-    { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" }
-  ];
-  var DEV_KEY = "dsh-pig:dev";
-  var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
-  var PET_LINES = [
-    "\u597D\u8212\u670D\u2026",
-    "\u518D\u6478\u6478\uFF5E",
-    "\u563F\u563F",
-    "\u547C\u565C\u547C\u565C\u2026",
-    "\u8FD9\u91CC\u8FD9\u91CC\uFF01",
-    "\uFF08\u772F\u8D77\u773C\u775B\uFF09",
-    "\u4ECA\u5929\u5FC3\u60C5\u4E0D\u9519",
-    "\u5514\u2026\u597D\u75D2",
-    "\u4F60\u5728\u5FD9\u4EC0\u4E48\u5440",
-    "\u518D\u591A\u5F85\u4E00\u4F1A\u513F"
-  ];
-  var MODES = ["feed", "bathe", "play", "pet"];
-  var CARE_LABEL = { feed: ["\u5582\u98DF", "\u{1F34E}"], bathe: ["\u6D17\u6FA1", "\u{1F6C1}"], play: ["\u73A9\u800D", "\u{1F3BE}"], pet: ["\u6478\u6478", "\u2764\uFE0F"] };
-  var BOX_POKES_TO_OPEN = 3;
-  var BOX_POKE_LINES = [
-    "\u91CC\u9762\u597D\u50CF\u6709\u4E1C\u897F\u2026",
-    "\u52A8\u4E86\uFF01\u518D\u6233\u4E00\u4E0B\uFF01"
-  ];
-  var NO_ITEM_LINE = {
-    food: "\u6CA1\u6709\u5403\u7684\u5566\uFF0C\u5FEB\u53BB\u4E70\u4E00\u70B9 \u{1F34E}",
-    bath: "\u6CA1\u6709\u6D17\u6D74\u7528\u54C1\u4E86\uFF0C\u53BB\u4E70\u70B9\u5427 \u{1F9FC}",
-    toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
-  };
-  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B" };
-  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive"];
-  var STAGES = [
-    { key: "preschool", label: "\u5E7C\u513F\u56ED" },
-    { key: "extracurricular", label: "\u8BFE\u5916" },
-    { key: "primary", label: "\u5C0F\u5B66" },
-    { key: "middle", label: "\u4E2D\u5B66" },
-    { key: "high", label: "\u9AD8\u4E2D" },
-    { key: "college", label: "\u5927\u5B66" },
-    { key: "graduate", label: "\u7814\u7A76\u751F" }
-  ];
+  // src/client/tabs/travel.js
+  function renderTravelTab(ui) {
+    if (ui.view.trips.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u76EE\u7684\u5730\u3002"));
+      return;
+    }
+    var list = el("div", "dp-list");
+    for (var i = 0; i < ui.view.trips.length; i += 1) {
+      (function(trip) {
+        var row = el("div", "dp-item");
+        row.appendChild(el("span", null, trip.emoji));
+        var grow = el("div", "dp-grow");
+        grow.appendChild(el("div", null, trip.label));
+        grow.appendChild(el("div", "dp-dim", formatMinutes(trip.minutes) + " \xB7 " + trip.cost + " \u{1FA99}" + (trip.bestRarity ? " \xB7 \u53EF\u5E26\u56DE " + trip.bestRarityEmoji + trip.bestRarity : "")));
+        row.appendChild(grow);
+        var go = button("dp-mini", { "data-trip": trip.key }, function() {
+          ui.send("trip", { trip: trip.key });
+        });
+        go.textContent = "\u51FA\u53D1";
+        go.disabled = !ui.view.canGoOut || !trip.affordable;
+        row.appendChild(go);
+        list.appendChild(row);
+      })(ui.view.trips[i]);
+    }
+    ui.content.appendChild(list);
+    var souvenirs = ui.view.pig.souvenirs;
+    var head = el("div", "dp-title");
+    head.style.marginTop = "10px";
+    head.appendChild(el("b", null, "\u{1F381} \u7EAA\u5FF5\u54C1 " + souvenirs.length));
+    ui.content.appendChild(head);
+    if (souvenirs.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u51FA\u8FC7\u8FDC\u95E8\u3002"));
+      return;
+    }
+    var chips = el("div", "dp-grid");
+    for (var s = 0; s < souvenirs.length; s += 1) {
+      (function(entry) {
+        var chip = button("dp-item", { "data-souvenir": entry.key }, function() {
+          ui.souvenirPick = ui.souvenirPick === entry.key ? null : entry.key;
+          ui.renderContent();
+        });
+        chip.appendChild(el("span", null, entry.emoji));
+        var grow = el("div", "dp-grow");
+        grow.appendChild(el("div", null, entry.label));
+        grow.appendChild(el("div", "dp-dim", entry.rarityEmoji + entry.rarityLabel + (entry.price > 0 ? " \xB7 \u503C " + entry.price + " \u{1FA99}" : "")));
+        chip.appendChild(grow);
+        chips.appendChild(chip);
+      })(souvenirs[s]);
+    }
+    ui.content.appendChild(chips);
+    var picked = null;
+    for (var q = 0; q < souvenirs.length; q += 1) if (souvenirs[q].key === ui.souvenirPick) picked = souvenirs[q];
+    if (picked !== null) {
+      var souvenirCard = el("div", "dp-locked");
+      souvenirCard.appendChild(el("div", null, picked.emoji + " " + picked.label + " \xB7 " + picked.rarityEmoji + picked.rarityLabel + (picked.fromLabel === "" ? "" : " \xB7 \u6765\u81EA" + picked.fromLabel)));
+      souvenirCard.appendChild(el("div", null, picked.story === "" ? "\uFF08\u8FD9\u53EA\u7EAA\u5FF5\u54C1\u662F\u65E7\u7248\u672C\u5E26\u56DE\u6765\u7684\uFF0C\u6CA1\u6709\u7559\u4E0B\u6545\u4E8B\u3002\uFF09" : "\u300C" + picked.story + "\u300D"));
+      if (picked.price > 0) {
+        var sell = button("dp-mini", { "data-sell": picked.key }, function() {
+          ui.souvenirPick = null;
+          ui.send("sell", { souvenir: picked.key });
+        });
+        sell.textContent = "\u5356\u6389 +" + picked.price + " \u{1FA99}";
+        sell.style.marginTop = "6px";
+        souvenirCard.appendChild(sell);
+      }
+      ui.content.appendChild(souvenirCard);
+    }
+  }
+
+  // src/client/tabs/work.js
+  function renderWorkTab(ui) {
+    if (ui.view.jobs.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u5DE5\u4F5C\u5217\u8868\u3002"));
+      return;
+    }
+    var list = el("div", "dp-list");
+    for (var i = 0; i < ui.view.jobs.length; i += 1) {
+      (function(job) {
+        var row = el("div", "dp-item");
+        row.appendChild(el("span", null, job.emoji));
+        var grow = el("div", "dp-grow");
+        grow.appendChild(el("div", null, job.label));
+        var line = job.minutes + " \u5206\u949F \xB7 \u8D5A " + job.coins + " \u{1FA99}";
+        if (job.traitPoints > 0) {
+          line += " \xB7 \u7701 " + job.speedPercent + "% \u65F6\u95F4";
+        }
+        grow.appendChild(el("div", "dp-dim", line));
+        var byTrait = job.traitEmoji + job.traitLabel + " " + job.traitPoints + (job.payPercent > 0 ? " \xB7 \u62A5\u916C +" + job.payPercent + "%" : "");
+        grow.appendChild(el("div", "dp-dim", byTrait));
+        var locked = job.qualified === false;
+        if (locked) grow.appendChild(el("div", "dp-lock", "\u{1F512} \u9700\u8981 " + job.lockText));
+        row.appendChild(grow);
+        var go = button("dp-mini", { "data-job": job.key }, function() {
+          ui.send("work", { job: job.key });
+        });
+        go.textContent = locked ? "\u6CA1\u8D44\u683C" : "\u51FA\u53D1";
+        go.disabled = !ui.view.canGoOut || locked;
+        row.appendChild(go);
+        list.appendChild(row);
+      })(ui.view.jobs[i]);
+    }
+    ui.content.appendChild(list);
+  }
 
   // src/client/normalize.js
   function normalize(raw) {
@@ -925,6 +1511,48 @@
         var stage = "primary";
         var souvenirPick = null;
         var picker = null;
+        var ui = {
+          get view() {
+            return view;
+          },
+          set view(next) {
+            view = next;
+          },
+          get content() {
+            return content;
+          },
+          set content(next) {
+            content = next;
+          },
+          send,
+          renderContent,
+          get host() {
+            return host;
+          },
+          set host(next) {
+            host = next;
+          },
+          setOpen,
+          fitPanel,
+          get picker() {
+            return picker;
+          },
+          set picker(next) {
+            picker = next;
+          },
+          get stage() {
+            return stage;
+          },
+          set stage(next) {
+            stage = next;
+          },
+          get souvenirPick() {
+            return souvenirPick;
+          },
+          set souvenirPick(next) {
+            souvenirPick = next;
+          }
+        };
         var isOpen = readStore(OPEN_KEY) === "true";
         var lastStage = null;
         var lastPendingAt = 0;
@@ -1030,579 +1658,6 @@
           renderContent();
           for (var k in icons) icons[k].setAttribute("data-active", k === tab ? "true" : "false");
         }
-        function devTab() {
-          content.appendChild(el("div", "dp-dev-note", "\u{1F527} \u5F00\u53D1\u8005\u6A21\u5F0F \xB7 \u6784\u5EFA v" + (view.version === "" ? "\u672A\u77E5" : view.version) + " \xB7 Ctrl+Shift+D \u5173\u95ED"));
-          if (view.pig !== null && view.pig.ageForced) {
-            content.appendChild(el(
-              "div",
-              "dp-dev-note",
-              "\u26A0\uFE0F \u5E74\u9F84\u662F\u8C03\u8BD5\u6539\u7684\uFF08HUD \u4E0A\u6709 \u{1F527}\uFF09\u2014\u2014 \u6309\u300C\u23EA \u5E74\u9F84\u5F52\u96F6\u300D\u624D\u4F1A\u91CD\u65B0\u6309\u771F\u5B9E\u65F6\u95F4\u7B97"
-            ));
-          }
-          var p = view.pig;
-          if (p === null) {
-            content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u732A\u3002\u5148\u300C\u62C6\u5F00\u7EB8\u76D2\u300D\u518D\u8C03\u3002"));
-            return;
-          }
-          function group(title, entries) {
-            var head = el("div", "dp-title");
-            head.appendChild(el("b", null, title));
-            content.appendChild(head);
-            var wrap = el("div", "dp-dev-row");
-            for (var i = 0; i < entries.length; i += 1) {
-              (function(entry) {
-                var btn = button("dp-mini dp-dev-btn", { "data-dev": entry.key }, function() {
-                  entry.run();
-                });
-                btn.textContent = entry.label;
-                wrap.appendChild(btn);
-              })(entries[i]);
-            }
-            content.appendChild(wrap);
-          }
-          var patch = function(body) {
-            send("dev", { patch: body });
-          };
-          group("\u72B6\u6001", [
-            { key: "full", label: "\u{1F60A} \u6EE1\u72B6\u6001", run: function() {
-              patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 });
-            } },
-            { key: "hungry", label: "\u{1F34E} \u997F", run: function() {
-              patch({ satiety: 10 });
-            } },
-            { key: "dirty", label: "\u{1FAE7} \u810F", run: function() {
-              patch({ cleanliness: 10 });
-            } },
-            { key: "lonely", label: "\u{1F97A} \u5B64\u5355", run: function() {
-              patch({ happiness: 10 });
-            } },
-            { key: "sleepy", label: "\u{1F4A4} \u56F0", run: function() {
-              patch({ satiety: 90, happiness: 90, cleanliness: 90 });
-            } }
-          ]);
-          group("\u751F\u75C5", [
-            { key: "cold1", label: "\u{1F912} \u611F\u5192\u4E00\u671F", run: function() {
-              patch({ illness: { chain: 0, stage: 1 }, health: 4 });
-            } },
-            { key: "cold4", label: "\u2620\uFE0F \u80BA\u708E", run: function() {
-              patch({ illness: { chain: 0, stage: 4 }, health: 1 });
-            } },
-            { key: "cough", label: "\u{1FAC1} \u80BA\u7ED3\u6838", run: function() {
-              patch({ illness: { chain: 1, stage: 4 }, health: 1 });
-            } },
-            { key: "belly", label: "\u{1F922} \u80C3\u764C", run: function() {
-              patch({ illness: { chain: 2, stage: 4 }, health: 1 });
-            } },
-            { key: "cure", label: "\u{1F49A} \u6CBB\u597D", run: function() {
-              patch({ illness: null, health: 5 });
-            } }
-          ]);
-          group("\u5E74\u9F84", [
-            { key: "box", label: "\u{1F4E6} \u7EB8\u76D2", run: function() {
-              patch({ hatched: false });
-            } },
-            { key: "piglet", label: "\u5C0F\u732A", run: function() {
-              patch({ hatched: true, ageDays: 0.2 });
-            } },
-            { key: "young", label: "\u9752\u5E74", run: function() {
-              patch({ ageDays: 2 });
-            } },
-            { key: "middle", label: "\u4E2D\u5E74", run: function() {
-              patch({ ageDays: 5 });
-            } },
-            { key: "elder", label: "\u8001\u5E74", run: function() {
-              patch({ ageDays: 9 });
-            } },
-            { key: "gone", label: "\u{1FAA6} \u8001\u6B7B", run: function() {
-              patch({ ageDays: 20 });
-            } },
-            { key: "real", label: "\u23EA \u5E74\u9F84\u5F52\u96F6", run: function() {
-              send("ageFromNow");
-            } }
-          ]);
-          group("\u8D44\u6E90", [
-            { key: "coin100", label: "\u{1FA99} +100", run: function() {
-              patch({ coins: p.coins + 100 });
-            } },
-            { key: "coin999", label: "\u{1FA99} 9999", run: function() {
-              patch({ coins: 9999 });
-            } },
-            { key: "traits", label: "\u{1F9E0}+5 \u2728+5 \u{1F4AA}+5", run: function() {
-              patch({ traits: { intel: 5, charm: 5, strong: 5 } });
-            } },
-            { key: "all", label: "\u{1F381} \u4E00\u952E\u62FF\u9F50", run: function() {
-              send("giveAll");
-            } }
-          ]);
-          group("\u65F6\u95F4", [
-            { key: "real", label: "\xD71 \u771F\u5B9E", run: function() {
-              send("timeScale", { scale: 1 });
-            } },
-            { key: "fast12", label: "\xD712", run: function() {
-              send("timeScale", { scale: 12 });
-            } },
-            { key: "fast30", label: "\xD730", run: function() {
-              send("timeScale", { scale: 30 });
-            } },
-            { key: "fast60", label: "\xD760", run: function() {
-              send("timeScale", { scale: 60 });
-            } }
-          ]);
-          group("\u751F\u6B7B", [
-            { key: "kill", label: "\u{1F480} \u5F04\u6B7B", run: function() {
-              patch({ dead: true });
-            } },
-            { key: "revive", label: "\u2728 \u590D\u6D3B", run: function() {
-              patch({ dead: false, health: 5 });
-            } },
-            { key: "adopt", label: "\u{1F4E6} \u9886\u517B", run: function() {
-              send("adopt");
-            } },
-            { key: "reset", label: "\u{1F504} \u91CD\u7F6E", run: function() {
-              send("reset");
-            } }
-          ]);
-          group("\u9762\u677F", [
-            { key: "open", label: "\u5C55\u5F00/\u6536\u8D77", run: function() {
-              setOpen(host.getAttribute("data-open") !== "true");
-            } },
-            { key: "away1", label: "\u23E9 +1 \u5C0F\u65F6", run: function() {
-              patch({ __advanceMs: 36e5 });
-            } },
-            { key: "away24", label: "\u23E9 +1 \u5929", run: function() {
-              patch({ __advanceMs: 864e5 });
-            } }
-          ]);
-          content.appendChild(el(
-            "div",
-            "dp-dev-note",
-            "\u5F53\u524D\uFF1A" + p.stage.label + " \xB7 \u5065\u5EB7 " + p.health + " \xB7 \u{1FA99} " + p.coins + (p.illness === null ? "" : " \xB7 " + p.illness.name)
-          ));
-        }
-        function labelledBar(label, value, valueText, variant) {
-          var row = el("div", "dp-row");
-          row.appendChild(el("span", null, label));
-          row.appendChild(el("b", null, valueText));
-          content.appendChild(row);
-          content.appendChild(meter(value, variant));
-        }
-        function statusTab() {
-          var p = view.pig;
-          if (p === null) return;
-          labelledBar("\u{1F35A} \u9971\u98DF", p.satiety, p.satiety + "%");
-          labelledBar("\u2764\uFE0F \u5FC3\u60C5", p.happiness, p.happiness + "%", "dp-mood");
-          labelledBar("\u{1FAE7} \u6E05\u6D01", p.cleanliness, p.cleanliness + "%", "dp-clean");
-          labelledBar("\u{1F49A} \u5065\u5EB7", p.healthPercent, p.health + "/" + view.maxHealth, "dp-health");
-          var traits = el("div", "dp-traits");
-          traits.appendChild(el("span", null, "\u{1F9E0} \u667A\u529B " + p.traits.intel));
-          traits.appendChild(el("span", null, "\u2728 \u9B45\u529B " + p.traits.charm));
-          traits.appendChild(el("span", null, "\u{1F4AA} \u6B66\u529B " + p.traits.strong));
-          content.appendChild(traits);
-          var info = el("div", "dp-row");
-          info.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD " + p.weight));
-          info.appendChild(el("b", null, "\u{1FA99} " + p.coins));
-          content.appendChild(info);
-          var lvl = el("div", "dp-row");
-          lvl.appendChild(el("span", null, "\u2B50 \u7B49\u7EA7"));
-          lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.toNext > 0 ? " \xB7 \u8FD8\u5DEE " + p.level.toNext + " xp" : "")));
-          content.appendChild(lvl);
-          var age = el("div", "dp-row");
-          age.appendChild(el("span", null, "\u{1F382} \u5E74\u9F84"));
-          age.appendChild(el("b", null, p.ageLabel + (p.ageForced ? " \u{1F527}" : "") + (p.daysToNextStage === null ? " \xB7 \u5DF2\u957F\u6210" : "")));
-          content.appendChild(age);
-          var grid = el("div", "dp-actions");
-          for (var i = 0; i < MODES.length; i += 1) {
-            (function(key) {
-              var info2 = view.actions[key];
-              var shelf = view.care[key] ?? [];
-              var needsItem = shelf.length > 0;
-              var btn = button("dp-btn", { "data-action": key }, function() {
-                if (needsItem) {
-                  picker = picker === key ? null : key;
-                  renderContent();
-                } else {
-                  send(key);
-                }
-              });
-              btn.setAttribute("data-open-picker", picker === key ? "true" : "false");
-              btn.appendChild(el("span", null, CARE_LABEL[key][1]));
-              btn.appendChild(el("span", null, CARE_LABEL[key][0]));
-              if (needsItem) btn.appendChild(el("span", "dp-count", String(shelf.length)));
-              if (!info2.ready || view.dead) {
-                btn.disabled = true;
-                if (view.dead) btn.appendChild(el("span", "dp-wait", "\u2014"));
-                else if (info2.waitSeconds > 0) btn.appendChild(el("span", "dp-wait", info2.waitSeconds + "s"));
-                else if (info2.blocked === "away") btn.appendChild(el("span", "dp-wait", "\u4E0D\u5728\u5BB6"));
-              }
-              grid.appendChild(btn);
-            })(MODES[i]);
-          }
-          content.appendChild(grid);
-          if (picker !== null && (view.care[picker] ?? []).length > 0) content.appendChild(pickerPanel(picker));
-          if (p.memories.length > 0) {
-            content.appendChild(el("div", "dp-memo", p.memories.slice(-3).join("\n")));
-          }
-        }
-        function pickerPanel(action) {
-          var wrap = el("div", "dp-pick");
-          var asks = { feed: "\u5582\u70B9\u4EC0\u4E48\uFF1F", bathe: "\u7528\u54EA\u4E2A\u6D17\u6FA1\uFF1F", play: "\u62FF\u54EA\u4E2A\u73A9\u5177\uFF1F" };
-          wrap.appendChild(el("div", "dp-pick-head", asks[action] ?? "\u7528\u54EA\u4E2A\uFF1F"));
-          var list = el("div", "dp-list");
-          var shelf = view.care[action] ?? [];
-          for (var i = 0; i < shelf.length; i += 1) {
-            (function(item) {
-              var row = el("div", "dp-item");
-              row.appendChild(el("span", null, item.emoji));
-              var grow = el("div", "dp-grow");
-              grow.appendChild(el("div", null, item.label + (item.default ? "\uFF08\u81EA\u5E26\uFF09" : " \xD7" + num(item.count, 0))));
-              grow.appendChild(el("div", "dp-dim", careEffectLine(action, item)));
-              row.appendChild(grow);
-              var use = button("dp-mini", { "data-care": action + ":" + item.key }, function() {
-                picker = null;
-                send(action, { item: item.key });
-              });
-              use.textContent = "\u7528";
-              row.appendChild(use);
-              list.appendChild(row);
-            })(shelf[i]);
-          }
-          wrap.appendChild(list);
-          var cancel = button("dp-cancel", {}, function() {
-            picker = null;
-            renderContent();
-          });
-          cancel.textContent = "\u7B97\u4E86";
-          wrap.appendChild(cancel);
-          return wrap;
-        }
-        function careEffectLine(action, item) {
-          var parts = [];
-          if (action === "feed") {
-            parts.push("\u9971\u98DF +" + item.satiety);
-            if (item.happiness) parts.push("\u5FC3\u60C5 +" + item.happiness);
-          } else if (action === "bathe") {
-            parts.push("\u6E05\u6D01 +" + item.cleanliness);
-            if (item.happiness) parts.push("\u5FC3\u60C5 +" + item.happiness);
-          } else {
-            parts.push("\u5FC3\u60C5 +" + item.happiness);
-            if (item.satiety) parts.push("\u9971\u98DF " + item.satiety);
-          }
-          return parts.join(" \xB7 ");
-        }
-        function studyTab() {
-          if (view.subjects.length === 0) {
-            content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8BFE\u7A0B\u8868\u3002"));
-            return;
-          }
-          var stageList = view.stages.length > 0 ? view.stages : STAGES;
-          var seg = el("div", "dp-seg");
-          for (var s = 0; s < stageList.length; s += 1) {
-            (function(entry) {
-              var detail2 = null;
-              for (var k = 0; k < view.stages.length; k += 1) if (view.stages[k].key === entry.key) detail2 = view.stages[k];
-              var locked = detail2 !== null && detail2.unlocked === false;
-              var btn = button(null, { "data-stage": entry.key }, function() {
-                stage = entry.key;
-                renderContent();
-              });
-              btn.textContent = entry.label + (locked ? " \u{1F512}" : "");
-              btn.setAttribute("data-active", entry.key === stage ? "true" : "false");
-              btn.setAttribute("data-locked", locked ? "true" : "false");
-              seg.appendChild(btn);
-            })(stageList[s]);
-          }
-          content.appendChild(seg);
-          var detail = null;
-          for (var d = 0; d < view.stages.length; d += 1) if (view.stages[d].key === stage) detail = view.stages[d];
-          if (detail !== null) {
-            var note = el("div", "dp-empty", detail.minutes + " \u5206\u949F \xB7 \u5B66\u8D39 " + detail.tuition + " \u{1FA99} \xB7 \u5C5E\u6027 +" + detail.gain);
-            note.style.marginBottom = "7px";
-            note.style.marginTop = "0";
-            content.appendChild(note);
-            if (detail.unlocked === false && detail.progress !== null) {
-              content.appendChild(el(
-                "div",
-                "dp-locked",
-                "\u{1F512} \u8981\u5148\u5FF5\u5B8C" + detail.progress.label + "\uFF08" + detail.progress.done + "/" + detail.progress.need + "\uFF09"
-              ));
-            }
-          }
-          var wanted = detail !== null && detail.subjects.length > 0 ? detail.subjects : null;
-          var grid = el("div", "dp-grid");
-          for (var i = 0; i < view.subjects.length; i += 1) {
-            (function(sub) {
-              if (wanted !== null && wanted.indexOf(sub.key) < 0) return;
-              var btn = button("dp-item", { "data-subject": sub.key }, function() {
-                send("study", { subject: sub.key, stage });
-              });
-              if (detail !== null && detail.unlocked === false) btn.disabled = true;
-              btn.style.cursor = "pointer";
-              btn.style.textAlign = "left";
-              btn.appendChild(el("span", null, sub.emoji));
-              var grow = el("div", "dp-grow");
-              grow.appendChild(el("div", null, sub.label));
-              var perStage = sub.levels[stage];
-              var times = typeof perStage === "number" ? perStage : sub.level;
-              grow.appendChild(el("div", "dp-dim", sub.traitLabel + " \xB7 \u672C\u7EA7 " + times + " \u6B21"));
-              btn.appendChild(grow);
-              grid.appendChild(btn);
-            })(view.subjects[i]);
-          }
-          content.appendChild(grid);
-          if (view.interests.length > 0) {
-            var ihead = el("div", "dp-title");
-            ihead.style.marginTop = "10px";
-            ihead.appendChild(el("b", null, "\u{1F3AF} \u5174\u8DA3"));
-            content.appendChild(ihead);
-            var ilist = el("div", "dp-list");
-            for (var n = 0; n < view.interests.length; n += 1) {
-              (function(entry) {
-                var row = el("div", "dp-item");
-                row.appendChild(el("span", null, entry.emoji));
-                var grow = el("div", "dp-grow");
-                grow.appendChild(el("div", null, entry.label));
-                grow.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain + (entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "")));
-                row.appendChild(grow);
-                var go = button("dp-mini", { "data-interest": entry.key }, function() {
-                  send("interest", { interest: entry.key });
-                });
-                go.textContent = entry.times > 0 ? "\u518D\u5B66" : "\u53BB\u5B66";
-                go.disabled = !view.canGoOut || !entry.affordable;
-                row.appendChild(go);
-                ilist.appendChild(row);
-              })(view.interests[n]);
-            }
-            content.appendChild(ilist);
-          }
-        }
-        function workTab() {
-          if (view.jobs.length === 0) {
-            content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u5DE5\u4F5C\u5217\u8868\u3002"));
-            return;
-          }
-          var list = el("div", "dp-list");
-          for (var i = 0; i < view.jobs.length; i += 1) {
-            (function(job) {
-              var row = el("div", "dp-item");
-              row.appendChild(el("span", null, job.emoji));
-              var grow = el("div", "dp-grow");
-              grow.appendChild(el("div", null, job.label));
-              var line = job.minutes + " \u5206\u949F \xB7 \u8D5A " + job.coins + " \u{1FA99}";
-              if (job.traitPoints > 0) {
-                line += " \xB7 \u7701 " + job.speedPercent + "% \u65F6\u95F4";
-              }
-              grow.appendChild(el("div", "dp-dim", line));
-              var byTrait = job.traitEmoji + job.traitLabel + " " + job.traitPoints + (job.payPercent > 0 ? " \xB7 \u62A5\u916C +" + job.payPercent + "%" : "");
-              grow.appendChild(el("div", "dp-dim", byTrait));
-              var locked = job.qualified === false;
-              if (locked) grow.appendChild(el("div", "dp-lock", "\u{1F512} \u9700\u8981 " + job.lockText));
-              row.appendChild(grow);
-              var go = button("dp-mini", { "data-job": job.key }, function() {
-                send("work", { job: job.key });
-              });
-              go.textContent = locked ? "\u6CA1\u8D44\u683C" : "\u51FA\u53D1";
-              go.disabled = !view.canGoOut || locked;
-              row.appendChild(go);
-              list.appendChild(row);
-            })(view.jobs[i]);
-          }
-          content.appendChild(list);
-        }
-        function shopTab() {
-          if (view.shop.length === 0) {
-            content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8D27\u67B6\u3002"));
-            return;
-          }
-          var head = el("div", "dp-title");
-          head.appendChild(el("b", null, "\u{1F6D2} \u5546\u5E97"));
-          head.appendChild(el("span", null, "\u{1FA99} " + view.pig.coins));
-          content.appendChild(head);
-          var list = el("div", "dp-shopgrid");
-          var shelf = "";
-          var ordered = view.shop.slice().sort(
-            (a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)
-          );
-          for (var i = 0; i < ordered.length; i += 1) {
-            (function(item) {
-              if (item.kind !== shelf) {
-                shelf = item.kind;
-                list.appendChild(el("div", "dp-shelf", KIND_TITLE[shelf] ?? shelf));
-              }
-              var cell = button(
-                "dp-cell" + (item.needed ? " dp-wanted" : "") + (item.kind === "dress" ? " dp-dress" : item.affordable ? "" : " dp-poor") + (item.owned ? " dp-owned" : ""),
-                { "data-buy": item.key },
-                function() {
-                  send("buy", { item: item.key });
-                }
-              );
-              cell.appendChild(el("span", "dp-cell-e", item.emoji));
-              cell.appendChild(el("span", "dp-cell-n", item.label));
-              if (item.owned) {
-                cell.appendChild(el("span", "dp-cell-p", "\u5DF2\u62E5\u6709"));
-                cell.disabled = true;
-              } else if (item.kind === "dress" && item.unlocked === false) {
-                cell.appendChild(el("span", "dp-cell-p", "\u{1F512} Lv." + item.level));
-              } else {
-                cell.appendChild(el("span", "dp-cell-p", item.price + " \u{1FA99}"));
-              }
-              if (item.count > 0) cell.appendChild(el("b", "dp-cell-c", "\xD7" + item.count));
-              if (item.needed) cell.appendChild(el("b", "dp-cell-tag", "\u9700\u8981"));
-              if (item.owned && item.worn) cell.appendChild(el("b", "dp-cell-tag", "\u7A7F\u7740"));
-              list.appendChild(cell);
-            })(ordered[i]);
-          }
-          content.appendChild(list);
-        }
-        function travelTab() {
-          if (view.trips.length === 0) {
-            content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u76EE\u7684\u5730\u3002"));
-            return;
-          }
-          var list = el("div", "dp-list");
-          for (var i = 0; i < view.trips.length; i += 1) {
-            (function(trip) {
-              var row = el("div", "dp-item");
-              row.appendChild(el("span", null, trip.emoji));
-              var grow = el("div", "dp-grow");
-              grow.appendChild(el("div", null, trip.label));
-              grow.appendChild(el("div", "dp-dim", formatMinutes(trip.minutes) + " \xB7 " + trip.cost + " \u{1FA99}" + (trip.bestRarity ? " \xB7 \u53EF\u5E26\u56DE " + trip.bestRarityEmoji + trip.bestRarity : "")));
-              row.appendChild(grow);
-              var go = button("dp-mini", { "data-trip": trip.key }, function() {
-                send("trip", { trip: trip.key });
-              });
-              go.textContent = "\u51FA\u53D1";
-              go.disabled = !view.canGoOut || !trip.affordable;
-              row.appendChild(go);
-              list.appendChild(row);
-            })(view.trips[i]);
-          }
-          content.appendChild(list);
-          var souvenirs = view.pig.souvenirs;
-          var head = el("div", "dp-title");
-          head.style.marginTop = "10px";
-          head.appendChild(el("b", null, "\u{1F381} \u7EAA\u5FF5\u54C1 " + souvenirs.length));
-          content.appendChild(head);
-          if (souvenirs.length === 0) {
-            content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u51FA\u8FC7\u8FDC\u95E8\u3002"));
-            return;
-          }
-          var chips = el("div", "dp-grid");
-          for (var s = 0; s < souvenirs.length; s += 1) {
-            (function(entry) {
-              var chip = button("dp-item", { "data-souvenir": entry.key }, function() {
-                souvenirPick = souvenirPick === entry.key ? null : entry.key;
-                renderContent();
-              });
-              chip.appendChild(el("span", null, entry.emoji));
-              var grow = el("div", "dp-grow");
-              grow.appendChild(el("div", null, entry.label));
-              grow.appendChild(el("div", "dp-dim", entry.rarityEmoji + entry.rarityLabel + (entry.price > 0 ? " \xB7 \u503C " + entry.price + " \u{1FA99}" : "")));
-              chip.appendChild(grow);
-              chips.appendChild(chip);
-            })(souvenirs[s]);
-          }
-          content.appendChild(chips);
-          var picked = null;
-          for (var q = 0; q < souvenirs.length; q += 1) if (souvenirs[q].key === souvenirPick) picked = souvenirs[q];
-          if (picked !== null) {
-            var souvenirCard = el("div", "dp-locked");
-            souvenirCard.appendChild(el("div", null, picked.emoji + " " + picked.label + " \xB7 " + picked.rarityEmoji + picked.rarityLabel + (picked.fromLabel === "" ? "" : " \xB7 \u6765\u81EA" + picked.fromLabel)));
-            souvenirCard.appendChild(el("div", null, picked.story === "" ? "\uFF08\u8FD9\u53EA\u7EAA\u5FF5\u54C1\u662F\u65E7\u7248\u672C\u5E26\u56DE\u6765\u7684\uFF0C\u6CA1\u6709\u7559\u4E0B\u6545\u4E8B\u3002\uFF09" : "\u300C" + picked.story + "\u300D"));
-            if (picked.price > 0) {
-              var sell = button("dp-mini", { "data-sell": picked.key }, function() {
-                souvenirPick = null;
-                send("sell", { souvenir: picked.key });
-              });
-              sell.textContent = "\u5356\u6389 +" + picked.price + " \u{1FA99}";
-              sell.style.marginTop = "6px";
-              souvenirCard.appendChild(sell);
-            }
-            content.appendChild(souvenirCard);
-          }
-        }
-        function bagTab() {
-          var owned = [];
-          for (var i = 0; i < view.shop.length; i += 1) {
-            if (num(view.inventory[view.shop[i].key], 0) > 0) owned.push(view.shop[i]);
-          }
-          if (owned.length === 0) {
-            content.appendChild(el("div", "dp-empty", "\u80CC\u5305\u7A7A\u7A7A\u7684 \u2014\u2014 \u53BB\u300C\u5546\u5E97\u300D\u4E70\u70B9\u4E1C\u897F\u3002"));
-          } else {
-            var list = el("div", "dp-list");
-            for (var j = 0; j < owned.length; j += 1) {
-              (function(item) {
-                var row = el("div", "dp-item" + (item.needed ? " dp-wanted" : ""));
-                row.appendChild(el("span", null, item.emoji));
-                var grow = el("div", "dp-grow");
-                grow.appendChild(el("div", null, item.label + " \xD7" + num(view.inventory[item.key], 0)));
-                grow.appendChild(el("div", "dp-dim", kindLabel(item)));
-                row.appendChild(grow);
-                var use = button("dp-mini", { "data-use": item.key }, function() {
-                  send("use", { item: item.key });
-                });
-                use.textContent = "\u4F7F\u7528";
-                row.appendChild(use);
-                list.appendChild(row);
-              })(owned[j]);
-            }
-            content.appendChild(list);
-          }
-          if (view.dress.length > 0) {
-            var dhead = el("div", "dp-title");
-            dhead.style.marginTop = "10px";
-            var wornCount = 0;
-            for (var w = 0; w < view.dress.length; w += 1) if (view.dress[w].worn) wornCount += 1;
-            dhead.appendChild(el("b", null, "\u{1F455} \u5BB6\u5F53 " + wornCount + "/" + view.dress.length + " \u7A7F\u7740\u4E2D"));
-            content.appendChild(dhead);
-            var ownedDress = [];
-            for (var m = 0; m < view.dress.length; m += 1) if (view.dress[m].owned) ownedDress.push(view.dress[m]);
-            if (ownedDress.length === 0) {
-              content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u88C5\u626E \u2014\u2014 \u5546\u5E97\u300C\u88C5\u626E\u300D\u90A3\u4E00\u680F\uFF0C\u7B49\u7EA7\u591F\u4E86\u5C31\u80FD\u4E70\u3002"));
-            } else {
-              var dlist = el("div", "dp-list");
-              for (var n = 0; n < ownedDress.length; n += 1) {
-                (function(item) {
-                  var row = el("div", "dp-item");
-                  row.appendChild(el("span", null, item.emoji));
-                  var grow = el("div", "dp-grow");
-                  grow.appendChild(el("div", null, item.label + (item.worn ? " \xB7 \u7A7F\u7740" : "")));
-                  grow.appendChild(el("div", "dp-dim", (item.slotLabel === "" ? "" : item.slotLabel + " \xB7 ") + (item.blurb === "" ? "Lv." + item.level + " \u89E3\u9501" : item.blurb)));
-                  row.appendChild(grow);
-                  var toggle = button("dp-mini", { "data-wear": item.key }, function() {
-                    send("wear", { item: item.key, on: !item.worn });
-                  });
-                  toggle.textContent = item.worn ? "\u8131\u4E0B" : "\u7A7F\u4E0A";
-                  row.appendChild(toggle);
-                  dlist.appendChild(row);
-                })(ownedDress[n]);
-              }
-              content.appendChild(dlist);
-            }
-          }
-          var souvenirs = view.pig.souvenirs;
-          var head = el("div", "dp-title");
-          head.style.marginTop = "10px";
-          head.appendChild(el("b", null, "\u{1F381} \u7EAA\u5FF5\u54C1 " + souvenirs.length));
-          content.appendChild(head);
-          content.appendChild(el("div", "dp-empty", souvenirs.length === 0 ? "\u6536\u85CF\u518C\u8FD8\u7A7A\u7740\u3002" : souvenirs.map((entry) => entry.emoji + entry.label).join(" \xB7 ")));
-        }
-        function formatDays(days) {
-          if (days >= 1) return Math.round(days) + " \u5929";
-          const hours = days * 24;
-          return hours >= 1 ? Math.round(hours) + " \u5C0F\u65F6" : Math.max(1, Math.round(hours * 60)) + " \u5206\u949F";
-        }
-        function formatMinutes(minutes) {
-          if (minutes < 60) return minutes + " \u5206\u949F";
-          const hours = Math.floor(minutes / 60);
-          const rest = minutes % 60;
-          return rest === 0 ? hours + " \u5C0F\u65F6" : hours + " \u5C0F\u65F6" + rest + " \u5206";
-        }
-        function kindLabel(item) {
-          if (item.kind === "medicine") return item.needed ? "\u5BF9\u75C7\uFF01" : "\u836F";
-          if (item.kind === "revive") return "\u590D\u6D3B\u7528";
-          if (item.kind === "bath") return "\u6D17\u6D74";
-          return "\u98DF\u7269";
-        }
         function renderContent() {
           content.textContent = "";
           for (var k = 0; k < TABS.length; k += 1) {
@@ -1680,13 +1735,13 @@
             content.appendChild(el("div", "dp-empty", "\u62C6\u5F00\u5C31\u4F1A\u8E66\u51FA\u4E00\u53EA\u5C0F\u732A \u2014\u2014 \u4E0D\u7528\u6572\u547D\u4EE4"));
             return;
           }
-          if (tab === "status") statusTab();
-          else if (tab === "study") studyTab();
-          else if (tab === "work") workTab();
-          else if (tab === "shop") shopTab();
-          else if (tab === "travel") travelTab();
-          else if (tab === "dev") devTab();
-          else bagTab();
+          if (tab === "status") renderStatusTab(ui);
+          else if (tab === "study") renderStudyTab(ui);
+          else if (tab === "work") renderWorkTab(ui);
+          else if (tab === "shop") renderShopTab(ui);
+          else if (tab === "travel") renderTravelTab(ui);
+          else if (tab === "dev") renderDevTab(ui);
+          else renderBagTab(ui);
           fitPanel();
         }
         var AWAY_LINE = {

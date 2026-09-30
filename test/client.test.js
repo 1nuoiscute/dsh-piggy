@@ -39,6 +39,9 @@ async function readSource() {
  * the literals back together first is what makes these static assertions mean
  * something.
  */
+/** One authored client module, for assertions about a specific tab. */
+const readModule = name => readFile(new URL('../src/client/' + name, import.meta.url), 'utf8')
+
 async function readCss() {
   const dir = new URL('../src/client/', import.meta.url)
   const modules = ['css-base.js', 'css-tabs.js']
@@ -787,9 +790,10 @@ test('the time-scale switch lives in the debug tab, not in the panel', async () 
 
   // Static guard: the ×1/×12/×30/×60 buttons are one of the 调试-tab groups.
   // The fake DOM cannot dispatch the Ctrl+Shift+D listener, so read the source.
-  const source = await readSource()
-  assert.match(source, /group\('时间', \[[\s\S]{0,400}timeScale/, 'the time switch must be a debug-tab group')
-  assert.ok(!/data-scale/.test(source.slice(0, source.indexOf('function statusTab'))), 'and must not be built in the status tab')
+  const dev = await readModule('tabs/dev.js')
+  const status = await readModule('tabs/status.js')
+  assert.match(dev, /group\('时间', \[[\s\S]{0,400}timeScale/, 'the time switch must be a debug-tab group')
+  assert.ok(!/data-scale/.test(status), 'and must not be built in the status tab')
 })
 
 test('an older host with no job gates does not lock the whole board', async () => {
