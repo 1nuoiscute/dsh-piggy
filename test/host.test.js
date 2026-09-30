@@ -768,5 +768,5 @@ test('a tombstone reports how long the pig lived, not when it hatched', () => {
 
   // And a living pig still counts up from birth.
   const alive = hatchEgg(now - 5 * HOUR)
-  assert.equal(snapshot(store(alive), { drain: false }).pig.ageLabel, '今天刚出生')
+  assert.equal(snapshot(store(alive), { drain: false }).pig.ageLabel, '今天刚到家')
 })

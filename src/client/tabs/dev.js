@@ -55,14 +55,14 @@ export function renderDevTab(ui) {
     { key: 'cure', label: '💚 治好', run: function () { patch({ illness: null, health: 5 }) } },
   ])
 
-  group('年龄', [
+  // The body follows the level since B2: these jump straight to each stage.
+  group('等级', [
     { key: 'box', label: '📦 纸盒', run: function () { patch({ hatched: false }) } },
-    { key: 'piglet', label: '小猪', run: function () { patch({ hatched: true, ageDays: 0.2 }) } },
-    { key: 'young', label: '青年', run: function () { patch({ ageDays: 2 }) } },
-    { key: 'middle', label: '中年', run: function () { patch({ ageDays: 5 }) } },
-    { key: 'elder', label: '老年', run: function () { patch({ ageDays: 9 }) } },
-    { key: 'gone', label: '🪦 老死', run: function () { patch({ ageDays: 20 }) } },
-    { key: 'real', label: '⏪ 年龄归零', run: function () { ui.send('ageFromNow') } },
+    { key: 'lv1', label: '幼年 Lv1', run: function () { patch({ hatched: true, level: 1 }) } },
+    { key: 'lv10', label: '青年 Lv10', run: function () { patch({ level: 10 }) } },
+    { key: 'lv40', label: '成年 Lv40', run: function () { patch({ level: 40 }) } },
+    { key: 'lv60', label: '满级 Lv60', run: function () { patch({ level: 60 }) } },
+    { key: 'real', label: '⏪ 天数归零', run: function () { ui.send('ageFromNow') } },
   ])
 
   group('资源', [

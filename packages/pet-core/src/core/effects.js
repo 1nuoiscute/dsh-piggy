@@ -66,8 +66,11 @@ export function drainPending(state) {
   return takePending(state)
 }
 
+/**
+ * Apply bar, weight and health changes. Growth is not an effect: it goes
+ * through growth.js `grow()`, which is what announces level-ups.
+ */
 export function applyEffects(state, effects, nowMs) {
-  if (effects.xp) state.xp += effects.xp
   if (effects.satiety) state.satiety = clamp100(state.satiety + effects.satiety)
   if (effects.happiness) state.happiness = clamp100(state.happiness + effects.happiness)
   if (effects.cleanliness) state.cleanliness = clamp100(state.cleanliness + effects.cleanliness)

@@ -10,6 +10,7 @@ import { DEFAULT_TIME_SCALE, MAX } from '../data.js'
 import { BIRTH_WEIGHT_G, HATCH_WEIGHT_G, STATE_VERSION } from './constants.js'
 import { remember } from './effects.js'
 import { emptyDialogue } from './lines.js'
+import { roll } from './random.js'
 
 export function layEgg(nowMs) {
   return {
@@ -83,6 +84,10 @@ export function layEgg(nowMs) {
  */
 export function hatch(state, nowMs) {
   state.hatched = true
+  // A new body starts at Lv1: anything the box picked up before it opened
+  // (older saves let it eat real work) does not count toward growing up.
+  state.xp = 0
+  state.sex = pickSex(state)
   state.bornAt = nowMs
   state.ageForced = false
   state.dead = false
@@ -97,6 +102,7 @@ export function hatch(state, nowMs) {
 export function hatchEgg(nowMs) {
   const state = layEgg(nowMs)
   state.hatched = true
+  state.sex = pickSex(state)
   state.bornAt = nowMs
   state.ageForced = false
   state.weightG += HATCH_WEIGHT_G
@@ -104,3 +110,10 @@ export function hatchEgg(nowMs) {
   remember(state, '纸盒打开了，一只小猪蹦了出来 🐷', nowMs)
   return state
 }
+
+/**
+ * Boy or girl, 50/50, from the pig's own random sequence.
+ * @param {object} state
+ * @returns {'boy'|'girl'}
+ */
+export const pickSex = state => (roll(state) < 0.5 ? 'boy' : 'girl')

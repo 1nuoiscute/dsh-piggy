@@ -22,6 +22,40 @@
  * @property {(raw: Record<string, unknown>, nowMs: number) => Record<string, unknown>} up
  */
 
+import { roll } from './random.js'
+
+/*
+ * The curves below are frozen copies of what each version used. An upgrade
+ * must keep meaning what it meant when it was written, even after the live
+ * tables in data/ change again.
+ */
+const v8LevelFloor = level => (level <= 1 ? 0 : 20 * level * (level - 1))
+const v9LevelFloor = level => (level <= 1 ? 0 : 122 * level * level)
+const V9_MAX_LEVEL = 60
+
+function levelOnCurve(xp, floorOf, cap) {
+  let level = 1
+  while (level < cap && xp >= floorOf(level + 1)) level += 1
+  return level
+}
+
+/**
+ * Carry an old xp total onto the v9 growth curve: same level, same fraction of
+ * the way to the next one. Lv8 at 40% stays Lv8 at 40%.
+ */
+function growthFromV8Xp(xp) {
+  const value = Number.isFinite(xp) && xp > 0 ? xp : 0
+  const level = levelOnCurve(value, v8LevelFloor, 999)
+  if (level >= V9_MAX_LEVEL) return v9LevelFloor(V9_MAX_LEVEL)
+  const floor = v8LevelFloor(level)
+  const fraction = Math.min(1, (value - floor) / Math.max(1, v8LevelFloor(level + 1) - floor))
+  const nextFloor = v9LevelFloor(level + 1)
+  return Math.round(v9LevelFloor(level) + fraction * (nextFloor - v9LevelFloor(level)))
+}
+
+/** The v9 body for a level: 幼年 from Lv1, 青年 from Lv10, 成年 from Lv40. */
+const v9StageFor = level => (level >= 40 ? 'middle' : level >= 10 ? 'young' : 'piglet')
+
 /** @type {ReadonlyArray<Upgrade>} */
 export const UPGRADES = Object.freeze([
   Object.freeze({
@@ -32,6 +66,22 @@ export const UPGRADES = Object.freeze([
       // that recorded `hatched: false` meant it, whatever its xp says.
       if (typeof raw.hatched === 'boolean') return { ...raw, version: 8 }
       return { ...raw, version: 8, hatched: typeof raw.xp === 'number' && raw.xp > 0 }
+    },
+  }),
+  Object.freeze({
+    to: 9,
+    why: 'B2 成长：xp 改为成长值、按新曲线折算（等级和进度不变）；形态改由等级决定、去掉老年；补性别',
+    up(raw) {
+      const next = { ...raw, version: 9, xp: growthFromV8Xp(raw.xp) }
+      if (next.hatched === true && next.dead !== true) {
+        next.stage = v9StageFor(levelOnCurve(next.xp, v9LevelFloor, V9_MAX_LEVEL))
+      } else if (next.stage === 'elder') {
+        next.stage = 'middle'
+      }
+      if (next.hatched === true && next.sex !== 'boy' && next.sex !== 'girl') {
+        next.sex = roll(next) < 0.5 ? 'boy' : 'girl'
+      }
+      return next
     },
   }),
 ])

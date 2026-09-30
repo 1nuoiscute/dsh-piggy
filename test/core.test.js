@@ -67,7 +67,7 @@ import {
   takeOff,
   workSecondsLeft,
 } from '../core.js'
-import { LIFESPAN_DAYS, DEFAULT_TOY, DRESS_SLOTS, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, interestByKey, INTERESTS, medicineForStage, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
+import { DEFAULT_TOY, DRESS_SLOTS, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, interestByKey, INTERESTS, medicineForStage, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
 
 const T0 = 1_700_000_000_000
 const MIN = 60_000
@@ -179,68 +179,53 @@ test('a fresh pig is a cardboard box, and opening it lets a piglet out', () => {
   assert.ok(piglet.memories.some(m => m.includes('纸盒')), 'it remembers the box')
 })
 
-test('the pig grows up on the clock, not on XP', () => {
-  const DAY = 86_400_000
+test('the body follows the level: 幼年, 青年 from Lv10, 成年 from Lv40', () => {
   const pig = hatchEgg(T0)
-  // XP is irrelevant to the shape it takes.
-  pig.xp = 999_999
   assert.equal(lifeStageFor(pig, T0).key, 'piglet')
-
-  // Age is accumulated pig time, so time has to actually pass through decay().
-  // A stage is a matter of months now: 1 / 3 / 6.
-  const at = days => lifeStageForAfter(pig, T0, days).key
-  assert.equal(at(29), 'piglet')
-  assert.equal(at(30), 'young')
-  assert.equal(at(90), 'middle')
-  assert.equal(at(180), 'elder')
-  assert.equal(at(239), 'elder')
+  pig.xp = xpForLevel(10) - 1
+  assert.equal(lifeStageFor(pig, T0).key, 'piglet')
+  pig.xp = xpForLevel(10)
+  assert.equal(lifeStageFor(pig, T0).key, 'young')
+  pig.xp = xpForLevel(40)
+  assert.equal(lifeStageFor(pig, T0).key, 'middle')
+  pig.xp = xpForLevel(60) * 10
+  assert.equal(lifeStageFor(pig, T0).key, 'middle', 'there is no stage after grown-up')
+  assert.equal(LIFE_STAGES.some(stage => stage.key === 'elder'), false, 'no elderly stage any more')
   // Every stage has its own size, so the pig literally grows.
   const sizes = LIFE_STAGES.map(stage => stage.size)
   assert.equal(new Set(sizes).size, sizes.length, 'no two stages share a size')
 })
 
-test('daysToNextStage counts down, and stops at the end of the line', () => {
-  const DAY = 86_400_000
+test('daysToNextStage estimates the wait at full care, and stops once grown', () => {
   const pig = hatchEgg(T0)
-  const aged = days => {
-    const clone = { ...pig, cooldowns: { ...pig.cooldowns }, stats: { ...pig.stats } }
-    clone.ageMs = 0
-    clone.lastSeenAt = T0
-    clone.satiety = 100
-    clone.cleanliness = 100
-    clone.happiness = 100
-    const at = T0 + days * DAY
-    decay(clone, at)
-    return daysToNextStage(clone, at)
-  }
-  assert.equal(aged(0), 30, 'the first month is the piglet month')
-  assert.equal(aged(0.5), 29.5)
-  assert.equal(aged(200), null, 'no stage past 老年猪')
+  // Lv10 needs 122 x 100 = 12200 growth; at 100 an hour that is ~5.08 days.
+  assert.ok(Math.abs(daysToNextStage(pig, T0) - 12200 / 100 / 24) < 1e-9)
+  pig.xp = xpForLevel(40)
+  assert.equal(daysToNextStage(pig, T0), null)
 })
 
-test('old age takes the pig, and a grave can be left for a new pig', () => {
+test('there is no old age: a well-kept pig lives on past the old eight-month span', () => {
   const DAY = 86_400_000
+  const HOUR = 3_600_000
   const pig = hatchEgg(T0)
   pig.lastSeenAt = T0
-  const HOUR = 3_600_000
-  const steps = Math.round((LIFESPAN_DAYS + 1) * 24)
-  for (let h = 1; h <= steps; h += 1) {
+  for (let h = 1; h <= 250 * 24; h += 1) {
     pig.satiety = 100
     pig.cleanliness = 100
     pig.happiness = 100
     pig.illness = null
     decay(pig, T0 + h * HOUR)
   }
-  assert.equal(pig.dead, true, 'a pig outlives its span')
-  assert.equal(lifeStageForAfter(pig, T0, LIFESPAN_DAYS + 1).key, 'grave')
-  assert.ok(typeof pig.diedAt === 'number')
+  assert.equal(pig.dead, false, 'time alone never kills it')
+  assert.equal(lifeStageFor(pig, T0 + 250 * DAY).key, 'middle')
 
-  // Its story is kept when a new one arrives.
+  // Only accidents do; a grave can still be left for a new pig.
+  applyDevPatch(pig, { dead: true }, T0 + 250 * DAY)
   const before = pig.memories.length
-  adopt(pig, T0 + (LIFESPAN_DAYS + 2) * DAY)
+  adopt(pig, T0 + 251 * DAY)
   assert.equal(pig.dead, false)
   assert.equal(pig.hatched, false, 'a new pig starts as a box again')
-  assert.equal(lifeStageForAfter(pig, T0, LIFESPAN_DAYS + 2).key, 'box')
+  assert.equal(pig.xp, 0, 'and small: growth is the body, it is not inherited')
   assert.ok(pig.memories.length >= before - 1, 'the old memories are still there')
 })
 
@@ -273,7 +258,8 @@ test('migrate upgrades a v1 save all the way to the current version', () => {
   }, T0)
   assert.equal(upgraded.version, STATE_VERSION)
   assert.equal(upgraded.name, '大花')
-  assert.equal(upgraded.xp, 200)
+  // Old xp 200 was Lv3 on the v8 curve; the v9 upgrade keeps the level.
+  assert.equal(levelFor(upgraded.xp), 3)
   assert.equal(upgraded.cleanliness, 90)
   assert.equal(upgraded.health, MAX.health)
   assert.equal(upgraded.coins, 500)
@@ -309,12 +295,14 @@ test('migrate drops unknown inventory keys and bad illness records', () => {
 // Passive diet and care actions
 // ===========================================================================
 
-test('passive events accumulate xp, satiety and weight', () => {
+test('passive events feed the pig, and real work adds a little growth', () => {
   const pig = hatchEgg(T0)
   feed(pig, 'turn', T0)
-  // A turn is worth 2 after the rebalance; tool calls used to drown everything.
-  assert.equal(pig.xp, 2)
+  assert.equal(pig.xp, 3, 'a turn is worth 3 growth (B2)')
   assert.equal(pig.stats.turns, 1)
+  const box = layEgg(T0)
+  feed(box, 'turn', T0)
+  assert.equal(box.xp, 0, 'an unopened box does not grow')
   assert.deepEqual(feed(pig, 'not-a-thing', T0), [])
 })
 
@@ -850,12 +838,13 @@ test('the fourth stage progressing means death, and 还魂丹 brings it back', (
   assert.equal(useItem(pig, 'apple', T0).reason, 'dead')
   assert.equal(useItem(pig, REVIVE_ITEM.key, T0).reason, 'empty')
 
+  const growthAtDeath = pig.xp
   give(pig, REVIVE_ITEM.key)
   const revived = useItem(pig, REVIVE_ITEM.key, T0)
   assert.equal(revived.ok, true)
   assert.equal(pig.dead, false)
   assert.equal(pig.health, MAX.health)
-  assert.equal(pig.xp, 500, 'level and xp survive death')
+  assert.equal(pig.xp, growthAtDeath, 'level and growth survive death')
   assert.equal(pig.stats.revives, 1)
 })
 
@@ -1523,10 +1512,13 @@ test('developer mode can force any state, but only valid ones', () => {
     assert.equal(pig.dead, false)
 
     // Age is jumpable — that is what takes months otherwise.
-    applyDevPatch(pig, { ageDays: 200 }, T0)
-    assert.equal(lifeStageFor(pig, T0).key, 'elder')
-    applyDevPatch(pig, { ageDays: 9 }, T0)
-    assert.equal(lifeStageFor(pig, T0).key, 'piglet', 'nine days is still a piglet')
+    // Level is what takes months now, so that is what dev mode jumps.
+    applyDevPatch(pig, { level: 40 }, T0)
+    assert.equal(lifeStageFor(pig, T0).key, 'middle')
+    applyDevPatch(pig, { level: 999 }, T0)
+    assert.equal(levelFor(pig.xp), 60, 'clamped to the max level')
+    applyDevPatch(pig, { level: 1 }, T0)
+    assert.equal(lifeStageFor(pig, T0).key, 'piglet')
 
     // And the clock can be fast-forwarded.
     const before = hatchEgg(T0)
@@ -1542,12 +1534,11 @@ test('a forced age is marked, and can be put back on the real clock', () => {
 
   applyDevPatch(pig, { ageDays: 100 }, T0)
   assert.equal(pig.ageForced, true, 'the panel has to be able to say so')
-  assert.equal(lifeStageFor(pig, T0).key, 'middle')
+  assert.equal(lifeStageFor(pig, T0).key, 'piglet', 'age no longer changes the body')
 
   ageFromNow(pig, T0)
   assert.equal(pig.ageForced, false)
   assert.equal(pig.bornAt, T0, 'the clock restarts now')
-  assert.equal(lifeStageFor(pig, T0).key, 'piglet')
 
   // And a real birth clears any earlier force.
   const fresh = hatchEgg(T0)

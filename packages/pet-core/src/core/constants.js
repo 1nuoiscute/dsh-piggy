@@ -7,7 +7,7 @@
  */
 
 /** Bumped when the saved shape changes in a way migrate() must handle. */
-export const STATE_VERSION = 8
+export const STATE_VERSION = 9
 
 export const BIRTH_WEIGHT_G = 1200
 
@@ -29,7 +29,8 @@ export const PENDING_LIMIT = 6
  */
 
 /**
- * Passive diet — what the pig gets for watching you actually work.
+ * Passive diet — what the pig gets for watching you actually work. Growth from
+ * real work is separate and capped per day (data/growth.js DSH_GROWTH).
  *
  * These numbers are deliberately small. A single tool call used to be worth 3,
  * and a heavy agent session fires hundreds of them an hour: one afternoon of
@@ -38,11 +39,11 @@ export const PENDING_LIMIT = 6
  * activities are where the growth is.
  */
 export const DIET = Object.freeze({
-  message: { xp: 1, satiety: 1, happiness: 1, weightG: 6 },
-  turn: { xp: 2, satiety: 2, happiness: 1, weightG: 14 },
-  tool: { xp: 1, satiety: 2, happiness: 0, weightG: 9 },
-  toolError: { xp: 1, satiety: 0, happiness: 1, weightG: 2 },
-  agentError: { xp: 1, satiety: 0, happiness: 0, weightG: 2 },
+  message: { satiety: 1, happiness: 1, weightG: 6 },
+  turn: { satiety: 2, happiness: 1, weightG: 14 },
+  tool: { satiety: 2, happiness: 0, weightG: 9 },
+  toolError: { satiety: 0, happiness: 1, weightG: 2 },
+  agentError: { satiety: 0, happiness: 0, weightG: 2 },
 })
 
 export const ACTIONS = Object.freeze({
@@ -50,19 +51,19 @@ export const ACTIONS = Object.freeze({
     key: 'feed', label: '喂食', emoji: '🍎', verb: '吃了一口 🍎',
     // No blanket cleanliness hit: eating an apple does not make you dirty. Only
     // the foods that are actually messy declare a penalty of their own.
-    cooldownMs: 60_000, satiety: 22, happiness: 6, cleanliness: 0, xp: 4, weightG: 90,
+    cooldownMs: 60_000, satiety: 22, happiness: 6, cleanliness: 0, weightG: 90,
   },
   bathe: {
     key: 'bathe', label: '洗澡', emoji: '🛁', verb: '洗了个澡 🛁',
-    cooldownMs: 90_000, satiety: -2, happiness: 8, cleanliness: 50, xp: 3, weightG: 0,
+    cooldownMs: 90_000, satiety: -2, happiness: 8, cleanliness: 50, weightG: 0,
   },
   play: {
     key: 'play', label: '玩耍', emoji: '🎾', verb: '玩了一会儿 🎾',
-    cooldownMs: 45_000, satiety: -5, happiness: 16, cleanliness: -4, xp: 3, weightG: 4,
+    cooldownMs: 45_000, satiety: -5, happiness: 16, cleanliness: -4, weightG: 4,
   },
   pet: {
     key: 'pet', label: '摸摸', emoji: '❤️', verb: '被摸了摸头 ❤️',
-    cooldownMs: 0, satiety: 0, happiness: 10, cleanliness: 0, xp: 1, weightG: 0,
+    cooldownMs: 0, satiety: 0, happiness: 10, cleanliness: 0, weightG: 0,
   },
 })
 

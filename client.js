@@ -182,26 +182,23 @@
         patch({ illness: null, health: 5 });
       } }
     ]);
-    group("\u5E74\u9F84", [
+    group("\u7B49\u7EA7", [
       { key: "box", label: "\u{1F4E6} \u7EB8\u76D2", run: function() {
         patch({ hatched: false });
       } },
-      { key: "piglet", label: "\u5C0F\u732A", run: function() {
-        patch({ hatched: true, ageDays: 0.2 });
+      { key: "lv1", label: "\u5E7C\u5E74 Lv1", run: function() {
+        patch({ hatched: true, level: 1 });
       } },
-      { key: "young", label: "\u9752\u5E74", run: function() {
-        patch({ ageDays: 2 });
+      { key: "lv10", label: "\u9752\u5E74 Lv10", run: function() {
+        patch({ level: 10 });
       } },
-      { key: "middle", label: "\u4E2D\u5E74", run: function() {
-        patch({ ageDays: 5 });
+      { key: "lv40", label: "\u6210\u5E74 Lv40", run: function() {
+        patch({ level: 40 });
       } },
-      { key: "elder", label: "\u8001\u5E74", run: function() {
-        patch({ ageDays: 9 });
+      { key: "lv60", label: "\u6EE1\u7EA7 Lv60", run: function() {
+        patch({ level: 60 });
       } },
-      { key: "gone", label: "\u{1FAA6} \u8001\u6B7B", run: function() {
-        patch({ ageDays: 20 });
-      } },
-      { key: "real", label: "\u23EA \u5E74\u9F84\u5F52\u96F6", run: function() {
+      { key: "real", label: "\u23EA \u5929\u6570\u5F52\u96F6", run: function() {
         ui.send("ageFromNow");
       } }
     ]);
@@ -447,10 +444,10 @@
     ui.content.appendChild(info);
     var lvl = el("div", "dp-row");
     lvl.appendChild(el("span", null, "\u2B50 \u7B49\u7EA7"));
-    lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.toNext > 0 ? " \xB7 \u8FD8\u5DEE " + p.level.toNext + " xp" : "")));
+    lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.maxed ? " \xB7 \u6EE1\u7EA7" : " \xB7 \u8FD8\u5DEE " + Math.ceil(p.level.toNext) + " \u6210\u957F")));
     ui.content.appendChild(lvl);
     var age = el("div", "dp-row");
-    age.appendChild(el("span", null, "\u{1F382} \u5E74\u9F84"));
+    age.appendChild(el("span", null, "\u{1F3E0} \u966A\u4F34"));
     age.appendChild(el("b", null, p.ageLabel + (p.ageForced ? " \u{1F527}" : "") + (p.daysToNextStage === null ? " \xB7 \u5DF2\u957F\u6210" : "")));
     ui.content.appendChild(age);
     var grid = el("div", "dp-actions");
@@ -1370,6 +1367,8 @@
           art: typeof obj(pig.stage).art === "string" && obj(pig.stage).art !== "" ? obj(pig.stage).art : null,
           faded: obj(pig.stage).faded === true
         },
+        // Older hosts send no sex; the HUD then simply shows none.
+        sex: isObj(pig.sex) ? { key: str(pig.sex.key, ""), label: str(pig.sex.label, ""), symbol: str(pig.sex.symbol, "") } : null,
         ageLabel: str(pig.ageLabel, ""),
         ageForced: pig.ageForced === true,
         daysToNextStage: typeof pig.daysToNextStage === "number" ? pig.daysToNextStage : null,
@@ -1385,7 +1384,7 @@
         coins: num(pig.coins, 0),
         weight: str(pig.weight, "\u2014"),
         xp: num(pig.xp, 0),
-        // The other axis: level never resets, not even when the pig dies.
+        // Level is driven by growth and decides the body (B2).
         level: (function(info) {
           var i = obj(info);
           var t = obj(i.title);
@@ -1393,6 +1392,7 @@
             level: num(i.level, 1),
             percent: num(i.percent, 0),
             toNext: num(i.toNext, 0),
+            maxed: i.maxed === true,
             titleLabel: str(t.label, "\u65B0\u6765\u7684"),
             titleEmoji: str(t.emoji, "\u{1F331}")
           };
@@ -1806,7 +1806,7 @@
           node.setAttribute("data-slot", piece.slot);
           ctx.dressSlots.appendChild(node);
         }
-        ctx.hudName.textContent = ctx.view.pig.name + " Lv." + ctx.view.pig.level.level + " \xB7 " + pigStage.label + (ctx.view.pig.ageLabel ? " \xB7 " + ctx.view.pig.ageLabel : "") + (ctx.view.pig.ageForced ? " \u{1F527}" : "");
+        ctx.hudName.textContent = ctx.view.pig.name + (ctx.view.pig.sex !== null ? " " + ctx.view.pig.sex.symbol : "") + " Lv." + ctx.view.pig.level.level + " \xB7 " + pigStage.label + (ctx.view.pig.ageLabel ? " \xB7 " + ctx.view.pig.ageLabel : "") + (ctx.view.pig.ageForced ? " \u{1F527}" : "");
         ctx.hudCoins.textContent = "\u{1FA99} " + ctx.view.pig.coins;
         ctx.hudHealth.textContent = "\u{1F49A} " + ctx.view.pig.health + "/" + ctx.view.maxHealth;
         if (ctx.lastStage !== null && pigStage.key !== ctx.lastStage) {

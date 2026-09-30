@@ -40,6 +40,8 @@ export function normalize(raw) {
         art: typeof obj(pig.stage).art === 'string' && obj(pig.stage).art !== '' ? obj(pig.stage).art : null,
         faded: obj(pig.stage).faded === true,
       },
+      // Older hosts send no sex; the HUD then simply shows none.
+      sex: isObj(pig.sex) ? { key: str(pig.sex.key, ''), label: str(pig.sex.label, ''), symbol: str(pig.sex.symbol, '') } : null,
       ageLabel: str(pig.ageLabel, ''),
       ageForced: pig.ageForced === true,
       daysToNextStage: typeof pig.daysToNextStage === 'number' ? pig.daysToNextStage : null,
@@ -55,7 +57,7 @@ export function normalize(raw) {
       coins: num(pig.coins, 0),
       weight: str(pig.weight, '—'),
       xp: num(pig.xp, 0),
-      // The other axis: level never resets, not even when the pig dies.
+      // Level is driven by growth and decides the body (B2).
       level: (function (info) {
         var i = obj(info)
         var t = obj(i.title)
@@ -63,6 +65,7 @@ export function normalize(raw) {
           level: num(i.level, 1),
           percent: num(i.percent, 0),
           toNext: num(i.toNext, 0),
+          maxed: i.maxed === true,
           titleLabel: str(t.label, '新来的'),
           titleEmoji: str(t.emoji, '🌱'),
         }

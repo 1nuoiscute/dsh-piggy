@@ -9,6 +9,7 @@
 import { CARE_KIND, careItems } from '../data.js'
 import { ACTIONS, DIET } from './constants.js'
 import { applyEffects, remember } from './effects.js'
+import { growFromRealWork } from './growth.js'
 import { say } from './lines.js'
 import { decay } from './settlement.js'
 
@@ -37,7 +38,9 @@ export function feed(state, event, nowMs) {
   }
   // The box does not eat: the work still counts in the stats, nothing else.
   if (state.hatched !== true) return []
-  return applyEffects(state, diet, nowMs)
+  applyEffects(state, diet, nowMs)
+  growFromRealWork(state, event, nowMs)
+  return []
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +118,6 @@ export function resolveCareItem(state, kind, wanted) {
 export function careEffects(item, spec) {
   if (item === null) return spec
   return {
-    xp: spec.xp,
     weightG: item.satiety !== undefined && spec.key === 'feed' ? spec.weightG : 0,
     satiety: item.satiety ?? spec.satiety,
     happiness: item.happiness ?? spec.happiness,

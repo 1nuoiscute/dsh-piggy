@@ -22,19 +22,19 @@ import { TRAITS, TRAIT_ORDER } from './traits.js'
  */
 export const JOBS = Object.freeze([
   // --- anyone can start here ----------------------------------------------
-  Object.freeze({ key: 'odd', label: '打零工', emoji: '🧹', trait: 'charm', minutes: MINUTES.quarter, coins: 30, xp: 40, satiety: -6, cleanliness: -4, requires: Object.freeze({ intel: 0, charm: 0, strong: 0 }) }),
+  Object.freeze({ key: 'odd', label: '打零工', emoji: '🧹', trait: 'charm', minutes: MINUTES.quarter, coins: 30, satiety: -6, cleanliness: -4, requires: Object.freeze({ intel: 0, charm: 0, strong: 0 }) }),
   // --- body line: 武力 -----------------------------------------------------
-  Object.freeze({ key: 'dish', label: '端盘子', emoji: '🍽', trait: 'charm', minutes: MINUTES.half, coins: 70, xp: 90, satiety: -10, cleanliness: -7, requires: Object.freeze({ intel: 0, charm: 2, strong: 2 }) }),
-  Object.freeze({ key: 'courier', label: '送快递', emoji: '🚚', trait: 'strong', minutes: MINUTES.hour, coins: 150, xp: 190, satiety: -15, cleanliness: -12, requires: Object.freeze({ intel: 0, charm: 0, strong: 4 }) }),
-  Object.freeze({ key: 'site', label: '搬砖', emoji: '🧱', trait: 'strong', minutes: MINUTES.ninety, coins: 260, xp: 300, satiety: -20, cleanliness: -18, requires: Object.freeze({ intel: 0, charm: 0, strong: 8 }) }),
-  Object.freeze({ key: 'foreman', label: '工地领班', emoji: '🏗', trait: 'strong', minutes: MINUTES.threeHours, coins: 700, xp: 800, satiety: -32, cleanliness: -24, requires: Object.freeze({ intel: 0, charm: 4, strong: 16 }) }),
+  Object.freeze({ key: 'dish', label: '端盘子', emoji: '🍽', trait: 'charm', minutes: MINUTES.half, coins: 70, satiety: -10, cleanliness: -7, requires: Object.freeze({ intel: 0, charm: 2, strong: 2 }) }),
+  Object.freeze({ key: 'courier', label: '送快递', emoji: '🚚', trait: 'strong', minutes: MINUTES.hour, coins: 150, satiety: -15, cleanliness: -12, requires: Object.freeze({ intel: 0, charm: 0, strong: 4 }) }),
+  Object.freeze({ key: 'site', label: '搬砖', emoji: '🧱', trait: 'strong', minutes: MINUTES.ninety, coins: 260, satiety: -20, cleanliness: -18, requires: Object.freeze({ intel: 0, charm: 0, strong: 8 }) }),
+  Object.freeze({ key: 'foreman', label: '工地领班', emoji: '🏗', trait: 'strong', minutes: MINUTES.threeHours, coins: 700, satiety: -32, cleanliness: -24, requires: Object.freeze({ intel: 0, charm: 4, strong: 16 }) }),
   // --- charm line: 魅力 ----------------------------------------------------
-  Object.freeze({ key: 'street', label: '街头卖艺', emoji: '🎤', trait: 'charm', minutes: MINUTES.hour, coins: 200, xp: 240, satiety: -12, cleanliness: -8, requires: Object.freeze({ intel: 0, charm: 8, strong: 0 }) }),
+  Object.freeze({ key: 'street', label: '街头卖艺', emoji: '🎤', trait: 'charm', minutes: MINUTES.hour, coins: 200, satiety: -12, cleanliness: -8, requires: Object.freeze({ intel: 0, charm: 8, strong: 0 }) }),
   // --- desk line: 智力（只有上学能开）-------------------------------------
-  Object.freeze({ key: 'tutor', label: '家教', emoji: '📚', trait: 'intel', minutes: MINUTES.twoHours, coins: 480, xp: 560, satiety: -18, cleanliness: -10, requires: Object.freeze({ intel: 10, charm: 0, strong: 0 }) }),
-  Object.freeze({ key: 'office', label: '上班', emoji: '💼', trait: 'intel', minutes: MINUTES.fourHours, coins: 900, xp: 900, satiety: -34, cleanliness: -26, requires: Object.freeze({ intel: 14, charm: 6, strong: 0 }) }),
-  Object.freeze({ key: 'manager', label: '部门主管', emoji: '🏢', trait: 'intel', minutes: MINUTES.sixHours, coins: 2200, xp: 2100, satiety: -46, cleanliness: -34, requires: Object.freeze({ intel: 22, charm: 10, strong: 0 }) }),
-  Object.freeze({ key: 'researcher', label: '研究员', emoji: '🔬', trait: 'intel', minutes: MINUTES.eightHours, coins: 4000, xp: 4200, satiety: -60, cleanliness: -40, requires: Object.freeze({ intel: 32, charm: 0, strong: 0 }) }),
+  Object.freeze({ key: 'tutor', label: '家教', emoji: '📚', trait: 'intel', minutes: MINUTES.twoHours, coins: 480, satiety: -18, cleanliness: -10, requires: Object.freeze({ intel: 10, charm: 0, strong: 0 }) }),
+  Object.freeze({ key: 'office', label: '上班', emoji: '💼', trait: 'intel', minutes: MINUTES.fourHours, coins: 900, satiety: -34, cleanliness: -26, requires: Object.freeze({ intel: 14, charm: 6, strong: 0 }) }),
+  Object.freeze({ key: 'manager', label: '部门主管', emoji: '🏢', trait: 'intel', minutes: MINUTES.sixHours, coins: 2200, satiety: -46, cleanliness: -34, requires: Object.freeze({ intel: 22, charm: 10, strong: 0 }) }),
+  Object.freeze({ key: 'researcher', label: '研究员', emoji: '🔬', trait: 'intel', minutes: MINUTES.eightHours, coins: 4000, satiety: -60, cleanliness: -40, requires: Object.freeze({ intel: 32, charm: 0, strong: 0 }) }),
 ])
 
 /**

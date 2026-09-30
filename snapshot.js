@@ -9,7 +9,7 @@
 import { readFileSync } from 'node:fs'
 
 import { ACTIONS, ACTION_ORDER, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, courseView, currentIllness, daysToNextStage, dressView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
-import { INTERESTS, jobRequirement, rarityByKey, stageSubjectKeys, traitBonus } from './data.js'
+import { INTERESTS, SEXES, jobRequirement, rarityByKey, stageSubjectKeys, traitBonus } from './data.js'
 
 /** The stage the panel shows before there is a pig: the cardboard box. */
 /**
@@ -36,7 +36,13 @@ function boxStageView() {
   return { key: box.key, label: box.label, emoji: box.emoji, size: box.size, line: box.line }
 }
 
-/** "今天刚出生" / "3 天大" / "刚拆开纸盒" — the pig's age in words. */
+/** 性别：男孩 ♂ / 女孩 ♀；还没拆开的纸盒没有。 */
+function sexView(state) {
+  const sex = SEXES[state.sex]
+  return sex === undefined ? null : { key: sex.key, label: sex.label, symbol: sex.symbol }
+}
+
+/** "今天刚到家" / "养了 3 天" / "还没拆开" — how long the pig has been here, in words. */
 function formatAge(days, state, nowMs) {
   if (state.hatched !== true) return '还没拆开'
   // A tombstone is not "newborn today". Once the pig is gone its clock stops,
@@ -45,8 +51,8 @@ function formatAge(days, state, nowMs) {
     const lived = Math.max(0, (state.diedAt ?? nowMs) - state.bornAt)
     return `活了 ${formatSpan(lived)}`
   }
-  if (days < 1) return '今天刚出生'
-  return `${Math.floor(days)} 天大`
+  if (days < 1) return '今天刚到家'
+  return `养了 ${Math.floor(days)} 天`
 }
 
 /** "18 小时" / "3 天" / "2 小时" — a duration in the largest sensible unit. */
@@ -109,7 +115,8 @@ export function snapshot(store, options = {}) {
     timeScale: Number.isFinite(state.timeScale) ? state.timeScale : 1,
     pig: {
       name: state.name,
-      // Age is the progression now, not a level.
+      sex: sexView(state),
+      // The body follows the level (B2); age is only how long it has been here.
       stage: { key: life.key, label: life.label, emoji: life.emoji, size: life.size, line: life.line, art: life.art ?? null, faded: life.faded === true },
       ageDays: Number(ageDays(state, nowMs).toFixed(2)),
       ageLabel: formatAge(ageDays(state, nowMs), state, nowMs),

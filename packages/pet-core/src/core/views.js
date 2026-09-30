@@ -6,7 +6,7 @@
  * @module dsh-pig/core/views
  */
 
-import { GRAVE, JOBS, LIFESPAN_DAYS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SLEEPY_AFTER_MINUTES, SOUL, SOUL_AFTER_DAYS, SUBJECTS, THRESHOLDS, TRAITS, TRAIT_ORDER, TRIPS } from '../data.js'
+import { GRAVE, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SLEEPY_AFTER_MINUTES, SOUL, SOUL_AFTER_DAYS, SUBJECTS, THRESHOLDS, TRAITS, TRAIT_ORDER, TRIPS } from '../data.js'
 import { AWAY_MOODS, DIET } from './constants.js'
 import { clamp, clamp100 } from './effects.js'
 import { currentIllness, decay } from './settlement.js'
@@ -51,5 +51,5 @@ export function bar(value, width = 10) {
 }
 
 export { JOBS, SHOP, MAX, THRESHOLDS, REVIVE_ITEM, SUBJECTS, SCHOOL_STAGES, TRIPS, TRAITS, TRAIT_ORDER }
-export { LIFE_STAGES, GRAVE, SOUL, LIFESPAN_DAYS, SOUL_AFTER_DAYS }
+export { LIFE_STAGES, GRAVE, SOUL, SOUL_AFTER_DAYS }
 export { DIET }

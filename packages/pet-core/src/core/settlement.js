@@ -6,14 +6,15 @@
  * @module dsh-pig/core/settlement
  */
 
-import { DEFAULT_TIME_SCALE, GRAVE, ILLNESS_CHAINS, LIFESPAN_DAYS, MAX, REVIVE_ITEM, SELF_HEAL_CHANCE, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, SICK_RISK_MINUTES, STAGE_HEALTH, THRESHOLDS, TRAITS, illnessAt, illnessStageMs, interestByKey, jobByKey, nextIllness, rarityByKey, schoolStageByKey, subjectByKey, traitBonus, tripByKey } from '../data.js'
-import { ageDays, lifeStageFor } from './clock.js'
+import { DEFAULT_TIME_SCALE, GRAVE, ILLNESS_CHAINS, MAX, STUDY_GROWTH_PER_LESSON, REVIVE_ITEM, SELF_HEAL_CHANCE, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, SICK_RISK_MINUTES, STAGE_HEALTH, THRESHOLDS, TRAITS, illnessAt, illnessStageMs, interestByKey, jobByKey, nextIllness, rarityByKey, schoolStageByKey, subjectByKey, traitBonus, tripByKey } from '../data.js'
 import { AWAY_DECAY_MULTIPLIER, AWAY_FLOOR, CLEANLINESS_DECAY_PER_MIN, HAPPINESS_DECAY_PER_MIN, SATIETY_DECAY_PER_MIN, SETTLE_STEP_MS } from './constants.js'
-import { announce, applyEffects, clamp100, remember } from './effects.js'
+import { announce, clamp100, remember } from './effects.js'
+import { growWithTime, grow, outingGrowth } from './growth.js'
 import { chance, rollerFor } from './random.js'
 
 /**
- * Let the pig go. Used by illness at the end of a chain and by old age.
+ * Let the pig go. Only accidents kill it now (the end of an illness chain);
+ * there is no old age (B2).
  * @param {string} why - shown in the announcement.
  */
 export function die(state, nowMs, why) {
@@ -171,22 +172,16 @@ function progressIllness(state, elapsedMs, where, next) {
 }
 
 /**
- * Pig time is elapsed real time times the scale; age passes whether or not
- * anyone is watching, so a pig left alone comes back a day older.
+ * Pig time is elapsed real time times the scale. Age only counts days now —
+ * the body follows the level — and the same pig time drives passive growth.
  */
 function growOlder(state, elapsedMs, atMs) {
   const scale = Number.isFinite(state.timeScale) && state.timeScale > 0
     ? state.timeScale
     : DEFAULT_TIME_SCALE
-  state.ageMs += elapsedMs * scale
-  if (state.hatched !== true) return
-  const stage = lifeStageFor(state, atMs)
-  if (state.stage !== stage.key) {
-    state.stage = stage.key
-    remember(state, `长成了${stage.label} ${stage.emoji}`, atMs)
-    announce(state, 'stage', `${state.name} 长成了${stage.label} ${stage.emoji}`, atMs)
-  }
-  if (ageDays(state, atMs) >= LIFESPAN_DAYS) die(state, atMs, '老了')
+  const pigMs = elapsedMs * scale
+  state.ageMs += pigMs
+  if (state.hatched === true) growWithTime(state, pigMs, atMs)
 }
 
 export function finishActivity(state, nowMs) {
@@ -211,7 +206,7 @@ export function finishInterest(state, activity, nowMs) {
   state.satiety = clamp100(state.satiety - 4)
   state.happiness = clamp100(state.happiness + 3)
   state.stats.interests = (state.stats.interests ?? 0) + 1
-  applyEffects(state, { xp: interest.xp }, nowMs)
+  grow(state, STUDY_GROWTH_PER_LESSON, nowMs)
   remember(state, `${interest.emoji} 学完${interest.label}，${TRAITS[interest.trait].label} +${interest.gain}`, nowMs)
   announce(state, 'study', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`, nowMs)
 }
@@ -233,7 +228,7 @@ export function finishWork(state, activity, nowMs) {
   state.cleanliness = clamp100(state.cleanliness + job.cleanliness)
   state.stats.jobs += 1
   state.stats.coinsEarned += coins
-  applyEffects(state, { xp: job.xp }, nowMs)
+  grow(state, outingGrowth(job.minutes), nowMs)
   const tag = sick ? '（带病上工，只有一半）' : (points > 0 ? `（${TRAITS[job.trait].label} ${points}）` : '')
   remember(state, `${job.emoji} ${job.label}回来，赚了 ${coins} 金币${tag}`, nowMs)
   announce(state, 'work', sick
@@ -261,7 +256,7 @@ export function finishStudy(state, activity, nowMs) {
   state.happiness = clamp100(state.happiness + stage.happiness)
   state.stats.courses += 1
   state.stats.lessons += 1
-  applyEffects(state, { xp: stage.xp }, nowMs)
+  grow(state, STUDY_GROWTH_PER_LESSON, nowMs)
   remember(state, `${subject.emoji} 上完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain}`, nowMs)
   announce(state, 'study', `${state.name} 学完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain} 📚`, nowMs)
 }
@@ -282,7 +277,7 @@ export function finishTrip(state, activity, nowMs) {
   state.happiness = clamp100(state.happiness + trip.happiness)
   state.satiety = clamp100(state.satiety + trip.satiety)
   state.stats.trips += 1
-  applyEffects(state, { xp: trip.xp }, nowMs)
+  grow(state, outingGrowth(trip.minutes), nowMs)
   remember(state, `${trip.emoji} ${trip.label}回来，带回「${pick.label}」${tier.emoji}`, nowMs)
   announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${pick.label}」${tier.emoji}🧳`, nowMs)
 }

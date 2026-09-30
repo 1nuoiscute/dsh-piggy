@@ -27,11 +27,13 @@ import {
   courseView,
   formatWeight,
   healthPercent,
+  levelProgress,
   lifeStageFor,
   mood,
+  outingGrowth,
   traitView,
 } from './core.js'
-import { illnessAt } from './data.js'
+import { STUDY_GROWTH_PER_LESSON, illnessAt } from './data.js'
 
 const RULE = '━━━━━━━━━━━━━━━━━━━━━━━━━━'
 
@@ -72,7 +74,10 @@ export function portrait(stage, currentMood) {
 }
 
 function xpLine(state) {
-  return `✨ 成长  ${state.xp}   （只喂体重，不再决定形态）`
+  const progress = levelProgress(state.xp)
+  return progress.maxed
+    ? `✨ 成长  ${Math.floor(state.xp)}   Lv.${progress.level}（满级）`
+    : `✨ 成长  ${Math.floor(state.xp)}   Lv.${progress.level} · 还差 ${Math.ceil(progress.toNext)} 升级`
 }
 
 function statusLine(state, nowMs) {
@@ -203,7 +208,7 @@ export function renderStudyReport(state, nowMs, subject, stage) {
     `📚 课程    ${stage.label}${subject.label}`,
     `⏱  时长    ${stage.minutes} 分钟`,
     `🪙 学费    ${stage.tuition} 金币`,
-    `📈 收获    ${TRAITS[subject.trait].label} +${stage.gain} · 经验 +${stage.xp}`,
+    `📈 收获    ${TRAITS[subject.trait].label} +${stage.gain} · 成长 +${STUDY_GROWTH_PER_LESSON}`,
     `🍚 消耗    饱食 ${stage.satiety} · 心情 ${stage.happiness}`,
     '',
     `这门课已经上了 ${level} 次。预计 ${activitySecondsLeft(state, nowMs)} 秒后下课。`,
@@ -218,7 +223,7 @@ export function renderTripReport(state, nowMs, trip) {
     `🧳 目的地  ${trip.label}`,
     `⏱  时长    ${trip.minutes} 分钟`,
     `🪙 花费    ${trip.cost} 金币`,
-    `❤️  心情    +${trip.happiness} · 经验 +${trip.xp}`,
+    `❤️  心情    +${trip.happiness} · 成长 +${outingGrowth(trip.minutes)}`,
     `🍚 消耗    饱食 ${trip.satiety}`,
     '',
     `会带回一件纪念品。预计 ${activitySecondsLeft(state, nowMs)} 秒后回来。`,
@@ -271,7 +276,7 @@ export function renderUse(state, result, item) {
   }
   const lines = [`${state.name} 用了 ${item.emoji} ${item.label}`]
   if (item.kind === 'medicine') lines.push('', '💚 病好了！健康恢复满值。')
-  else if (item.kind === 'revive') lines.push('', '✨ 回来了！等级、经验和金币都还在。')
+  else if (item.kind === 'revive') lines.push('', '✨ 回来了！等级、成长值和金币都还在。')
   else {
     lines.push(
       '',

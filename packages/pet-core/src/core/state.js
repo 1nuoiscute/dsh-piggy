@@ -6,7 +6,7 @@
  * @module dsh-pig/core/state
  */
 
-import { DEFAULT_TIME_SCALE, MAX, REVIVE_ITEM } from '../data.js'
+import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, xpForLevel } from '../data.js'
 import { lifeStageFor } from './clock.js'
 import { MEMORY_LIMIT } from './constants.js'
 import { announce, clamp, remember } from './effects.js'
@@ -29,11 +29,12 @@ export function reset(nowMs) {
 /**
  * What a new pig inherits from the old one.
  *
- * This is the whole point of the two-axis design: the body dies, the history
- * does not. Level, schooling, traits and souvenirs carry over, so losing a pig
- * to old age is a chapter break rather than a wipe.
+ * Schooling, traits and souvenirs carry over. Growth does not: since B2 the
+ * level *is* the body, and a new piglet that inherited Lv40 would hatch fully
+ * grown. Losing a pig is only ever an accident now (there is no old age), and
+ * the revive item is the way to keep the one you have.
  */
-export const INHERITED = ['xp', 'traits', 'courses', 'coursesByStage', 'lessonsByStage', 'souvenirs']
+export const INHERITED = ['traits', 'courses', 'coursesByStage', 'lessonsByStage', 'souvenirs']
 
 export function inherit(oldState, fresh, nowMs) {
   if (oldState === null) return fresh
@@ -124,7 +125,12 @@ export function applyDevPatch(state, patch, nowMs) {
     decay(state, nowMs)
   }
 
-  // Age is the one thing worth jumping: it is what takes days to see.
+  // Level is what takes months to see now (B2): jump straight to one.
+  if (typeof patch.level === 'number' && Number.isFinite(patch.level)) {
+    state.xp = xpForLevel(clamp(Math.round(patch.level), 1, MAX_LEVEL))
+  }
+
+  // Age only counts days on the panel now; still jumpable for testing.
   if (typeof patch.ageDays === 'number' && Number.isFinite(patch.ageDays)) {
     // Age is accumulated pig time, so both have to move or the stage will not.
     const days = Math.max(0, patch.ageDays)

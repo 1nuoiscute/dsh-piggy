@@ -26,7 +26,6 @@ import {
   DEFAULT_TOY,
   GRAVE,
   LIFE_STAGES,
-  LIFESPAN_DAYS,
   SOUL,
   SOUL_AFTER_DAYS,
   ILLNESS_CHAINS,
@@ -75,7 +74,8 @@ import {
 
 export { ACTIONS, ACTION_ORDER, STATE_VERSION } from './core/constants.js'
 export { drainPending } from './core/effects.js'
-export { ageDays, ageMonths, daysToNextStage, hasSoul, isElderly, levelFor, levelProgress, levelTitle, lifeStageFor, nextLifeStage } from './core/clock.js'
+export { ageDays, ageMonths, dayKeyFor, daysToNextStage, hasSoul, levelFor, levelProgress, levelTitle, lifeStageFor, nextLifeStage } from './core/clock.js'
+export { careFactor, grow, growFromRealWork, outingGrowth } from './core/growth.js'
 export { hatch, hatchEgg, layEgg } from './core/egg.js'
 export { adopt, ageFromNow, applyDevPatch, inherit, rename, reset, revive, setTimeScale } from './core/state.js'
 export { migrate } from './core/migrate.js'
@@ -90,5 +90,5 @@ export { startWork } from './core/work.js'
 export { sellSouvenir, startTrip } from './core/travel.js'
 export { bar, formatWeight, healthPercent, mood, traitView } from './core/views.js'
 export { JOBS, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, THRESHOLDS, TRAITS, TRAIT_ORDER, TRIPS } from './data.js'
-export { GRAVE, LIFESPAN_DAYS, LIFE_STAGES, SOUL, SOUL_AFTER_DAYS } from './data.js'
+export { GRAVE, LIFE_STAGES, MAX_LEVEL, SOUL, SOUL_AFTER_DAYS } from './data.js'
 export { DIET } from './core/constants.js'

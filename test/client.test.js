@@ -730,7 +730,7 @@ test('the status tab shows labelled bars, traits and the care buttons', async ()
   openPanel(dom)
 
   const text = contentOf(dom).allText()
-  for (const label of ['饱食', '心情', '清洁', '健康', '智力', '魅力', '武力', '体重', '年龄']) {
+  for (const label of ['饱食', '心情', '清洁', '健康', '智力', '魅力', '武力', '体重', '陪伴']) {
     assert.ok(text.includes(label), `expected "${label}" in: ${text}`)
   }
   for (const key of ['feed', 'bathe', 'play', 'pet']) {

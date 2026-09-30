@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { STATE_VERSION, layEgg, levelFor, migrate } from '../core.js'
+import { STATE_VERSION, layEgg, levelFor, levelProgress, migrate } from '../core.js'
 import { readStateFile } from '../store/state-file.js'
 import { UPGRADES } from '../packages/pet-core/src/core/upgrades.js'
 
@@ -46,8 +46,11 @@ test('the real v7 save upgrades with its level, money, bag and schooling intact'
   assert.equal(after.version, STATE_VERSION)
   assert.equal(after.hatched, true)
   assert.equal(after.dead, before.dead)
-  assert.equal(after.xp, before.xp)
-  assert.equal(levelFor(after.xp), levelFor(before.xp))
+  // v9 moved xp onto the growth curve: Lv8 at 13% on the old curve stays Lv8
+  // at 13% on the new one.
+  assert.equal(levelFor(after.xp), 8)
+  assert.equal(levelProgress(after.xp).percent, 13)
+  assert.ok(after.sex === 'boy' || after.sex === 'girl', 'and it has a sex now')
   assert.equal(after.coins, before.coins)
   assert.deepEqual(after.inventory, before.inventory)
   assert.deepEqual(after.traits, before.traits)

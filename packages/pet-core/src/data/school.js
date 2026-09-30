@@ -58,44 +58,44 @@ export const SCHOOL_STAGES = Object.freeze([
   Object.freeze({
     key: 'preschool', label: '幼儿园', emoji: '🧸',
     subjects: Object.freeze(['sing', 'doodle', 'literacy']),
-    minutes: MINUTES.quarter, tuition: 20, gain: 1, xp: 30, satiety: -4, happiness: -1,
+    minutes: MINUTES.quarter, tuition: 20, gain: 1, satiety: -4, happiness: -1,
     requires: null,
   }),
   Object.freeze({
     key: 'extracurricular', label: '课外', emoji: '🎨',
     subjects: Object.freeze(['football', 'piano', 'painting', 'go']),
-    minutes: MINUTES.quarter + 5, tuition: 30, gain: 1, xp: 40, satiety: -5, happiness: -1,
+    minutes: MINUTES.quarter + 5, tuition: 30, gain: 1, satiety: -5, happiness: -1,
     requires: Object.freeze({ stage: 'preschool', subjects: 3, label: '幼儿园 3 门课各上一次' }),
   }),
   Object.freeze({
     key: 'primary', label: '小学', emoji: '📚',
     subjects: Object.freeze(['chinese', 'mathematics', 'english', 'science', 'pe', 'art']),
-    minutes: 40, tuition: 60, gain: 1, xp: 80, satiety: -8, happiness: -2,
+    minutes: 40, tuition: 60, gain: 1, satiety: -8, happiness: -2,
     requires: Object.freeze({ stage: 'extracurricular', subjects: 4, label: '课外 4 门课各上一次' }),
   }),
   Object.freeze({
     key: 'middle', label: '中学', emoji: '🏫',
     subjects: Object.freeze(['chinese', 'mathematics', 'english', 'history', 'geography', 'physics', 'chemistry']),
-    minutes: MINUTES.hour, tuition: 140, gain: 2, xp: 160, satiety: -12, happiness: -3,
+    minutes: MINUTES.hour, tuition: 140, gain: 2, satiety: -12, happiness: -3,
     requires: Object.freeze({ stage: 'primary', subjects: 6, label: '小学 6 门课各上一次' }),
   }),
   Object.freeze({
     key: 'high', label: '高中', emoji: '🎓',
     subjects: Object.freeze(['chinese', 'mathematics', 'english', 'physics', 'chemistry', 'biology', 'politics', 'it']),
-    minutes: MINUTES.twoHours, tuition: 300, gain: 3, xp: 320, satiety: -20, happiness: -5,
+    minutes: MINUTES.twoHours, tuition: 300, gain: 3, satiety: -20, happiness: -5,
     requires: Object.freeze({ stage: 'middle', subjects: 7, label: '中学 7 门课各上一次' }),
   }),
   Object.freeze({
     key: 'college', label: '大学', emoji: '🏛',
     subjects: Object.freeze(['english', 'mathematics', 'physics', 'chemistry', 'biology', 'politics', 'philosophy', 'economics', 'engineering']),
-    minutes: MINUTES.fourHours, tuition: 700, gain: 4, xp: 700, satiety: -34, happiness: -8,
+    minutes: MINUTES.fourHours, tuition: 700, gain: 4, satiety: -34, happiness: -8,
     requires: Object.freeze({ stage: 'high', subjects: 8, label: '高中 8 门课各上一次' }),
   }),
   Object.freeze({
     key: 'graduate', label: '研究生', emoji: '🔬',
     // 深造：和大学同一批九门，重复上给更多属性。
     subjects: Object.freeze(['english', 'mathematics', 'physics', 'chemistry', 'biology', 'politics', 'philosophy', 'economics', 'engineering']),
-    minutes: MINUTES.eightHours, tuition: 1600, gain: 6, xp: 1500, satiety: -50, happiness: -12,
+    minutes: MINUTES.eightHours, tuition: 1600, gain: 6, satiety: -50, happiness: -12,
     requires: Object.freeze({ stage: 'college', subjects: 9, label: '大学 9 门课各上一次' }),
   }),
 ])

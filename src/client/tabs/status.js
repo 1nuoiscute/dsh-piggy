@@ -32,11 +32,11 @@ export function renderStatusTab(ui) {
   var lvl = el('div', 'dp-row')
   lvl.appendChild(el('span', null, '⭐ 等级'))
   lvl.appendChild(el('b', null, 'Lv.' + p.level.level + ' ' + p.level.titleEmoji + p.level.titleLabel
-    + (p.level.toNext > 0 ? ' · 还差 ' + p.level.toNext + ' xp' : '')))
+    + (p.level.maxed ? ' · 满级' : ' · 还差 ' + Math.ceil(p.level.toNext) + ' 成长')))
   ui.content.appendChild(lvl)
 
   var age = el('div', 'dp-row')
-  age.appendChild(el('span', null, '🎂 年龄'))
+  age.appendChild(el('span', null, '🏠 陪伴'))
   age.appendChild(el('b', null, p.ageLabel + (p.ageForced ? ' 🔧' : '') + (p.daysToNextStage === null ? ' · 已长成' : '')))
   ui.content.appendChild(age)
 

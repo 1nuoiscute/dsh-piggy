@@ -16,51 +16,40 @@ export const DAYS_PER_MONTH = 30
  * @property {string} label
  * @property {string} emoji
  * @property {number} size
- * @property {number} [from]
+ * @property {number} [fromLevel] - 到这一级就换成这个形态
  * @property {string} line
  * @property {boolean} [box]
  * @property {string} [art]
  * @property {boolean} [faded]
  */
-/** @type {ReadonlyArray<LifeStage>} */
+/**
+ * 形态按**等级**换，不按年龄（B2，用户 2026-10-01 确认）：幼年 → 青年 Lv10（约 5 天），
+ * 青年 → 成年 Lv40（约 2.7 个月）。没有老年、没有寿命 —— 猪只会因为意外死掉。
+ * key 沿用旧的 piglet/young/middle，美术和样式都挂在 key 上。
+ * @type {ReadonlyArray<LifeStage>}
+ */
 export const LIFE_STAGES = Object.freeze([
   Object.freeze({
-    key: 'box', label: '纸盒', emoji: '📦', size: 58, from: 0, box: true,
+    key: 'box', label: '纸盒', emoji: '📦', size: 58, fromLevel: 0, box: true,
     line: '一个纸盒，侧面戳了几个透气孔',
   }),
   Object.freeze({
-    key: 'piglet', label: '小猪', emoji: '🐖', art: 'piglet', size: 54, from: 0,
+    key: 'piglet', label: '幼年猪', emoji: '🐖', art: 'piglet', size: 54, fromLevel: 1,
     line: '刚从纸盒里蹦出来，圆头圆脑',
   }),
   Object.freeze({
-    key: 'young', label: '青年猪', emoji: '🐖', size: 60, from: 1 * DAYS_PER_MONTH,
+    key: 'young', label: '青年猪', emoji: '🐖', size: 60, fromLevel: 10,
     line: '长开了，走路带风',
   }),
   Object.freeze({
-    key: 'middle', label: '成年猪', emoji: '🐖', size: 68, from: 3 * DAYS_PER_MONTH,
+    key: 'middle', label: '成年猪', emoji: '🐖', size: 68, fromLevel: 40,
     line: '很有分量，会一屁股坐住你的椅子',
-  }),
-  Object.freeze({
-    key: 'elder', label: '老年猪', emoji: '🐖', art: 'elder', size: 62, from: 6 * DAYS_PER_MONTH,
-    line: '鬃毛白了，獠牙还在',
   }),
 ])
 
 /**
- * How long a full life lasts, in days. Eight months: 1 as a piglet, 2 young,
- * 3 grown, 2 elderly.
- */
-export const LIFESPAN_DAYS = 8 * DAYS_PER_MONTH
-
-/**
- * Time multiplier. 1 = the ages above are real months. Raise it to see a whole
- * life without waiting one.
- *
- * | 倍率 | 一生 | 小猪→青年 |
- * |---|---|---|
- * | 1 | 8 个月 | 1 个月 |
- * | 12 | 20 天 | 2.5 天 |
- * | 30 | 8 天 | 1 天 |
+ * Time multiplier for the debug page. Pig time — age and passive growth —
+ * runs this many times faster than the wall clock. 1 = real time.
  */
 export const DEFAULT_TIME_SCALE = 1
 
@@ -77,15 +66,8 @@ export const SOUL = Object.freeze({ emoji: '👻', label: '灵魂' })
 export const SOUL_AFTER_DAYS = 1
 
 // ---------------------------------------------------------------------------
-// Level — the other axis
-//
-// Age is the body: it grows, then it goes. Level is the history: it never
-// resets, not even when the pig dies, so adopting a new one is a continuation
-// rather than a wipe. Unbounded on purpose — there is no "maxed out".
+// Level — the curve and the sources of growth live in data/growth.js.
 // ---------------------------------------------------------------------------
-
-/** XP needed to *reach* a level. Quadratic, so each level costs a bit more. */
-export const xpForLevel = level => (level <= 1 ? 0 : 20 * level * (level - 1))
 
 /** Titles, earned by level. The last one that applies wins. */
 export const LEVEL_TITLES = Object.freeze([

@@ -13,10 +13,10 @@ import { MINUTES } from './minutes.js'
  * 特意不做独立的技能等级、百分比或上限：那只是把三条属性又抄了一遍。
  */
 export const INTERESTS = Object.freeze([
-  Object.freeze({ key: 'photography', label: '摄影', emoji: '📷', trait: 'charm', minutes: MINUTES.half, cost: 40, gain: 2, xp: 60, blurb: '会拍照的猪，走到哪都上相' }),
-  Object.freeze({ key: 'coding', label: '编程', emoji: '💻', trait: 'intel', minutes: MINUTES.hour, cost: 80, gain: 2, xp: 120, blurb: '学会让别的猪干活' }),
-  Object.freeze({ key: 'dancing', label: '跳舞', emoji: '💃', trait: 'charm', minutes: MINUTES.half, cost: 45, gain: 2, xp: 70, blurb: '会跳舞的猪不怯场' }),
-  Object.freeze({ key: 'fitness', label: '健身', emoji: '🏋', trait: 'strong', minutes: MINUTES.half, cost: 35, gain: 2, xp: 60, blurb: '举得动更重的东西' }),
+  Object.freeze({ key: 'photography', label: '摄影', emoji: '📷', trait: 'charm', minutes: MINUTES.half, cost: 40, gain: 2, blurb: '会拍照的猪，走到哪都上相' }),
+  Object.freeze({ key: 'coding', label: '编程', emoji: '💻', trait: 'intel', minutes: MINUTES.hour, cost: 80, gain: 2, blurb: '学会让别的猪干活' }),
+  Object.freeze({ key: 'dancing', label: '跳舞', emoji: '💃', trait: 'charm', minutes: MINUTES.half, cost: 45, gain: 2, blurb: '会跳舞的猪不怯场' }),
+  Object.freeze({ key: 'fitness', label: '健身', emoji: '🏋', trait: 'strong', minutes: MINUTES.half, cost: 35, gain: 2, blurb: '举得动更重的东西' }),
 ])
 
 export const interestByKey = key => INTERESTS.find(entry => entry.key === key) ?? null
