@@ -313,8 +313,10 @@ export function advanceIllness(state, nowMs, next = rollerFor(state)) {
   // itself off fairly often; the last stage never does.
   const healChance = SELF_HEAL_CHANCE[stage - 1] ?? 0
   if (chance(next, healChance)) {
+    // #7: recovering means well again. Adding a single point left a pig that
+    // survived a fever (health 3) dented for the rest of its life.
     state.illness = null
-    state.health = Math.min(MAX.health, state.health + 1)
+    state.health = MAX.health
     remember(state, `自己好了，扛过去了 💚`, nowMs)
     announce(state, 'cured', `${state.name} 的${ILLNESS_CHAINS[chain].name}自己好了 💚`, nowMs)
     return

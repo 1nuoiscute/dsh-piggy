@@ -759,7 +759,7 @@ test('an untreated illness runs its stages in days, and can shake itself off', (
     lucky.health = 4
     decay(lucky, T0 + illnessStageMs(1) + 1000, always)
     assert.equal(lucky.illness, null, 'it shrugged the cold off')
-    assert.equal(lucky.health, 5, 'and got a little health back')
+    assert.equal(lucky.health, 5, 'and is back to full health')
 
     // --- the last stage never heals on its own --------------------------
     const terminal = hatchEgg(T0)
@@ -767,6 +767,27 @@ test('an untreated illness runs its stages in days, and can shake itself off', (
     terminal.health = 1
     decay(terminal, T0 + illnessStageMs(4) + 1000, always)
     assert.equal(terminal.dead, true, 'the last stage is fatal without medicine')
+})
+
+test('shaking off an illness restores full health, not one point of it', () => {
+  // #7: the self-heal branch only added 1 to health, so a pig that survived a
+  // fever (health 3) stayed dented forever — nothing else ever raised it.
+  const always = { roll: () => 0.01 }
+  const pig = hatchEgg(T0)
+  pig.illness = { chain: 0, stage: 2, since: T0, progressMs: 0 }
+  pig.health = 3
+  decay(pig, T0 + illnessStageMs(2) + 1000, always)
+  assert.equal(pig.illness, null, 'the illness is gone')
+  assert.equal(pig.health, MAX.health, 'and the pig is properly well again')
+})
+
+test('medicine that cures the illness also leaves the pig at full health', () => {
+  const pig = hatchEgg(T0)
+  pig.illness = { chain: 0, stage: 4, since: T0, progressMs: 0 }
+  pig.health = 1
+  pig.inventory = { med4: 1 }
+  assert.equal(useItem(pig, 'med4', T0).ok, true)
+  assert.equal(pig.health, MAX.health)
 })
 
 test('being out while ill runs the illness clock faster than resting', () => {
