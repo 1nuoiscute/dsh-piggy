@@ -12,13 +12,22 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
   DSH 是在**启动时**组装客户端 bundle 的，改完代码不重启就还是旧界面 ——
   以后"我现在看的是哪一版"直接读这一行，不用猜。
 
+### Fixed
+- **存档损坏不再让猪静默消失**：以前 `load()` 是裸 `catch`，文件一坏就当作"没有猪"，
+  下一次写入还会把坏文件覆盖掉。现在会保留一份 `state.json.corrupt-<时间>`、
+  日志说清原因，原文件不动。
+
 ### Changed（内部，界面无变化）
 - 客户端源码移到 `src/client/`，`client.js` 改为 esbuild 产物；`npm run build` 生成，
   `test/bundle.test.js` 守住产物新鲜度。详见 [docs/REFACTOR-PLAN.md](docs/REFACTOR-PLAN.md)。
 - 新增 [docs/CONVENTIONS.md](docs/CONVENTIONS.md)（项目版编码规范）。
+- `data.js` 拆分为 `data/` 9 个模块（`data.js` 保留为 barrel，导入路径零改动）；
+  领域层不再读系统时间（`nowMs` 一律作参数）；代码注释去掉 emoji。
+  以上均无行为变化。
 
 ### Verification
-- `node --test`：**167 / 167 通过**（新增：产物新鲜度、单文件契约、版本字段）。
+- `node --test`：**174 / 174 通过**（新增：产物新鲜度、单文件契约、版本字段、
+  存档损坏保留现场 5 项、领域层时间与注释 emoji 两条静态守卫）。
 
 ## [0.23.0] — 2026-09-30
 
