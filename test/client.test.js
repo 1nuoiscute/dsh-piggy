@@ -643,16 +643,24 @@ test('the shop marks 家当 as 已拥有 or level-locked, and the bag can wear i
   assert.deepEqual(JSON.parse(post.body), { action: 'wear', item: 'scarf', on: true })
 })
 
-test('a worn 装扮 shows on the name plate', async () => {
+test('a worn 装扮 is drawn on the pig at its slot, not printed on the name plate', async () => {
   const { registration, dom } = await loadClient({
     status: {
       ...SNAPSHOT,
-      dress: [{ key: 'scarf', label: '红围巾', emoji: '🧣', price: 80, level: 1, blurb: '', owned: true, worn: true, unlocked: true }],
+      dress: [
+        { key: 'scarf', label: '红围巾', emoji: '🧣', price: 80, level: 1, slot: 'neck', slotLabel: '脖子', blurb: '', owned: true, worn: true, unlocked: true },
+        { key: 'strawhat', label: '草帽', emoji: '👒', price: 150, level: 2, slot: 'head', slotLabel: '头', blurb: '', owned: true, worn: false, unlocked: true },
+      ],
     },
   })
   registration.factory(() => {}).apply({})
   await settle()
-  assert.ok(hostOf(dom).allText().includes('🧣'), hostOf(dom).allText())
+
+  const worn = findByAttr(hostOf(dom), 'data-slot', 'neck')
+  assert.notEqual(worn, undefined, 'the scarf hangs on the neck anchor')
+  assert.equal(worn.allText(), '🧣')
+  assert.equal(findByAttr(hostOf(dom), 'data-slot', 'head'), undefined, 'an unworn hat is not drawn')
+  assert.ok(!findByClass(hostOf(dom), 'dp-hud').allText().includes('🧣'), 'and the name plate stays clean')
 })
 
 test('the work tab lists jobs and sending the pig out POSTs the job', async () => {
@@ -679,7 +687,7 @@ test('a job behind a trait gate says what it needs instead of just greying out',
       ...SNAPSHOT,
       jobs: [
         { key: 'odd', label: '打零工', emoji: '🧹', minutes: 15, coins: 30, available: true, qualified: true, lockText: '', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 0, baseMinutes: 15, baseCoins: 30, payPercent: 0, speedPercent: 0 },
-        { key: 'tutor', label: '家教', emoji: '📚', minutes: 120, coins: 480, available: true, qualified: false, lockText: '🧠 智力 10（你现在 0）', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 0, baseMinutes: 120, baseCoins: 480, payPercent: 0, speedPercent: 0 },
+        { key: 'tutor', label: '家教', emoji: '📚', minutes: 120, coins: 480, available: true, qualified: false, lockText: '🧠 智力 10', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 0, baseMinutes: 120, baseCoins: 480, payPercent: 0, speedPercent: 0 },
       ],
     },
   })
@@ -689,11 +697,29 @@ test('a job behind a trait gate says what it needs instead of just greying out',
   pickTab(dom, 'work')
 
   const text = contentOf(dom).allText()
-  assert.ok(text.includes('🔒 需要 🧠 智力 10（你现在 0）'), text)
-  assert.ok(text.includes('去「学习」上课就能涨这些属性'), text)
+  assert.ok(text.includes('🔒 需要 🧠 智力 10'), text)
+  // One short line, no lecture: the old version also printed "（你现在 0）" and a
+  // second sentence telling the player to go to 学习.
+  assert.ok(!text.includes('你现在'), text)
+  assert.ok(!text.includes('就能涨'), text)
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'tutor').disabled, true)
   assert.ok(findByAttr(contentOf(dom), 'data-job', 'tutor').allText().includes('没资格'))
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
+})
+
+test('the panel states facts, not game-design lectures', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+
+  for (const tab of ['status', 'study', 'work', 'shop', 'travel', 'bag']) {
+    pickTab(dom, tab)
+    const text = contentOf(dom).allText()
+    assert.ok(!text.includes('等级不会因为猪走了而清零'), `${tab}: level-inheritance lecture is back`)
+    assert.ok(!text.includes('再过'), `${tab}: "再过 N 天" hint is back`)
+    assert.ok(!text.includes('不用解锁，想学就学'), `${tab}: interest lecture is back`)
+  }
 })
 
 test('interest courses live in the study tab, not in a new stat panel', async () => {
@@ -732,7 +758,7 @@ test('interest courses live in the study tab, not in a new stat panel', async ()
   assert.deepEqual(JSON.parse(post.body), { action: 'interest', interest: 'fitness' })
 })
 
-test('the time-scale switch is developer-only', async () => {
+test('the time-scale switch lives in the debug tab, not in the panel', async () => {
   const { registration, dom } = await loadClient()
   registration.factory(() => {}).apply({})
   await settle()
@@ -740,10 +766,11 @@ test('the time-scale switch is developer-only', async () => {
   pickTab(dom, 'status')
   assert.equal(findByAttr(contentOf(dom), 'data-scale', '12'), undefined, 'a normal user must not see it')
 
-  // And the only thing that renders it is the developer flag — a static guard,
-  // because the fake DOM cannot dispatch the Ctrl+Shift+D listener.
+  // Static guard: the ×1/×12/×30/×60 buttons are one of the 调试-tab groups.
+  // The fake DOM cannot dispatch the Ctrl+Shift+D listener, so read the source.
   const source = await readSource()
-  assert.match(source, /if \(devMode\) \{[\s\S]{0,600}data-scale/, 'the ×1/×12/×30/×60 row must sit behind devMode')
+  assert.match(source, /group\('时间', \[[\s\S]{0,400}timeScale/, 'the time switch must be a debug-tab group')
+  assert.ok(!/data-scale/.test(source.slice(0, source.indexOf('function statusTab'))), 'and must not be built in the status tab')
 })
 
 test('an older host with no job gates does not lock the whole board', async () => {

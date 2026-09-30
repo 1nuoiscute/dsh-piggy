@@ -56,6 +56,7 @@ import {
   illnessAt,
   interestByKey,
   INTERESTS,
+  dressSlotByKey,
   itemByKey,
   jobByKey,
   jobRequirement,
@@ -819,7 +820,11 @@ export function dressView(state) {
   const have = levelProgress(state.xp).level
   return SHOP.filter(item => item.kind === 'dress').map(item => ({
     key: item.key, label: item.label, emoji: item.emoji, price: item.price,
-    level: item.level ?? 1, blurb: item.blurb ?? '',
+    level: item.level ?? 1,
+    // The anchor this piece goes on; one item per slot at a time.
+    slot: item.slot ?? null,
+    slotLabel: item.slot === undefined ? '' : (dressSlotByKey(item.slot)?.label ?? item.slot),
+    blurb: item.blurb ?? '',
     owned: owned.has(item.key),
     worn: worn.has(item.key),
     unlocked: have >= (item.level ?? 1),
@@ -1500,11 +1505,41 @@ export function wear(state, itemKey, on = true) {
   if (item === null || item.kind !== 'dress') return { ok: false, reason: 'unknown' }
   if (!(state.dress ?? []).includes(item.key)) return { ok: false, reason: 'not-owned' }
   const worn = new Set(state.worn ?? [])
-  if (on) worn.add(item.key)
-  else worn.delete(item.key)
+  if (on) {
+    // One item per slot: putting on a hat takes off the other hat.
+    for (const key of [...worn]) {
+      const other = itemByKey(key)
+      if (other !== null && other.slot === item.slot) worn.delete(key)
+    }
+    worn.add(item.key)
+  } else {
+    worn.delete(item.key)
+  }
   state.worn = [...worn]
   remember(state, on ? `戴上了 ${item.emoji} ${item.label}` : `摘下了 ${item.emoji} ${item.label}`, Date.now())
   return { ok: true, item, worn: state.worn.slice() }
+}
+
+/**
+ * Debug helper: hand the pig one of everything.
+ *
+ * 20 of each consumable, every 装扮 owned, and enough coins that price is never
+ * the reason a test in the panel fails.
+ */
+export function grantAll(state) {
+  if (state === null || state === undefined) return { ok: false, reason: 'absent' }
+  const inventory = { ...(state.inventory ?? {}) }
+  for (const item of SHOP) {
+    if (item.kind === 'dress') continue
+    inventory[item.key] = Math.max(inventory[item.key] ?? 0, 20)
+  }
+  state.inventory = inventory
+  const dress = SHOP.filter(item => item.kind === 'dress').map(item => item.key)
+  state.dress = dress
+  state.coins = Math.max(state.coins ?? 0, 99999)
+  state.stats.purchases = (state.stats.purchases ?? 0) + dress.length
+  remember(state, '🔧 调试：一键拿齐了所有物品', Date.now())
+  return { ok: true, granted: { items: SHOP.length - dress.length, dress: dress.length, coins: state.coins } }
 }
 
 export const canAfford = (state, itemKey) => {

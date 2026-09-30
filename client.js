@@ -275,6 +275,8 @@ window.__ModuleLoader__.load({
           emoji: str(obj(entry).emoji, '👕'),
           price: num(obj(entry).price, 0),
           level: num(obj(entry).level, 1),
+          slot: str(obj(entry).slot, ''),
+          slotLabel: str(obj(entry).slotLabel, ''),
           blurb: str(obj(entry).blurb, ''),
           owned: obj(entry).owned === true,
           worn: obj(entry).worn === true,
@@ -445,8 +447,18 @@ window.__ModuleLoader__.load({
       // opening moves it by exactly zero pixels.
       '[data-dsh-pig][data-open="false"] .dp-scene{height:calc(var(--pig-size) + var(--pig-gap-below));',
       'cursor:pointer}',
-      '.dp-pig{line-height:1;transform-origin:50% 85%;cursor:pointer;',
+      '.dp-pig{line-height:1;transform-origin:50% 85%;cursor:pointer;position:relative;',
       'filter:drop-shadow(0 4px 6px rgba(61,52,40,.28));animation:dp-bob 1.8s ease-in-out infinite}',
+      // 装扮点位：猪身上固定的几个锚点，每个点位挂一件。
+      // 以后换真立绘时，只改这里的偏移/尺寸，逻辑和存档都不用动。
+      '.dp-dress{position:absolute;inset:0;pointer-events:none;z-index:3}',
+      '.dp-slot{position:absolute;line-height:1;font-size:15px;transform:translate(-50%,-50%)}',
+      '.dp-slot[data-slot="head"]{left:50%;top:2%}',
+      '.dp-slot[data-slot="face"]{left:50%;top:32%}',
+      '.dp-slot[data-slot="neck"]{left:50%;top:60%}',
+      '.dp-slot[data-slot="body"]{left:50%;top:78%;font-size:19px}',
+      '.dp-slot[data-slot="back"]{left:14%;top:42%;font-size:19px}',
+      '.dp-slot[data-slot="feet"]{left:50%;top:99%}',
       '[data-dsh-pig][data-open="false"] .dp-pig{filter:drop-shadow(0 5px 9px rgba(61,52,40,.26))}',
       // A petting hand rather than an arrow. Drawn inline as an SVG data URI so
       // it needs no asset and can carry the palette's warm outline; the hotspot
@@ -981,6 +993,9 @@ window.__ModuleLoader__.load({
       var pig = el('div', 'dp-pig')
       pig.appendChild(pigArt)
       pig.appendChild(pigEmoji)
+      // 装扮点位：每个点位挂一件，位置全在 CSS 里（.dp-slot[data-slot=…]）。
+      var dressSlots = el('div', 'dp-dress')
+      pig.appendChild(dressSlots)
       scene.appendChild(pig)
       // Right-click is not discoverable on its own, so the native tooltip says so.
       scene.title = '左键摸摸 · 右键打开面板 · 拖动可移动'
@@ -1239,7 +1254,14 @@ window.__ModuleLoader__.load({
           { key: 'coin100', label: '🪙 +100', run: function () { patch({ coins: p.coins + 100 }) } },
           { key: 'coin999', label: '🪙 9999', run: function () { patch({ coins: 9999 }) } },
           { key: 'traits', label: '🧠+5 ✨+5 💪+5', run: function () { patch({ traits: { intel: 5, charm: 5, strong: 5 } }) } },
-          { key: 'bag', label: '🎒 全套药', run: function () { patch({ inventory: { med1: 3, med2: 3, med3: 3, med4: 3, soul: 2, apple: 5, soap: 5, yoyo: 3 } }) } },
+          { key: 'all', label: '🎁 一键拿齐', run: function () { send('giveAll') } },
+        ])
+
+        group('时间', [
+          { key: 'real', label: '×1 真实', run: function () { send('timeScale', { scale: 1 }) } },
+          { key: 'fast12', label: '×12', run: function () { send('timeScale', { scale: 12 }) } },
+          { key: 'fast30', label: '×30', run: function () { send('timeScale', { scale: 30 }) } },
+          { key: 'fast60', label: '×60', run: function () { send('timeScale', { scale: 60 }) } },
         ])
 
         group('生死', [
@@ -1293,30 +1315,11 @@ window.__ModuleLoader__.load({
         lvl.appendChild(el('b', null, 'Lv.' + p.level.level + ' ' + p.level.titleEmoji + p.level.titleLabel
           + (p.level.toNext > 0 ? ' · 还差 ' + p.level.toNext + ' xp' : '')))
         content.appendChild(lvl)
-        content.appendChild(el('div', 'dp-empty',
-          '等级不会因为猪走了而清零 —— 领养新猪时会继承'))
 
         var age = el('div', 'dp-row')
         age.appendChild(el('span', null, '🎂 年龄'))
         age.appendChild(el('b', null, p.ageLabel + (p.ageForced ? ' 🔧' : '') + (p.daysToNextStage === null ? ' · 已长成' : '')))
         content.appendChild(age)
-        if (p.daysToNextStage !== null) {
-          content.appendChild(el('div', 'dp-empty',
-            '再过 ' + formatDays(p.daysToNextStage) + ' 就长成下一阶段了'))
-        }
-        // 时间倍率是调试用的，只在开发者模式（Ctrl+Shift+D）里出现 —— 用户不需要
-        // 为了「猪长得慢」去点这个。
-        if (devMode) {
-          var scaleWrap = el('div', 'dp-dev-row')
-          scaleWrap.appendChild(el('span', 'dp-dim', '时间倍率 ×' + view.timeScale))
-          ;[1, 12, 30, 60].forEach(function (m) {
-            var b = button('dp-mini dp-dev-btn' + (view.timeScale === m ? ' dp-on' : ''), { 'data-scale': String(m) },
-              function () { send('timeScale', { scale: m }) })
-            b.textContent = '×' + m
-            scaleWrap.appendChild(b)
-          })
-          content.appendChild(scaleWrap)
-        }
 
         var grid = el('div', 'dp-actions')
         for (var i = 0; i < MODES.length; i += 1) {
@@ -1481,7 +1484,6 @@ window.__ModuleLoader__.load({
           ihead.style.marginTop = '10px'
           ihead.appendChild(el('b', null, '🎯 兴趣'))
           content.appendChild(ihead)
-          content.appendChild(el('div', 'dp-empty', '不用解锁，想学就学；学一次直接加属性，可以反复学。'))
           var ilist = el('div', 'dp-list')
           for (var n = 0; n < view.interests.length; n += 1) {
             (function (entry) {
@@ -1525,15 +1527,14 @@ window.__ModuleLoader__.load({
             grow.appendChild(el('div', 'dp-dim', line))
             // Spell out which lessons are paying for this, or the linkage between
             // 学习 and 打工 is invisible.
+            // Spell out which lesson is paying for this, and stop there — the
+            // "go to 学习 to raise it" lecture belongs in the docs, not the panel.
             var byTrait = job.traitEmoji + job.traitLabel + ' ' + job.traitPoints
-              + (job.payPercent > 0 ? ' · 报酬 +' + job.payPercent + '%' : ' · 去上课就能涨')
+              + (job.payPercent > 0 ? ' · 报酬 +' + job.payPercent + '%' : '')
             grow.appendChild(el('div', 'dp-dim', byTrait))
             // A gate with no reason on screen is a bug report waiting to happen.
             var locked = job.qualified === false
-            if (locked) {
-              grow.appendChild(el('div', 'dp-lock', '🔒 需要 ' + job.lockText))
-              grow.appendChild(el('div', 'dp-dim', '去「学习」上课就能涨这些属性'))
-            }
+            if (locked) grow.appendChild(el('div', 'dp-lock', '🔒 需要 ' + job.lockText))
             row.appendChild(grow)
             var go = button('dp-mini', { 'data-job': job.key }, function () { send('work', { job: job.key }) })
             go.textContent = locked ? '没资格' : '出发'
@@ -1721,7 +1722,8 @@ window.__ModuleLoader__.load({
                 row.appendChild(el('span', null, item.emoji))
                 var grow = el('div', 'dp-grow')
                 grow.appendChild(el('div', null, item.label + (item.worn ? ' · 穿着' : '')))
-                grow.appendChild(el('div', 'dp-dim', item.blurb === '' ? 'Lv.' + item.level + ' 解锁' : item.blurb))
+                grow.appendChild(el('div', 'dp-dim', (item.slotLabel === '' ? '' : item.slotLabel + ' · ')
+                  + (item.blurb === '' ? 'Lv.' + item.level + ' 解锁' : item.blurb)))
                 row.appendChild(grow)
                 var toggle = button('dp-mini', { 'data-wear': item.key }, function () {
                   send('wear', { item: item.key, on: !item.worn })
@@ -1925,16 +1927,18 @@ window.__ModuleLoader__.load({
           pokeHint.hidden = true
           soul.hidden = view.pig.soul !== true
           pig.setAttribute('data-stage', stage.key)
-          // Worn 装扮 shows on the name plate: it is the only "on the pig" spot
-          // that does not need new art.
-          var wornBadge = ''
+          // 装扮挂在猪身上（见 .dp-slot），名字牌上不再重复一遍。
+          dressSlots.textContent = ''
           for (var wd = 0; wd < view.dress.length; wd += 1) {
-            if (view.dress[wd].worn) wornBadge += view.dress[wd].emoji
+            var piece = view.dress[wd]
+            if (!piece.worn || piece.slot === '') continue
+            var node = el('span', 'dp-slot', piece.emoji)
+            node.setAttribute('data-slot', piece.slot)
+            dressSlots.appendChild(node)
           }
           hudName.textContent = view.pig.name
             + ' Lv.' + view.pig.level.level
             + ' · ' + stage.label
-            + (wornBadge === '' ? '' : ' · ' + wornBadge)
             + (view.pig.ageLabel ? ' · ' + view.pig.ageLabel : '')
             + (view.pig.ageForced ? ' 🔧' : '')
           hudCoins.textContent = '🪙 ' + view.pig.coins

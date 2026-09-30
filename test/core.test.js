@@ -34,7 +34,9 @@ import {
   courseView,
   currentIllness,
   decay,
+  dressView,
   feed,
+  grantAll,
   formatWeight,
   hatchEgg,
   hasSoul,
@@ -64,7 +66,7 @@ import {
   wear,
   workSecondsLeft,
 } from '../core.js'
-import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, interestByKey, INTERESTS, medicineForStage, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
+import { LIFESPAN_DAYS, DEFAULT_TOY, DRESS_SLOTS, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, interestByKey, INTERESTS, medicineForStage, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
 
 const T0 = 1_700_000_000_000
 const MIN = 60_000
@@ -1301,6 +1303,36 @@ test('a save cannot dress the pig in medicine, or wear what it does not own', ()
   const upgraded = migrate({ ...layEgg(T0), dress: ['scarf', 'scarf', 'apple', 'nope'], worn: ['scarf', 'crown'] })
   assert.deepEqual(upgraded.dress, ['scarf'], 'duplicates and non-dress items are dropped')
   assert.deepEqual(upgraded.worn, ['scarf'], 'only owned 装扮 can be worn')
+})
+
+test('every dress item has a real slot, and one piece goes per slot', () => {
+  const pig = hatchEgg(T0)
+  for (const item of dressView(pig)) {
+    assert.ok(DRESS_SLOTS.some(slot => slot.key === item.slot), `${item.label} needs a real slot`)
+    assert.ok(item.slotLabel !== '', `${item.label} needs a slot label`)
+  }
+
+  pig.coins = 200_000
+  pig.xp = xpForLevel(16)
+  for (const key of ['strawhat', 'flowercrown', 'crown', 'scarf']) assert.equal(buy(pig, key).ok, true)
+  wear(pig, 'strawhat', true)
+  wear(pig, 'crown', true)
+  assert.deepEqual(pig.worn, ['crown'], 'the 头 slot holds one hat, the new one replaces it')
+  wear(pig, 'scarf', true)
+  assert.deepEqual([...pig.worn].sort(), ['crown', 'scarf'], 'a different slot stacks')
+})
+
+test('grantAll hands over one of everything, for debugging', () => {
+  const pig = hatchEgg(T0)
+  pig.coins = 10
+  const result = grantAll(pig)
+  assert.equal(result.ok, true)
+  assert.equal(pig.dress.length, 12)
+  assert.equal(pig.coins, 99_999)
+  for (const item of SHOP.filter(entry => entry.kind !== 'dress')) {
+    assert.equal(pig.inventory[item.key], 20, `${item.label} should be in the bag`)
+  }
+  assert.equal(grantAll(null).ok, false)
 })
 
 test('buying deducts coins and fills the backpack', () => {

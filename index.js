@@ -132,6 +132,8 @@ const OPERATIONS = {
   sell: (store, body) => store.sellSouvenir(str(body.souvenir)),
   // 家当: put a dress item on / take it off.
   wear: (store, body) => store.wear(str(body.item), body.on !== false),
+  // Debug: one of everything.
+  giveAll: store => store.grantAll(),
 }
 
 const str = value => (typeof value === 'string' ? value : '')
@@ -435,7 +437,8 @@ function jobsFor(state) {
       // `available` is "the pig is home"; `qualified` is "the pig has the traits".
       qualified: gate === null ? true : gate.ok,
       missing,
-      lockText: missing.map(entry => `${entry.emoji} ${entry.label} ${entry.need}（你现在 ${entry.have}）`).join('、'),
+      // Short on purpose: the panel writes "🔒 需要 💪 武力 16" and nothing else.
+      lockText: missing.map(entry => `${entry.emoji} ${entry.label} ${entry.need}`).join('、'),
     }
   })
 }

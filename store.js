@@ -26,6 +26,7 @@ import {
   decay,
   drainPending,
   feed as coreFeed,
+  grantAll as coreGrantAll,
   adopt as coreAdopt,
   ageFromNow as coreAgeFromNow,
   setTimeScale as coreSetTimeScale,
@@ -162,6 +163,9 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
 
     /** Send the pig to an 兴趣课. */
     startInterest: interestKey => mutate(live => coreStartInterest(live, interestKey, now())),
+
+    /** Debug: one of everything (consumables, 装扮, coins). */
+    grantAll: () => mutate(live => coreGrantAll(live)),
 
     /** Send the pig travelling. */
     startTrip: tripKey => mutate(live => coreStartTrip(live, tripKey, now())),

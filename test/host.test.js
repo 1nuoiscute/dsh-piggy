@@ -436,6 +436,19 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
   }
 })
 
+test('the debug giveAll route hands over everything at once', async () => {
+  const app = boot(nowMs => hatchEgg(nowMs))
+  try {
+    const res = await app.post({ action: 'giveAll' })
+    assert.equal(res.ok, true)
+    assert.equal(res.pig.coins, 99_999)
+    assert.equal(res.inventory.apple, 20, 'consumables land in the bag')
+    assert.equal(res.dress.filter(entry => entry.owned).length, 12, 'and every 装扮 is owned')
+  } finally {
+    app.cleanup()
+  }
+})
+
 test('buying is refused when broke, and the refusal is honest', async () => {
   const app = boot(nowMs => { const pig = hatchEgg(nowMs); pig.coins = 2; return pig })
   try {
