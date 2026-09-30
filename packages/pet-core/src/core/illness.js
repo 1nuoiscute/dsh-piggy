@@ -24,6 +24,7 @@ import {
 import { announce, remember } from './effects.js'
 import { say } from './lines.js'
 import { chance, rollerFor } from './random.js'
+import { noteToday } from './diary.js'
 
 /**
  * Let the pig go. Only accidents kill it (the end of an illness chain, or a
@@ -131,6 +132,7 @@ export function catchIllness(state, chain, nowMs) {
   if (ill === null) return
   remember(state, `得了${ill.name} 🤒`, nowMs)
   announce(state, 'sick', `${state.name} 得了${ill.name}，需要${ill.cureEmoji}${ill.cure} 🤒`, nowMs)
+  noteToday(state, 'illness')
   say(state, 'sick', nowMs)
 }
 
@@ -151,6 +153,7 @@ export function advanceIllness(state, nowMs, next = rollerFor(state)) {
     recover(state, nowMs)
     remember(state, `自己好了，扛过去了 💚`, nowMs)
     announce(state, 'cured', `${state.name} 的${name}自己好了 💚`, nowMs)
+    noteToday(state, 'cure')
     return
   }
   worsen(state, nowMs, '没能撑过去')
@@ -198,10 +201,12 @@ export function medicate(state, item, nowMs) {
     state.stats.cures = (state.stats.cures ?? 0) + 1
     remember(state, `吃了 ${item.emoji} ${item.label}，病好了`, nowMs)
     announce(state, 'cured', `${state.name} 吃了 ${item.label}，痊愈了 💚`, nowMs)
+    noteToday(state, 'cure')
     return { ok: true, cured: true }
   }
   remember(state, `吃错了药（${item.label}），病情加重`, nowMs)
   say(state, 'wrongMedicine', nowMs)
+  noteToday(state, 'wrongMedicine')
   worsen(state, nowMs, '吃错了药，没能撑过去')
   return { ok: false, reason: 'wrong-medicine', needs: ill }
 }
@@ -225,5 +230,6 @@ export function seeDoctor(state, nowMs) {
   state.stats.doctorVisits = (state.stats.doctorVisits ?? 0) + 1
   remember(state, `🏥 看了医生，花了 ${fee} 金币，病好了`, nowMs)
   announce(state, 'cured', `${state.name} 看了医生，痊愈了 💚（${fee} 🪙）`, nowMs)
+  noteToday(state, 'cure')
   return { ok: true, fee }
 }

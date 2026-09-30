@@ -64,6 +64,11 @@ pokeHint.appendChild(el('span', null, '戳三下'))
 pokeHint.hidden = true
 scene.appendChild(pokeHint)
 
+// 签到 / 在线礼包的小气泡，位置在猪头上，样式在 css-tabs.js。
+var dailyHint = el('button', 'dp-daily')
+dailyHint.hidden = true
+scene.appendChild(dailyHint)
+
 var soul = el('span', 'dp-soul', '👻')
 soul.hidden = true
 scene.appendChild(soul)
@@ -104,5 +109,5 @@ if (document.body !== null && document.body !== undefined) {
   }, { once: true })
 }
 
-  return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content }
+  return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content }
 }

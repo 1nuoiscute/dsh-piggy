@@ -8,8 +8,8 @@
 
 import { readFileSync } from 'node:fs'
 
-import { ACTIONS, ACTION_ORDER, doctorFee, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, courseView, currentIllness, daysToNextStage, dressView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
-import { CERTIFICATE_AFTER, INTERESTS, SEXES, jobRequirement, rarityByKey, traitBonus } from './data.js'
+import { ACTIONS, ACTION_ORDER, doctorFee, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, courseView, currentIllness, dailyView, daysToNextStage, diaryView, dressView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
+import { CERTIFICATE_AFTER, DEFAULT_OWNER_NAME, INTERESTS, SIGN_IN_CYCLE, SEXES, jobChecklist, jobRequirement, rarityByKey, traitBonus } from './data.js'
 
 /** The stage the panel shows before there is a pig: the cardboard box. */
 /**
@@ -34,6 +34,15 @@ const PACKAGE_VERSION = readPackageVersion()
 function boxStageView() {
   const box = LIFE_STAGES.find(stage => stage.key === 'box') ?? LIFE_STAGES[0]
   return { key: box.key, label: box.label, emoji: box.emoji, size: box.size, line: box.line }
+}
+
+/** 称呼与免打扰，给状态页的开关用。 */
+function dialogueView(state) {
+  const dialogue = state?.dialogue
+  return {
+    ownerName: typeof dialogue?.ownerName === 'string' ? dialogue.ownerName : DEFAULT_OWNER_NAME,
+    quiet: dialogue?.quiet === true,
+  }
 }
 
 /** 性别：男孩 ♂ / 女孩 ♀；还没拆开的纸盒没有。 */
@@ -88,6 +97,8 @@ export function snapshot(store, options = {}) {
       dress: [],
       inventory: inventoryView({ inventory: {} }),
       activity: null, canGoOut: false, awayBlocked: 'absent',
+      daily: { canSignIn: false, signInDay: 1, signInTotal: 0, cycle: SIGN_IN_CYCLE, unclaimed: 0, onlineMinutes: 0 },
+      diary: [],
       // The box has a size of its own; the client must not hard-code it.
       boxStage: boxStageView(),
       pending: [],
@@ -112,6 +123,7 @@ export function snapshot(store, options = {}) {
     hatched: state.hatched === true,
     dead: state.dead === true,
     boxStage: boxStageView(),
+    dialogue: dialogueView(state),
     timeScale: Number.isFinite(state.timeScale) ? state.timeScale : 1,
     pig: {
       name: state.name,
@@ -170,6 +182,8 @@ export function snapshot(store, options = {}) {
       progress: activityProgress(activity, nowMs),
     },
     canGoOut: awayBlockedReason(state) === null,
+    daily: dailyView(state, nowMs),
+    diary: diaryView(state),
     awayBlocked: awayBlockedReason(state),
     pending,
     reviveItem: REVIVE_ITEM.key,
@@ -225,6 +239,9 @@ function jobsFor(state) {
       qualified: gate === null ? true : gate.ok,
       missing,
       lockText: missing.map(entry => entry.text).join('、'),
+      // The 详情 panel: every condition with a tick or a cross.
+      requirements: jobChecklist(job, facts),
+      cleanliness: job.cleanliness,
     }
   })
 }

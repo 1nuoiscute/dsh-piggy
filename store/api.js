@@ -20,10 +20,17 @@ import {
   grantAll as coreGrantAll,
   hatch as coreHatch,
   hatchEgg,
+  chat as coreChat,
   rename as coreRename,
   replyToLine as coreReplyToLine,
+  openGift as coreOpenGift,
+  writeDiaryIfNewDay as coreWriteDiary,
+  recordOnline as coreRecordOnline,
+  signIn as coreSignIn,
   reset as coreReset,
   seeDoctor as coreSeeDoctor,
+  setOwnerName as coreSetOwnerName,
+  setQuiet as coreSetQuiet,
   sellSouvenir as coreSellSouvenir,
   setTimeScale as coreSetTimeScale,
   startInterest as coreStartInterest,
@@ -54,6 +61,9 @@ import {
 export function createApi(control) {
   const { filePath, now, getState, setState, scheduleSave, mutate, dispose } = control
 
+  /** 上一次「面板轮询」的时刻，用来算在线时长；0 = 还没见过第一次。 */
+  let lastPollMs = 0
+
   return {
     /** The live state (null until an egg is laid). Exposed for rendering. */
     get state() { return getState() },
@@ -80,7 +90,14 @@ export function createApi(control) {
       const state = getState()
       if (state === null) return null
       try {
-        decay(state, now())
+        const nowMs = now()
+        // 在线时长按真实时间累计（与调试页的时间倍率无关）；每次读状态就是
+        // 一次「面板还在轮询」的证据。
+        coreRecordOnline(state, lastPollMs, nowMs)
+        lastPollMs = nowMs
+        // 跨过 06:00 之后第一次读状态，就把前一天写成一篇日记。
+        coreWriteDiary(state, nowMs)
+        decay(state, nowMs)
         scheduleSave()
       } catch (error) {
         // Keep the stale-but-valid state, but say why it is stale.
@@ -123,8 +140,23 @@ export function createApi(control) {
     seeDoctor: () => mutate(live => coreSeeDoctor(live, now())),
     sellSouvenir: souvenirKey => mutate(live => coreSellSouvenir(live, souvenirKey, now())),
 
+    /** The pig speaks up on its own: 'enter' after a while away, or 'idle'. */
+    chat: reason => mutate(live => coreChat(live, reason === 'enter' ? 'enter' : 'idle', now())),
+
+    /** 免打扰 on or off. */
+    setQuiet: on => mutate(live => coreSetQuiet(live, on)),
+
+    /** What the pig calls its owner. */
+    setOwnerName: name => mutate(live => coreSetOwnerName(live, name)),
+
     /** The owner answers the pig's latest line. */
     reply: (lineId, replyIndex) => mutate(live => coreReplyToLine(live, lineId, replyIndex)),
+
+    /** 领今天的签到礼包。 */
+    signIn: () => mutate(live => coreSignIn(live, now())),
+
+    /** 开一个攒着的在线礼包。 */
+    openGift: () => mutate(live => coreOpenGift(live, now())),
     wear: (itemKey, on) => mutate(live => (on ? coreWearItem(live, itemKey, now()) : coreTakeOff(live, itemKey, now()))),
 
     /** Open the box. Only works when there is no living pig yet. */

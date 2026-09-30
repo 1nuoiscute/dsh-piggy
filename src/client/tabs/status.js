@@ -29,6 +29,15 @@ export function renderStatusTab(ui) {
   info.appendChild(el('b', null, '🪙 ' + p.coins))
   ui.content.appendChild(info)
 
+  // 签到进度：一行小字，不抢注意力（礼包攒着的时候顺带说一句）。
+  var daily = ui.view.daily
+  var dailyLine = el('div', 'dp-row')
+  dailyLine.appendChild(el('span', null, '📅 签到'))
+  dailyLine.appendChild(el('b', null, '第 ' + daily.signInDay + '/' + daily.cycle + ' 天'
+    + (daily.canSignIn ? ' · 今天还没签' : '')
+    + (daily.unclaimed > 0 ? ' · 🎁 ' + daily.unclaimed : '')))
+  ui.content.appendChild(dailyLine)
+
   var lvl = el('div', 'dp-row')
   lvl.appendChild(el('span', null, '⭐ 等级'))
   lvl.appendChild(el('b', null, 'Lv.' + p.level.level + ' ' + p.level.titleEmoji + p.level.titleLabel
@@ -75,7 +84,55 @@ export function renderStatusTab(ui) {
 
   if (ui.picker !== null && (ui.view.care[ui.picker] ?? []).length > 0) ui.content.appendChild(pickerPanel(ui, ui.picker))
 
+  ui.content.appendChild(talkRow(ui))
+
   if (p.memories.length > 0) {
     ui.content.appendChild(el('div', 'dp-memo', p.memories.slice(-3).join('\n')))
   }
+}
+
+/**
+ * B6: what the pig calls its owner, and 免打扰 — one row, two small controls.
+ * While the name is being typed, polls leave the panel alone (see panel.js),
+ * so the input keeps its focus.
+ */
+function talkRow(ui) {
+  var row = el('div', 'dp-row dp-talk')
+  if (ui.ownerEdit !== null) {
+    var input = /** @type {HTMLInputElement} */ (el('input', 'dp-input'))
+    input.value = ui.ownerEdit
+    input.maxLength = 12
+    input.setAttribute('data-owner-input', 'true')
+    input.addEventListener('input', function () { ui.ownerEdit = input.value })
+    var save = button('dp-mini', { 'data-owner-save': 'true' }, function () {
+      var name = (ui.ownerEdit || '').trim()
+      ui.ownerEdit = null
+      if (name !== '') ui.send('owner', { name: name })
+      ui.renderContent()
+    })
+    save.textContent = '好'
+    var cancel = button('dp-mini dp-mini-plain', { 'data-owner-cancel': 'true' }, function () {
+      ui.ownerEdit = null
+      ui.renderContent()
+    })
+    cancel.textContent = '算了'
+    row.appendChild(input)
+    row.appendChild(save)
+    row.appendChild(cancel)
+    return row
+  }
+  var who = el('span', null, '🙋 叫你「' + ui.view.dialogue.ownerName + '」')
+  var rename = button('dp-mini dp-mini-plain', { 'data-owner-edit': 'true' }, function () {
+    ui.ownerEdit = ui.view.dialogue.ownerName
+    ui.renderContent()
+  })
+  rename.textContent = '改'
+  var quiet = button('dp-mini dp-mini-plain', { 'data-quiet': ui.view.dialogue.quiet ? 'on' : 'off' }, function () {
+    ui.send('quiet', { on: !ui.view.dialogue.quiet })
+  })
+  quiet.textContent = ui.view.dialogue.quiet ? '🔕 免打扰中' : '🔔 免打扰'
+  row.appendChild(who)
+  row.appendChild(rename)
+  row.appendChild(quiet)
+  return row
 }

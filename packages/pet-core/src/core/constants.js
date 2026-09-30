@@ -51,7 +51,9 @@ export const ACTIONS = Object.freeze({
     key: 'feed', label: '喂食', emoji: '🍎', verb: '吃了一口 🍎',
     // No blanket cleanliness hit: eating an apple does not make you dirty. Only
     // the foods that are actually messy declare a penalty of their own.
-    cooldownMs: 60_000, satiety: 22, happiness: 6, cleanliness: 0, weightG: 90,
+    // No cooldown (owner, 2026-10-01): every bite already costs a food item,
+    // and feeding a full pig risks a stomach ache (B3) — that is the brake.
+    cooldownMs: 0, satiety: 22, happiness: 6, cleanliness: 0, weightG: 90,
   },
   bathe: {
     key: 'bathe', label: '洗澡', emoji: '🛁', verb: '洗了个澡 🛁',

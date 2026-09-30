@@ -125,6 +125,16 @@ export function normalize(raw) {
       qualified: obj(job).qualified !== false,
       lockText: str(obj(job).lockText, ''),
       level: num(obj(job).level, 1),
+      trait: str(obj(job).trait, ''),
+      satiety: num(obj(job).satiety, 0),
+      cleanliness: num(obj(job).cleanliness, 0),
+      requirements: arr(obj(job).requirements).filter(isObj).map(entry => ({
+        text: str(entry.text, ''),
+        need: num(entry.need, 0),
+        have: num(entry.have, 0),
+        kind: str(entry.kind, ''),
+        met: entry.met === true,
+      })),
     })).filter(job => job.key !== ''),
     // B4: nine subjects, each with its own lesson count and stage.
     subjects: arr(d.subjects).map(sub => ({
@@ -230,6 +240,19 @@ export function normalize(raw) {
       needed: obj(item).needed === true,
     })).filter(item => item.key !== ''),
     inventory: obj(d.inventory),
+    daily: {
+      canSignIn: obj(d.daily).canSignIn === true,
+      signInDay: num(obj(d.daily).signInDay, 1),
+      signInTotal: num(obj(d.daily).signInTotal, 0),
+      cycle: num(obj(d.daily).cycle, 12),
+      unclaimed: num(obj(d.daily).unclaimed, 0),
+      onlineMinutes: num(obj(d.daily).onlineMinutes, 0),
+    },
+    // 新到旧；老宿主没有 diary 时是空数组，面板不显示这一栏。
+    diary: arr(d.diary).map(entry => ({
+      day: str(obj(entry).day, ''),
+      text: str(obj(entry).text, ''),
+    })).filter(entry => entry.day !== '' && entry.text !== ''),
     // Which items each care action could spend right now.
     care: (() => {
       const out = {}
@@ -265,6 +288,11 @@ export function normalize(raw) {
       size: num(d.boxStage.size, 58),
     } : { key: 'box', label: '纸盒', emoji: '📦', size: 58 },
     awayBlocked: typeof d.awayBlocked === 'string' ? d.awayBlocked : null,
+    // B6: what the pig calls its owner, and 免打扰. Older hosts send neither.
+    dialogue: {
+      ownerName: str(obj(d.dialogue).ownerName, '主人'),
+      quiet: obj(d.dialogue).quiet === true,
+    },
     pending: arr(d.pending).filter(e => isObj(e) && typeof e.at === 'number').map(e => ({
       id: num(e.id, 0),
       kind: str(e.kind, ''),

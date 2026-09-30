@@ -34,7 +34,11 @@ export const DEFAULT_TOY = Object.freeze({
  * @property {boolean} [cureAll]
  * @property {string} [blurb]
  */
-/** @type {ReadonlyArray<ShopItem>} */
+/**
+ * 装扮的等级门槛按 B2 的 60 级曲线重排（2026-10-01）：Lv10 约 5 天、Lv20 约 20 天、
+ * Lv40 约 2.7 个月、Lv50 约 4 个月 —— 翅膀是养了小半年的猪才穿得上的。
+ * @type {ReadonlyArray<ShopItem>}
+ */
 export const SHOP = Object.freeze([
   // --- food ---------------------------------------------------------------
   Object.freeze({ key: 'apple', label: '苹果', emoji: '🍎', price: 6, kind: 'food', satiety: 22, happiness: 3 }),
@@ -73,17 +77,17 @@ export const SHOP = Object.freeze([
   // `slot` is a fixed anchor on the pig (see DRESS_SLOTS); one item per slot,
   // so the artwork can be swapped in later without touching the logic.
   Object.freeze({ key: 'scarf', label: '红围巾', emoji: '🧣', price: 80, kind: 'dress', level: 1, slot: 'neck', blurb: '脖子上暖乎乎的' }),
-  Object.freeze({ key: 'strawhat', label: '草帽', emoji: '👒', price: 150, kind: 'dress', level: 2, slot: 'head', blurb: '遮阳，也遮心虚' }),
-  Object.freeze({ key: 'sunglasses', label: '墨镜', emoji: '🕶', price: 260, kind: 'dress', level: 3, slot: 'face', blurb: '谁也不知道它在想什么' }),
-  Object.freeze({ key: 'overalls', label: '背带裤', emoji: '👖', price: 420, kind: 'dress', level: 4, slot: 'body', blurb: '干体力活穿的' }),
-  Object.freeze({ key: 'bowtie', label: '领结', emoji: '🎀', price: 600, kind: 'dress', level: 5, slot: 'neck', blurb: '上班用' }),
-  Object.freeze({ key: 'rainboots', label: '雨靴', emoji: '🥾', price: 900, kind: 'dress', level: 6, slot: 'feet', blurb: '踩水坑专用' }),
-  Object.freeze({ key: 'cape', label: '披风', emoji: '🦸', price: 1300, kind: 'dress', level: 7, slot: 'back', blurb: '风一吹就飘起来' }),
-  Object.freeze({ key: 'flowercrown', label: '花环', emoji: '💐', price: 1800, kind: 'dress', level: 8, slot: 'head', blurb: '春天做的' }),
-  Object.freeze({ key: 'tophat', label: '礼帽', emoji: '🎩', price: 2600, kind: 'dress', level: 9, slot: 'head', blurb: '正式场合' }),
-  Object.freeze({ key: 'necklace', label: '项链', emoji: '📿', price: 3600, kind: 'dress', level: 11, slot: 'neck', blurb: '据说是祖传的' }),
-  Object.freeze({ key: 'crown', label: '王冠', emoji: '👑', price: 5200, kind: 'dress', level: 13, slot: 'head', blurb: '自己给自己加冕' }),
-  Object.freeze({ key: 'wings', label: '翅膀', emoji: '🪽', price: 8000, kind: 'dress', level: 16, slot: 'back', blurb: '能不能飞，谁也没见它飞过' }),
+  Object.freeze({ key: 'strawhat', label: '草帽', emoji: '👒', price: 150, kind: 'dress', level: 3, slot: 'head', blurb: '遮阳，也遮心虚' }),
+  Object.freeze({ key: 'sunglasses', label: '墨镜', emoji: '🕶', price: 260, kind: 'dress', level: 5, slot: 'face', blurb: '谁也不知道它在想什么' }),
+  Object.freeze({ key: 'overalls', label: '背带裤', emoji: '👖', price: 420, kind: 'dress', level: 8, slot: 'body', blurb: '干体力活穿的' }),
+  Object.freeze({ key: 'bowtie', label: '领结', emoji: '🎀', price: 600, kind: 'dress', level: 10, slot: 'neck', blurb: '上班用' }),
+  Object.freeze({ key: 'rainboots', label: '雨靴', emoji: '🥾', price: 900, kind: 'dress', level: 13, slot: 'feet', blurb: '踩水坑专用' }),
+  Object.freeze({ key: 'cape', label: '披风', emoji: '🦸', price: 1300, kind: 'dress', level: 16, slot: 'back', blurb: '风一吹就飘起来' }),
+  Object.freeze({ key: 'flowercrown', label: '花环', emoji: '💐', price: 1800, kind: 'dress', level: 20, slot: 'head', blurb: '春天做的' }),
+  Object.freeze({ key: 'tophat', label: '礼帽', emoji: '🎩', price: 2600, kind: 'dress', level: 25, slot: 'head', blurb: '正式场合' }),
+  Object.freeze({ key: 'necklace', label: '项链', emoji: '📿', price: 3600, kind: 'dress', level: 30, slot: 'neck', blurb: '据说是祖传的' }),
+  Object.freeze({ key: 'crown', label: '王冠', emoji: '👑', price: 5200, kind: 'dress', level: 40, slot: 'head', blurb: '自己给自己加冕' }),
+  Object.freeze({ key: 'wings', label: '翅膀', emoji: '🪽', price: 8000, kind: 'dress', level: 50, slot: 'back', blurb: '能不能飞，谁也没见它飞过' }),
   // --- medicine: the twenty stage cures and 百草丹 (data/illness.js) ------
   ...MEDICINES,
   // --- revive -------------------------------------------------------------

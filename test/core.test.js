@@ -1116,7 +1116,7 @@ test('装扮 is bought once behind a level, then worn', () => {
 
   const gate = buy(pig, 'crown', T0)
   assert.equal(gate.reason, 'low-level')
-  assert.equal(gate.need, 13)
+  assert.equal(gate.need, 40, 're-spread on the 60-level curve (2026-10-01)')
   assert.equal(gate.have, 1)
   assert.equal(pig.coins, 200_000 - 80, 'a refused purchase spends nothing')
 
@@ -1128,9 +1128,9 @@ test('装扮 is bought once behind a level, then worn', () => {
   assert.deepEqual(pig.worn, [])
   assert.equal(useItem(pig, 'scarf', T0).reason, 'not-consumable', 'a scarf is worn, not eaten')
 
-  // The level gate is real: xp for Lv.13 opens the crown.
-  pig.xp = xpForLevel(13)
-  assert.equal(levelFor(pig.xp), 13)
+  // The level gate is real: growth for Lv.40 opens the crown.
+  pig.xp = xpForLevel(40)
+  assert.equal(levelFor(pig.xp), 40)
   assert.equal(buy(pig, 'crown', T0).ok, true)
   assert.deepEqual(pig.dress, ['scarf', 'crown'])
 })
@@ -1149,7 +1149,7 @@ test('every dress item has a real slot, and one piece goes per slot', () => {
   }
 
   pig.coins = 200_000
-  pig.xp = xpForLevel(16)
+  pig.xp = xpForLevel(50)
   for (const key of ['strawhat', 'flowercrown', 'crown', 'scarf']) assert.equal(buy(pig, key, T0).ok, true)
   wearItem(pig, 'strawhat', T0)
   wearItem(pig, 'crown', T0)
@@ -1292,3 +1292,12 @@ test('a forced age is marked, and can be put back on the real clock', () => {
   assert.equal(next.ageForced, false)
 })
 
+
+test('feeding has no cooldown: each bite costs food, and a full belly is the brake', () => {
+  const pig = hatchEgg(T0)
+  pig.satiety = 20
+  pig.inventory = { apple: 3 }
+  assert.equal(act(pig, 'feed', T0).ok, true)
+  assert.equal(act(pig, 'feed', T0 + 1).ok, true, 'straight away, no waiting')
+  assert.equal(act(pig, 'bathe', T0).reason === 'no-item', true, 'bathing still spends soap')
+})

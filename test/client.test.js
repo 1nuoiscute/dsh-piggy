@@ -312,6 +312,8 @@ const SNAPSHOT = {
   shop: SHOP, inventory: { apple: 2, med1: 0, soul: 0 },
   activity: null, canGoOut: true, awayBlocked: null, pending: [],
   reviveItem: 'soul', maxHealth: 5,
+  daily: { canSignIn: false, signInDay: 1, signInTotal: 0, cycle: 12, unclaimed: 0, onlineMinutes: 0 },
+  diary: [],
 }
 
 // ===========================================================================
@@ -653,6 +655,91 @@ test('a repaint keeps the reader where they were', async () => {
 })
 
 // ===========================================================================
+// B5 日常
+// ===========================================================================
+
+test('the pig wears a 📅 when there is a sign-in waiting, and it pays', async () => {
+  const { registration, dom, net } = await loadClient({
+    status: { ...SNAPSHOT, daily: { ...SNAPSHOT.daily, canSignIn: true, signInDay: 5 } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  const hint = findByClass(hostOf(dom), 'dp-daily')
+  assert.notEqual(hint, undefined)
+  assert.equal(hint.hidden, false)
+  assert.equal(hint.allText(), '📅')
+
+  hint.fire('click')
+  await settle()
+  const posted = net.calls.filter(call => call.method === 'POST')
+  assert.equal(posted.length, 1)
+  assert.ok(posted[0].body.includes('signIn'), posted[0].body)
+})
+
+test('sign-in wins over the gift, and the gift shows when nobody can sign', async () => {
+  const both = await loadClient({
+    status: { ...SNAPSHOT, daily: { canSignIn: true, signInDay: 3, signInTotal: 2, cycle: 12, unclaimed: 2, onlineMinutes: 30 } },
+  })
+  both.registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(findByClass(hostOf(both.dom), 'dp-daily').allText(), '📅')
+
+  const gift = await loadClient({
+    status: { ...SNAPSHOT, daily: { canSignIn: false, signInDay: 3, signInTotal: 3, cycle: 12, unclaimed: 2, onlineMinutes: 30 } },
+  })
+  gift.registration.factory(() => {}).apply({})
+  await settle()
+  const hint = findByClass(hostOf(gift.dom), 'dp-daily')
+  assert.equal(hint.allText(), '🎁')
+  hint.fire('click')
+  await settle()
+  assert.ok(gift.net.calls.some(call => call.method === 'POST' && call.body.includes('openGift')))
+})
+
+test('the status tab shows the sign-in progress', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, daily: { canSignIn: true, signInDay: 5, signInTotal: 4, cycle: 12, unclaimed: 1, onlineMinutes: 0 } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('第 5/12 天'), text)
+  assert.ok(text.includes('今天还没签'), text)
+  assert.ok(text.includes('🎁 1'), text)
+})
+
+test('the bag tab lists the diary newest-first, folded until tapped', async () => {
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      diary: [
+        { day: '2026-10-02', text: '今天吃了 2 顿，主人喂的，好饱。洗完澡香香的。' },
+        { day: '2026-10-01', text: '今天主人没来，我睡了一整天。' },
+      ],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'bag')
+
+  const rows = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-diary'] !== undefined) rows.push(node) })
+  assert.equal(rows.length, 2)
+  assert.equal(rows[0].attributes['data-diary'], '2026-10-02', 'newest first')
+  const full = findByClass(rows[0], 'dp-diary-full')
+  assert.notEqual(full, undefined)
+  assert.ok(rows[0].allText().includes('今天吃了 2 顿'), 'the first sentence shows')
+  assert.equal(full.hidden, true, 'the rest starts folded')
+  assert.equal(rows[0].attributes['data-open'], 'false')
+
+  rows[0].fire('click')
+  assert.equal(rows[0].attributes['data-open'], 'true')
+  assert.equal(full.hidden, false, 'and unfolds on a tap')
+})
+
+// ===========================================================================
 // #10 — fields the panel silently dropped
 // ===========================================================================
 
@@ -832,14 +919,15 @@ test('a job behind a trait gate says what it needs instead of just greying out',
   openPanel(dom)
   pickTab(dom, 'work')
 
-  const text = contentOf(dom).allText()
-  assert.ok(text.includes('🔒 需要 🧠 智力 10'), text)
-  // One short line, no lecture: the old version also printed "（你现在 0）" and a
-  // second sentence telling the player to go to 学习.
-  assert.ok(!text.includes('你现在'), text)
-  assert.ok(!text.includes('就能涨'), text)
+  // The row stays short (owner, 2026-10-01): a padlock, time and pay. What
+  // the gate wants lives behind 详情, not in a pile of text on the row.
+  let text = contentOf(dom).allText()
+  assert.ok(text.includes('🔒 120 分钟 · 480 🪙'), text)
+  assert.ok(!text.includes('智力 10'), 'the gate is not spelled out on the row')
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'tutor').disabled, true)
-  assert.ok(findByAttr(contentOf(dom), 'data-job', 'tutor').allText().includes('没资格'))
+  findByAttr(contentOf(dom), 'data-job-detail', 'tutor').fire('click')
+  text = contentOf(dom).allText()
+  assert.ok(text.includes('✗ 🧠 智力 10'), `an older host's gate still shows under 详情: ${text}`)
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
 })
 
@@ -1593,7 +1681,8 @@ test('the study tab keeps its stage tabs; each subject shows where it stands in 
   openPanel(dom)
   pickTab(dom, 'study')
   let text = contentOf(dom).allText()
-  assert.ok(text.includes('小学') && text.includes('中学') && text.includes('大学 🔒'), 'the stage tabs are back')
+  assert.ok(text.includes('小学') && text.includes('中学') && text.includes('大学'), 'the stage tabs are back')
+  assert.equal(findByAttr(contentOf(dom), 'data-stage', 'college').attributes['data-locked'], 'true', 'locked by style, not a padlock in the label')
   assert.ok(text.includes('✓ 已毕业'), `语文 has finished 小学: ${text}`)
   assert.ok(text.includes('0/9 节'), `数学 is in 小学: ${text}`)
 
@@ -1611,4 +1700,45 @@ test('the study tab keeps its stage tabs; each subject shows where it stands in 
   const post = JSON.parse(String(net.calls.filter(c => c.method === 'POST').at(-1).body))
   assert.equal(post.action, 'study')
   assert.equal(post.subject, 'chinese')
+})
+
+test('免打扰 keeps routine news quiet but lets illness through; the status tab has the controls', async () => {
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      dialogue: { ownerName: '小明', quiet: true },
+      pending: [
+        { id: 1, kind: 'work', text: '猪猪 打工回来了！赚到 40 金币 💰', at: 111 },
+        { id: 2, kind: 'sick', text: '猪猪 得了感冒，需要🌿板蓝根 🤒', at: 112 },
+      ],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  const toasts = []
+  hostOf(dom).walk(node => { if (typeof node.className === 'string' && node.className.split(/\s+/).includes('dp-toast')) toasts.push(node.allText()) })
+  assert.equal(toasts.some(text => text.includes('打工回来')), false, 'routine news is held back')
+  assert.equal(toasts.some(text => text.includes('感冒')), true, 'illness still gets through')
+
+  openPanel(dom)
+  pickTab(dom, 'status')
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('叫你「小明」'), text)
+  assert.ok(text.includes('🔕 免打扰中'), text)
+  assert.notEqual(findByAttr(contentOf(dom), 'data-owner-edit', 'true'), undefined)
+})
+
+test('装扮 cells in the shop are clickable: they must not wear the pig overlay class', async () => {
+  // `.dp-dress` is the pig's dress-up layer (absolute, pointer-events:none).
+  // The shop gave its 装扮 cells the same class, so a real mouse click went
+  // straight through them and nothing could be bought (2026-10-01).
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+  const cells = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-buy'] !== undefined) cells.push(node) })
+  assert.ok(cells.length > 0)
+  for (const cell of cells) assert.equal(cell.className.split(/\s+/).includes('dp-dress'), false, cell.attributes['data-buy'])
 })

@@ -37,7 +37,9 @@ export function renderShopTab(ui) {
       // endless scrolling and you could never see a shelf at a glance.
       var cell = button('dp-cell'
         + (item.needed ? ' dp-wanted' : '')
-        + (item.kind === 'dress' ? ' dp-dress' : (item.affordable ? '' : ' dp-poor'))
+        // Not `dp-dress`: that class is the pig's dress-up overlay (absolute,
+        // pointer-events:none), and sharing it made every 装扮 cell unclickable.
+        + (item.kind === 'dress' ? ' dp-cell-dress' : (item.affordable ? '' : ' dp-poor'))
         + (item.owned ? ' dp-owned' : ''),
         { 'data-buy': item.key }, function () { ui.send('buy', { item: item.key }) })
       cell.appendChild(el('span', 'dp-cell-e', item.emoji))
