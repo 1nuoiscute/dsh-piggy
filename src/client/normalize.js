@@ -125,6 +125,16 @@ export function normalize(raw) {
       qualified: obj(job).qualified !== false,
       lockText: str(obj(job).lockText, ''),
       level: num(obj(job).level, 1),
+      trait: str(obj(job).trait, ''),
+      satiety: num(obj(job).satiety, 0),
+      cleanliness: num(obj(job).cleanliness, 0),
+      requirements: arr(obj(job).requirements).filter(isObj).map(entry => ({
+        text: str(entry.text, ''),
+        need: num(entry.need, 0),
+        have: num(entry.have, 0),
+        kind: str(entry.kind, ''),
+        met: entry.met === true,
+      })),
     })).filter(job => job.key !== ''),
     // B4: nine subjects, each with its own lesson count and stage.
     subjects: arr(d.subjects).map(sub => ({

@@ -42,7 +42,9 @@ export function renderStudyTab(ui) {
         ui.stage = entry.key
         ui.renderContent()
       })
-      btn.textContent = entry.label + (locked ? ' 🔒' : '')
+      // Locked is shown by the button's own dashed style, not a padlock in the
+      // label: 「学无止境」 plus a padlock wrapped and stood taller than its neighbours.
+      btn.textContent = entry.label
       btn.setAttribute('data-active', entry.key === ui.stage ? 'true' : 'false')
       btn.setAttribute('data-locked', locked ? 'true' : 'false')
       seg.appendChild(btn)

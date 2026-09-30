@@ -107,6 +107,9 @@ import { arr, num, obj, str } from './values.js'
       var picker = null
       // The owner-name draft while it is being edited on the status tab (null = not editing).
       var ownerEdit = null
+      // Work tab: which skill's jobs are shown, and whose 详情 is open.
+      var workTrait = 'strong'
+      var jobDetail = null
 
       /** The tabs get an explicit context instead of closing over the shell locals. */
       var ui = {
@@ -117,6 +120,8 @@ import { arr, num, obj, str } from './values.js'
         get stage() { return stage }, set stage(next) { stage = next },
         get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
         get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
+        get workTrait() { return workTrait }, set workTrait(next) { workTrait = next },
+        get jobDetail() { return jobDetail }, set jobDetail(next) { jobDetail = next },
       }
       var isOpen = readStore(OPEN_KEY) === 'true'
       var lastStage = null

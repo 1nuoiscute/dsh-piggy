@@ -166,8 +166,17 @@ export const CSS_TABS = [
   '.dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);',
   'cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);',
   'border:2px solid var(--ac-border-light);background:var(--ac-bg-input);',
+  // One line, always: a label that wraps makes its button taller than the rest.
+  'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;',
   'transition:all .2s var(--ac-ease)}',
   '.dp-seg button:hover{background:var(--ac-hover)}',
+  // The work tab has three skills, not four stages.
+  '.dp-seg.dp-seg-3{grid-template-columns:repeat(3,minmax(0,1fr))}',
+  // Work rows: two small buttons on the right, 详情 opens the checklist below.
+  '.dp-job-locked{opacity:.75}',
+  '.dp-job-detail{margin-top:-2px}',
+  '.dp-req{font-size:10.5px;font-weight:600;color:var(--ac-error);line-height:1.6}',
+  '.dp-req.dp-req-ok{color:var(--ac-success)}',
   '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
   'color:var(--ac-text);font-weight:700}',
 

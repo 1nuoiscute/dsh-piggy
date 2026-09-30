@@ -385,7 +385,7 @@
           list.appendChild(el("div", "dp-shelf", KIND_TITLE[shelf] ?? shelf));
         }
         var cell = button(
-          "dp-cell" + (item.needed ? " dp-wanted" : "") + (item.kind === "dress" ? " dp-dress" : item.affordable ? "" : " dp-poor") + (item.owned ? " dp-owned" : ""),
+          "dp-cell" + (item.needed ? " dp-wanted" : "") + (item.kind === "dress" ? " dp-cell-dress" : item.affordable ? "" : " dp-poor") + (item.owned ? " dp-owned" : ""),
           { "data-buy": item.key },
           function() {
             ui.send("buy", { item: item.key });
@@ -600,7 +600,7 @@
           ui.stage = entry.key;
           ui.renderContent();
         });
-        btn.textContent = entry.label + (locked ? " \u{1F512}" : "");
+        btn.textContent = entry.label;
         btn.setAttribute("data-active", entry.key === ui.stage ? "true" : "false");
         btn.setAttribute("data-locked", locked ? "true" : "false");
         seg.appendChild(btn);
@@ -1039,8 +1039,17 @@
     ".dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);",
     "cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);",
     "border:2px solid var(--ac-border-light);background:var(--ac-bg-input);",
+    // One line, always: a label that wraps makes its button taller than the rest.
+    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;",
     "transition:all .2s var(--ac-ease)}",
     ".dp-seg button:hover{background:var(--ac-hover)}",
+    // The work tab has three skills, not four stages.
+    ".dp-seg.dp-seg-3{grid-template-columns:repeat(3,minmax(0,1fr))}",
+    // Work rows: two small buttons on the right, 详情 opens the checklist below.
+    ".dp-job-locked{opacity:.75}",
+    ".dp-job-detail{margin-top:-2px}",
+    ".dp-req{font-size:10.5px;font-weight:600;color:var(--ac-error);line-height:1.6}",
+    ".dp-req.dp-req-ok{color:var(--ac-success)}",
     '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
     "color:var(--ac-text);font-weight:700}",
     /* ---------- list rows ---------- */
@@ -1190,52 +1199,82 @@
   }
 
   // src/client/tabs/work.js
+  var SKILLS = [
+    { key: "strong", label: "\u{1F4AA} \u6B66\u529B" },
+    { key: "charm", label: "\u2728 \u9B45\u529B" },
+    { key: "intel", label: "\u{1F9E0} \u667A\u529B" }
+  ];
   function renderWorkTab(ui) {
     if (ui.view.jobs.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u5DE5\u4F5C\u5217\u8868\u3002"));
       return;
     }
-    var TIERS = [[45, "\u{1F331} \u8D77\u6B65"], [60, "\u{1F4DA} \u5C0F\u5B66\u6BD5\u4E1A"], [120, "\u{1F3EB} \u4E2D\u5B66\u6BD5\u4E1A"], [240, "\u{1F3DB} \u5927\u5B66\u6BD5\u4E1A"], [Infinity, "\u{1F52C} \u7814\u7A76\u751F"]];
-    var tierOf = function(job) {
-      var minutes = job.baseMinutes || job.minutes;
-      for (var t = 0; t < TIERS.length; t += 1) if (minutes <= TIERS[t][0]) return TIERS[t][1];
-      return "";
-    };
+    var bySkill = ui.view.jobs.some(function(job) {
+      return job.trait !== "";
+    });
+    var jobs = ui.view.jobs;
+    if (bySkill) {
+      var seg = el("div", "dp-seg dp-seg-3");
+      for (var s = 0; s < SKILLS.length; s += 1) {
+        (function(skill) {
+          var count = ui.view.jobs.filter(function(job) {
+            return job.trait === skill.key && job.qualified;
+          }).length;
+          var btn = button(null, { "data-skill": skill.key }, function() {
+            ui.workTrait = skill.key;
+            ui.jobDetail = null;
+            ui.renderContent();
+          });
+          btn.textContent = skill.label + (count > 0 ? " " + count : "");
+          btn.setAttribute("data-active", skill.key === ui.workTrait ? "true" : "false");
+          seg.appendChild(btn);
+        })(SKILLS[s]);
+      }
+      ui.content.appendChild(seg);
+      jobs = ui.view.jobs.filter(function(job) {
+        return job.trait === ui.workTrait;
+      });
+    }
     var list = el("div", "dp-list");
-    var lastTier = null;
-    for (var i = 0; i < ui.view.jobs.length; i += 1) {
+    for (var i = 0; i < jobs.length; i += 1) {
       (function(job) {
-        var tier = tierOf(job);
-        if (tier !== lastTier && ui.view.jobs.length > 12) {
-          lastTier = tier;
-          var head = el("div", "dp-title");
-          head.appendChild(el("b", null, tier));
-          list.appendChild(head);
-        }
-        var row = el("div", "dp-item");
+        var locked = job.qualified === false;
+        var row = el("div", "dp-item" + (locked ? " dp-job-locked" : ""));
         row.appendChild(el("span", null, job.emoji));
         var grow = el("div", "dp-grow");
         grow.appendChild(el("div", null, job.label));
-        var line = job.minutes + " \u5206\u949F \xB7 \u8D5A " + job.coins + " \u{1FA99}";
-        if (job.traitPoints > 0) {
-          line += " \xB7 \u7701 " + job.speedPercent + "% \u65F6\u95F4";
-        }
-        grow.appendChild(el("div", "dp-dim", line));
-        var byTrait = job.traitEmoji + job.traitLabel + " " + job.traitPoints + (job.payPercent > 0 ? " \xB7 \u62A5\u916C +" + job.payPercent + "%" : "");
-        grow.appendChild(el("div", "dp-dim", byTrait));
-        var locked = job.qualified === false;
-        if (locked) grow.appendChild(el("div", "dp-lock", "\u{1F512} \u9700\u8981 " + job.lockText));
+        grow.appendChild(el("div", "dp-dim", (locked ? "\u{1F512} " : "") + job.minutes + " \u5206\u949F \xB7 " + job.coins + " \u{1FA99}"));
         row.appendChild(grow);
+        var open = ui.jobDetail === job.key;
+        var more = button("dp-mini dp-mini-plain", { "data-job-detail": job.key }, function() {
+          ui.jobDetail = open ? null : job.key;
+          ui.renderContent();
+        });
+        more.textContent = open ? "\u6536\u8D77" : "\u8BE6\u60C5";
+        row.appendChild(more);
         var go = button("dp-mini", { "data-job": job.key }, function() {
           ui.send("work", { job: job.key });
         });
-        go.textContent = locked ? "\u6CA1\u8D44\u683C" : "\u51FA\u53D1";
+        go.textContent = "\u51FA\u53D1";
         go.disabled = !ui.view.canGoOut || locked;
         row.appendChild(go);
         list.appendChild(row);
-      })(ui.view.jobs[i]);
+        if (open) list.appendChild(jobDetails(job));
+      })(jobs[i]);
     }
     ui.content.appendChild(list);
+  }
+  function jobDetails(job) {
+    var box = el("div", "dp-pick dp-job-detail");
+    box.appendChild(el("div", "dp-pick-head", job.qualified ? "\u2713 \u6761\u4EF6\u90FD\u591F\u4E86" : "\u8FD8\u5DEE\u8FD9\u4E9B"));
+    for (var r = 0; r < job.requirements.length; r += 1) {
+      var need = job.requirements[r];
+      var have = need.kind === "level" ? "\uFF08\u73B0\u5728 Lv." + need.have + "\uFF09" : need.kind === "certificate" ? "\uFF08" + need.have + "/" + need.need + " \u6B21\uFF09" : need.kind === "every" || need.kind === "anyOf" ? "\uFF08" + need.have + "/" + need.need + " \u95E8\uFF09" : "\uFF08\u73B0\u5728 " + need.have + " \u8282\uFF09";
+      box.appendChild(el("div", need.met ? "dp-req dp-req-ok" : "dp-req", (need.met ? "\u2713 " : "\u2717 ") + need.text + (need.met ? "" : " " + have)));
+    }
+    if (job.requirements.length === 0 && job.lockText) box.appendChild(el("div", "dp-req", "\u2717 " + job.lockText));
+    box.appendChild(el("div", "dp-dim", job.traitEmoji + job.traitLabel + " " + job.traitPoints + (job.payPercent > 0 ? " \xB7 \u62A5\u916C +" + job.payPercent + "%" : "") + " \xB7 \u9971\u98DF " + job.satiety + " \xB7 \u6E05\u6D01 " + job.cleanliness));
+    return box;
   }
 
   // src/client/effects.js
@@ -1606,7 +1645,17 @@
         // "qualified" — the opposite default would lock every job on upgrade.
         qualified: obj(job).qualified !== false,
         lockText: str(obj(job).lockText, ""),
-        level: num(obj(job).level, 1)
+        level: num(obj(job).level, 1),
+        trait: str(obj(job).trait, ""),
+        satiety: num(obj(job).satiety, 0),
+        cleanliness: num(obj(job).cleanliness, 0),
+        requirements: arr(obj(job).requirements).filter(isObj).map((entry) => ({
+          text: str(entry.text, ""),
+          need: num(entry.need, 0),
+          have: num(entry.have, 0),
+          kind: str(entry.kind, ""),
+          met: entry.met === true
+        }))
       })).filter((job) => job.key !== ""),
       // B4: nine subjects, each with its own lesson count and stage.
       subjects: arr(d.subjects).map((sub) => ({
@@ -2228,6 +2277,8 @@
         var souvenirPick = null;
         var picker = null;
         var ownerEdit = null;
+        var workTrait = "strong";
+        var jobDetail = null;
         var ui = {
           get view() {
             return view;
@@ -2270,6 +2321,18 @@
           },
           set ownerEdit(next) {
             ownerEdit = next;
+          },
+          get workTrait() {
+            return workTrait;
+          },
+          set workTrait(next) {
+            workTrait = next;
+          },
+          get jobDetail() {
+            return jobDetail;
+          },
+          set jobDetail(next) {
+            jobDetail = next;
           }
         };
         var isOpen = readStore(OPEN_KEY) === "true";

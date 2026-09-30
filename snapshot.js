@@ -9,7 +9,7 @@
 import { readFileSync } from 'node:fs'
 
 import { ACTIONS, ACTION_ORDER, doctorFee, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, courseView, currentIllness, dailyView, daysToNextStage, diaryView, dressView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
-import { CERTIFICATE_AFTER, DEFAULT_OWNER_NAME, INTERESTS, SIGN_IN_CYCLE, SEXES, jobRequirement, rarityByKey, traitBonus } from './data.js'
+import { CERTIFICATE_AFTER, DEFAULT_OWNER_NAME, INTERESTS, SIGN_IN_CYCLE, SEXES, jobChecklist, jobRequirement, rarityByKey, traitBonus } from './data.js'
 
 /** The stage the panel shows before there is a pig: the cardboard box. */
 /**
@@ -239,6 +239,9 @@ function jobsFor(state) {
       qualified: gate === null ? true : gate.ok,
       missing,
       lockText: missing.map(entry => entry.text).join('、'),
+      // The 详情 panel: every condition with a tick or a cross.
+      requirements: jobChecklist(job, facts),
+      cleanliness: job.cleanliness,
     }
   })
 }

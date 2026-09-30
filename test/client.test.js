@@ -919,14 +919,15 @@ test('a job behind a trait gate says what it needs instead of just greying out',
   openPanel(dom)
   pickTab(dom, 'work')
 
-  const text = contentOf(dom).allText()
-  assert.ok(text.includes('🔒 需要 🧠 智力 10'), text)
-  // One short line, no lecture: the old version also printed "（你现在 0）" and a
-  // second sentence telling the player to go to 学习.
-  assert.ok(!text.includes('你现在'), text)
-  assert.ok(!text.includes('就能涨'), text)
+  // The row stays short (owner, 2026-10-01): a padlock, time and pay. What
+  // the gate wants lives behind 详情, not in a pile of text on the row.
+  let text = contentOf(dom).allText()
+  assert.ok(text.includes('🔒 120 分钟 · 480 🪙'), text)
+  assert.ok(!text.includes('智力 10'), 'the gate is not spelled out on the row')
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'tutor').disabled, true)
-  assert.ok(findByAttr(contentOf(dom), 'data-job', 'tutor').allText().includes('没资格'))
+  findByAttr(contentOf(dom), 'data-job-detail', 'tutor').fire('click')
+  text = contentOf(dom).allText()
+  assert.ok(text.includes('✗ 🧠 智力 10'), `an older host's gate still shows under 详情: ${text}`)
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
 })
 
@@ -1680,7 +1681,8 @@ test('the study tab keeps its stage tabs; each subject shows where it stands in 
   openPanel(dom)
   pickTab(dom, 'study')
   let text = contentOf(dom).allText()
-  assert.ok(text.includes('小学') && text.includes('中学') && text.includes('大学 🔒'), 'the stage tabs are back')
+  assert.ok(text.includes('小学') && text.includes('中学') && text.includes('大学'), 'the stage tabs are back')
+  assert.equal(findByAttr(contentOf(dom), 'data-stage', 'college').attributes['data-locked'], 'true', 'locked by style, not a padlock in the label')
   assert.ok(text.includes('✓ 已毕业'), `语文 has finished 小学: ${text}`)
   assert.ok(text.includes('0/9 节'), `数学 is in 小学: ${text}`)
 
@@ -1724,4 +1726,19 @@ test('免打扰 keeps routine news quiet but lets illness through; the status ta
   assert.ok(text.includes('叫你「小明」'), text)
   assert.ok(text.includes('🔕 免打扰中'), text)
   assert.notEqual(findByAttr(contentOf(dom), 'data-owner-edit', 'true'), undefined)
+})
+
+test('装扮 cells in the shop are clickable: they must not wear the pig overlay class', async () => {
+  // `.dp-dress` is the pig's dress-up layer (absolute, pointer-events:none).
+  // The shop gave its 装扮 cells the same class, so a real mouse click went
+  // straight through them and nothing could be bought (2026-10-01).
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+  const cells = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-buy'] !== undefined) cells.push(node) })
+  assert.ok(cells.length > 0)
+  for (const cell of cells) assert.equal(cell.className.split(/\s+/).includes('dp-dress'), false, cell.attributes['data-buy'])
 })
