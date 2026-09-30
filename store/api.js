@@ -23,6 +23,8 @@ import {
   chat as coreChat,
   rename as coreRename,
   replyToLine as coreReplyToLine,
+  openGift as coreOpenGift,
+  recordOnline as coreRecordOnline,
   signIn as coreSignIn,
   reset as coreReset,
   seeDoctor as coreSeeDoctor,
@@ -58,6 +60,9 @@ import {
 export function createApi(control) {
   const { filePath, now, getState, setState, scheduleSave, mutate, dispose } = control
 
+  /** 上一次「面板轮询」的时刻，用来算在线时长；0 = 还没见过第一次。 */
+  let lastPollMs = 0
+
   return {
     /** The live state (null until an egg is laid). Exposed for rendering. */
     get state() { return getState() },
@@ -84,7 +89,12 @@ export function createApi(control) {
       const state = getState()
       if (state === null) return null
       try {
-        decay(state, now())
+        const nowMs = now()
+        // 在线时长按真实时间累计（与调试页的时间倍率无关）；每次读状态就是
+        // 一次「面板还在轮询」的证据。
+        coreRecordOnline(state, lastPollMs, nowMs)
+        lastPollMs = nowMs
+        decay(state, nowMs)
         scheduleSave()
       } catch (error) {
         // Keep the stale-but-valid state, but say why it is stale.
@@ -141,6 +151,9 @@ export function createApi(control) {
 
     /** 领今天的签到礼包。 */
     signIn: () => mutate(live => coreSignIn(live, now())),
+
+    /** 开一个攒着的在线礼包。 */
+    openGift: () => mutate(live => coreOpenGift(live, now())),
     wear: (itemKey, on) => mutate(live => (on ? coreWearItem(live, itemKey, now()) : coreTakeOff(live, itemKey, now()))),
 
     /** Open the box. Only works when there is no living pig yet. */

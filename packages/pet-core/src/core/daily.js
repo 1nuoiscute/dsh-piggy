@@ -8,8 +8,9 @@
  *
  * @module dsh-pig/core/daily
  */
-import { SIGN_IN_CYCLE, SIGN_IN_REWARDS, itemByKey } from '../data.js'
+import { GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS, SHOP, itemByKey } from '../data.js'
 import { dayKeyFor } from './clock.js'
+import { rollerFor } from './random.js'
 import { announce } from './effects.js'
 import { say } from './lines.js'
 
@@ -100,6 +101,95 @@ export function signIn(state, nowMs) {
   return { ok: true, day: index + 1, reward: text }
 }
 
+/**
+ * 记一段在线时长。
+ *
+ * 纯函数：`lastPollMs` 是上一次轮询的时刻，由宿主（store）传进来。
+ * **只算真实毫秒**，跟调试页的时间倍率无关；两次轮询间隔超过 30 秒就当作
+ * 「人不在」，中间那段不算。跨天（06:00）时清零当日进度，但**没领的礼包留着**。
+ */
+export function recordOnline(state, lastPollMs, nowMs) {
+  const daily = ensureDaily(state)
+  const today = dayKeyFor(nowMs)
+  if (daily.online.day !== today) {
+    daily.online.day = today
+    daily.online.onlineMs = 0
+    daily.online.given = 0
+    // unclaimed 不清：攒着的礼包换天还在，用户回来能一起领。
+  }
+  const gap = nowMs - lastPollMs
+  if (lastPollMs > 0 && gap > 0 && gap <= ONLINE_GIFT.pollGapMaxMs) daily.online.onlineMs += gap
+  // 每满一小时一个。到了当天的上限（或攒满 3 个）就只消耗时长，不再给。
+  while (daily.online.onlineMs >= ONLINE_GIFT.perGiftMs) {
+    daily.online.onlineMs -= ONLINE_GIFT.perGiftMs
+    if (daily.online.given < ONLINE_GIFT.perDay && daily.online.unclaimed < ONLINE_GIFT.unclaimedMax) {
+      daily.online.given += 1
+      daily.online.unclaimed += 1
+    }
+  }
+  return daily.online
+}
+
+/**
+ * 抽一个礼包内容（纯函数，随机来自 state.seed）。
+ * @returns {{coins: number, items: ReadonlyArray<{key: string, count: number}>}}
+ */
+export function pickGift(state, next) {
+  return resolveGiftBucket(GIFT_TABLE[giftBucketIndex(next())], next)
+}
+
+/**
+ * Which row of `GIFT_TABLE` a `[0, 1)` roll lands on（抽出来是为了能测分布）。
+ * @param {number} roll
+ * @returns {number} GIFT_TABLE 的下标
+ */
+export function giftBucketIndex(roll) {
+  let accumulated = 0
+  for (let index = 0; index < GIFT_TABLE.length; index += 1) {
+    accumulated += GIFT_TABLE[index].chance
+    if (roll < accumulated) return index
+  }
+  // Floating point can leave the sum a hair under 1: fall back to the common case.
+  return 0
+}
+
+/** @param {object} bucket @param {() => number} next */
+function resolveGiftBucket(bucket, next) {
+  if (bucket.coins !== undefined) {
+    const [low, high] = bucket.coins
+    return { coins: low + Math.floor(next() * (high - low + 1)), items: [] }
+  }
+  if (bucket.keys !== undefined && bucket.keys.length > 0) {
+    const key = bucket.keys[Math.min(bucket.keys.length - 1, Math.floor(next() * bucket.keys.length))]
+    return { coins: 0, items: [{ key, count: 1 }] }
+  }
+  const kinds = bucket.kinds ?? (bucket.kind === undefined ? [] : [bucket.kind])
+  const pool = SHOP.filter(item => kinds.includes(item.kind)
+    && (bucket.maxPrice === undefined || item.price <= bucket.maxPrice))
+  if (pool.length === 0) return { coins: 30, items: [] }
+  const item = pool[Math.min(pool.length - 1, Math.floor(next() * pool.length))]
+  return { coins: 0, items: [{ key: item.key, count: 1 }] }
+}
+
+/** 现在有没有没领的礼包。 */
+export function giftsWaiting(state) {
+  return ensureDaily(state).online.unclaimed
+}
+
+/**
+ * 开一个在线礼包：抽一项、发到账上、公告 + 说一句。
+ * @returns {{ ok: boolean, reason?: string, reward?: string }}
+ */
+export function openGift(state, nowMs) {
+  const daily = ensureDaily(state)
+  if (daily.online.unclaimed <= 0) return { ok: false, reason: 'empty' }
+  daily.online.unclaimed -= 1
+  const text = grantReward(state, pickGift(state, rollerFor(state)))
+  announce(state, 'gift', `在线礼包：${text}`, nowMs)
+  say(state, 'gift', nowMs)
+  return { ok: true, reward: text }
+}
+
 /** 面板需要的那几个数。 */
 export function dailyView(state, nowMs) {
   const daily = ensureDaily(state)
@@ -108,5 +198,7 @@ export function dailyView(state, nowMs) {
     signInDay: (daily.signIn.index % SIGN_IN_CYCLE) + 1,
     signInTotal: daily.signIn.total,
     cycle: SIGN_IN_CYCLE,
+    unclaimed: daily.online.unclaimed,
+    onlineMinutes: Math.floor(daily.online.onlineMs / 60000),
   }
 }

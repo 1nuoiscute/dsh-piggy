@@ -12,8 +12,9 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { hatchEgg, layEgg } from '../core.js'
-import { SIGN_IN_CYCLE, SIGN_IN_REWARDS } from '../data.js'
-import { canSignIn, dayKeyFor, ensureDaily, signIn } from '../packages/pet-core/src/core/daily.js'
+import { GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS } from '../data.js'
+import { canSignIn, dayKeyFor, ensureDaily, giftBucketIndex, openGift, recordOnline, signIn } from '../packages/pet-core/src/core/daily.js'
+import { rollerFor } from '../packages/pet-core/src/core/random.js'
 import { migrate } from '../packages/pet-core/src/core/migrate.js'
 
 const MIN = 60_000
@@ -138,4 +139,119 @@ test('a corrupted daily block is repaired instead of crashing the load', () => {
 test('the confirmed ladder is still 12 entries and every key is a real item', () => {
   assert.equal(SIGN_IN_CYCLE, 12)
   assert.deepEqual(SIGN_IN_REWARDS.map(entry => entry.items.length >= 1 || entry.coins > 0), Array(12).fill(true))
+})
+
+// ===========================================================================
+// 在线礼包
+// ===========================================================================
+
+test('only a poll gap of 30 seconds or less counts as being online', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  const start = at(2026, 10, 1, 9)
+  recordOnline(pig, start, start + ONLINE_GIFT.pollGapMaxMs)
+  assert.equal(pig.daily.online.onlineMs, ONLINE_GIFT.pollGapMaxMs, 'a 30s gap counts')
+
+  const idle = hatchEgg(at(2026, 10, 1, 9))
+  recordOnline(idle, start, start + ONLINE_GIFT.pollGapMaxMs + 1)
+  assert.equal(idle.daily.online.onlineMs, 0, 'a longer gap means nobody was there')
+
+  const first = hatchEgg(at(2026, 10, 1, 9))
+  recordOnline(first, 0, start)
+  assert.equal(first.daily.online.onlineMs, 0, 'the first poll has nothing to measure')
+})
+
+/** 每 10 秒轮询一次，跑 `hours` 小时。 */
+function pollFor(pig, fromMs, hours) {
+  let clock = fromMs
+  for (let i = 0; i < 360 * hours; i += 1) {
+    const next = clock + 10_000
+    recordOnline(pig, clock, next)
+    clock = next
+  }
+  return clock
+}
+
+test('one hour online hands out one gift, and the day caps at 8', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  let clock = pollFor(pig, at(2026, 10, 1, 9), 1)
+  assert.equal(pig.daily.online.unclaimed, 1, 'one full hour, one gift')
+  assert.equal(pig.daily.online.given, 1)
+
+  // Open each gift as it arrives; 8 is the daily cap.
+  openGift(pig, clock)
+  for (let hour = 0; hour < 12; hour += 1) {
+    clock = pollFor(pig, clock, 1)
+    if (pig.daily.online.unclaimed > 0) openGift(pig, clock)
+  }
+  assert.equal(pig.daily.online.given, ONLINE_GIFT.perDay, '8 a day')
+})
+
+test('at most three gifts wait to be opened', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  pollFor(pig, at(2026, 10, 1, 9), 6)
+  assert.equal(pig.daily.online.unclaimed, ONLINE_GIFT.unclaimedMax)
+  // Hours kept being consumed — the pig just stopped being paid for them.
+  assert.ok(pig.daily.online.onlineMs < ONLINE_GIFT.perGiftMs)
+  assert.equal(pig.daily.online.given, ONLINE_GIFT.unclaimedMax)
+})
+
+test('the time scale does not speed up online gifts', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  pig.timeScale = 60
+  let clock = at(2026, 10, 1, 9)
+  for (let i = 0; i < 360; i += 1) {
+    const next = clock + 10_000
+    recordOnline(pig, clock, next)
+    clock = next
+  }
+  assert.equal(pig.daily.online.unclaimed, 1, 'real time only')
+})
+
+test('a new day resets the online counter but keeps unopened gifts', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  let clock = at(2026, 10, 1, 9)
+  for (let i = 0; i < 360; i += 1) {
+    const next = clock + 10_000
+    recordOnline(pig, clock, next)
+    clock = next
+  }
+  assert.equal(pig.daily.online.unclaimed, 1)
+
+  const tomorrow = at(2026, 10, 2, 9)
+  recordOnline(pig, tomorrow - 10_000, tomorrow)
+  assert.equal(pig.daily.online.onlineMs, 10_000, 'a fresh day')
+  assert.equal(pig.daily.online.given, 0)
+  assert.equal(pig.daily.online.unclaimed, 1, 'the gift you never opened is still there')
+})
+
+test('opening a gift pays something, and an empty queue is refused', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  assert.deepEqual(openGift(pig, at(2026, 10, 1, 9)), { ok: false, reason: 'empty' })
+
+  pig.daily.online.unclaimed = 2
+  const coinsBefore = pig.coins
+  const itemsBefore = Object.values(pig.inventory).reduce((sum, n) => sum + n, 0)
+  const opened = openGift(pig, at(2026, 10, 1, 9))
+  assert.equal(opened.ok, true)
+  assert.equal(pig.daily.online.unclaimed, 1, 'one at a time')
+  const coinsAfter = pig.coins
+  const itemsAfter = Object.values(pig.inventory).reduce((sum, n) => sum + n, 0)
+  assert.ok(coinsAfter > coinsBefore || itemsAfter > itemsBefore, 'it paid something')
+  assert.ok(opened.reward.length > 0)
+})
+
+test('the gift table draws close to the confirmed probabilities', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  const next = rollerFor(pig)
+  const rounds = 10000
+  const counts = new Array(GIFT_TABLE.length).fill(0)
+  for (let i = 0; i < rounds; i += 1) counts[giftBucketIndex(next())] += 1
+
+  GIFT_TABLE.forEach((bucket, index) => {
+    const share = counts[index] / rounds
+    assert.ok(
+      Math.abs(share - bucket.chance) <= 0.02,
+      `bucket ${index} (${bucket.chance}) came out at ${share.toFixed(4)}`,
+    )
+  })
 })

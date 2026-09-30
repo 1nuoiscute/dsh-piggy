@@ -97,7 +97,7 @@ export function snapshot(store, options = {}) {
       dress: [],
       inventory: inventoryView({ inventory: {} }),
       activity: null, canGoOut: false, awayBlocked: 'absent',
-      daily: { canSignIn: false, signInDay: 1, signInTotal: 0, cycle: SIGN_IN_CYCLE },
+      daily: { canSignIn: false, signInDay: 1, signInTotal: 0, cycle: SIGN_IN_CYCLE, unclaimed: 0, onlineMinutes: 0 },
       // The box has a size of its own; the client must not hard-code it.
       boxStage: boxStageView(),
       pending: [],

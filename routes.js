@@ -56,6 +56,7 @@ const OPERATIONS = {
   reply: (store, body) => store.reply(Number(body.line), Number(body.index)),
   // 日常：签到（在线礼包在 B5 的第二步接上）。
   signIn: store => store.signIn(),
+  openGift: store => store.openGift(),
   // The panel's timers ask the pig to speak up; the pig decides whether to.
   chat: (store, body) => store.chat(str(body.reason)),
   quiet: (store, body) => store.setQuiet(body.on === true),
