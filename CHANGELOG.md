@@ -21,13 +21,15 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - 客户端源码移到 `src/client/`，`client.js` 改为 esbuild 产物；`npm run build` 生成，
   `test/bundle.test.js` 守住产物新鲜度。详见 [docs/REFACTOR-PLAN.md](docs/REFACTOR-PLAN.md)。
 - 新增 [docs/CONVENTIONS.md](docs/CONVENTIONS.md)（项目版编码规范）。
-- `data.js` 拆分为 `data/` 9 个模块（`data.js` 保留为 barrel，导入路径零改动）；
-  领域层不再读系统时间（`nowMs` 一律作参数）；代码注释去掉 emoji。
-  以上均无行为变化。
+- 分层拆分（均保留同名 barrel，导入路径零改动）：`data.js` → `data/` 9 个模块、
+  `core.js` → `core/` 15 个模块、`index.js` → `snapshot/commands/routes`、
+  `store.js` → `store/{api,state-file}`。公开导出面逐项比对无变化。
+- 领域层不再读系统时间（`nowMs` 一律作参数）；代码注释去掉 emoji；
+  新增三条静态守卫（领域层时间、注释 emoji、文件 400 行上限）。
 
 ### Verification
-- `node --test`：**174 / 174 通过**（新增：产物新鲜度、单文件契约、版本字段、
-  存档损坏保留现场 5 项、领域层时间与注释 emoji 两条静态守卫）。
+- `node --test`：**175 / 175 通过**（新增：产物新鲜度、单文件契约、版本字段、
+  存档损坏保留现场 5 项、领域层时间 / 注释 emoji / 文件行数三条静态守卫）。
 
 ## [0.23.0] — 2026-09-30
 
