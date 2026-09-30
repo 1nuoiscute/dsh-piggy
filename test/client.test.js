@@ -259,6 +259,13 @@ function pickTab(dom, key) {
   findByAttr(barOf(dom), 'data-tab', key).fire('click')
 }
 
+/** 展开一个折叠分组：列表默认都只显示标题（学习/商店/背包）。 */
+function openSection(dom, key) {
+  const head = findByAttr(contentOf(dom), 'data-section', key)
+  assert.notEqual(head, undefined, `no section ${key} in: ${contentOf(dom).allText().slice(0, 120)}`)
+  head.fire('click')
+}
+
 const ACTIONS = {
   feed: { ready: true, waitSeconds: 0, blocked: null },
   bathe: { ready: true, waitSeconds: 0, blocked: null },
@@ -804,6 +811,8 @@ test('the bag tab lists the diary newest-first, folded until tapped', async () =
   await settle()
   openPanel(dom)
   pickTab(dom, 'bag')
+  assert.ok(contentOf(dom).allText().includes('📔 日记 2 篇'), 'the diary is a section of its own')
+  openSection(dom, 'bag:diary')
 
   const rows = []
   contentOf(dom).walk(node => { if (node.attributes?.['data-diary'] !== undefined) rows.push(node) })
@@ -834,6 +843,7 @@ test('a worn dress says so in the shop', async () => {
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
+  openSection(dom, 'shop:dress')
   assert.ok(contentOf(dom).allText().includes('穿着'), contentOf(dom).allText())
 })
 
@@ -843,6 +853,7 @@ test('the shop shows how many of a consumable the pig already has', async () => 
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
+  openSection(dom, 'shop:food')
   // The snapshot has no per-shelf count: the inventory map is the real source.
   assert.ok(contentOf(dom).allText().includes('×2'), contentOf(dom).allText())
 })
@@ -928,6 +939,8 @@ test('the shop marks 家当 as 已拥有 or level-locked, and the bag can wear i
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
+  assert.ok(contentOf(dom).allText().includes('装扮'), 'the shelf header lists the category')
+  openSection(dom, 'shop:dress')
 
   const shopText = contentOf(dom).allText()
   assert.ok(shopText.includes('装扮'), shopText)
@@ -937,8 +950,9 @@ test('the shop marks 家当 as 已拥有 or level-locked, and the bag can wear i
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'crown').disabled, false, 'a locked item still explains itself when tapped')
 
   pickTab(dom, 'bag')
+  assert.ok(contentOf(dom).allText().includes('👕 家当'), 'the bag lists a 家当 section')
+  openSection(dom, 'bag:dress')
   const bagText = contentOf(dom).allText()
-  assert.ok(bagText.includes('👕 家当'), bagText)
   assert.ok(bagText.includes('脖子上暖乎乎的'), bagText)
   findByAttr(contentOf(dom), 'data-wear', 'scarf').fire('click')
   await settle()
@@ -1046,10 +1060,12 @@ test('interest courses live in the study tab, not in a new stat panel', async ()
   // 兴趣 is a button beside the stages now; the list shows once it is picked.
   findByAttr(contentOf(dom), 'data-stage', 'interest').fire('click')
 
+  assert.ok(contentOf(dom).allText().includes('摄影'), 'the collapsed row still names the course')
+  openSection(dom, 'interest:coding')
   const text = contentOf(dom).allText()
-  assert.ok(text.includes('摄影'), text)
-  assert.ok(text.includes('智力 +2'), text)
-  assert.ok(text.includes('学过 3 次'), 'a repeatable course shows how often it has been taken')
+  assert.ok(text.includes('智力 +2'), 'opening a course shows what it pays')
+  openSection(dom, 'interest:fitness')
+  assert.ok(contentOf(dom).allText().includes('学过 3 次'), 'a repeatable course shows how often it has been taken')
   // 兴趣 pays into the three existing traits — no new bars, no percentages.
   pickTab(dom, 'status')
   const status = contentOf(dom).allText()
@@ -1121,16 +1137,23 @@ test('the shop tab is a grid that fades what the pig cannot afford and flags the
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'apple'), undefined, 'shelves start collapsed')
 
+  openSection(dom, 'shop:food')
   // Tiles are never disabled: a tap on one it cannot afford should explain how
   // much is missing rather than doing nothing.
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'apple').className.includes('dp-poor'), false)
+  assert.equal(findByClass(contentOf(dom), 'dp-shopgrid') !== undefined, true, 'the open shelf renders as a grid')
+
+  openSection(dom, 'shop:revive')
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').disabled, false)
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').className.includes('dp-poor'), true)
-  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'apple').className.includes('dp-poor'), false)
+
+  openSection(dom, 'shop:medicine')
   // The "needed" flag is a badge on the tile now, not a line of text.
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'med1').allText().includes('需要'), true)
-  assert.equal(findByClass(contentOf(dom), 'dp-shopgrid') !== undefined, true, 'the shop renders as a grid')
 
+  openSection(dom, 'shop:food')
   findByAttr(contentOf(dom), 'data-buy', 'apple').fire('click')
   await settle()
   await settle()
@@ -1213,6 +1236,7 @@ test('the bag tab lists owned items with a use button', async () => {
   await settle()
   openPanel(dom)
   pickTab(dom, 'bag')
+  openSection(dom, 'bag:item:food')
 
   const text = contentOf(dom).allText()
   assert.ok(text.includes('苹果'), text)
@@ -1772,10 +1796,10 @@ test('the study tab keeps its stage tabs; each subject shows where it stands in 
   assert.ok(text.includes('3/11 节'), `语文 is 3 lessons into 中学: ${text}`)
   assert.ok(text.includes('🔒 还在小学'), `数学 has not reached 中学: ${text}`)
   // The fake DOM keeps nodes a repaint dropped, so read the newest button.
-  const mathButtons = []
-  contentOf(dom).walk(node => { if (node.attributes?.['data-subject'] === 'mathematics') mathButtons.push(node) })
-  assert.equal(mathButtons.at(-1).disabled, true, 'a subject that has not reached 中学 cannot be taken there')
+  openSection(dom, 'study:mathematics')
+  assert.equal(findByAttr(contentOf(dom), 'data-subject', 'mathematics').disabled, true, 'a subject that has not reached 中学 cannot be taken there')
 
+  openSection(dom, 'study:chinese')
   findByAttr(contentOf(dom), 'data-subject', 'chinese').fire('click')
   await settle()
   const post = JSON.parse(String(net.calls.filter(c => c.method === 'POST').at(-1).body))
@@ -1813,11 +1837,13 @@ test('装扮 cells in the shop are clickable: they must not wear the pig overlay
   // `.dp-dress` is the pig's dress-up layer (absolute, pointer-events:none).
   // The shop gave its 装扮 cells the same class, so a real mouse click went
   // straight through them and nothing could be bought (2026-10-01).
-  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT } })
+  const scarf = { key: 'scarf', label: '红围巾', emoji: '🧣', price: 80, kind: 'dress', level: 1, owned: false, worn: false, unlocked: true, affordable: true, needed: false, tier: null, blurb: '' }
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, shop: [scarf] } })
   registration.factory(() => {}).apply({})
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
+  openSection(dom, 'shop:dress')
   const cells = []
   contentOf(dom).walk(node => { if (node.attributes?.['data-buy'] !== undefined) cells.push(node) })
   assert.ok(cells.length > 0)

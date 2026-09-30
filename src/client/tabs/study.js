@@ -10,6 +10,7 @@
 
 import { STAGES } from '../constants.js'
 import { button, el } from '../dom.js'
+import { section } from '../widgets.js'
 
 /** The seg key that shows the interest list instead of a stage. */
 export const INTEREST_TAB = 'interest'
@@ -73,44 +74,35 @@ export function renderStudyTab(ui) {
 
   var detail = null
   for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === ui.stage) detail = ui.view.stages[d]
-  if (detail !== null) {
-    var span = detail.upTo !== null ? '第 ' + (detail.from + 1) + '–' + detail.upTo + ' 节' : '第 ' + (detail.from + 1) + ' 节起'
-    var note = el('div', 'dp-empty', span + ' · ' + detail.minutes + ' 分钟 · 学费 ' + detail.tuition + ' 🪙 · 属性 +' + detail.gain)
-    note.style.marginBottom = '7px'
-    note.style.marginTop = '0'
-    ui.content.appendChild(note)
-    // A gated stage says exactly what it is waiting for.
-    if (detail.unlocked === false && detail.progress !== null) {
-      ui.content.appendChild(el('div', 'dp-locked',
-        '🔒 要先' + detail.progress.label + '（现在最多 ' + detail.progress.done + ' 节）'))
-    }
+  if (detail !== null && detail.unlocked === false && detail.progress !== null) {
+    ui.content.appendChild(el('div', 'dp-locked',
+      '🔒 要先' + detail.progress.label + '（现在最多 ' + detail.progress.done + ' 节）'))
   }
 
-  var grid = el('div', 'dp-grid')
+  // 默认只看到科目名字与进度；点开一门才展开它的细节和「去上课」（用户反馈 #3）。
   for (var i = 0; i < ui.view.subjects.length; i += 1) {
     (function (sub) {
       var where = standing(sub, detail)
-      var btn = button('dp-item', { 'data-subject': sub.key }, function () {
-        ui.send('study', { subject: sub.key })
+      var state = where === 'done' ? '✓ 已毕业'
+        : where === 'ahead' ? '🔒 还在' + (sub.stageLabel || '下一段')
+          : sub.traitLabel + ' · ' + (detail !== null && detail.upTo !== null
+            ? (sub.lessons - detail.from) + '/' + (detail.upTo - detail.from) + ' 节'
+            : '上过 ' + sub.lessons + ' 节')
+      section(ui, 'study:' + sub.key, sub.emoji + ' ' + sub.label + '　' + state, function (body) {
+        var facts = []
+        if (detail !== null) {
+          var span = detail.upTo !== null ? '第 ' + (detail.from + 1) + '–' + detail.upTo + ' 节' : '第 ' + (detail.from + 1) + ' 节起'
+          facts.push(span + ' · ' + detail.minutes + ' 分钟 · 学费 ' + detail.tuition + ' 🪙 · ' + sub.traitLabel + ' +' + detail.gain)
+        }
+        if (typeof sub.blurb === 'string' && sub.blurb !== '') facts.push(sub.blurb)
+        for (var f = 0; f < facts.length; f += 1) body.appendChild(el('div', 'dp-dim', facts[f]))
+        var go = button('dp-mini', { 'data-subject': sub.key }, function () { ui.send('study', { subject: sub.key }) })
+        go.textContent = '去上课'
+        go.disabled = where !== 'current' || !ui.view.canGoOut || !sub.affordable
+        body.appendChild(go)
       })
-      btn.disabled = where !== 'current' || !ui.view.canGoOut || !sub.affordable
-      btn.style.cursor = 'pointer'
-      btn.style.textAlign = 'left'
-      btn.appendChild(el('span', null, sub.emoji))
-      var grow = el('div', 'dp-grow')
-      grow.appendChild(el('div', null, sub.label))
-      // Two short lines, as before: two columns of 292px do not fit more.
-      var line
-      if (where === 'done') line = '✓ 已毕业'
-      else if (where === 'ahead') line = '🔒 还在' + (sub.stageLabel || '下一段')
-      else if (detail !== null && detail.upTo !== null) line = sub.traitLabel + ' · ' + (sub.lessons - detail.from) + '/' + (detail.upTo - detail.from) + ' 节'
-      else line = sub.traitLabel + ' · 上过 ' + sub.lessons + ' 节'
-      grow.appendChild(el('div', 'dp-dim', line))
-      btn.appendChild(grow)
-      grid.appendChild(btn)
     })(ui.view.subjects[i])
   }
-  ui.content.appendChild(grid)
 }
 
 /** The interest list, shown when the 兴趣 button is selected. */
@@ -121,27 +113,20 @@ function renderInterests(ui) {
   note.style.marginBottom = '7px'
   note.style.marginTop = '0'
   ui.content.appendChild(note)
-  var ilist = el('div', 'dp-list')
   for (var n = 0; n < ui.view.interests.length; n += 1) {
     (function (entry) {
-      var row = el('div', 'dp-item')
-      row.appendChild(el('span', null, entry.emoji))
-      var grow = el('div', 'dp-grow')
-      grow.appendChild(el('div', null, entry.label))
       var progress = entry.certificate === ''
         ? (entry.times > 0 ? ' · 学过 ' + entry.times + ' 次' : '')
         : (entry.certified ? ' · 📜 有证' : ' · 📜 ' + entry.times + '/' + entry.certificateAfter)
-      grow.appendChild(el('div', 'dp-dim', entry.minutes + ' 分钟 · ' + entry.cost + ' 🪙 · '
-        + entry.traitEmoji + entry.traitLabel + ' +' + entry.gain + progress))
-      row.appendChild(grow)
-      var go = button('dp-mini', { 'data-interest': entry.key }, function () {
-        ui.send('interest', { interest: entry.key })
+      section(ui, 'interest:' + entry.key, entry.emoji + ' ' + entry.label + '　' + entry.traitEmoji + entry.traitLabel + progress, function (body) {
+        body.appendChild(el('div', 'dp-dim', entry.minutes + ' 分钟 · ' + entry.cost + ' 🪙 · ' + entry.traitLabel + ' +' + entry.gain))
+        if (typeof entry.blurb === 'string' && entry.blurb !== '') body.appendChild(el('div', 'dp-dim', entry.blurb))
+        var go = button('dp-mini', { 'data-interest': entry.key }, function () { ui.send('interest', { interest: entry.key }) })
+        go.textContent = entry.times > 0 ? '再学' : '去学'
+        go.disabled = !ui.view.canGoOut || !entry.affordable
+        body.appendChild(go)
       })
-      go.textContent = entry.times > 0 ? '再学' : '去学'
-      go.disabled = !ui.view.canGoOut || !entry.affordable
-      row.appendChild(go)
-      ilist.appendChild(row)
     })(ui.view.interests[n])
   }
-  ui.content.appendChild(ilist)
 }
+

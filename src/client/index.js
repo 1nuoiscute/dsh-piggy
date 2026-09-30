@@ -112,20 +112,10 @@ import { arr, num, obj, str } from './values.js'
       // Work tab: which skill's jobs are shown, and whose 详情 is open.
       var workTrait = 'strong'
       var jobDetail = null
+      // 折叠列表里当前展开的那一段（学习/商店/背包共用，同时只开一个）。
+      var openSection = null
 
       /** The tabs get an explicit context instead of closing over the shell locals. */
-      var ui = {
-        get view() { return view }, set view(next) { view = next },
-        get content() { return content }, set content(next) { content = next },
-        get host() { return host }, set host(next) { host = next },
-        get picker() { return picker }, set picker(next) { picker = next },
-        get stage() { return stage }, set stage(next) { stage = next },
-        get stagePicked() { return stagePicked }, set stagePicked(next) { stagePicked = next },
-        get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
-        get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
-        get workTrait() { return workTrait }, set workTrait(next) { workTrait = next },
-        get jobDetail() { return jobDetail }, set jobDetail(next) { jobDetail = next },
-      }
       var isOpen = readStore(OPEN_KEY) === 'true'
       var lastStage = null
       var lastPendingAt = 0
@@ -165,7 +155,6 @@ import { arr, num, obj, str } from './values.js'
         bar: bar,
         icons: icons,
         flash: flash,
-        ui: ui,
         react: react,
         burst: burst,
         showBubble: showBubble,
@@ -176,7 +165,11 @@ import { arr, num, obj, str } from './values.js'
         get stage() { return stage }, set stage(next) { stage = next },
         get stagePicked() { return stagePicked }, set stagePicked(next) { stagePicked = next },
         get picker() { return picker }, set picker(next) { picker = next },
+        get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
         get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
+        get workTrait() { return workTrait }, set workTrait(next) { workTrait = next },
+        get jobDetail() { return jobDetail }, set jobDetail(next) { jobDetail = next },
+        get openSection() { return openSection }, set openSection(next) { openSection = next },
         get isOpen() { return isOpen }, set isOpen(next) { isOpen = next },
         get lastStage() { return lastStage }, set lastStage(next) { lastStage = next },
         get lastPendingAt() { return lastPendingAt }, set lastPendingAt(next) { lastPendingAt = next },
@@ -206,11 +199,11 @@ import { arr, num, obj, str } from './values.js'
       ctx.send = send
       ctx.render = render
       ctx.renderContent = renderContent
-      ui.send = send
-      ui.renderContent = renderContent
-      ui.setOpen = setOpen
-      ui.fitPanel = fitPanel
-      ui.flash = flash
+      ctx.send = send
+      ctx.renderContent = renderContent
+      ctx.setOpen = setOpen
+      ctx.fitPanel = fitPanel
+      ctx.flash = flash
 
       // 日常气泡（签到/礼包）的点击只在这里绑一次；它压在猪上面，事件不能冒泡给
       // 拖动和摸摸。

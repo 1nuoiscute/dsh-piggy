@@ -68,6 +68,17 @@ export const CSS_TABS = [
   // Reply buttons under a line: small pills, the mint of the primary colour
   // without the 3D base, which the spec keeps for real primary buttons.
   '.dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}',
+  // 折叠分组：默认只看到这一行标题，点开才看里面的东西。
+  '.dp-section{display:flex;align-items:center;justify-content:space-between;width:100%;',
+  'font:inherit;font-size:11px;font-weight:700;padding:7px 9px;margin-top:7px;cursor:pointer;',
+  'color:var(--ac-text);background:var(--ac-bg-content);border:2px solid var(--ac-border-light);',
+  'border-radius:var(--ac-radius-sm);text-align:left}',
+  '.dp-section:hover{border-color:var(--ac-border-hover)}',
+  '.dp-section:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',
+  '.dp-section-open{border-color:var(--ac-border);border-bottom-left-radius:0;border-bottom-right-radius:0}',
+  '.dp-section-c{font-size:9.5px;font-weight:700;color:var(--ac-text-2)}',
+  '.dp-section-body{padding:2px 0 4px}',
+
   // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
   // 挂在场景**上方**（不是 top 边缘）：折叠时场景就是猪本身，用 top:-6px
   // 会让气泡叠在猪头上（用户反馈 #6）。

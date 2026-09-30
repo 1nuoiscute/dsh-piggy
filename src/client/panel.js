@@ -170,13 +170,13 @@ export function createPanel(ctx) {
           return
         }
 
-        if (ctx.tab === 'status') renderStatusTab(ctx.ui)
-        else if (ctx.tab === 'study') renderStudyTab(ctx.ui)
-        else if (ctx.tab === 'work') renderWorkTab(ctx.ui)
-        else if (ctx.tab === 'shop') renderShopTab(ctx.ui)
-        else if (ctx.tab === 'travel') renderTravelTab(ctx.ui)
-        else if (ctx.tab === 'dev') renderDevTab(ctx.ui)
-        else renderBagTab(ctx.ui)
+        if (ctx.tab === 'status') renderStatusTab(ctx)
+        else if (ctx.tab === 'study') renderStudyTab(ctx)
+        else if (ctx.tab === 'work') renderWorkTab(ctx)
+        else if (ctx.tab === 'shop') renderShopTab(ctx)
+        else if (ctx.tab === 'travel') renderTravelTab(ctx)
+        else if (ctx.tab === 'dev') renderDevTab(ctx)
+        else renderBagTab(ctx)
 
         // Every tab is a different height, so the fit is recomputed after each
         // render rather than only on open.

@@ -7,6 +7,33 @@
  */
 
 import { button, el, meter } from './dom.js'
+
+/**
+ * 折叠分组：默认收起，点标题展开，再点收起；同一个区域同时只开一个。
+ *
+ * 用户 2026-10-01：列表默认只该看到几个大类标题，细节点开才看到，
+ * 这样一屏不用堆一大段字。
+ *
+ * @param {object} ui
+ * @param {string} key - 区域内的唯一 key（如 `shop:food`）
+ * @param {string} title - 标题行（emoji + 名字 + 数量）
+ * @param {(body: object) => void} paint - 展开时往 body 里画内容
+ */
+export function section(ui, key, title, paint) {
+  var open = ui.openSection === key
+  var head = button('dp-section' + (open ? ' dp-section-open' : ''), { 'data-section': key }, function (event) {
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation()
+    ui.openSection = open ? null : key
+    ui.renderContent()
+  })
+  head.appendChild(el('span', 'dp-section-t', title))
+  head.appendChild(el('b', 'dp-section-c', open ? '收起' : '展开'))
+  ui.content.appendChild(head)
+  if (!open) return
+  var body = el('div', 'dp-section-body')
+  paint(body)
+  ui.content.appendChild(body)
+}
 import { num } from './values.js'
 
 export function labelledBar(ui, label, value, valueText, variant) {

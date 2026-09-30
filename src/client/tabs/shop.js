@@ -9,6 +9,32 @@
 import { KIND_ORDER, KIND_TITLE } from '../constants.js'
 import { button, el } from '../dom.js'
 import { num } from '../values.js'
+import { section } from '../widgets.js'
+
+
+/** One shelf cell: emoji, name, price/已拥有, and a count when the pig has some. */
+function shopCell(ui, item) {
+  var cell = button('dp-cell'
+    + (item.needed ? ' dp-wanted' : '')
+    + (item.kind === 'dress' ? ' dp-cell-dress' : (item.affordable ? '' : ' dp-poor'))
+    + (item.owned ? ' dp-owned' : ''),
+    { 'data-buy': item.key }, function () { ui.send('buy', { item: item.key }) })
+  cell.appendChild(el('span', 'dp-cell-e', item.emoji))
+  cell.appendChild(el('span', 'dp-cell-n', item.label))
+  if (item.owned) {
+    cell.appendChild(el('span', 'dp-cell-p', '已拥有'))
+    cell.disabled = true
+  } else if (item.kind === 'dress' && item.unlocked === false) {
+    cell.appendChild(el('span', 'dp-cell-p', '🔒 Lv.' + item.level))
+  } else {
+    cell.appendChild(el('span', 'dp-cell-p', item.price + ' 🪙'))
+  }
+  var owned = num(ui.view.inventory[item.key], 0)
+  if (owned > 0) cell.appendChild(el('b', 'dp-cell-c', '×' + owned))
+  if (item.needed) cell.appendChild(el('b', 'dp-cell-tag', '需要'))
+  if (item.owned && item.worn) cell.appendChild(el('b', 'dp-cell-tag', '穿着'))
+  return cell
+}
 
 export function renderShopTab(ui) {
   if (ui.view.shop.length === 0) {
@@ -19,49 +45,23 @@ export function renderShopTab(ui) {
   head.appendChild(el('b', null, '🛒 商店'))
   head.appendChild(el('span', null, '🪙 ' + ui.view.pig.coins))
   ui.content.appendChild(head)
-  var list = el('div', 'dp-shopgrid')
-  var shelf = ''
-  // The host sends the shop in shelf order, but sort defensively so a
-  // reordered table cannot produce duplicate headers.
+  // 默认只列几个大类，点开才看到货（用户反馈 #3）。
   var ordered = ui.view.shop.slice().sort(
     (a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind),
   )
-  for (var i = 0; i < ordered.length; i += 1) {
-    (function (item) {
-      // Shelves, so 21 items read as five short lists instead of one long one.
-      if (item.kind !== shelf) {
-        shelf = item.kind
-        list.appendChild(el('div', 'dp-shelf', KIND_TITLE[shelf] ?? shelf))
-      }
-      // A grid cell, not a list row: 45 items in a 292px column meant
-      // endless scrolling and you could never see a shelf at a glance.
-      var cell = button('dp-cell'
-        + (item.needed ? ' dp-wanted' : '')
-        // Not `dp-dress`: that class is the pig's dress-up overlay (absolute,
-        // pointer-events:none), and sharing it made every 装扮 cell unclickable.
-        + (item.kind === 'dress' ? ' dp-cell-dress' : (item.affordable ? '' : ' dp-poor'))
-        + (item.owned ? ' dp-owned' : ''),
-        { 'data-buy': item.key }, function () { ui.send('buy', { item: item.key }) })
-      cell.appendChild(el('span', 'dp-cell-e', item.emoji))
-      cell.appendChild(el('span', 'dp-cell-n', item.label))
-      // 家当 has no count and no repeat purchase: it says "已拥有", or the
-      // level it is waiting for — never a price the pig cannot use.
-      if (item.owned) {
-        cell.appendChild(el('span', 'dp-cell-p', '已拥有'))
-        cell.disabled = true
-      } else if (item.kind === 'dress' && item.unlocked === false) {
-        cell.appendChild(el('span', 'dp-cell-p', '🔒 Lv.' + item.level))
-      } else {
-        cell.appendChild(el('span', 'dp-cell-p', item.price + ' 🪙'))
-      }
-      // The shop listing has no count of its own; the inventory map is where
-      // "how many do I have" actually lives (same source as the bag tab).
-      var owned = num(ui.view.inventory[item.key], 0)
-      if (owned > 0) cell.appendChild(el('b', 'dp-cell-c', '×' + owned))
-      if (item.needed) cell.appendChild(el('b', 'dp-cell-tag', '需要'))
-      if (item.owned && item.worn) cell.appendChild(el('b', 'dp-cell-tag', '穿着'))
-      list.appendChild(cell)
-    })(ordered[i])
+  var kinds = []
+  for (var k = 0; k < ordered.length; k += 1) if (kinds.indexOf(ordered[k].kind) < 0) kinds.push(ordered[k].kind)
+  for (var s = 0; s < kinds.length; s += 1) {
+    (function (kind) {
+      var items = ordered.filter(function (item) { return item.kind === kind })
+      var ownedCount = 0
+      for (var o = 0; o < items.length; o += 1) if (items[o].owned || num(ui.view.inventory[items[o].key], 0) > 0) ownedCount += 1
+      section(ui, 'shop:' + kind, (KIND_TITLE[kind] ?? kind) + ' · ' + items.length
+        + (ownedCount > 0 ? '（有 ' + ownedCount + '）' : ''), function (body) {
+        var grid = el('div', 'dp-shopgrid')
+        for (var i = 0; i < items.length; i += 1) grid.appendChild(shopCell(ui, items[i]))
+        body.appendChild(grid)
+      })
+    })(kinds[s])
   }
-  ui.content.appendChild(list)
 }
