@@ -150,7 +150,7 @@ export const CSS_TABS = [
   '.dp-btn .dp-wait{color:var(--ac-text-2);font-size:10px;font-weight:600}',
 
   /* ---------- segmented control ---------- */
-  '.dp-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}',
+  '.dp-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:9px}',
   '.dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);',
   'cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);',
   'border:2px solid var(--ac-border-light);background:var(--ac-bg-input);',
@@ -160,7 +160,8 @@ export const CSS_TABS = [
   'color:var(--ac-text);font-weight:700}',
 
   /* ---------- list rows ---------- */
-  '.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}',
+  // minmax(0,1fr): a long nowrap line must ellipsize, not widen the panel.
+  '.dp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}',
   '.dp-list{display:flex;flex-direction:column;gap:7px}',
   '.dp-shelf{margin:9px 0 1px;font-size:10px;font-weight:700;color:var(--ac-text-2);',
   'letter-spacing:.04em}',

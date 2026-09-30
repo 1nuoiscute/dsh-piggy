@@ -82,7 +82,7 @@ export function snapshot(store, options = {}) {
       jobs: jobsFor(null),
       subjects: subjectsFor(null),
       interests: interestsFor(null),
-      stages: [],
+      stages: stagesFor(null),
       trips: tripsFor(null),
       shop: shopFor(null),
       dress: [],
@@ -151,8 +151,9 @@ export function snapshot(store, options = {}) {
     jobs: jobsFor(state),
     subjects: subjectsFor(state),
     interests: interestsFor(state),
-    // The seven-stage ladder is gone (B4): each subject carries its own stage.
-    stages: [],
+    // B4: every subject has its own stage now, but the panel keeps the stage
+    // tabs the owner liked; a stage is "open" once any subject has reached it.
+    stages: stagesFor(state),
     trips: tripsFor(state),
     shop: shopFor(state),
     dress: dressView(state),
@@ -245,6 +246,28 @@ function interestsFor(state) {
     available: open,
     affordable: state === null ? false : state.coins >= entry.cost,
   }))
+}
+
+/**
+ * The stage tabs for the study page. `from`/`upTo` bound the lesson numbers a
+ * stage covers; it is open once some subject has finished the stage below.
+ */
+function stagesFor(state) {
+  const taken = state === null ? {} : courseView(state)
+  const best = Math.max(0, ...Object.values(taken))
+  let from = 0
+  return SCHOOL_STAGES.map(stage => {
+    const entry = {
+      key: stage.key, label: stage.label, emoji: stage.emoji,
+      minutes: stage.minutes, tuition: stage.tuition, gain: stage.gain,
+      from, upTo: Number.isFinite(stage.upTo) ? stage.upTo : null,
+      unlocked: best >= from,
+      subjects: SUBJECTS.map(subject => subject.key),
+      progress: best >= from ? null : { done: best, need: from, label: `任意一门课念完第 ${from} 节` },
+    }
+    from = Number.isFinite(stage.upTo) ? stage.upTo : from
+    return entry
+  })
 }
 
 /** The nine subjects with their lesson counts and what the next lesson is (B4). */

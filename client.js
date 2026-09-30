@@ -318,6 +318,15 @@
   };
   var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B" };
   var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive"];
+  var STAGES = [
+    { key: "preschool", label: "\u5E7C\u513F\u56ED" },
+    { key: "extracurricular", label: "\u8BFE\u5916" },
+    { key: "primary", label: "\u5C0F\u5B66" },
+    { key: "middle", label: "\u4E2D\u5B66" },
+    { key: "high", label: "\u9AD8\u4E2D" },
+    { key: "college", label: "\u5927\u5B66" },
+    { key: "graduate", label: "\u7814\u7A76\u751F" }
+  ];
 
   // src/client/tabs/shop.js
   function renderShopTab(ui) {
@@ -482,25 +491,70 @@
   }
 
   // src/client/tabs/study.js
+  function standing(sub, stage) {
+    if (stage === null || sub.stageKey === "") return "current";
+    if (sub.stageKey === stage.key) return "current";
+    if (stage.upTo !== null && sub.lessons >= stage.upTo) return "done";
+    return "ahead";
+  }
   function renderStudyTab(ui) {
     if (ui.view.subjects.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8BFE\u7A0B\u8868\u3002"));
       return;
     }
+    var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES;
+    var seg = el("div", "dp-seg");
+    for (var s = 0; s < stageList.length; s += 1) {
+      (function(entry) {
+        var detail2 = null;
+        for (var k = 0; k < ui.view.stages.length; k += 1) if (ui.view.stages[k].key === entry.key) detail2 = ui.view.stages[k];
+        var locked = detail2 !== null && detail2.unlocked === false;
+        var btn = button(null, { "data-stage": entry.key }, function() {
+          ui.stage = entry.key;
+          ui.renderContent();
+        });
+        btn.textContent = entry.label + (locked ? " \u{1F512}" : "");
+        btn.setAttribute("data-active", entry.key === ui.stage ? "true" : "false");
+        btn.setAttribute("data-locked", locked ? "true" : "false");
+        seg.appendChild(btn);
+      })(stageList[s]);
+    }
+    ui.content.appendChild(seg);
+    var detail = null;
+    for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === ui.stage) detail = ui.view.stages[d];
+    if (detail !== null) {
+      var span = detail.upTo !== null ? "\u7B2C " + (detail.from + 1) + "\u2013" + detail.upTo + " \u8282" : "\u7B2C " + (detail.from + 1) + " \u8282\u8D77";
+      var note = el("div", "dp-empty", span + " \xB7 " + detail.minutes + " \u5206\u949F \xB7 \u5B66\u8D39 " + detail.tuition + " \u{1FA99} \xB7 \u5C5E\u6027 +" + detail.gain);
+      note.style.marginBottom = "7px";
+      note.style.marginTop = "0";
+      ui.content.appendChild(note);
+      if (detail.unlocked === false && detail.progress !== null) {
+        ui.content.appendChild(el(
+          "div",
+          "dp-locked",
+          "\u{1F512} \u8981\u5148" + detail.progress.label + "\uFF08\u73B0\u5728\u6700\u591A " + detail.progress.done + " \u8282\uFF09"
+        ));
+      }
+    }
     var grid = el("div", "dp-grid");
     for (var i = 0; i < ui.view.subjects.length; i += 1) {
       (function(sub) {
+        var where = standing(sub, detail);
         var btn = button("dp-item", { "data-subject": sub.key }, function() {
           ui.send("study", { subject: sub.key });
         });
-        btn.disabled = !ui.view.canGoOut || !sub.affordable;
+        btn.disabled = where !== "current" || !ui.view.canGoOut || !sub.affordable;
         btn.style.cursor = "pointer";
         btn.style.textAlign = "left";
         btn.appendChild(el("span", null, sub.emoji));
         var grow = el("div", "dp-grow");
-        grow.appendChild(el("div", null, sub.label + (sub.stageLabel ? " \xB7 " + sub.stageLabel : "")));
-        grow.appendChild(el("div", "dp-dim", "\u4E0A\u8FC7 " + sub.lessons + " \u8282" + (sub.nextGraduation !== null ? " \xB7 \u5DEE " + (sub.nextGraduation - sub.lessons) + " \u8282\u6BD5\u4E1A" : "")));
-        grow.appendChild(el("div", "dp-dim", sub.minutes + " \u5206 \xB7 " + sub.tuition + " \u{1FA99} \xB7 " + sub.traitEmoji + "+" + sub.gain));
+        grow.appendChild(el("div", null, sub.label));
+        var line;
+        if (where === "done") line = "\u2713 \u5DF2\u6BD5\u4E1A";
+        else if (where === "ahead") line = "\u{1F512} \u8FD8\u5728" + (sub.stageLabel || "\u4E0B\u4E00\u6BB5");
+        else if (detail !== null && detail.upTo !== null) line = sub.traitLabel + " \xB7 " + (sub.lessons - detail.from) + "/" + (detail.upTo - detail.from) + " \u8282";
+        else line = sub.traitLabel + " \xB7 \u4E0A\u8FC7 " + sub.lessons + " \u8282";
+        grow.appendChild(el("div", "dp-dim", line));
         btn.appendChild(grow);
         grid.appendChild(btn);
       })(ui.view.subjects[i]);
@@ -509,7 +563,7 @@
     if (ui.view.interests.length > 0) {
       var ihead = el("div", "dp-title");
       ihead.style.marginTop = "10px";
-      ihead.appendChild(el("b", null, "\u{1F3AF} \u5174\u8DA3 \xB7 \u8BC1\u4E66"));
+      ihead.appendChild(el("b", null, "\u{1F3AF} \u5174\u8DA3"));
       ui.content.appendChild(ihead);
       var ilist = el("div", "dp-list");
       for (var n = 0; n < ui.view.interests.length; n += 1) {
@@ -518,8 +572,8 @@
           row.appendChild(el("span", null, entry.emoji));
           var grow = el("div", "dp-grow");
           grow.appendChild(el("div", null, entry.label));
-          var progress = entry.certificate === "" ? entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "" : entry.certified ? " \xB7 \u{1F4DC} \u5DF2\u6709" + entry.certificate : " \xB7 \u{1F4DC} " + entry.certificate + " " + entry.times + "/" + entry.certificateAfter;
-          grow.appendChild(el("div", "dp-dim", entry.minutes + " \u5206 \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain + progress));
+          var progress = entry.certificate === "" ? entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "" : entry.certified ? " \xB7 \u{1F4DC} \u6709\u8BC1" : " \xB7 \u{1F4DC} " + entry.times + "/" + entry.certificateAfter;
+          grow.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain + progress));
           row.appendChild(grow);
           var go = button("dp-mini", { "data-interest": entry.key }, function() {
             ui.send("interest", { interest: entry.key });
@@ -867,7 +921,7 @@
     ".dp-btn-wide{grid-column:1/-1}",
     ".dp-btn .dp-wait{color:var(--ac-text-2);font-size:10px;font-weight:600}",
     /* ---------- segmented control ---------- */
-    ".dp-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}",
+    ".dp-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:9px}",
     ".dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);",
     "cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);",
     "border:2px solid var(--ac-border-light);background:var(--ac-bg-input);",
@@ -876,7 +930,8 @@
     '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
     "color:var(--ac-text);font-weight:700}",
     /* ---------- list rows ---------- */
-    ".dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}",
+    // minmax(0,1fr): a long nowrap line must ellipsize, not widen the panel.
+    ".dp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}",
     ".dp-list{display:flex;flex-direction:column;gap:7px}",
     ".dp-shelf{margin:9px 0 1px;font-size:10px;font-weight:700;color:var(--ac-text-2);",
     "letter-spacing:.04em}",
@@ -1438,6 +1493,7 @@
         traitLabel: str(obj(sub).traitLabel, ""),
         traitEmoji: str(obj(sub).traitEmoji, ""),
         lessons: num(obj(sub).lessons, num(obj(sub).level, 0)),
+        stageKey: str(obj(obj(sub).stage).key, ""),
         stageLabel: str(obj(obj(sub).stage).label, ""),
         graduatedLabel: isObj(obj(sub).graduated) ? str(obj(sub).graduated.label, "") : "",
         nextGraduation: typeof obj(sub).nextGraduation === "number" ? obj(sub).nextGraduation : null,
@@ -1473,6 +1529,9 @@
         minutes: num(obj(stage).minutes, 0),
         tuition: num(obj(stage).tuition, 0),
         gain: num(obj(stage).gain, 0),
+        // B4: the lesson numbers this stage covers (upTo null = no end).
+        from: num(obj(stage).from, 0),
+        upTo: typeof obj(stage).upTo === "number" ? obj(stage).upTo : null,
         // Which courses this stage teaches — empty on an old host, in which
         // case the panel shows every subject rather than none.
         subjects: arr(obj(stage).subjects).filter((key) => typeof key === "string"),

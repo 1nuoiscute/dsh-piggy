@@ -1564,19 +1564,23 @@ test('right-click opens the menu and left-click only pats the pig', async () => 
   assert.match(sceneOf(dom).title, /右键/, 'the pig must say how to open the menu')
 })
 
-test('the study tab shows the nine subjects with their own lesson counts (B4)', async () => {
-  const subject = (key, label, emoji, lessons, stageLabel, nextGraduation) => ({
+test('the study tab keeps its stage tabs; each subject shows where it stands in that stage (B4)', async () => {
+  const subject = (key, label, emoji, lessons, stageKey, stageLabel) => ({
     key, label, emoji, traitLabel: '智力', traitEmoji: '🧠', lessons,
-    stage: { key: 'x', label: stageLabel, emoji: '📚' }, nextGraduation,
+    stage: { key: stageKey, label: stageLabel, emoji: '📚' }, nextGraduation: null,
     minutes: 20, tuition: 10, gain: 1, secondaryGain: 0, available: true, affordable: true,
+  })
+  const stage = (key, label, from, upTo, unlocked) => ({
+    key, label, emoji: '📚', minutes: 20, tuition: 10, gain: 1, from, upTo, unlocked,
+    subjects: ['chinese', 'mathematics'], progress: unlocked ? null : { done: 12, need: from, label: `任意一门课念完第 ${from} 节` },
   })
   const { registration, dom, net } = await loadClient({
     status: {
       ...SNAPSHOT,
-      stages: [],
+      stages: [stage('primary', '小学', 0, 9, true), stage('middle', '中学', 9, 20, true), stage('college', '大学', 20, 40, false)],
       subjects: [
-        subject('chinese', '语文', '📖', 12, '中学', 20),
-        subject('mathematics', '数学', '🔢', 0, '小学', 9),
+        subject('chinese', '语文', '📖', 12, 'middle', '中学'),
+        subject('mathematics', '数学', '🔢', 0, 'primary', '小学'),
       ],
     },
   })
@@ -1584,14 +1588,23 @@ test('the study tab shows the nine subjects with their own lesson counts (B4)', 
   await settle()
   openPanel(dom)
   pickTab(dom, 'study')
-  const text = contentOf(dom).allText()
-  assert.ok(text.includes('语文 · 中学'), text)
-  assert.ok(text.includes('上过 12 节 · 差 8 节毕业'), text)
-  assert.ok(text.includes('上过 0 节 · 差 9 节毕业'), text)
-  assert.ok(!text.includes('🔒'), 'no stage ladder to lock any more')
-  findByAttr(contentOf(dom), 'data-subject', 'mathematics').fire('click')
+  let text = contentOf(dom).allText()
+  assert.ok(text.includes('小学') && text.includes('中学') && text.includes('大学 🔒'), 'the stage tabs are back')
+  assert.ok(text.includes('✓ 已毕业'), `语文 has finished 小学: ${text}`)
+  assert.ok(text.includes('0/9 节'), `数学 is in 小学: ${text}`)
+
+  findByAttr(contentOf(dom), 'data-stage', 'middle').fire('click')
+  text = contentOf(dom).allText()
+  assert.ok(text.includes('3/11 节'), `语文 is 3 lessons into 中学: ${text}`)
+  assert.ok(text.includes('🔒 还在小学'), `数学 has not reached 中学: ${text}`)
+  // The fake DOM keeps nodes a repaint dropped, so read the newest button.
+  const mathButtons = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-subject'] === 'mathematics') mathButtons.push(node) })
+  assert.equal(mathButtons.at(-1).disabled, true, 'a subject that has not reached 中学 cannot be taken there')
+
+  findByAttr(contentOf(dom), 'data-subject', 'chinese').fire('click')
   await settle()
   const post = JSON.parse(String(net.calls.filter(c => c.method === 'POST').at(-1).body))
   assert.equal(post.action, 'study')
-  assert.equal(post.subject, 'mathematics')
+  assert.equal(post.subject, 'chinese')
 })

@@ -134,6 +134,7 @@ export function normalize(raw) {
       traitLabel: str(obj(sub).traitLabel, ''),
       traitEmoji: str(obj(sub).traitEmoji, ''),
       lessons: num(obj(sub).lessons, num(obj(sub).level, 0)),
+      stageKey: str(obj(obj(sub).stage).key, ''),
       stageLabel: str(obj(obj(sub).stage).label, ''),
       graduatedLabel: isObj(obj(sub).graduated) ? str(obj(sub).graduated.label, '') : '',
       nextGraduation: typeof obj(sub).nextGraduation === 'number' ? obj(sub).nextGraduation : null,
@@ -169,6 +170,9 @@ export function normalize(raw) {
       minutes: num(obj(stage).minutes, 0),
       tuition: num(obj(stage).tuition, 0),
       gain: num(obj(stage).gain, 0),
+      // B4: the lesson numbers this stage covers (upTo null = no end).
+      from: num(obj(stage).from, 0),
+      upTo: typeof obj(stage).upTo === 'number' ? obj(stage).upTo : null,
       // Which courses this stage teaches — empty on an old host, in which
       // case the panel shows every subject rather than none.
       subjects: arr(obj(stage).subjects).filter(key => typeof key === 'string'),
