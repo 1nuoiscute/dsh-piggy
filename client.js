@@ -54,6 +54,13 @@ window.__ModuleLoader__.load({
     var CARE_LABEL = { feed: ['喂食', '🍎'], bathe: ['洗澡', '🛁'], play: ['玩耍', '🎾'], pet: ['摸摸', '❤️'] }
     // What the pig says when the shelf it needs is bare. Being told plainly
     // beats a generic "that did not work".
+    /** A new pig arrives in a box and has to be poked out of it. */
+    var BOX_POKES_TO_OPEN = 3
+    var BOX_POKE_LINES = [
+      '里面好像有东西…',
+      '动了！再戳一下！',
+    ]
+
     var NO_ITEM_LINE = {
       food: '没有吃的啦，快去买一点 🍎',
       bath: '没有洗浴用品了，去买点吧 🧼',
@@ -220,6 +227,12 @@ window.__ModuleLoader__.load({
           progress: num(d.activity.progress, 0),
         } : null,
         canGoOut: d.canGoOut === true,
+        boxStage: isObj(d.boxStage) ? {
+          key: str(d.boxStage.key, 'box'),
+          label: str(d.boxStage.label, '纸盒'),
+          emoji: str(d.boxStage.emoji, '📦'),
+          size: num(d.boxStage.size, 58),
+        } : { key: 'box', label: '纸盒', emoji: '📦', size: 58 },
         awayBlocked: typeof d.awayBlocked === 'string' ? d.awayBlocked : null,
         pending: arr(d.pending).filter(e => isObj(e) && typeof e.at === 'number'),
         maxHealth: num(d.maxHealth, 5),
@@ -306,6 +319,7 @@ window.__ModuleLoader__.load({
       '[data-dsh-pig] .dp-content[hidden],[data-dsh-pig] .dp-hud[hidden],',
       '[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],',
       '[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],',
+      '[data-dsh-pig] .dp-poke-hint[hidden],',
       '[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}',
 
       /* ---------- the panel: cream parchment, border not shadow ---------- */
@@ -414,6 +428,27 @@ window.__ModuleLoader__.load({
       // No drawings yet — every stage is the same 🐖, so age reads as size plus
       // a faded coat on the last one.
       '[data-dsh-pig][data-faded="true"] .dp-pig-emoji{filter:grayscale(.5) opacity(.72)}',
+
+      // The box advertises itself: a slow breathing glow plus a label, so it
+      // does not read as scenery.
+      '[data-dsh-pig][data-unhatched="true"] .dp-pig{cursor:pointer;',
+      'animation:dp-box-breathe 2.4s ease-in-out infinite}',
+      '[data-dsh-pig][data-unhatched="true"] .dp-pig-emoji{',
+      'filter:drop-shadow(0 0 0 rgba(255,214,102,0)) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
+      '@keyframes dp-box-breathe{0%,100%{transform:translateY(0) scale(1)}',
+      '50%{transform:translateY(-3px) scale(1.06)}}',
+      '.dp-poke-hint{position:absolute;right:2px;bottom:-2px;display:flex;align-items:center;gap:3px;',
+      'font-size:9.5px;font-weight:700;color:var(--ac-text);background:var(--ac-bg);',
+      'border:1.5px solid var(--ac-border-light);border-radius:var(--ac-pill);padding:1px 7px;',
+      'box-shadow:0 2px 0 rgba(61,52,40,.12);pointer-events:none;white-space:nowrap;z-index:3;',
+      'animation:dp-hint-bob 1.6s ease-in-out infinite}',
+      '@keyframes dp-hint-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}',
+      // Each poke shakes it harder; the third one opens it instead.
+      '[data-dsh-pig] .dp-pig[data-mood="poke"],',
+      '[data-dsh-pig][data-poke] .dp-pig{animation-name:dp-poke-shake}',
+      '[data-dsh-pig][data-poke="2"] .dp-pig{animation-duration:.28s}',
+      '@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}',
+      '50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}',
 
       /* ---------- the soul that settles on an unclaimed grave ---------- */
       '.dp-soul{position:absolute;left:50%;transform:translateX(-50%);top:-4px;font-size:22px;',
@@ -780,6 +815,14 @@ window.__ModuleLoader__.load({
       work.appendChild(progressWrap)
       work.hidden = true
       scene.appendChild(work)
+
+      // Shown while the box is still shut, so it reads as something to poke
+      // rather than a decorative cardboard box sitting in the corner.
+      var pokeHint = el('div', 'dp-poke-hint')
+      pokeHint.appendChild(el('span', null, '👆'))
+      pokeHint.appendChild(el('span', null, '戳三下'))
+      pokeHint.hidden = true
+      scene.appendChild(pokeHint)
 
       var soul = el('span', 'dp-soul', '👻')
       soul.hidden = true
@@ -1409,14 +1452,17 @@ window.__ModuleLoader__.load({
           pigArt.hidden = true
           pigArt.removeAttribute('src')
           pigEmoji.hidden = false
-          pigEmoji.textContent = '📦'
+          pigEmoji.textContent = view.boxStage.emoji
           pig.removeAttribute('data-art')
           pig.setAttribute('data-mood', 'box')
-          host.style.setProperty('--pig-size', '52px')
+          // Size comes from the host so the box and the pig can never drift.
+          host.style.setProperty('--pig-size', view.boxStage.size + 'px')
           soul.hidden = true
           host.setAttribute('data-soul', 'false')
           host.setAttribute('data-faded', 'false')
-          hudName.textContent = '一个纸盒'
+          host.setAttribute('data-unhatched', 'true')
+          pokeHint.hidden = false
+          hudName.textContent = '一个' + view.boxStage.label
           hudCoins.textContent = '点开拆开它'
           hudHealth.textContent = ''
           lastStage = null
@@ -1441,6 +1487,8 @@ window.__ModuleLoader__.load({
           host.setAttribute('data-soul', view.pig.soul ? 'true' : 'false')
           // Old age reads as a faded coat, since every stage is the same 🐖.
           host.setAttribute('data-faded', stage.faded ? 'true' : 'false')
+          host.setAttribute('data-unhatched', 'false')
+          pokeHint.hidden = true
           soul.hidden = view.pig.soul !== true
           pig.setAttribute('data-stage', stage.key)
           hudName.textContent = view.pig.name + ' · ' + stage.label + (view.pig.ageLabel ? ' · ' + view.pig.ageLabel : '')
@@ -1570,11 +1618,39 @@ window.__ModuleLoader__.load({
         fitPanel()
         return moved
       }
+      var boxPokes = 0
+
+      /**
+       * Poke the box. Three pokes and the piglet comes out — the count is what
+       * makes it feel like something is in there rather than a button that
+       * happens to be cardboard-shaped.
+       */
+      function pokeBox() {
+        boxPokes += 1
+        react('poke', 560)
+        if (boxPokes >= BOX_POKES_TO_OPEN) {
+          boxPokes = 0
+          host.removeAttribute('data-poke')
+          showBubble('哇——！', 1200)
+          burst(['✨', '🎉', '💨'], 6)
+          send('hatch')
+          return
+        }
+        host.setAttribute('data-poke', String(boxPokes))
+        burst(['💨'], 2)
+        showBubble(BOX_POKE_LINES[boxPokes - 1], 2200)
+      }
+
       // Left click is a pat on the head. The menu is on the context menu, so a
       // stray click can no longer open or close the panel by accident.
       scene.addEventListener('pointerup', function () {
         if (endDrag()) return
-        if (view.pig !== null && !view.dead) flash('pet')
+        // Before the pig exists, a click pokes the box instead.
+        if (view.pig === null) {
+          pokeBox()
+          return
+        }
+        if (!view.dead) flash('pet')
       })
       scene.addEventListener('pointercancel', function () { endDrag() })
       scene.addEventListener('contextmenu', function (event) {

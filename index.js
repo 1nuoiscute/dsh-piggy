@@ -39,6 +39,7 @@ import {
   ageDays,
   daysToNextStage,
   hasSoul,
+  LIFE_STAGES,
   lifeStageFor,
   mood,
   studyView,
@@ -242,6 +243,12 @@ export function apply(ctx, config = {}) {
 // Snapshot — the single shape both routes and the panel read
 // ---------------------------------------------------------------------------
 
+/** The stage the panel shows before there is a pig: the cardboard box. */
+function boxStageView() {
+  const box = LIFE_STAGES.find(stage => stage.key === 'box') ?? LIFE_STAGES[0]
+  return { key: box.key, label: box.label, emoji: box.emoji, size: box.size, line: box.line }
+}
+
 /** "今天刚出生" / "3 天大" / "刚拆开纸盒" — the pig's age in words. */
 function formatAge(days, state, nowMs) {
   if (state.hatched !== true) return '还没拆开'
@@ -286,6 +293,8 @@ export function snapshot(store, options = {}) {
       shop: shopFor(null),
       inventory: inventoryView({ inventory: {} }),
       activity: null, canGoOut: false, awayBlocked: 'absent',
+      // The box has a size of its own; the client must not hard-code it.
+      boxStage: boxStageView(),
       pending: [],
       reviveItem: REVIVE_ITEM.key, maxHealth: MAX.health,
     }
@@ -302,6 +311,7 @@ export function snapshot(store, options = {}) {
     ok: true,
     hatched: true,
     dead: state.dead === true,
+    boxStage: boxStageView(),
     pig: {
       name: state.name,
       // Age is the progression now, not a level.

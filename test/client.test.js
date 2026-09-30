@@ -713,6 +713,35 @@ test('a sick pig shows its illness and what it needs', async () => {
   assert.ok(text.includes('金色消炎药水'), text)
 })
 
+test('a new box takes three pokes to open, not one', async () => {
+  const { registration, dom, net } = await loadClient({
+    status: { ok: true, pig: null, hatched: false, dead: false, pending: [] },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+
+  const host = hostOf(dom)
+  const scene = sceneOf(dom)
+  const poke = () => { scene.fire('pointerdown', { button: 0, clientX: 0, clientY: 0 }); scene.fire('pointerup', {}) }
+
+  assert.equal(host.attributes['data-unhatched'], 'true', 'the box announces itself')
+  assert.equal(findByClass(host, 'dp-poke-hint').hidden, false, 'and shows a hint')
+
+  poke()
+  assert.equal(findByClass(host, 'dp-bubble').allText().includes('里面好像有东西'), true, 'first poke hints')
+  assert.equal(host.attributes['data-poke'], '1')
+
+  poke()
+  assert.equal(findByClass(host, 'dp-bubble').allText().includes('再戳一下'), true, 'second poke teases')
+  assert.equal(host.attributes['data-poke'], '2')
+
+  poke()
+  // The third one opens it, which means the host is asked to hatch.
+  const posts = net.calls.filter(c => c.method === 'POST' && String(c.body).includes('hatch'))
+  assert.equal(posts.length, 1, 'the third poke is the one that hatches')
+  assert.equal(host.attributes['data-poke'], undefined, 'and the poke counter is cleared')
+})
+
 test('a graveside pig can be replaced at once, soul or no soul', async () => {
   for (const soul of [false, true]) {
     const { registration, dom } = await loadClient({
