@@ -27,6 +27,7 @@ import {
   drainPending,
   feed as coreFeed,
   adopt as coreAdopt,
+  hatch as coreHatch,
   applyDevPatch as coreDevPatch,
   reset as coreReset,
   hatchEgg,
@@ -171,8 +172,10 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
 
     /** Open the box. Only works when there is no pig at all. */
     hatch() {
-      if (state !== null) return false
-      state = hatchEgg(now())
+      // A save that exists but is not hatched is a box — reset and adopt both
+      // produce one. Refusing because `state !== null` left the box unopenable.
+      if (state !== null && state.hatched === true) return false
+      state = state === null ? hatchEgg(now()) : coreHatch(state, now())
       scheduleSave()
       return true
     },

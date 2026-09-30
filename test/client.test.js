@@ -713,6 +713,42 @@ test('a sick pig shows its illness and what it needs', async () => {
   assert.ok(text.includes('金色消炎药水'), text)
 })
 
+test('a box that already has a save is still pokeable', async () => {
+  // `reset` and `adopt` write a real save with hatched:false, so `pig` is an
+  // object rather than null. Gating the poke on `pig === null` meant clicking
+  // such a box fell through to petting and the pig said 好舒服…
+  const { registration, dom, net } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      hatched: false,
+      dead: false,
+      pig: { ...PIG, stage: { key: 'box', label: '纸盒', emoji: '📦', size: 58 }, ageLabel: '还没拆开' },
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+
+  const host = hostOf(dom)
+  const scene = sceneOf(dom)
+  const poke = () => { scene.fire('pointerdown', { button: 0, clientX: 0, clientY: 0 }); scene.fire('pointerup', {}) }
+
+  assert.equal(host.attributes['data-unhatched'], 'true', 'an existing-but-unhatched save shows the box')
+  assert.equal(findByClass(host, 'dp-poke-hint').hidden, false, 'with its hint')
+
+  poke()
+  assert.equal(host.attributes['data-poke'], '1', 'the first poke registers')
+  assert.equal(
+    findByClass(host, 'dp-bubble').allText().includes('好舒服'),
+    false,
+    'and it must NOT be treated as a pat on the head',
+  )
+
+  poke()
+  poke()
+  const hatches = net.calls.filter(c => c.method === 'POST' && String(c.body).includes('hatch'))
+  assert.equal(hatches.length, 1, 'the third poke hatches it')
+})
+
 test('a new box takes three pokes to open, not one', async () => {
   const { registration, dom, net } = await loadClient({
     status: { ok: true, pig: null, hatched: false, dead: false, pending: [] },

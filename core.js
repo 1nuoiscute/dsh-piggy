@@ -356,6 +356,22 @@ export function layEgg(nowMs) {
  * Open the box. The piglet falls out — it does not start as a fully grown pig,
  * and `ageDays` starts counting from the moment it does.
  */
+/**
+ * Open an existing box in place, keeping everything the save already has.
+ * `hatchEgg` builds a brand new pig; this one just lets the piglet out.
+ */
+export function hatch(state, nowMs) {
+  state.hatched = true
+  state.bornAt = nowMs
+  state.dead = false
+  state.diedAt = null
+  state.stage = 'piglet'
+  state.weightG += HATCH_WEIGHT_G
+  state.health = Math.max(state.health, 1)
+  remember(state, '纸盒打开了，一只小猪蹦了出来 🐷', nowMs)
+  return state
+}
+
 export function hatchEgg(nowMs) {
   const state = layEgg(nowMs)
   state.hatched = true

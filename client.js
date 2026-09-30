@@ -101,7 +101,9 @@ window.__ModuleLoader__.load({
 
       return {
         legacy: legacy,
-        hatched: pig !== null,
+        // Trust the flag when the host sends one. Older hosts did not, and for
+        // those "a pig exists" is still the right answer.
+        hatched: d.hatched === true || (d.hatched === undefined && pig !== null),
         dead: d.dead === true || (pig !== null && num(pig.health, 5) <= 0),
         pig: pig === null ? null : {
           name: str(pig.name, '猪猪'),
@@ -1566,7 +1568,7 @@ window.__ModuleLoader__.load({
           work.title = (AWAY_LINE[view.activity.kind] ?? '在外面') + '：' + view.activity.label
         }
 
-        if (view.pig === null) {
+        if (view.hatched !== true) {
           pigArt.hidden = true
           pigArt.removeAttribute('src')
           pigEmoji.hidden = false
@@ -1763,8 +1765,8 @@ window.__ModuleLoader__.load({
       // stray click can no longer open or close the panel by accident.
       scene.addEventListener('pointerup', function () {
         if (endDrag()) return
-        // Before the pig exists, a click pokes the box instead.
-        if (view.pig === null) {
+        // An unhatched save is a box, whether or not one exists yet.
+        if (view.hatched !== true) {
           pokeBox()
           return
         }

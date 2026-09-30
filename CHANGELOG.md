@@ -5,6 +5,41 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [0.14.1] — 2026-09-30
+
+### Fixed
+- **纸盒点不动，点了只会说「好舒服…」。** 判断条件写错了：
+
+  ```js
+  if (view.pig === null) { pokeBox(); return }   // ✗ 只判断「完全没有猪」
+  ```
+
+  但 `reset` / `adopt` 写出来的存档是 **`hatched: false` 但存档存在** ——
+  这时候 `view.pig` 是个真实对象（stage 是 box），不是 null，
+  于是点击落到了「摸摸」上，猪回答「好舒服…」。
+
+  根因是**「有没有猪」和「拆没拆盒」被当成了同一件事**：
+
+  | 位置 | 之前 | 现在 |
+  |---|---|---|
+  | 快照的 `hatched` | 硬编码 `true`（只要有存档） | **`state.hatched === true`** |
+  | 客户端 normalize | `pig !== null` | `d.hatched === true`（旧宿主缺字段时回退到旧行为） |
+  | 戳盒子的判断 | `view.pig === null` | **`view.hatched !== true`** |
+  | 渲染纸盒的判断 | `view.pig === null` | **`view.hatched !== true`** |
+
+- **「拆开纸盒」按钮同样没反应。** `store.hatch()` 里写着
+  `if (state !== null) return false` —— 存档存在就直接拒绝，
+  于是 `reset` / `adopt` 出来的盒子**用按钮也打不开**。
+
+  改成：只有**已经拆开的**才拒绝，并新增 `core.hatch()` **原地开盒** ——
+  保留金币、背包、课时这些存档里已有的东西（`hatchEgg` 是造一只全新的猪）。
+
+### Added
+- 回归测试：**有存档但没拆的盒子，必须能戳开**，且点击**不能**被当成摸摸。
+  验证过它有效（把判断改回 `pig === null` → 那条立刻失败）。
+
+---
+
 ## [0.14.0] — 2026-09-30
 
 ### Added

@@ -311,7 +311,9 @@ export function snapshot(store, options = {}) {
 
   return {
     ok: true,
-    hatched: true,
+    // The REAL flag, not "a save exists". A box produced by reset/adopt has a
+    // save but is not hatched, and conflating the two made the box un-pokeable.
+    hatched: state.hatched === true,
     dead: state.dead === true,
     boxStage: boxStageView(),
     pig: {
