@@ -55,6 +55,12 @@ window.__ModuleLoader__.load({
     var DEV_KEY = 'dsh-pig:dev'
     var DEV_TAB = { key: 'dev', label: '调试', emoji: '🔧' }
 
+    /** What the pig says when you pat it. A single line got old immediately. */
+    var PET_LINES = [
+      '好舒服…', '再摸摸～', '嘿嘿', '呼噜呼噜…', '这里这里！',
+      '（眯起眼睛）', '今天心情不错', '唔…好痒', '你在忙什么呀', '再多待一会儿',
+    ]
+
     var MODES = ['feed', 'bathe', 'play', 'pet']
     var CARE_LABEL = { feed: ['喂食', '🍎'], bathe: ['洗澡', '🛁'], play: ['玩耍', '🎾'], pet: ['摸摸', '❤️'] }
     // What the pig says when the shelf it needs is bare. Being told plainly
@@ -458,6 +464,31 @@ window.__ModuleLoader__.load({
       '@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}',
       '50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}',
 
+      /* ---------- shop: a grid of tiles, three to a row ---------- */
+      '.dp-shopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}',
+      // The shelf heading is a grid child too, so it has to span the whole row.
+      '.dp-shopgrid .dp-shelf{grid-column:1/-1;margin:5px 0 0}',
+      '.dp-shopgrid .dp-shelf:first-child{margin-top:0}',
+      '.dp-cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;',
+      'padding:7px 3px 6px;border:1.5px solid var(--ac-border-light);border-radius:12px;',
+      'background:var(--ac-bg);cursor:pointer;font-family:inherit;text-align:center;',
+      'transition:transform .12s var(--ac-ease),box-shadow .12s var(--ac-ease)}',
+      '.dp-cell:hover{transform:translateY(-1px);box-shadow:0 3px 0 rgba(61,52,40,.14)}',
+      '.dp-cell:active{transform:translateY(1px)}',
+      '.dp-cell-e{font-size:22px;line-height:1.15}',
+      '.dp-cell-n{font-size:10px;font-weight:700;color:var(--ac-text);line-height:1.2;',
+      'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}',
+      '.dp-cell-p{font-size:9.5px;font-weight:600;color:var(--ac-text-2)}',
+      // Owned count and the "needed" flag are badges so they cost no extra row.
+      '.dp-cell-c{position:absolute;top:3px;right:4px;font-size:9px;font-weight:800;',
+      'color:#fff;background:var(--ac-primary);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}',
+      '.dp-cell-tag{position:absolute;top:3px;left:4px;font-size:8px;font-weight:800;',
+      'color:#7a5a12;background:var(--ac-warning);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}',
+      // Affordable is colour; unaffordable is faded but still clickable, so a
+      // tap can explain how much is missing instead of doing nothing.
+      '.dp-cell.dp-poor{opacity:.45}',
+      '.dp-cell.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}',
+
       /* ---------- developer tab ---------- */
       '.dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}',
       '.dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}',
@@ -475,6 +506,11 @@ window.__ModuleLoader__.load({
       '.dp-pig[data-stage="box"]{animation:dp-box-wobble 3.2s ease-in-out infinite}',
       '@keyframes dp-box-wobble{0%,100%{transform:rotate(0)}30%{transform:rotate(-4deg)}',
       '45%{transform:rotate(3deg)}60%{transform:rotate(-2deg)}}',
+
+      // Patting squashes the pig flat. Short, so rapid clicking keeps up.
+      '[data-dsh-pig] .dp-pig[data-react="pet"]{animation-name:dp-squash;animation-duration:.42s}',
+      '@keyframes dp-squash{0%{transform:scale(1,1)}35%{transform:scale(1.16,.74) translateY(2px)}',
+      '60%{transform:scale(.94,1.08) translateY(-3px)}100%{transform:scale(1,1)}}',
 
       /* ---------- speech bubble ---------- */
       // `z-index` matters: the pig comes later in the DOM, so without it the pig
@@ -926,8 +962,12 @@ window.__ModuleLoader__.load({
       // ---- animation ----
       function react(kind, ms) {
         if (reactTimer !== null) window.clearTimeout(reactTimer)
+        // Re-assigning the same value does NOT restart a CSS animation, so
+        // clicking three times quickly only played it once. Dropping the
+        // attribute and forcing a reflow makes every click start from zero.
+        pig.removeAttribute('data-react')
+        void pig.offsetWidth
         pig.setAttribute('data-react', kind)
-        // The flat (collapsed) form needs the non-translating keyframes.
         reactTimer = window.setTimeout(function () {
           pig.removeAttribute('data-react')
           reactTimer = null
@@ -968,7 +1008,7 @@ window.__ModuleLoader__.load({
         feed: { kind: 'feed', ms: 900, fx: ['🍎', '😋', '✨'], count: 3, say: '吃掉了！' },
         bathe: { kind: 'bathe', ms: 1050, fx: ['🫧', '🫧', '💧', '✨'], count: 4, say: '洗干净啦～' },
         play: { kind: 'play', ms: 900, fx: ['🎾', '⭐', '💨'], count: 3, say: '好开心！' },
-        pet: { kind: 'pet', ms: 620, fx: ['❤️', '❤️'], count: 2, say: '好舒服…' },
+        pet: { kind: 'pet', ms: 420, fx: ['❤️'], count: 1, say: '好舒服…' },
         work: { kind: 'away', ms: 900, fx: ['💼', '🧱', '🪙'], count: 3, say: '出门打工！' },
         study: { kind: 'away', ms: 900, fx: ['📚', '✏️', '🧠'], count: 3, say: '上学去！' },
         trip: { kind: 'away', ms: 900, fx: ['🧳', '🗺', '✨'], count: 3, say: '出发旅行！' },
@@ -982,7 +1022,10 @@ window.__ModuleLoader__.load({
         if (spec === undefined) return
         react(spec.kind, spec.ms)
         burst(spec.fx, spec.count)
-        showBubble(spec.say, 2200)
+        // Patting is the one thing you do over and over, so it gets a pool of
+        // lines rather than the same four characters every time.
+        var lines = action === 'pet' ? PET_LINES : null
+        showBubble(lines === null ? spec.say : lines[Math.floor(Math.random() * lines.length)], 1600)
       }
 
       var bubbleTimer = null
@@ -1353,7 +1396,7 @@ window.__ModuleLoader__.load({
         head.appendChild(el('b', null, '🛒 商店'))
         head.appendChild(el('span', null, '🪙 ' + view.pig.coins))
         content.appendChild(head)
-        var list = el('div', 'dp-list')
+        var list = el('div', 'dp-shopgrid')
         var shelf = ''
         // The host sends the shop in shelf order, but sort defensively so a
         // reordered table cannot produce duplicate headers.
@@ -1367,17 +1410,16 @@ window.__ModuleLoader__.load({
               shelf = item.kind
               list.appendChild(el('div', 'dp-shelf', KIND_TITLE[shelf] ?? shelf))
             }
-            var row = el('div', 'dp-item' + (item.needed ? ' dp-wanted' : ''))
-            row.appendChild(el('span', null, item.emoji))
-            var grow = el('div', 'dp-grow')
-            grow.appendChild(el('div', null, item.label))
-            grow.appendChild(el('div', 'dp-dim', item.price + ' 🪙' + (item.needed ? ' · 现在需要' : '')))
-            row.appendChild(grow)
-            var buy = button('dp-mini', { 'data-buy': item.key }, function () { send('buy', { item: item.key }) })
-            buy.textContent = '买'
-            buy.disabled = !item.affordable
-            row.appendChild(buy)
-            list.appendChild(row)
+            // A grid cell, not a list row: 45 items in a 292px column meant
+            // endless scrolling and you could never see a shelf at a glance.
+            var cell = button('dp-cell' + (item.needed ? ' dp-wanted' : '') + (item.affordable ? '' : ' dp-poor'),
+              { 'data-buy': item.key }, function () { send('buy', { item: item.key }) })
+            cell.appendChild(el('span', 'dp-cell-e', item.emoji))
+            cell.appendChild(el('span', 'dp-cell-n', item.label))
+            cell.appendChild(el('span', 'dp-cell-p', item.price + ' 🪙'))
+            if (item.count > 0) cell.appendChild(el('b', 'dp-cell-c', '×' + item.count))
+            if (item.needed) cell.appendChild(el('b', 'dp-cell-tag', '需要'))
+            list.appendChild(cell)
           })(ordered[i])
         }
         content.appendChild(list)

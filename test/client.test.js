@@ -613,18 +613,32 @@ test('the work tab lists jobs and sending the pig out POSTs the job', async () =
   assert.deepEqual(JSON.parse(post.body), { action: 'work', job: 'odd' })
 })
 
-test('the shop tab disables what the pig cannot afford and flags the needed medicine', async () => {
+test('the shop tab is a grid that fades what the pig cannot afford and flags the needed medicine', async () => {
   const { registration, dom, net } = await loadClient({
-    status: { ...SNAPSHOT, pig: { ...PIG, illness: { name: '感冒', cure: '板蓝根', stage: 1 } } },
+    status: {
+      ...SNAPSHOT,
+      // A shelf wide enough to prove the grid, with one affordable and one not.
+      shop: [
+        { key: 'apple', label: '苹果', emoji: '🍎', price: 6, kind: 'food', affordable: true, needed: false, count: 2 },
+        { key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', affordable: true, needed: true, count: 0 },
+        { key: 'soul', label: '还魂丹', emoji: '✨', price: 150, kind: 'revive', affordable: false, needed: false, count: 0 },
+      ],
+      pig: { ...PIG, illness: { name: '感冒', cure: '板蓝根', stage: 1 } },
+    },
   })
   registration.factory(() => {}).apply({})
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
 
-  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').disabled, true)
-  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'apple').disabled, false)
-  assert.ok(contentOf(dom).allText().includes('现在需要'), contentOf(dom).allText())
+  // Tiles are never disabled: a tap on one it cannot afford should explain how
+  // much is missing rather than doing nothing.
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').disabled, false)
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').className.includes('dp-poor'), true)
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'apple').className.includes('dp-poor'), false)
+  // The "needed" flag is a badge on the tile now, not a line of text.
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'med1').allText().includes('需要'), true)
+  assert.equal(findByClass(contentOf(dom), 'dp-shopgrid') !== undefined, true, 'the shop renders as a grid')
 
   findByAttr(contentOf(dom), 'data-buy', 'apple').fire('click')
   await settle()
