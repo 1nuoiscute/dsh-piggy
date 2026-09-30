@@ -17,6 +17,8 @@ const T0 = 1_700_000_000_000
 const MIN = 60_000
 const HOUR = 60 * MIN
 const never = { roll: () => 0.99 }
+/** Unlucky enough that neglect lands an illness the first step it can (B3 onset is a chance). */
+const unlucky = { roll: () => 0.001 }
 
 function workingPig() {
   const pig = hatchEgg(T0)
@@ -44,7 +46,7 @@ test('time after a short job is time at home: no away floor, and neglect can mak
   const { pig } = workingPig()
   // Long enough at home for the bars to fall far below the away floor and
   // below the sickness thresholds.
-  decay(pig, pig.activity.endsAt + 30 * HOUR, never)
+  decay(pig, pig.activity.endsAt + 30 * HOUR, unlucky)
   assert.ok(pig.satiety < 15, `satiety ${pig.satiety} was held up by the away floor`)
   assert.notEqual(pig.illness, null, 'a night of neglect at home can make the pig ill')
 })
@@ -53,7 +55,7 @@ test('an illness caught mid-gap starts when it was caught, and keeps progressing
   const pig = hatchEgg(T0)
   pig.satiety = 30
   pig.cleanliness = 100
-  decay(pig, T0 + 3 * HOUR, never)
+  decay(pig, T0 + 3 * HOUR, unlucky)
   assert.notEqual(pig.illness, null)
   assert.ok(pig.illness.since < T0 + 3 * HOUR, 'it fell ill part-way through the gap')
   assert.ok(pig.illness.progressMs > 0, 'and the rest of the gap already counted toward it')

@@ -10,6 +10,7 @@ import { CARE_KIND, careItems } from '../data.js'
 import { ACTIONS, DIET } from './constants.js'
 import { applyEffects, remember } from './effects.js'
 import { growFromRealWork } from './growth.js'
+import { rollForOverfeeding } from './illness.js'
 import { say } from './lines.js'
 import { decay } from './settlement.js'
 
@@ -91,8 +92,10 @@ export function act(state, action, nowMs, itemKey) {
   else if (action === 'play') state.stats.plays += 1
   else if (action === 'pet') state.stats.pets += 1
 
+  const satietyBefore = state.satiety
   applyEffects(state, careEffects(item, spec), nowMs)
   remember(state, item === null ? spec.verb : `${item.emoji} ${spec.label}用了「${item.label}」`, nowMs)
+  if (action === 'feed') rollForOverfeeding(state, satietyBefore, nowMs)
   say(state, CARE_SCENE[action], nowMs)
   return { ok: true, item: item === null ? null : item.key, spent: item !== null && item.default !== true }
 }

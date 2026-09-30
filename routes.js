@@ -61,6 +61,7 @@ const OPERATIONS = {
   calloff: store => store.callOffActivity(),
   buy: (store, body) => store.buy(str(body.item)),
   use: (store, body) => store.useItem(str(body.item)),
+  doctor: store => store.seeDoctor(),
   // Souvenirs are the only thing the pig can sell back.
   sell: (store, body) => store.sellSouvenir(str(body.souvenir)),
   // 家当: put a dress item on / take it off.

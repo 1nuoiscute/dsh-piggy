@@ -4,7 +4,7 @@
  * @module dsh-pig/data/shop
  */
 
-import { REVIVE_ITEM } from './illness.js'
+import { MEDICINES, REVIVE_ITEM } from './illness.js'
 
 /** @type {ShopItem} */
 export const DEFAULT_TOY = Object.freeze({
@@ -14,7 +14,7 @@ export const DEFAULT_TOY = Object.freeze({
 
 /**
  * One shelf entry. Everything past `kind` is optional: food carries satiety,
- * medicine carries a tier, 装扮 carries a slot and a level gate.
+ * medicine carries a tier (and 百草丹 `cureAll`), 装扮 carries a slot and a level gate.
  *
  * @typedef {object} ShopItem
  * @property {string} key
@@ -31,6 +31,7 @@ export const DEFAULT_TOY = Object.freeze({
  * @property {boolean} [needed]
  * @property {string} [slot]
  * @property {number} [tier]
+ * @property {boolean} [cureAll]
  * @property {string} [blurb]
  */
 /** @type {ReadonlyArray<ShopItem>} */
@@ -83,11 +84,8 @@ export const SHOP = Object.freeze([
   Object.freeze({ key: 'necklace', label: '项链', emoji: '📿', price: 3600, kind: 'dress', level: 11, slot: 'neck', blurb: '据说是祖传的' }),
   Object.freeze({ key: 'crown', label: '王冠', emoji: '👑', price: 5200, kind: 'dress', level: 13, slot: 'head', blurb: '自己给自己加冕' }),
   Object.freeze({ key: 'wings', label: '翅膀', emoji: '🪽', price: 8000, kind: 'dress', level: 16, slot: 'back', blurb: '能不能飞，谁也没见它飞过' }),
-  // --- medicine -----------------------------------------------------------
-  Object.freeze({ key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', tier: 1 }),
-  Object.freeze({ key: 'med2', label: '特效药', emoji: '💊', price: 26, kind: 'medicine', tier: 2 }),
-  Object.freeze({ key: 'med3', label: '进口药', emoji: '💉', price: 52, kind: 'medicine', tier: 3 }),
-  Object.freeze({ key: 'med4', label: '秘方药', emoji: '🧪', price: 95, kind: 'medicine', tier: 4 }),
+  // --- medicine: the twenty stage cures and 百草丹 (data/illness.js) ------
+  ...MEDICINES,
   // --- revive -------------------------------------------------------------
   REVIVE_ITEM,
 ])
@@ -138,4 +136,3 @@ export function careItems(kind) {
   return kind === 'toy' ? [DEFAULT_TOY, ...bought] : bought
 }
 
-export const medicineForStage = stage => SHOP.find(item => item.kind === 'medicine' && item.tier === stage) ?? null

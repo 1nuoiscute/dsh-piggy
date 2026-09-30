@@ -6,9 +6,10 @@
  * @module dsh-pig/core/inventory
  */
 
-import { DEFAULT_TOY, MAX, REVIVE_ITEM, SHOP, dressSlotByKey, itemByKey, medicineForStage } from '../data.js'
+import { DEFAULT_TOY, REVIVE_ITEM, SHOP, dressSlotByKey, itemByKey } from '../data.js'
 import { levelProgress } from './clock.js'
-import { announce, applyEffects, remember } from './effects.js'
+import { applyEffects, remember } from './effects.js'
+import { medicate } from './illness.js'
 import { decay } from './settlement.js'
 import { revive } from './state.js'
 
@@ -162,17 +163,10 @@ export function useItem(state, itemKey, nowMs) {
 
   if (item.kind === 'medicine') {
     if (state.illness === null) return { ok: false, reason: 'not-sick' }
-    const needed = medicineForStage(state.illness.stage)
-    if (needed === null || needed.key !== item.key) {
-      return { ok: false, reason: 'wrong-medicine', needs: needed }
-    }
+    // Swallowed either way: the wrong medicine is spent too, and makes it worse.
     state.inventory[itemKey] = have - 1
-    state.illness = null
-    state.health = MAX.health
-    state.stats.cures = (state.stats.cures ?? 0) + 1
-    remember(state, `吃了 ${item.emoji} ${item.label}，病好了`, nowMs)
-    announce(state, 'cured', `${state.name} 吃了 ${item.label}，痊愈了 💚`, nowMs)
-    return { ok: true, item }
+    const result = medicate(state, item, nowMs)
+    return result.ok ? { ok: true, item } : result
   }
 
   if (state.activity !== null) return { ok: false, reason: 'away' }

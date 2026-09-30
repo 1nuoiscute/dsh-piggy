@@ -47,11 +47,14 @@ export function renderDevTab(ui) {
     { key: 'sleepy', label: '💤 困', run: function () { patch({ satiety: 90, happiness: 90, cleanliness: 90 }) } },
   ])
 
+  // Five chains since B3: stage 1 of each, the last stage of one, and a cure.
   group('生病', [
-    { key: 'cold1', label: '🤒 感冒一期', run: function () { patch({ illness: { chain: 0, stage: 1 }, health: 4 }) } },
+    { key: 'cold1', label: '🤧 感冒', run: function () { patch({ illness: { chain: 0, stage: 1 }, health: 4 }) } },
+    { key: 'cough1', label: '😷 咳嗽', run: function () { patch({ illness: { chain: 1, stage: 1 }, health: 4 }) } },
+    { key: 'belly1', label: '🤢 肚子胀', run: function () { patch({ illness: { chain: 2, stage: 1 }, health: 4 }) } },
+    { key: 'dizzy1', label: '😵 头晕', run: function () { patch({ illness: { chain: 3, stage: 1 }, health: 4 }) } },
+    { key: 'skin1', label: '🩹 瘙痒', run: function () { patch({ illness: { chain: 4, stage: 1 }, health: 4 }) } },
     { key: 'cold4', label: '☠️ 肺炎', run: function () { patch({ illness: { chain: 0, stage: 4 }, health: 1 }) } },
-    { key: 'cough', label: '🫁 肺结核', run: function () { patch({ illness: { chain: 1, stage: 4 }, health: 1 }) } },
-    { key: 'belly', label: '🤢 胃癌', run: function () { patch({ illness: { chain: 2, stage: 4 }, health: 1 }) } },
     { key: 'cure', label: '💚 治好', run: function () { patch({ illness: null, health: 5 }) } },
   ])
 

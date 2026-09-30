@@ -23,6 +23,7 @@ import {
   rename as coreRename,
   replyToLine as coreReplyToLine,
   reset as coreReset,
+  seeDoctor as coreSeeDoctor,
   sellSouvenir as coreSellSouvenir,
   setTimeScale as coreSetTimeScale,
   startInterest as coreStartInterest,
@@ -117,6 +118,9 @@ export function createApi(control) {
 
     /** Use one item from the backpack. */
     useItem: itemKey => mutate(live => coreUseItem(live, itemKey, now())),
+
+    /** 看医生: pay to be cured without buying the medicine. */
+    seeDoctor: () => mutate(live => coreSeeDoctor(live, now())),
     sellSouvenir: souvenirKey => mutate(live => coreSellSouvenir(live, souvenirKey, now())),
 
     /** The owner answers the pig's latest line. */

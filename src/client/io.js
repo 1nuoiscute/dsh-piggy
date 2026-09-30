@@ -51,7 +51,7 @@ export function createIo(ctx) {
               away: '它在外面',
               weak: '太虚弱了，先养好再出门',
               hungry: '太饿了',
-              'wrong-medicine': '药不对症',
+              'wrong-medicine': '药不对症，病情加重了…',
               empty: '背包里没有',
               'not-sick': '它没生病',
               dead: '它已经走了…',

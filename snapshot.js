@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs'
 
-import { ACTIONS, ACTION_ORDER, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, courseView, currentIllness, daysToNextStage, dressView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
+import { ACTIONS, ACTION_ORDER, doctorFee, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, courseView, currentIllness, daysToNextStage, dressView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
 import { INTERESTS, SEXES, jobRequirement, rarityByKey, stageSubjectKeys, traitBonus } from './data.js'
 
 /** The stage the panel shows before there is a pig: the cardboard box. */
@@ -140,7 +140,11 @@ export function snapshot(store, options = {}) {
       courses: courseView(state),
       souvenirs: souvenirsFor(state),
       stageLine: life.line,
-      illness: illness === null ? null : { name: illness.name, cure: illness.cure, stage: illness.stage, chain: illness.chain },
+      illness: illness === null ? null : {
+        name: illness.name, chain: illness.chain, stage: illness.stage,
+        cure: illness.cure, cureKey: illness.cureKey, cureEmoji: illness.cureEmoji,
+        doctorFee: doctorFee(state),
+      },
       memories: state.memories.slice(-3),
     },
     actions: actionsFor(state, nowMs),
@@ -302,6 +306,7 @@ function souvenirsFor(state) {
 }
 
 function shopFor(state) {
+  const neededCure = state === null ? null : (currentIllness(state)?.cureKey ?? null)
   const dress = new Map((state === null ? [] : dressView(state)).map(item => [item.key, item]))
   return SHOP.map(item => {
     // 家当 shows "already yours" or the level it waits for; the consumables
@@ -317,7 +322,9 @@ function shopFor(state) {
       unlocked,
       blurb: item.blurb ?? '',
       affordable: state === null ? false : state.coins >= item.price,
-      needed: state?.illness != null && item.kind === 'medicine' && item.tier === state.illness.stage,
+      // The one cure the pig needs right now (B3: a medicine per illness stage).
+      needed: neededCure !== null && item.key === neededCure,
+      cureAll: item.cureAll === true,
     }
   })
 }

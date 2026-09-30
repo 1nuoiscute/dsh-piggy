@@ -449,7 +449,7 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
   })
   try {
     const board = await app.get()
-    assert.equal(board.shop.length, 45)
+    assert.equal(board.shop.length, 62)
     assert.equal(board.dress.length, 12)
     assert.equal(board.shop.find(item => item.key === 'scarf').owned, true)
     const crown = board.shop.find(item => item.key === 'crown')
@@ -560,22 +560,24 @@ test('snapshot() can be asked not to drain the queue', async () => {
 // ===========================================================================
 
 test('a neglected pig falls ill, and the shop marks the right medicine', async () => {
+  // B3: neglect is a chance per hour (~16%/h hungry and dirty), not a sure
+  // thing after 40 minutes; two days of it is ~99.98%.
   const app = boot(nowMs => {
-    const pig = hatchEgg(nowMs - 40 * MIN)
+    const pig = hatchEgg(nowMs - 48 * 60 * MIN)
     pig.satiety = 10
     pig.cleanliness = 10
-    pig.lastSeenAt = nowMs - 40 * MIN
+    pig.lastSeenAt = nowMs - 48 * 60 * MIN
     return pig
   })
   try {
     const snap = await app.get()
     assert.equal(snap.dead, false)
     assert.notEqual(snap.pig.illness, null, 'neglect should have made it sick')
-    assert.equal(snap.pig.illness.stage, 1)
     assert.ok(snap.pig.health < 5)
     const wanted = snap.shop.filter(item => item.needed)
     assert.equal(wanted.length, 1, 'exactly one medicine is flagged as needed')
-    assert.equal(wanted[0].tier, 1)
+    assert.equal(wanted[0].key, snap.pig.illness.cureKey, 'and it is the cure for this very stage')
+    assert.equal(wanted[0].tier, snap.pig.illness.stage)
   } finally {
     app.cleanup()
   }
@@ -616,7 +618,7 @@ test('a dead pig only answers to the revive item', async () => {
     const pig = hatchEgg(nowMs - 5 * MIN)
     pig.dead = true
     pig.health = 0
-    pig.coins = 300
+    pig.coins = 1000 // 还魂丹 costs 800 since B3
     pig.inventory = { apple: 3 }
     return pig
   })

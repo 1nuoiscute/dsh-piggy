@@ -6,33 +6,14 @@
  * @module dsh-pig/core/settlement
  */
 
-import { DEFAULT_TIME_SCALE, GRAVE, ILLNESS_CHAINS, MAX, STUDY_GROWTH_PER_LESSON, REVIVE_ITEM, SELF_HEAL_CHANCE, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, SICK_RISK_MINUTES, STAGE_HEALTH, THRESHOLDS, TRAITS, illnessAt, illnessStageMs, interestByKey, jobByKey, nextIllness, rarityByKey, schoolStageByKey, subjectByKey, traitBonus, tripByKey } from '../data.js'
+import { DEFAULT_TIME_SCALE, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, STUDY_GROWTH_PER_LESSON, TRAITS, illnessStageMs, interestByKey, jobByKey, rarityByKey, schoolStageByKey, subjectByKey, traitBonus, tripByKey } from '../data.js'
 import { AWAY_DECAY_MULTIPLIER, AWAY_FLOOR, CLEANLINESS_DECAY_PER_MIN, HAPPINESS_DECAY_PER_MIN, SATIETY_DECAY_PER_MIN, SETTLE_STEP_MS } from './constants.js'
 import { announce, clamp100, remember } from './effects.js'
 import { growWithTime, grow, outingGrowth } from './growth.js'
-import { chance, rollerFor } from './random.js'
+import { advanceIllness, noteOuting, restAtHome, rollForIllness } from './illness.js'
+import { rollerFor } from './random.js'
 
-/**
- * Let the pig go. Only accidents kill it now (the end of an illness chain);
- * there is no old age (B2).
- * @param {string} why - shown in the announcement.
- */
-export function die(state, nowMs, why) {
-  if (state.dead === true) return
-  state.dead = true
-  state.health = 0
-  state.illness = null
-  state.activity = null
-  state.diedAt = nowMs
-  state.stats.deaths = (state.stats.deaths ?? 0) + 1
-  remember(state, `${why} ${GRAVE.emoji}`, nowMs)
-  announce(state, 'death', `${state.name} ${why}…用${REVIVE_ITEM.label}可以救回来，也可以领养一只新的`, nowMs)
-}
-
-export function currentIllness(state) {
-  if (state.illness === null || state.illness === undefined) return null
-  return illnessAt(state.illness.chain, state.illness.stage)
-}
+export { currentIllness, die } from './illness.js'
 
 // ---------------------------------------------------------------------------
 // The clock: decay, activity settlement, illness progression
@@ -107,7 +88,7 @@ function passTime(state, stretch, next) {
 function step(state, tick, next) {
   const { elapsedMs, atMs, away } = tick
   drainBars(state, elapsedMs / 60000, away)
-  trackSicknessRisk(state, elapsedMs / 60000, away, atMs)
+  trackSicknessRisk(state, elapsedMs / 60000, away, atMs, next)
   progressIllness(state, elapsedMs, { away, atMs }, next)
   if (state.dead !== true) growOlder(state, elapsedMs, atMs)
 }
@@ -132,21 +113,12 @@ function drainBars(state, minutes, away) {
 /**
  * Illness only comes from being left at home. A pig that was out living its
  * life has not been neglected, and coming back sick every trip is not a game.
+ * At home each condition adds its own hourly chance (see illness.js).
  */
-function trackSicknessRisk(state, minutes, away, atMs) {
-  if (away) {
-    state.riskMinutes = 0
-    return
-  }
-  // Risk is about catching a *new* illness, so it only builds while healthy:
-  // otherwise a day of being ill and hungry would be banked and spent the very
-  // step the pig shook the first one off.
-  const neglected = state.satiety < THRESHOLDS.sickSatiety || state.cleanliness < THRESHOLDS.sickCleanliness
-  state.riskMinutes = neglected && state.illness === null ? (state.riskMinutes ?? 0) + minutes : 0
-  if (state.illness === null && state.riskMinutes >= SICK_RISK_MINUTES) {
-    state.riskMinutes = 0
-    catchIllness(state, atMs)
-  }
+function trackSicknessRisk(state, minutes, away, atMs, next) {
+  if (away) return
+  restAtHome(state, minutes)
+  rollForIllness(state, { minutes, atMs }, next)
 }
 
 /**
@@ -206,6 +178,7 @@ export function finishInterest(state, activity, nowMs) {
   state.satiety = clamp100(state.satiety - 4)
   state.happiness = clamp100(state.happiness + 3)
   state.stats.interests = (state.stats.interests ?? 0) + 1
+  noteOuting(state)
   grow(state, STUDY_GROWTH_PER_LESSON, nowMs)
   remember(state, `${interest.emoji} 学完${interest.label}，${TRAITS[interest.trait].label} +${interest.gain}`, nowMs)
   announce(state, 'study', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`, nowMs)
@@ -228,6 +201,7 @@ export function finishWork(state, activity, nowMs) {
   state.cleanliness = clamp100(state.cleanliness + job.cleanliness)
   state.stats.jobs += 1
   state.stats.coinsEarned += coins
+  noteOuting(state)
   grow(state, outingGrowth(job.minutes), nowMs)
   const tag = sick ? '（带病上工，只有一半）' : (points > 0 ? `（${TRAITS[job.trait].label} ${points}）` : '')
   remember(state, `${job.emoji} ${job.label}回来，赚了 ${coins} 金币${tag}`, nowMs)
@@ -256,6 +230,7 @@ export function finishStudy(state, activity, nowMs) {
   state.happiness = clamp100(state.happiness + stage.happiness)
   state.stats.courses += 1
   state.stats.lessons += 1
+  noteOuting(state)
   grow(state, STUDY_GROWTH_PER_LESSON, nowMs)
   remember(state, `${subject.emoji} 上完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain}`, nowMs)
   announce(state, 'study', `${state.name} 学完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain} 📚`, nowMs)
@@ -282,51 +257,7 @@ export function finishTrip(state, activity, nowMs) {
   announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${pick.label}」${tier.emoji}🧳`, nowMs)
 }
 
-export function catchIllness(state, nowMs) {
-  const chain = (state.stats.illnesses ?? 0) % ILLNESS_CHAINS.length
-  state.illness = { chain, stage: 1, since: nowMs, progressMs: 0 }
-  state.health = STAGE_HEALTH[0]
-  state.stats.illnesses = (state.stats.illnesses ?? 0) + 1
-  const ill = illnessAt(chain, 1)
-  if (ill !== null) {
-    remember(state, `得了${ill.name} 🤒`, nowMs)
-    announce(state, 'sick', `${state.name} 得了${ill.name}，需要${ill.cure} 🤒`, nowMs)
-  }
-}
-
-/**
- * @param {object} state
- * @param {number} nowMs
- * @param {import('./random.js').Roll} [next] - defaults to the pig's own seed.
- */
-export function advanceIllness(state, nowMs, next = rollerFor(state)) {
-  const chain = state.illness.chain
-  const stage = state.illness.stage
-  const worse = nextIllness(chain, stage)
-
-  // Before it gets worse, it might just get better. An untreated cold shakes
-  // itself off fairly often; the last stage never does.
-  const healChance = SELF_HEAL_CHANCE[stage - 1] ?? 0
-  if (chance(next, healChance)) {
-    // #7: recovering means well again. Adding a single point left a pig that
-    // survived a fever (health 3) dented for the rest of its life.
-    state.illness = null
-    state.health = MAX.health
-    remember(state, `自己好了，扛过去了 💚`, nowMs)
-    announce(state, 'cured', `${state.name} 的${ILLNESS_CHAINS[chain].name}自己好了 💚`, nowMs)
-    return
-  }
-
-  if (worse === null) {
-    die(state, nowMs, '没能撑过去')
-    return
-  }
-
-  state.illness = { chain, stage: stage + 1, since: nowMs, progressMs: 0 }
-  state.health = STAGE_HEALTH[stage]
-  remember(state, `病情加重：${worse.name}`, nowMs)
-  announce(state, 'worse', `${state.name} 的病情加重了：${worse.name}，需要${worse.cure}`, nowMs)
-}
+export { advanceIllness, catchIllness } from './illness.js'
 
 // ---------------------------------------------------------------------------
 // Effects and level crossings

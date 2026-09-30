@@ -74,7 +74,9 @@ export function normalize(raw) {
       illness: isObj(pig.illness) ? {
         name: str(pig.illness.name, '生病'),
         cure: str(pig.illness.cure, '药'),
+        cureEmoji: str(pig.illness.cureEmoji, '💊'),
         stage: num(pig.illness.stage, 1),
+        doctorFee: typeof pig.illness.doctorFee === 'number' ? pig.illness.doctorFee : null,
       } : null,
       traits: {
         intel: num(obj(pig.traits).intel, 0),

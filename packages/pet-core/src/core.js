@@ -44,7 +44,6 @@ import {
   REVIVE_ITEM,
   SCHOOL_STAGES,
   SHOP,
-  SICK_RISK_MINUTES,
   SLEEPY_AFTER_MINUTES,
   SOUVENIR_RARITY,
   STAGE_HEALTH,
@@ -61,7 +60,6 @@ import {
   jobByKey,
   jobRequirement,
   careItems,
-  medicineForStage,
   nextIllness,
   rarityByKey,
   schoolStageByKey,
@@ -81,6 +79,7 @@ export { adopt, ageFromNow, applyDevPatch, inherit, rename, reset, revive, setTi
 export { migrate } from './core/migrate.js'
 export { pickLine, replyToLine, say } from './core/lines.js'
 export { currentIllness, decay } from './core/settlement.js'
+export { doctorFee, onsetRisks, seeDoctor } from './core/illness.js'
 export { activitySecondsLeft, awayBlockedReason, callOffActivity, callOffWork, canStartActivity, canWork, workSecondsLeft } from './core/activity.js'
 export { act, actionCooldownSeconds, actionReady, canFeed, careOptions, careView, feed, feedCooldownSeconds } from './core/care.js'
 export { buy, canAfford, dressView, grantAll, inventoryView, takeOff, useItem, wearItem } from './core/inventory.js'

@@ -106,26 +106,24 @@ export function createPanel(ctx) {
           adoptWrap.appendChild(adopt)
           ctx.content.appendChild(adoptWrap)
         } else if (ctx.view.pig !== null && ctx.view.pig.illness !== null) {
+          var illness = ctx.view.pig.illness
           var sick = el('div', 'dp-alert dp-sick')
-          sick.appendChild(el('b', null, '🤒 ' + ctx.view.pig.illness.name + '（第 ' + ctx.view.pig.illness.stage + '/4 期）'))
-          sick.appendChild(el('div', null, '需要「' + ctx.view.pig.illness.cure + '」—— 去商店买对应的药'))
-          // If it cannot afford the cure, say the way out plainly: being ill is
-          // not a reason to stay home, so it can go out and earn the medicine.
-          // careView only carries the consumable shelves (feed/bathe/play), so
-          // the price has to come from the shop listing.
-          // The cure that matters is the one for this stage, not the cheapest
-          // medicine on the shelf: naming the wrong drug sent people shopping
-          // for something that cannot cure what the pig has (#10).
+          sick.appendChild(el('b', null, '🤒 ' + illness.name + '（第 ' + illness.stage + '/4 期）'))
+          // B3: every stage has its own cure, and the wrong one makes it worse,
+          // so the alert always names the exact medicine.
+          sick.appendChild(el('div', null, '需要「' + illness.cureEmoji + illness.cure + '」—— 吃错药会加重'))
           var needed = null
-          var cures = (ctx.view.shop || []).filter(function (i) { return i.kind === 'medicine' })
-          for (var c = 0; c < cures.length; c += 1) {
-            if (cures[c].tier === ctx.view.pig.illness.stage) needed = cures[c]
+          var shelf = ctx.view.shop || []
+          for (var c = 0; c < shelf.length; c += 1) {
+            if (shelf[c].needed) needed = shelf[c]
           }
-          // Hosts that do not tier their medicine yet: match the cure by name.
-          if (needed === null) {
-            for (var n = 0; n < cures.length; n += 1) {
-              if (cures[n].label === ctx.view.pig.illness.cure) needed = cures[n]
-            }
+          // Hosts from before B3 do not flag the cure: match it by stage tier,
+          // then by name.
+          for (var t = 0; needed === null && t < shelf.length; t += 1) {
+            if (shelf[t].kind === 'medicine' && shelf[t].tier === illness.stage) needed = shelf[t]
+          }
+          for (var n = 0; needed === null && n < shelf.length; n += 1) {
+            if (shelf[n].label === illness.cure) needed = shelf[n]
           }
           if (ctx.view.canGoOut) {
             sick.appendChild(el('div', 'dp-dim',
@@ -136,6 +134,14 @@ export function createPanel(ctx) {
               '钱不够也没关系 —— 先去打工，赚够 ' + needed.price + ' 🪙 买「' + needed.label + '」'))
           }
           ctx.content.appendChild(sick)
+          if (illness.doctorFee !== null) {
+            var clinic = el('div', 'dp-actions')
+            var doctor = button('dp-btn dp-btn-wide', { 'data-action': 'doctor' }, function () { ctx.send('doctor') })
+            doctor.appendChild(el('span', null, '🏥'))
+            doctor.appendChild(el('span', null, '看医生（' + illness.doctorFee + ' 🪙）'))
+            clinic.appendChild(doctor)
+            ctx.content.appendChild(clinic)
+          }
         } else if (ctx.view.pig !== null && ctx.view.activity !== null) {
           var away = el('div', 'dp-alert dp-work')
           away.appendChild(el('b', null, ctx.view.activity.emoji + ' 在外面：' + ctx.view.activity.label))

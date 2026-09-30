@@ -40,7 +40,7 @@ export function migrate(input, nowMs) {
     ? raw.memories.filter(m => typeof m === 'string').slice(-MEMORY_LIMIT)
     : []
 
-  for (const key of ['xp', 'weightG', 'satiety', 'happiness', 'cleanliness', 'health', 'coins', 'riskMinutes', 'bornAt', 'lastFedAt', 'lastActiveAt', 'lastSeenAt']) {
+  for (const key of ['xp', 'weightG', 'satiety', 'happiness', 'cleanliness', 'health', 'coins', 'outingStreak', 'restMinutes', 'bornAt', 'lastFedAt', 'lastActiveAt', 'lastSeenAt']) {
     if (typeof state[key] !== 'number' || !Number.isFinite(state[key])) state[key] = egg[key]
   }
   if (typeof raw.cleanliness !== 'number') state.cleanliness = egg.cleanliness

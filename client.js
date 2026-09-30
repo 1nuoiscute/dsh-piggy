@@ -166,17 +166,23 @@
       } }
     ]);
     group("\u751F\u75C5", [
-      { key: "cold1", label: "\u{1F912} \u611F\u5192\u4E00\u671F", run: function() {
+      { key: "cold1", label: "\u{1F927} \u611F\u5192", run: function() {
         patch({ illness: { chain: 0, stage: 1 }, health: 4 });
+      } },
+      { key: "cough1", label: "\u{1F637} \u54B3\u55FD", run: function() {
+        patch({ illness: { chain: 1, stage: 1 }, health: 4 });
+      } },
+      { key: "belly1", label: "\u{1F922} \u809A\u5B50\u80C0", run: function() {
+        patch({ illness: { chain: 2, stage: 1 }, health: 4 });
+      } },
+      { key: "dizzy1", label: "\u{1F635} \u5934\u6655", run: function() {
+        patch({ illness: { chain: 3, stage: 1 }, health: 4 });
+      } },
+      { key: "skin1", label: "\u{1FA79} \u7619\u75D2", run: function() {
+        patch({ illness: { chain: 4, stage: 1 }, health: 4 });
       } },
       { key: "cold4", label: "\u2620\uFE0F \u80BA\u708E", run: function() {
         patch({ illness: { chain: 0, stage: 4 }, health: 1 });
-      } },
-      { key: "cough", label: "\u{1FAC1} \u80BA\u7ED3\u6838", run: function() {
-        patch({ illness: { chain: 1, stage: 4 }, health: 1 });
-      } },
-      { key: "belly", label: "\u{1F922} \u80C3\u764C", run: function() {
-        patch({ illness: { chain: 2, stage: 4 }, health: 1 });
       } },
       { key: "cure", label: "\u{1F49A} \u6CBB\u597D", run: function() {
         patch({ illness: null, health: 5 });
@@ -1238,7 +1244,7 @@
             away: "\u5B83\u5728\u5916\u9762",
             weak: "\u592A\u865A\u5F31\u4E86\uFF0C\u5148\u517B\u597D\u518D\u51FA\u95E8",
             hungry: "\u592A\u997F\u4E86",
-            "wrong-medicine": "\u836F\u4E0D\u5BF9\u75C7",
+            "wrong-medicine": "\u836F\u4E0D\u5BF9\u75C7\uFF0C\u75C5\u60C5\u52A0\u91CD\u4E86\u2026",
             empty: "\u80CC\u5305\u91CC\u6CA1\u6709",
             "not-sick": "\u5B83\u6CA1\u751F\u75C5",
             dead: "\u5B83\u5DF2\u7ECF\u8D70\u4E86\u2026",
@@ -1402,7 +1408,9 @@
         illness: isObj(pig.illness) ? {
           name: str(pig.illness.name, "\u751F\u75C5"),
           cure: str(pig.illness.cure, "\u836F"),
-          stage: num(pig.illness.stage, 1)
+          cureEmoji: str(pig.illness.cureEmoji, "\u{1F48A}"),
+          stage: num(pig.illness.stage, 1),
+          doctorFee: typeof pig.illness.doctorFee === "number" ? pig.illness.doctorFee : null
         } : null,
         traits: {
           intel: num(obj(pig.traits).intel, 0),
@@ -1679,20 +1687,20 @@
         adoptWrap.appendChild(adopt);
         ctx.content.appendChild(adoptWrap);
       } else if (ctx.view.pig !== null && ctx.view.pig.illness !== null) {
+        var illness = ctx.view.pig.illness;
         var sick = el("div", "dp-alert dp-sick");
-        sick.appendChild(el("b", null, "\u{1F912} " + ctx.view.pig.illness.name + "\uFF08\u7B2C " + ctx.view.pig.illness.stage + "/4 \u671F\uFF09"));
-        sick.appendChild(el("div", null, "\u9700\u8981\u300C" + ctx.view.pig.illness.cure + "\u300D\u2014\u2014 \u53BB\u5546\u5E97\u4E70\u5BF9\u5E94\u7684\u836F"));
+        sick.appendChild(el("b", null, "\u{1F912} " + illness.name + "\uFF08\u7B2C " + illness.stage + "/4 \u671F\uFF09"));
+        sick.appendChild(el("div", null, "\u9700\u8981\u300C" + illness.cureEmoji + illness.cure + "\u300D\u2014\u2014 \u5403\u9519\u836F\u4F1A\u52A0\u91CD"));
         var needed = null;
-        var cures = (ctx.view.shop || []).filter(function(i) {
-          return i.kind === "medicine";
-        });
-        for (var c = 0; c < cures.length; c += 1) {
-          if (cures[c].tier === ctx.view.pig.illness.stage) needed = cures[c];
+        var shelf = ctx.view.shop || [];
+        for (var c = 0; c < shelf.length; c += 1) {
+          if (shelf[c].needed) needed = shelf[c];
         }
-        if (needed === null) {
-          for (var n = 0; n < cures.length; n += 1) {
-            if (cures[n].label === ctx.view.pig.illness.cure) needed = cures[n];
-          }
+        for (var t = 0; needed === null && t < shelf.length; t += 1) {
+          if (shelf[t].kind === "medicine" && shelf[t].tier === illness.stage) needed = shelf[t];
+        }
+        for (var n = 0; needed === null && n < shelf.length; n += 1) {
+          if (shelf[n].label === illness.cure) needed = shelf[n];
         }
         if (ctx.view.canGoOut) {
           sick.appendChild(el(
@@ -1709,6 +1717,16 @@
           ));
         }
         ctx.content.appendChild(sick);
+        if (illness.doctorFee !== null) {
+          var clinic = el("div", "dp-actions");
+          var doctor = button("dp-btn dp-btn-wide", { "data-action": "doctor" }, function() {
+            ctx.send("doctor");
+          });
+          doctor.appendChild(el("span", null, "\u{1F3E5}"));
+          doctor.appendChild(el("span", null, "\u770B\u533B\u751F\uFF08" + illness.doctorFee + " \u{1FA99}\uFF09"));
+          clinic.appendChild(doctor);
+          ctx.content.appendChild(clinic);
+        }
       } else if (ctx.view.pig !== null && ctx.view.activity !== null) {
         var away = el("div", "dp-alert dp-work");
         away.appendChild(el("b", null, ctx.view.activity.emoji + " \u5728\u5916\u9762\uFF1A" + ctx.view.activity.label));

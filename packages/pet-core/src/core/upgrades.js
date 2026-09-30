@@ -33,6 +33,9 @@ const v8LevelFloor = level => (level <= 1 ? 0 : 20 * level * (level - 1))
 const v9LevelFloor = level => (level <= 1 ? 0 : 122 * level * level)
 const V9_MAX_LEVEL = 60
 
+/** v10 refund for each retired generic medicine: the new price of the same tier. */
+const V10_REFUND = Object.freeze({ med1: 30, med2: 70, med3: 140, med4: 260 })
+
 function levelOnCurve(xp, floorOf, cap) {
   let level = 1
   while (level < cap && xp >= floorOf(level + 1)) level += 1
@@ -81,6 +84,26 @@ export const UPGRADES = Object.freeze([
       if (next.hatched === true && next.sex !== 'boy' && next.sex !== 'girl') {
         next.sex = roll(next) < 0.5 ? 'boy' : 'girl'
       }
+      return next
+    },
+  }),
+  Object.freeze({
+    to: 10,
+    why: 'B3 疾病：四种通用药下架、按新同级药价退金币；病的必病计时 riskMinutes 换成连续外出计数',
+    up(raw) {
+      const next = { ...raw, version: 10 }
+      const bag = raw.inventory !== null && typeof raw.inventory === 'object' ? { ...raw.inventory } : {}
+      let refund = 0
+      for (const [key, price] of Object.entries(V10_REFUND)) {
+        const count = Number.isFinite(bag[key]) ? Math.max(0, Math.floor(bag[key])) : 0
+        refund += count * price
+        delete bag[key]
+      }
+      next.inventory = bag
+      next.coins = (Number.isFinite(raw.coins) ? raw.coins : 0) + refund
+      delete next.riskMinutes
+      next.outingStreak = 0
+      next.restMinutes = 0
       return next
     },
   }),

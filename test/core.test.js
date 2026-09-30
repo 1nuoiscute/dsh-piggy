@@ -67,7 +67,7 @@ import {
   takeOff,
   workSecondsLeft,
 } from '../core.js'
-import { DEFAULT_TOY, DRESS_SLOTS, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, interestByKey, INTERESTS, medicineForStage, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
+import { DEFAULT_TOY, DRESS_SLOTS, ILLNESS_CHAINS, illnessStageMs, illnessAt, interestByKey, INTERESTS, MEDICINES, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
 
 const T0 = 1_700_000_000_000
 const MIN = 60_000
@@ -678,23 +678,25 @@ test('calling the pig home early forfeits the pay', () => {
 // ===========================================================================
 
 test('the illness chains match the QQ Pet reverse engineering', () => {
-  assert.equal(ILLNESS_CHAINS.length, 3)
+  assert.equal(ILLNESS_CHAINS.length, 5, 'B3 adds 头晕 and 皮肤')
   assert.deepEqual(ILLNESS_CHAINS[0].stages.map(s => s.name), ['感冒', '发烧', '重感冒', '肺炎'])
   assert.deepEqual(ILLNESS_CHAINS[1].stages.map(s => s.name), ['咳嗽', '支气管炎', '哮喘', '肺结核'])
   assert.deepEqual(ILLNESS_CHAINS[2].stages.map(s => s.name), ['肚子胀', '胃炎', '胃溃疡', '胃癌'])
   assert.equal(illnessAt(0, 1).cure, '板蓝根')
-  assert.equal(illnessAt(0, 4).cure, '金色消炎药水')
+  assert.equal(illnessAt(0, 4).cure, '金色消炎水')
   assert.equal(illnessAt(0, 4).health, 1)
   assert.equal(illnessAt(0, 5), null)
-  assert.equal(medicineForStage(1).tier, 1)
-  assert.equal(medicineForStage(4).tier, 4)
+  // B3: five chains, and every stage has a cure of its own on the shelf.
+  assert.equal(ILLNESS_CHAINS.length, 5)
+  assert.equal(new Set(MEDICINES.map(item => item.key)).size, 21, '20 stage cures + 百草丹')
 })
 
-test('neglect long enough makes the pig sick and costs a health point', () => {
+test('neglect makes the pig sick and costs a health point', () => {
   const pig = hatchEgg(T0)
   pig.satiety = 10
   assert.equal(pig.illness, null)
-  advance(pig, SICK_RISK_MINUTES + 2)
+  // Onset is a chance per hour now (B3); a roll of 0 always lands.
+  advance(pig, 10, () => 0)
   assert.notEqual(pig.illness, null, 'illness should have struck')
   assert.equal(pig.illness.stage, 1)
   assert.equal(pig.health, 4, 'stage 1 leaves 4 of 5 health')
@@ -787,8 +789,8 @@ test('medicine that cures the illness also leaves the pig at full health', () =>
   const pig = hatchEgg(T0)
   pig.illness = { chain: 0, stage: 4, since: T0, progressMs: 0 }
   pig.health = 1
-  pig.inventory = { med4: 1 }
-  assert.equal(useItem(pig, 'med4', T0).ok, true)
+  pig.inventory = { 'jinse-xiaoyan': 1 }
+  assert.equal(useItem(pig, 'jinse-xiaoyan', T0).ok, true)
   assert.equal(pig.health, MAX.health)
 })
 
@@ -857,31 +859,32 @@ test('the revive item is refused on a living pig', () => {
   assert.equal(pig.inventory[REVIVE_ITEM.key], 1, 'the item is not consumed')
 })
 
-test('only the matching medicine cures, and it costs the item', () => {
+test('only the matching medicine cures; the wrong one is swallowed and makes it worse', () => {
   const pig = hatchEgg(T0)
   pig.illness = { chain: 1, stage: 2, since: T0 }
   pig.health = 3
 
-  give(pig, 'med1')
-  assert.equal(useItem(pig, 'med1', T0).reason, 'wrong-medicine')
-  assert.equal(pig.illness.stage, 2, 'still sick')
-  assert.equal(pig.inventory.med1, 1, 'the wrong item is not consumed')
+  give(pig, 'banlangen')
+  assert.equal(useItem(pig, 'banlangen', T0).reason, 'wrong-medicine')
+  assert.equal(pig.illness.stage, 3, 'one stage worse at once, as in the original')
+  assert.equal(pig.health, 2)
+  assert.equal(pig.inventory.banlangen, 0, 'the wrong medicine is used up too')
 
-  give(pig, 'med2')
-  const cured = useItem(pig, 'med2', T0)
+  give(pig, 'dingchuanwan')
+  const cured = useItem(pig, 'dingchuanwan', T0)
   assert.equal(cured.ok, true)
   assert.equal(pig.illness, null)
   assert.equal(pig.health, MAX.health)
-  assert.equal(pig.inventory.med2, 0, 'the medicine is consumed')
+  assert.equal(pig.inventory.dingchuanwan, 0, 'the medicine is consumed')
   assert.equal(pig.stats.cures, 1)
   assert.ok(pig.pending.some(e => e.kind === 'cured'))
 })
 
 test('medicine on a healthy pig is refused', () => {
   const pig = hatchEgg(T0)
-  give(pig, 'med1')
-  assert.equal(useItem(pig, 'med1', T0).reason, 'not-sick')
-  assert.equal(pig.inventory.med1, 1)
+  give(pig, 'banlangen')
+  assert.equal(useItem(pig, 'banlangen', T0).reason, 'not-sick')
+  assert.equal(pig.inventory.banlangen, 1)
 })
 
 test('using a care item applies its effects', () => {
@@ -1349,8 +1352,8 @@ test('trait and course views always list everything', () => {
 // Shop
 // ===========================================================================
 
-test('the shop is well formed: 45 items across six shelves, every cure stocked', () => {
-  assert.equal(SHOP.length, 45, '21 → 45')
+test('the shop is well formed: 62 items across six shelves, every cure stocked', () => {
+  assert.equal(SHOP.length, 62, 'B3: four generic medicines became 20 stage cures + 百草丹')
   const counts = {}
   for (const item of SHOP) {
     assert.equal(typeof item.key, 'string')
@@ -1358,15 +1361,17 @@ test('the shop is well formed: 45 items across six shelves, every cure stocked',
     assert.ok(['food', 'bath', 'toy', 'dress', 'medicine', 'revive'].includes(item.kind))
     counts[item.kind] = (counts[item.kind] ?? 0) + 1
   }
-  assert.deepEqual(counts, { food: 10, bath: 8, toy: 10, dress: 12, medicine: 4, revive: 1 })
+  assert.deepEqual(counts, { food: 10, bath: 8, toy: 10, dress: 12, medicine: 21, revive: 1 })
   // 装扮 is a different economy: level-gated, owned once, never counted.
   for (const item of SHOP.filter(entry => entry.kind === 'dress')) {
     assert.ok(Number.isInteger(item.level) && item.level >= 1, `${item.label} needs a level`)
     assert.ok(item.blurb.length > 0, `${item.label} needs a line`)
   }
-  for (let stage = 1; stage <= 4; stage += 1) {
-    const med = medicineForStage(stage)
-    assert.notEqual(med, null, `stage ${stage} needs a medicine`)
+  for (let chain = 0; chain < ILLNESS_CHAINS.length; chain += 1) {
+    for (let stage = 1; stage <= 4; stage += 1) {
+      const cureKey = illnessAt(chain, stage).cureKey
+      assert.ok(SHOP.some(item => item.key === cureKey), `${cureKey} must be on the shelf`)
+    }
   }
   assert.ok(SHOP.some(i => i.key === REVIVE_ITEM.key), 'the revive item is stocked')
 })

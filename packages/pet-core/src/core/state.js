@@ -161,7 +161,7 @@ export function applyDevPatch(state, patch, nowMs) {
   }
 
   if (patch.activity === null) state.activity = null
-  if (patch.riskMinutes === 0) state.riskMinutes = 0
+  if (patch.outingStreak === 0) state.outingStreak = 0
 
   state.stage = lifeStageFor(state, nowMs).key
   state.lastSeenAt = nowMs
@@ -189,7 +189,7 @@ export function revive(state, nowMs) {
   state.happiness = Math.max(state.happiness, 50)
   state.illness = null
   state.activity = null
-  state.riskMinutes = 0
+  state.outingStreak = 0
   state.stats.revives = (state.stats.revives ?? 0) + 1
   remember(state, `被 ${REVIVE_ITEM.label} 救了回来 ✨`, nowMs)
   announce(state, 'revived', `${state.name} 回来了 ✨`, nowMs)
