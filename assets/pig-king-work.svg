@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="king-title king-desc">
-  <title id="king-title">猪猪王 · 睁眼待机</title>
-  <desc id="king-desc">面朝左的蜜桃色猪猪王，睁眼微笑，戴金冠、披红色披风，握着权杖。透明背景。</desc>
-<g stroke-linecap="round" stroke-linejoin="round">
+  <title id="king-title">猪猪王 · 打工</title>
+  <desc id="king-desc">戴着金冠的猪猪王坐在红椅子上，前蹄搭在电脑键盘旁，认真处理工作。透明背景。</desc>
+<g id="chair"><path fill="#D7A42A" d="M47 23C52 19 59 21 60 27L60 46L47 46Z"/><path fill="#C92536" d="M49 25C53 22 57 24 58 28L58 42L49 42Z"/><path fill="#D7A42A" d="M45 43L60 43L60 47L45 47ZM49 47L52 47L51 59L48 59ZM56 47L59 47L61 59L58 59Z"/></g><g id="character" transform="translate(24 9) scale(.58)"><g stroke-linecap="round" stroke-linejoin="round">
     <g id="far-legs" fill="#FF9FA5">
       <path d="M25 43C24 47 24 51 25 54C26 57 30 57 31 54L32 46Z"/>
       <path d="M44 42L43 51C43 55 48 56 50 53L51 44Z"/>
@@ -40,17 +40,6 @@
       <circle cx="28.5" cy="14" r=".8" fill="#E95892"/>
       <circle cx="37.4" cy="16" r=".9" fill="#E95892"/>
     </g>
-    <g id="sceptre">
-      <path fill="#D9D9CF" d="M6.2 19.5L7.8 19.2L15 57.5L13.5 57.8Z"/>
-      <path fill="#F8F4E8" d="M6.4 19.5L7 19.4L14.4 57.5L13.7 57.7Z"/>
-      <path fill="#D7A42A" d="M6.7 10.7C4 9.7 3 12.3 3.6 14C1.6 16.7 3.3 20.1 6.1 20.3C9 22.2 11.5 19.4 10.1 17C11.4 14.6 9.7 12.5 8.1 12.4L7.8 10.9ZM6.8 12.2L7.4 13.9C9.3 13.5 10 15.2 8.9 16.9C10.4 19.2 8.5 20.6 6.4 19C4.4 19.4 3.1 16.9 5 14.4C4.4 12.8 5.4 11.5 6.8 12.2Z" fill-rule="evenodd"/>
-      <circle cx="7" cy="10.2" r=".85" fill="#F2C64B"/>
-      <path fill="#F2C64B" d="M5.8 20.2L8.7 19.9L9 21.1L6 21.6Z"/>
-      <path fill="#D7A42A" d="M6.5 21.5L8.8 21.1L9.3 23.5L7.1 24Z"/>
-      <path fill="#F2C64B" d="M7.2 24L9.2 23.6L9.4 24.4L7.4 24.8Z"/>
-      <path fill="#F2C64B" d="M13 55.3L15 54.9L15.3 56.1L13.3 56.5Z"/>
-      <path fill="#D7A42A" d="M13.5 57C12.8 58.8 14.4 61.6 15.7 62C16.4 60.5 16.6 58.4 15.2 56.7Z"/>
-      <path fill="#FFE18A" d="M14 57.6L14.5 57.5L15.4 60.8L15 60.5Z"/>
-    </g>
-  </g>
+    
+  </g></g><g id="desk"><path fill="#D8AF78" d="M5 38L59 38L59 43L5 43Z"/><path fill="#B98C58" d="M7 43L11 43L10 60L7 60ZM53 43L57 43L58 60L55 60Z"/><path fill="#F3D7A5" d="M5 37L59 37L60 39L4 39Z"/></g><g id="laptop"><path fill="#725D42" d="M8 17C8 16 9 15 10 15L29 17C30 17 31 18 31 19L33 34L10 33Z"/><path fill="#B7C6E5" d="M11 18L28 20L30 31L13 30Z"/><path fill="#FFFBE7" d="M14 21L22 22L22 23L14 22ZM15 24L26 25L26 26L15 25ZM16 27L22 28L22 29L16 28Z"/><path fill="#C4B89E" d="M10 33L33 34L38 37L7 36Z"/><path fill="#E5DCC6" d="M12 33.5L31 34.5L33 35.5L10 35Z"/></g><path fill="#FFD1AF" d="M30 34C32 33 35 34 35 36C33 38 29 37 28 36Z"/>
 </svg>

@@ -17,7 +17,9 @@ export function migrate(raw, nowMs) {
   const egg = layEgg(typeof raw.bornAt === 'number' ? raw.bornAt : nowMs)
   const state = { ...egg, ...raw }
   state.version = STATE_VERSION
+  state.finalForm = raw.finalForm === 'king' ? 'king' : null
   state.stats = { ...egg.stats, ...(asObject(raw.stats) ?? {}) }
+  state.stats.jobs = Number.isFinite(state.stats.jobs) ? Math.max(0, Math.floor(state.stats.jobs)) : 0
   state.cooldowns = { ...(asObject(raw.cooldowns) ?? {}) }
   state.inventory = sanitizeInventory(raw.inventory)
   state.dress = sanitizeDressList(raw.dress)

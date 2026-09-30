@@ -452,6 +452,7 @@
     age.appendChild(el("span", null, "\u{1F382} \u5E74\u9F84"));
     age.appendChild(el("b", null, p.ageLabel + (p.ageForced ? " \u{1F527}" : "") + (p.daysToNextStage === null ? " \xB7 \u5DF2\u957F\u6210" : "")));
     ui.content.appendChild(age);
+    renderCoronation(ui);
     var grid = el("div", "dp-actions");
     for (var i = 0; i < MODES.length; i += 1) {
       (function(key) {
@@ -484,6 +485,21 @@
     if (p.memories.length > 0) {
       ui.content.appendChild(el("div", "dp-memo", p.memories.slice(-3).join("\n")));
     }
+  }
+  function renderCoronation(ui) {
+    var choice = ui.view.pig.coronation;
+    if (!choice.visible || ui.view.dead) return;
+    var card = el("div", "dp-alert");
+    card.appendChild(el("b", null, "\u732A\u732A\u738B\u52A0\u5195"));
+    card.appendChild(el("div", "dp-dim", choice.requirements.map((entry) => entry.label + " " + entry.have + "/" + entry.need).join(" \xB7 ")));
+    card.appendChild(el("div", "dp-dim", choice.ready ? "\u6761\u4EF6\u5DF2\u6EE1\u8DB3\uFF0C\u4E5F\u53EF\u4EE5\u7EE7\u7EED\u4FDD\u7559\u666E\u901A\u5F62\u6001\u3002" : "\u53EF\u4EE5\u7EE7\u7EED\u5B66\u4E60\u548C\u6253\u5DE5\uFF0C\u5230\u4E86\u8001\u5E74\u9636\u6BB5\u4E5F\u80FD\u8865\u9F50\u540E\u52A0\u5195\u3002"));
+    var btn = button("dp-btn dp-btn-wide", { "data-action": "crown" }, function() {
+      ui.send("crown");
+    });
+    btn.textContent = "\u52A0\u5195\u4E3A\u732A\u732A\u738B";
+    btn.disabled = !choice.ready;
+    card.appendChild(btn);
+    ui.content.appendChild(card);
   }
 
   // src/client/tabs/study.js
@@ -729,6 +745,12 @@
     // The scene needs room for the prop; it grows leftward, so the pig stays put.
     '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
     '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
+    '.dp-pig[data-art="pig-king"][data-activity="work"]:not([data-react]){animation:dp-king-work 1.4s ease-in-out infinite}',
+    '.dp-pig[data-art="pig-king"][data-activity="study"]:not([data-react]){animation:dp-king-study 2.4s ease-in-out infinite}',
+    '.dp-pig[data-art="pig-king"][data-activity="trip"]:not([data-react]){animation:dp-king-walk .8s ease-in-out infinite}',
+    "@keyframes dp-king-work{0%,100%{transform:translateY(0)}50%{transform:translateY(1px) rotate(1deg)}}",
+    "@keyframes dp-king-study{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}",
+    "@keyframes dp-king-walk{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}",
     /* ---------- hud: a cream tag beside the pig ---------- */
     ".dp-hud{position:absolute;left:9px;top:7px;display:flex;flex-direction:column;gap:1px;",
     "font-size:10.5px;font-weight:600;line-height:1.45;color:var(--ac-text);",
@@ -1077,6 +1099,21 @@
     ui.content.appendChild(list);
   }
 
+  // src/client/art.js
+  var REACTION_ART = { feed: "eat", bathe: "bathe", play: "play", pet: "pet", cure: "relaxed", levelup: "relaxed" };
+  var ACTIVITY_ART = { work: "work", study: "study", interest: "study", trip: "trip" };
+  function syncPigArt(pig, image) {
+    var base = pig.getAttribute("data-art");
+    if (!base) return;
+    var art = base;
+    if (base === "pig-king") {
+      var action = REACTION_ART[pig.getAttribute("data-react")] || ACTIVITY_ART[pig.getAttribute("data-activity")];
+      if (action) art += "-" + action;
+    }
+    var src = ART_URL + art + ".svg";
+    if (image.src !== src) image.src = src;
+  }
+
   // src/client/effects.js
   function createEffects(deps) {
     var scene = deps.scene;
@@ -1091,8 +1128,10 @@
       pig.removeAttribute("data-react");
       void pig.offsetWidth;
       pig.setAttribute("data-react", kind);
+      syncPigArt(pig, deps.pigArt);
       reactTimer = window.setTimeout(function() {
         pig.removeAttribute("data-react");
+        syncPigArt(pig, deps.pigArt);
         reactTimer = null;
       }, ms || 900);
     }
@@ -1194,6 +1233,8 @@
             return;
           }
           var reasons = {
+            "not-adult": "\u6210\u5E74\u9636\u6BB5\u8D77\u624D\u80FD\u52A0\u5195",
+            "coronation-ineligible": "\u52A0\u5195\u6761\u4EF6\u8FD8\u6CA1\u8865\u9F50",
             cooldown: "\u8FD8\u8981\u7B49 " + num(next.wait, 0) + " \u79D2",
             poor: "\u94B1\u4E0D\u591F",
             away: "\u5B83\u5728\u5916\u9762",
@@ -1315,6 +1356,16 @@
       dead: d.dead === true || pig !== null && num(pig.health, 5) <= 0,
       pig: pig === null ? null : {
         name: str(pig.name, "\u732A\u732A"),
+        finalForm: pig.finalForm === "king" ? "king" : null,
+        coronation: {
+          visible: obj(pig.coronation).visible === true,
+          ready: obj(pig.coronation).ready === true,
+          requirements: arr(obj(pig.coronation).requirements).map((entry) => ({
+            label: str(obj(entry).label, ""),
+            have: num(obj(entry).have, 0),
+            need: num(obj(entry).need, 0)
+          }))
+        },
         // The pig is measured in days now; `stage` carries how big it is and
         // what it looks like.
         stage: {
@@ -1717,10 +1768,11 @@
       } else {
         const pigStage = ctx.view.pig.stage;
         if (pigStage.art !== null) {
-          ctx.pigArt.src = ART_URL + pigStage.art + ".svg";
           ctx.pigArt.hidden = false;
           ctx.pigEmoji.hidden = true;
           ctx.pig.setAttribute("data-art", pigStage.art);
+          ctx.pig.setAttribute("data-activity", ctx.view.activity?.kind ?? "");
+          syncPigArt(ctx.pig, ctx.pigArt);
         } else {
           ctx.pigArt.hidden = true;
           ctx.pigArt.removeAttribute("src");
@@ -1740,6 +1792,7 @@
         for (var wd = 0; wd < ctx.view.dress.length; wd += 1) {
           var piece = ctx.view.dress[wd];
           if (!piece.worn || piece.slot === "") continue;
+          if (pigStage.art === "pig-king" && (piece.slot === "head" || piece.slot === "back")) continue;
           var node = el("span", "dp-slot", piece.emoji);
           node.setAttribute("data-slot", piece.slot);
           ctx.dressSlots.appendChild(node);
@@ -1762,7 +1815,10 @@
         if (event.at <= ctx.lastPendingAt) continue;
         ctx.lastPendingAt = event.at;
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
-        if (event.kind === "levelup") {
+        if (event.kind === "coronation") {
+          ctx.react("levelup", 950);
+          ctx.burst(["\u{1F451}", "\u2728"], 3);
+        } else if (event.kind === "levelup") {
           ctx.react("levelup", 950);
           ctx.burst(["\u2728", "\u{1F389}"], 3);
         } else if (event.kind === "cured") {
@@ -1968,6 +2024,7 @@
         var fx = createEffects({
           scene,
           pig,
+          pigArt,
           card,
           bubble,
           isStopped: function() {

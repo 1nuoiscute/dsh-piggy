@@ -14,6 +14,7 @@ import {
   applyDevPatch as coreDevPatch,
   buy as coreBuy,
   callOffActivity as coreCallOff,
+  crown as coreCrown,
   decay,
   drainPending,
   feed as coreFeed,
@@ -89,6 +90,9 @@ export function createApi(control) {
 
     /** Apply one care action with its cooldown, spending `itemKey` when given. */
     act: (action, itemKey) => mutate(live => coreAct(live, action, now(), itemKey)),
+
+    /** Choose the optional final form. */
+    crown: () => mutate(live => coreCrown(live, now())),
 
     /** Send the pig out to work. */
     startWork: jobKey => mutate(live => coreStartWork(live, jobKey, now())),

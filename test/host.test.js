@@ -715,3 +715,37 @@ test('a tombstone reports how long the pig lived, not when it hatched', () => {
   const alive = hatchEgg(now - 5 * HOUR)
   assert.equal(snapshot(store(alive), { drain: false }).pig.ageLabel, '今天刚出生')
 })
+
+
+test('coronation POST checks requirements and returns the chosen art', async () => {
+  const app = boot(nowMs => {
+    const state = hatchEgg(nowMs)
+    state.ageMs = 90 * 86_400_000
+    state.traits = { intel: 20, charm: 20, strong: 20 }
+    state.stats.jobs = 10
+    return state
+  })
+  try {
+    const before = await app.get()
+    assert.equal(before.pig.stage.key, 'middle')
+    assert.equal(before.pig.stage.art, null)
+    assert.equal(before.pig.coronation.ready, true)
+    const next = await app.post({ action: 'crown' })
+    assert.equal(next.ok, true)
+    assert.equal(next.pig.finalForm, 'king')
+    assert.equal(next.pig.stage.key, 'middle')
+    assert.equal(next.pig.stage.art, 'pig-king')
+    assert.equal((await app.post({ action: 'crown' })).ok, true)
+  } finally { app.cleanup() }
+})
+
+test('coronation POST refuses an ineligible pig without changing its form', async () => {
+  const app = boot(nowMs => { const state = hatchEgg(nowMs); state.ageMs = 180 * 86_400_000; return state })
+  try {
+    const next = await app.post({ action: 'crown' })
+    assert.equal(next.ok, false)
+    assert.equal(next.reason, 'coronation-ineligible')
+    assert.equal(next.pig.finalForm, null)
+    assert.equal(next.pig.stage.art, 'elder')
+  } finally { app.cleanup() }
+})

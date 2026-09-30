@@ -6,11 +6,12 @@
  * 回调问外壳（见 docs/CONVENTIONS.md）。
  * @module dsh-pig/client/effects
  */
+import { syncPigArt } from './art.js'
 import { PET_LINES } from './constants.js'
 import { el } from './dom.js'
 
 /**
- * @param {{ scene: object, pig: object, card: object, bubble: object, isStopped: () => boolean }} deps
+ * @param {{ scene: object, pig: object, pigArt: object, card: object, bubble: object, isStopped: () => boolean }} deps
  * @returns {{ react: Function, burst: Function, flash: Function, showBubble: Function, toast: Function, dispose: Function }}
  */
 export function createEffects(deps) {
@@ -32,8 +33,10 @@ function react(kind, ms) {
   pig.removeAttribute('data-react')
   void pig.offsetWidth
   pig.setAttribute('data-react', kind)
+  syncPigArt(pig, deps.pigArt)
   reactTimer = window.setTimeout(function () {
     pig.removeAttribute('data-react')
+    syncPigArt(pig, deps.pigArt)
     reactTimer = null
   }, ms || 900)
 }

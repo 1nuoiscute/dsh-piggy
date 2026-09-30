@@ -29,6 +29,14 @@ export function normalize(raw) {
     dead: d.dead === true || (pig !== null && num(pig.health, 5) <= 0),
     pig: pig === null ? null : {
       name: str(pig.name, '猪猪'),
+      finalForm: pig.finalForm === 'king' ? 'king' : null,
+      coronation: {
+        visible: obj(pig.coronation).visible === true,
+        ready: obj(pig.coronation).ready === true,
+        requirements: arr(obj(pig.coronation).requirements).map(entry => ({
+          label: str(obj(entry).label, ''), have: num(obj(entry).have, 0), need: num(obj(entry).need, 0),
+        })),
+      },
       // The pig is measured in days now; `stage` carries how big it is and
       // what it looks like.
       stage: {

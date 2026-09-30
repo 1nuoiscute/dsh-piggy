@@ -5,7 +5,8 @@
  * 只通过 ctx 读写外壳的状态与元素（getter/setter 转发），不直接碰全局。
  * @module dsh-pig/client/panel
  */
-import { ART_URL, OPEN_KEY, TABS } from './constants.js'
+import { syncPigArt } from './art.js'
+import { OPEN_KEY, TABS } from './constants.js'
 import { button, el } from './dom.js'
 import { normalize } from './normalize.js'
 import { writeStore } from './storage.js'
@@ -189,10 +190,11 @@ export function createPanel(ctx) {
           const pigStage = ctx.view.pig.stage
           // A drawn stage shows its sprite; everything else is the emoji.
           if (pigStage.art !== null) {
-            ctx.pigArt.src = ART_URL + pigStage.art + '.svg'
             ctx.pigArt.hidden = false
             ctx.pigEmoji.hidden = true
             ctx.pig.setAttribute('data-art', pigStage.art)
+            ctx.pig.setAttribute('data-activity', ctx.view.activity?.kind ?? '')
+            syncPigArt(ctx.pig, ctx.pigArt)
           } else {
             ctx.pigArt.hidden = true
             ctx.pigArt.removeAttribute('src')
@@ -215,6 +217,7 @@ export function createPanel(ctx) {
           for (var wd = 0; wd < ctx.view.dress.length; wd += 1) {
             var piece = ctx.view.dress[wd]
             if (!piece.worn || piece.slot === '') continue
+            if (pigStage.art === 'pig-king' && (piece.slot === 'head' || piece.slot === 'back')) continue
             var node = el('span', 'dp-slot', piece.emoji)
             node.setAttribute('data-slot', piece.slot)
             ctx.dressSlots.appendChild(node)
@@ -245,7 +248,8 @@ export function createPanel(ctx) {
           if (event.at <= ctx.lastPendingAt) continue
           ctx.lastPendingAt = event.at
           ctx.toast(str(event.text, '猪有新消息'))
-          if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
+          if (event.kind === 'coronation') { ctx.react('levelup', 950); ctx.burst(['👑', '✨'], 3) }
+          else if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
           else if (event.kind === 'cured') { ctx.react('cure', 900); ctx.burst(['💚', '✨'], 3) }
           else if (event.kind === 'death') ctx.react('refuse', 700)
           else if (event.kind === 'work') { ctx.react('away', 900); ctx.burst(['🪙', '💰'], 3) }

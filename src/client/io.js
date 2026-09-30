@@ -36,6 +36,8 @@ export function createIo(ctx) {
               return
             }
             var reasons = {
+              'not-adult': '成年阶段起才能加冕',
+              'coronation-ineligible': '加冕条件还没补齐',
               cooldown: '还要等 ' + num(next.wait, 0) + ' 秒',
               poor: '钱不够',
               away: '它在外面',

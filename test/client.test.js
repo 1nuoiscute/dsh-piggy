@@ -1432,3 +1432,32 @@ test('right-click opens the menu and left-click only pats the pig', async () => 
   // The tooltip is the only discoverability right-click gets.
   assert.match(sceneOf(dom).title, /右键/, 'the pig must say how to open the menu')
 })
+
+
+test('eligible adult shows optional coronation and clicking sends the action', async () => {
+  const status = { ...SNAPSHOT, pig: { ...SNAPSHOT.pig, stage: { key: 'middle', label: '成年猪', art: 'middle', size: 68 }, coronation: { visible: true, ready: true, requirements: [{ label: '本代完成打工', have: 10, need: 10 }] } } }
+  const { registration, dom, net } = await loadClient({ status })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  const btn = findByAttr(contentOf(dom), 'data-action', 'crown')
+  assert.equal(btn.disabled, false)
+  assert.ok(contentOf(dom).allText().includes('保留普通形态'))
+  btn.fire('click')
+  await settle()
+  assert.deepEqual(JSON.parse(net.calls.find(call => call.method === 'POST').body), { action: 'crown' })
+})
+
+test('king sprites follow activities and pet reactions without duplicate crown overlays', async () => {
+  for (const kind of [null, 'work', 'study', 'trip']) {
+    const status = { ...SNAPSHOT, pig: { ...SNAPSHOT.pig, finalForm: 'king', stage: { key: 'middle', label: '猪猪王', art: 'pig-king', size: 68 } }, activity: kind === null ? null : { kind, label: '活动', progress: 20 }, dress: [{ key: 'crown', worn: true, slot: 'head', emoji: '王冠' }] }
+    const { registration, dom } = await loadClient({ status })
+    registration.factory(() => {}).apply({})
+    await settle()
+    const image = findByClass(hostOf(dom), 'dp-pig-img')
+    assert.ok(image.src.endsWith('pig-king' + (kind ? '-' + kind : '') + '.svg'), image.src)
+    assert.equal(findByAttr(hostOf(dom), 'data-slot', 'head'), undefined)
+    patPig(dom)
+    assert.ok(image.src.endsWith('pig-king-pet.svg'), image.src)
+  }
+})

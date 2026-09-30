@@ -172,6 +172,13 @@ export const CSS_BASE = [
   '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
   '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
 
+  '.dp-pig[data-art="pig-king"][data-activity="work"]:not([data-react]){animation:dp-king-work 1.4s ease-in-out infinite}',
+  '.dp-pig[data-art="pig-king"][data-activity="study"]:not([data-react]){animation:dp-king-study 2.4s ease-in-out infinite}',
+  '.dp-pig[data-art="pig-king"][data-activity="trip"]:not([data-react]){animation:dp-king-walk .8s ease-in-out infinite}',
+  '@keyframes dp-king-work{0%,100%{transform:translateY(0)}50%{transform:translateY(1px) rotate(1deg)}}',
+  '@keyframes dp-king-study{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}',
+  '@keyframes dp-king-walk{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}',
+
   /* ---------- hud: a cream tag beside the pig ---------- */
   '.dp-hud{position:absolute;left:9px;top:7px;display:flex;flex-direction:column;gap:1px;',
   'font-size:10.5px;font-weight:600;line-height:1.45;color:var(--ac-text);',

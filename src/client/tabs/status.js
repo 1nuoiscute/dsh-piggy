@@ -40,6 +40,8 @@ export function renderStatusTab(ui) {
   age.appendChild(el('b', null, p.ageLabel + (p.ageForced ? ' 🔧' : '') + (p.daysToNextStage === null ? ' · 已长成' : '')))
   ui.content.appendChild(age)
 
+  renderCoronation(ui)
+
   var grid = el('div', 'dp-actions')
   for (var i = 0; i < MODES.length; i += 1) {
     (function (key) {
@@ -78,4 +80,20 @@ export function renderStatusTab(ui) {
   if (p.memories.length > 0) {
     ui.content.appendChild(el('div', 'dp-memo', p.memories.slice(-3).join('\n')))
   }
+}
+
+/** Keep coronation optional, with progress available throughout old age. */
+function renderCoronation(ui) {
+  var choice = ui.view.pig.coronation
+  if (!choice.visible || ui.view.dead) return
+  var card = el('div', 'dp-alert')
+  card.appendChild(el('b', null, '猪猪王加冕'))
+  card.appendChild(el('div', 'dp-dim', choice.requirements.map(entry =>
+    entry.label + ' ' + entry.have + '/' + entry.need).join(' · ')))
+  card.appendChild(el('div', 'dp-dim', choice.ready ? '条件已满足，也可以继续保留普通形态。' : '可以继续学习和打工，到了老年阶段也能补齐后加冕。'))
+  var btn = button('dp-btn dp-btn-wide', { 'data-action': 'crown' }, function () { ui.send('crown') })
+  btn.textContent = '加冕为猪猪王'
+  btn.disabled = !choice.ready
+  card.appendChild(btn)
+  ui.content.appendChild(card)
 }

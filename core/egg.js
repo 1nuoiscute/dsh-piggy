@@ -21,6 +21,7 @@ export function layEgg(nowMs) {
     diedAt: null,
     /** Last stage the panel announced; drives the "grew up" message. */
     stage: 'box',
+    finalForm: null,
     /** Accumulated pig time in ms — age is this, not wall clock. */
     ageMs: 0,
     /** 1 = the stage table is real months. See DEFAULT_TIME_SCALE. */
