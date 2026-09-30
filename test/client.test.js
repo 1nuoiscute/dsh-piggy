@@ -873,9 +873,11 @@ test('interest courses live in the study tab, not in a new stat panel', async ()
   await settle()
   openPanel(dom)
   pickTab(dom, 'study')
+  assert.ok(contentOf(dom).allText().includes('🎯 兴趣'), 'the interest button sits with the stage buttons')
+  // 兴趣 is a button beside the stages now; the list shows once it is picked.
+  findByAttr(contentOf(dom), 'data-stage', 'interest').fire('click')
 
   const text = contentOf(dom).allText()
-  assert.ok(text.includes('🎯 兴趣'), text)
   assert.ok(text.includes('摄影'), text)
   assert.ok(text.includes('智力 +2'), text)
   assert.ok(text.includes('学过 3 次'), 'a repeatable course shows how often it has been taken')
@@ -887,7 +889,9 @@ test('interest courses live in the study tab, not in a new stat panel', async ()
   assert.ok(!status.includes('undefined'), status)
 
   pickTab(dom, 'study')
-  findByAttr(contentOf(dom), 'data-interest', 'fitness').fire('click')
+  const interestButtons = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-interest'] === 'fitness') interestButtons.push(node) })
+  interestButtons.at(-1).fire('click')
   await settle()
   await settle()
   const post = net.calls.find(call => call.method === 'POST')

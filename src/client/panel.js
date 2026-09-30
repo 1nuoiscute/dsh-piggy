@@ -190,7 +190,8 @@ export function createPanel(ctx) {
           if (entry.unlocked !== false && firstOpen === null) firstOpen = entry.key
           if (entry.key === ctx.stage) stageEntry = entry
         }
-        if (firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen
+        // The 兴趣 button is not a stage; leave it selected.
+        if (ctx.stage !== 'interest' && firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen
         ctx.host.setAttribute('data-dead', ctx.view.dead ? 'true' : 'false')
         ctx.host.setAttribute('data-open', ctx.isOpen ? 'true' : 'false')
         ctx.host.setAttribute('data-dev', ctx.devMode ? 'true' : 'false')

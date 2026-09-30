@@ -491,6 +491,7 @@
   }
 
   // src/client/tabs/study.js
+  var INTEREST_TAB = "interest";
   function standing(sub, stage) {
     if (stage === null || sub.stageKey === "") return "current";
     if (sub.stageKey === stage.key) return "current";
@@ -519,7 +520,21 @@
         seg.appendChild(btn);
       })(stageList[s]);
     }
+    if (ui.view.interests.length > 0) {
+      var interestBtn = button(null, { "data-stage": INTEREST_TAB }, function() {
+        ui.stage = INTEREST_TAB;
+        ui.renderContent();
+      });
+      interestBtn.textContent = "\u{1F3AF} \u5174\u8DA3";
+      interestBtn.setAttribute("data-active", ui.stage === INTEREST_TAB ? "true" : "false");
+      interestBtn.setAttribute("data-locked", "false");
+      seg.appendChild(interestBtn);
+    }
     ui.content.appendChild(seg);
+    if (ui.stage === INTEREST_TAB && ui.view.interests.length > 0) {
+      renderInterests(ui);
+      return;
+    }
     var detail = null;
     for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === ui.stage) detail = ui.view.stages[d];
     if (detail !== null) {
@@ -560,32 +575,33 @@
       })(ui.view.subjects[i]);
     }
     ui.content.appendChild(grid);
-    if (ui.view.interests.length > 0) {
-      var ihead = el("div", "dp-title");
-      ihead.style.marginTop = "10px";
-      ihead.appendChild(el("b", null, "\u{1F3AF} \u5174\u8DA3"));
-      ui.content.appendChild(ihead);
-      var ilist = el("div", "dp-list");
-      for (var n = 0; n < ui.view.interests.length; n += 1) {
-        (function(entry) {
-          var row = el("div", "dp-item");
-          row.appendChild(el("span", null, entry.emoji));
-          var grow = el("div", "dp-grow");
-          grow.appendChild(el("div", null, entry.label));
-          var progress = entry.certificate === "" ? entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "" : entry.certified ? " \xB7 \u{1F4DC} \u6709\u8BC1" : " \xB7 \u{1F4DC} " + entry.times + "/" + entry.certificateAfter;
-          grow.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain + progress));
-          row.appendChild(grow);
-          var go = button("dp-mini", { "data-interest": entry.key }, function() {
-            ui.send("interest", { interest: entry.key });
-          });
-          go.textContent = entry.times > 0 ? "\u518D\u5B66" : "\u53BB\u5B66";
-          go.disabled = !ui.view.canGoOut || !entry.affordable;
-          row.appendChild(go);
-          ilist.appendChild(row);
-        })(ui.view.interests[n]);
-      }
-      ui.content.appendChild(ilist);
+  }
+  function renderInterests(ui) {
+    var after = ui.view.interests[0].certificateAfter;
+    var note = el("div", "dp-empty", after > 0 ? "\u968F\u65F6\u80FD\u5B66 \xB7 \u540C\u4E00\u95E8\u4E0A\u6EE1 " + after + " \u6B21\u62FF\u8BC1" : "\u968F\u65F6\u80FD\u5B66");
+    note.style.marginBottom = "7px";
+    note.style.marginTop = "0";
+    ui.content.appendChild(note);
+    var ilist = el("div", "dp-list");
+    for (var n = 0; n < ui.view.interests.length; n += 1) {
+      (function(entry) {
+        var row = el("div", "dp-item");
+        row.appendChild(el("span", null, entry.emoji));
+        var grow = el("div", "dp-grow");
+        grow.appendChild(el("div", null, entry.label));
+        var progress = entry.certificate === "" ? entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "" : entry.certified ? " \xB7 \u{1F4DC} \u6709\u8BC1" : " \xB7 \u{1F4DC} " + entry.times + "/" + entry.certificateAfter;
+        grow.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain + progress));
+        row.appendChild(grow);
+        var go = button("dp-mini", { "data-interest": entry.key }, function() {
+          ui.send("interest", { interest: entry.key });
+        });
+        go.textContent = entry.times > 0 ? "\u518D\u5B66" : "\u53BB\u5B66";
+        go.disabled = !ui.view.canGoOut || !entry.affordable;
+        row.appendChild(go);
+        ilist.appendChild(row);
+      })(ui.view.interests[n]);
     }
+    ui.content.appendChild(ilist);
   }
 
   // src/client/css-base.js
@@ -1811,7 +1827,7 @@
         if (entry.unlocked !== false && firstOpen === null) firstOpen = entry.key;
         if (entry.key === ctx.stage) stageEntry = entry;
       }
-      if (firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen;
+      if (ctx.stage !== "interest" && firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen;
       ctx.host.setAttribute("data-dead", ctx.view.dead ? "true" : "false");
       ctx.host.setAttribute("data-open", ctx.isOpen ? "true" : "false");
       ctx.host.setAttribute("data-dev", ctx.devMode ? "true" : "false");
