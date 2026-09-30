@@ -77,7 +77,7 @@ export async function buildClient() {
     legalComments: 'none',
     absWorkingDir: packageRoot,
     write: false,
-    logLevel: 'silent',
+    logLevel: 'warning',
     banner: {
       js: '// GENERATED FILE. Edit src/client/ and run `npm run build`; do not edit by hand.',
     },
