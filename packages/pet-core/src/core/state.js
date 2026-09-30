@@ -140,6 +140,12 @@ export function applyDevPatch(state, patch, nowMs) {
     state.ageForced = true
   }
 
+  // Health 0 is death, whether or not the panel also ticked "dead": leaving a
+  // 0-health pig walking around showed a corpse with no grave or announcement.
+  if (state.dead !== true && state.health <= 0) {
+    die(state, nowMs, '被开发者按死了')
+  }
+
   if (patch.dead === true) {
     die(state, nowMs, '被开发者按死了')
   } else if (patch.dead === false && state.dead === true) {

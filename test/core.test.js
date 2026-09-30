@@ -1115,6 +1115,16 @@ test('a collection bigger than 40 keeps everything across a restart', () => {
   assert.equal(reloaded.souvenirs[40].key, 'shell-40')
 })
 
+test('forcing health to zero kills the pig and says so', () => {
+  // The debug tab used to leave a pig with health 0 and no death: it just read
+  // as a corpse without the grave, the announcement or the stats (B1 小缺口).
+  const pig = hatchEgg(T0)
+  applyDevPatch(pig, { health: 0 }, T0)
+  assert.equal(pig.dead, true)
+  assert.equal(pig.health, 0)
+  assert.ok(pig.pending.some(entry => entry.kind === 'death'), 'the death is announced')
+})
+
 test('interests are repeatable and outside the school ladder', () => {
   const pig = hatchEgg(T0)
   pig.coins = 5000
