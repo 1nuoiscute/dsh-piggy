@@ -118,13 +118,14 @@ import { arr, num, obj, str } from './values.js'
       var isOpen = readStore(OPEN_KEY) === 'true'
       var lastStage = null
       var lastPendingAt = 0
+      var lastPendingId = 0
       var pollTimer = null
       var fx = createEffects({
         scene: scene, pig: pig, pigArt: pigArt, card: card, bubble: bubble,
         isStopped: function () { return stopped },
       })
       var react = fx.react, burst = fx.burst, flash = fx.flash
-      var showBubble = fx.showBubble, toast = fx.toast
+      var showBubble = fx.showBubble, showLine = fx.showLine, toast = fx.toast
       var stopped = false
       var busy = false
 
@@ -156,6 +157,7 @@ import { arr, num, obj, str } from './values.js'
         react: react,
         burst: burst,
         showBubble: showBubble,
+        showLine: showLine,
         toast: toast,
         get view() { return view }, set view(next) { view = next },
         get tab() { return tab }, set tab(next) { tab = next },
@@ -164,6 +166,7 @@ import { arr, num, obj, str } from './values.js'
         get isOpen() { return isOpen }, set isOpen(next) { isOpen = next },
         get lastStage() { return lastStage }, set lastStage(next) { lastStage = next },
         get lastPendingAt() { return lastPendingAt }, set lastPendingAt(next) { lastPendingAt = next },
+        get lastPendingId() { return lastPendingId }, set lastPendingId(next) { lastPendingId = next },
         get userRight() { return userRight }, set userRight(next) { userRight = next },
         get userBottom() { return userBottom }, set userBottom(next) { userBottom = next },
         get busy() { return busy }, set busy(next) { busy = next },
@@ -333,6 +336,10 @@ import { arr, num, obj, str } from './values.js'
       function dispose() {
         stopped = true
         window.removeEventListener?.('resize', onResize)
+        // #11: the dev shortcut and the console handle outlived the pig, so a
+        // reload could toggle a panel that had already been disposed.
+        window.removeEventListener?.('keydown', onKeyDown)
+        try { delete (/** @type {any} */ (window)).dshPigDev } catch (error) { /* frozen window */ }
         if (pollTimer !== null) window.clearInterval(pollTimer)
         fx.dispose()
         pollTimer = null

@@ -1,0 +1,93 @@
+{
+  "version": 7,
+  "name": "猪猪",
+  "bornAt": 1790755738558,
+  "hatched": true,
+  "dead": false,
+  "diedAt": null,
+  "stage": "piglet",
+  "ageMs": 22218941,
+  "timeScale": 1,
+  "ageForced": false,
+  "xp": 1163,
+  "weightG": 10795,
+  "satiety": 87.65764399999327,
+  "happiness": 90.6973483999962,
+  "cleanliness": 73.40059986666843,
+  "health": 5,
+  "coins": 9891,
+  "inventory": {
+    "apple": 1,
+    "pumpkin": 1,
+    "sauna": 1,
+    "candle": 1,
+    "shampoo": 1
+  },
+  "dress": [
+    "scarf"
+  ],
+  "worn": [],
+  "traits": {
+    "intel": 0,
+    "charm": 0,
+    "strong": 0
+  },
+  "courses": {},
+  "coursesByStage": {},
+  "interests": {},
+  "lessonsByStage": {
+    "preschool": 0,
+    "extracurricular": 0,
+    "primary": 0,
+    "middle": 0,
+    "high": 0,
+    "college": 0,
+    "graduate": 0
+  },
+  "souvenirs": [],
+  "illness": null,
+  "activity": null,
+  "riskMinutes": 0,
+  "lastFedAt": 0,
+  "lastActiveAt": 1790771020314,
+  "lastSeenAt": 1790780277081,
+  "cooldowns": {
+    "play": 1790762831455,
+    "bathe": 1790762892131
+  },
+  "pending": [],
+  "memories": [
+    "[18:07] 买了 🎃 南瓜粥（-34 金币）",
+    "[18:07] 买了 🧖 泡温泉（-58 金币）",
+    "[18:07] 买了 🕯 香薰（-22 金币）",
+    "[18:07] 买了 🧴 沐浴露（-14 金币）",
+    "[18:07] 买了 🚿 冲个澡（-10 金币）",
+    "[18:08] 🚿 洗澡用了「冲个澡」",
+    "[18:41] 🧹 出门打零工去了",
+    "[20:04] 🧹 打零工回来，赚了 30 金币"
+  ],
+  "stats": {
+    "turns": 23,
+    "messages": 25,
+    "tools": 993,
+    "toolErrors": 13,
+    "agentErrors": 0,
+    "levelUps": 0,
+    "feeds": 0,
+    "baths": 1,
+    "plays": 1,
+    "pets": 0,
+    "jobs": 2,
+    "coinsEarned": 60,
+    "purchases": 7,
+    "illnesses": 0,
+    "cures": 0,
+    "deaths": 0,
+    "revives": 0,
+    "courses": 0,
+    "lessons": 0,
+    "trips": 0,
+    "sales": 0,
+    "interests": 0
+  }
+}

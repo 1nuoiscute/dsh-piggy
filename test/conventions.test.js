@@ -10,6 +10,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { test } from 'node:test'
 
 const packageRoot = new URL('..', import.meta.url)
+const coreRoot = new URL('packages/pet-core/src/', packageRoot)
 
 /** Every .js file below `dirUrl` (missing directories are simply empty). */
 function jsFiles(dirUrl) {
@@ -27,8 +28,8 @@ const read = url => readFileSync(url, 'utf8')
 const shortName = url => url.pathname.split('/').slice(-2).join('/')
 
 test('the domain layer never reads the system clock', () => {
-  // core.js is the barrel; core/ holds the modules it re-exports.
-  const files = [new URL('core.js', packageRoot), ...jsFiles(new URL('core/', packageRoot))]
+  // The domain lives in packages/pet-core: core.js is its barrel, core/ the modules.
+  const files = [new URL('core.js', coreRoot), ...jsFiles(new URL('core/', coreRoot))]
   const offenders = files.filter(url => /Date\.now\(\)/.test(read(url))).map(shortName)
   assert.deepEqual(
     offenders,
@@ -43,10 +44,11 @@ test('code identifiers, comments and logs carry no emoji', () => {
   const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u
   const files = [
     new URL('core.js', packageRoot),
+    new URL('core.js', coreRoot),
     new URL('index.js', packageRoot),
     new URL('store.js', packageRoot),
     new URL('render.js', packageRoot),
-    ...jsFiles(new URL('core/', packageRoot)),
+    ...jsFiles(new URL('core/', coreRoot)),
     ...jsFiles(new URL('store/', packageRoot)),
     ...jsFiles(new URL('src/client/', packageRoot)),
   ]
@@ -70,8 +72,8 @@ test('source files stay under the 400-line ceiling', () => {
     new URL('routes.js', packageRoot),
     new URL('store.js', packageRoot),
     new URL('render.js', packageRoot),
-    ...jsFiles(new URL('data/', packageRoot)),
-    ...jsFiles(new URL('core/', packageRoot)),
+    ...jsFiles(new URL('data/', coreRoot)),
+    ...jsFiles(new URL('core/', coreRoot)),
     ...jsFiles(new URL('store/', packageRoot)),
     ...jsFiles(new URL('src/client/', packageRoot)),
   ]
@@ -88,7 +90,7 @@ test('package.json ships every module the runtime imports', () => {
   const listed = new Set(manifest.files)
   const required = [
     'index.js', 'snapshot.js', 'commands.js', 'routes.js', 'core.js', 'data.js',
-    'store.js', 'render.js', 'client.js', 'core', 'data', 'store', 'src', 'scripts',
+    'store.js', 'render.js', 'client.js', 'packages/pet-core', 'store', 'src', 'scripts',
     'THIRD-PARTY.md', 'LICENSE',
   ]
   const missing = required.filter(entry => !listed.has(entry))

@@ -162,6 +162,7 @@ export const CSS_BASE = [
   'animation:dp-prop-bob 2.4s ease-in-out infinite}',
   '[data-dsh-pig][data-away="study"] .dp-prop{animation-duration:3.4s}',
   '[data-dsh-pig][data-away="trip"] .dp-prop{animation-name:dp-prop-swing;animation-duration:1.6s}',
+  '[data-dsh-pig][data-away="interest"] .dp-prop{animation-duration:3.4s}',
   '@keyframes dp-prop-bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3px) rotate(3deg)}}',
   '@keyframes dp-prop-swing{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-4px) rotate(8deg)}}',
   '.dp-progress{width:42px;height:7px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);',
@@ -170,10 +171,11 @@ export const CSS_BASE = [
   'background:var(--ac-primary);transition:width .5s var(--ac-ease)}',
   // The scene needs room for the prop; it grows leftward, so the pig stays put.
   '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
+  '[data-dsh-pig][data-away="interest"] .dp-scene,',
   '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
 
   '.dp-pig[data-art="pig-king"][data-activity="work"]:not([data-react]){animation:dp-king-work 1.4s ease-in-out infinite}',
-  '.dp-pig[data-art="pig-king"][data-activity="study"]:not([data-react]){animation:dp-king-study 2.4s ease-in-out infinite}',
+  '.dp-pig[data-art="pig-king"][data-activity="study"]:not([data-react]),.dp-pig[data-art="pig-king"][data-activity="interest"]:not([data-react]){animation:dp-king-study 2.4s ease-in-out infinite}',
   '.dp-pig[data-art="pig-king"][data-activity="trip"]:not([data-react]){animation:dp-king-walk .8s ease-in-out infinite}',
   '@keyframes dp-king-work{0%,100%{transform:translateY(0)}50%{transform:translateY(1px) rotate(1deg)}}',
   '@keyframes dp-king-study{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}',

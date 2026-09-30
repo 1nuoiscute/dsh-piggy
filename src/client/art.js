@@ -19,5 +19,5 @@ export function syncPigArt(pig, image) {
     if (action) art += '-' + action
   }
   var src = ART_URL + art + '.svg'
-  if (image.src !== src) image.src = src
+  if (image.getAttribute('src') !== src) image.src = src
 }

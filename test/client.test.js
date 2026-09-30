@@ -77,7 +77,11 @@ function fakeDom() {
       this.style = { setProperty() {}, removeProperty() {} }
       this.attributes = {}
       this.className = ''
-      this.textContent = ''
+      this._text = ''
+      // Browsers keep a scroll offset per element and drop it when the element
+      // is emptied. The fake DOM has to do the same, or "the panel scrolled back
+      // to the top" is invisible to these tests.
+      this.scrollTop = 0
       this.disabled = false
       this.hidden = false
       this.type = ''
@@ -89,6 +93,12 @@ function fakeDom() {
     // The bundle measures the scene to keep itself on screen, so a DOM without
     // geometry makes mount() throw — and apply() swallows that, which shows up
     // as "the pig is simply not there".
+    get textContent() { return this._text }
+    set textContent(value) {
+      this._text = String(value)
+      if (this._text === '') this.scrollTop = 0
+    }
+
     getBoundingClientRect() { return this.rect }
 
     appendChild(child) {
@@ -155,7 +165,7 @@ function fakeNet(status, actResult) {
 }
 
 async function loadClient(options) {
-  const { status = SNAPSHOT, actResult = null } = options ?? {}
+  const { status = SNAPSHOT, actResult = null, timerQueue = null } = options ?? {}
   const dom = fakeDom()
   const net = fakeNet(status, actResult)
   const store = new Map()
@@ -169,8 +179,8 @@ async function loadClient(options) {
     },
     setInterval: () => 1,
     clearInterval: () => {},
-    setTimeout: () => 1,
-    clearTimeout: () => {},
+    setTimeout: timerQueue ? timerQueue.schedule : () => 1,
+    clearTimeout: timerQueue ? timerQueue.cancel : () => {},
     // Geometry, so the on-screen clamp is exercised instead of skipped.
     innerWidth: 1280,
     innerHeight: 800,
@@ -576,6 +586,139 @@ test('the shop icon flags itself when the pig is sick', async () => {
   assert.equal(findByAttr(barOf(dom), 'data-tab', 'shop').attributes['data-alert'], 'true')
 })
 
+test('disposing also unhooks the dev shortcut and window.dshPigDev', async () => {
+  // #11: dispose() removed the pig but left the Ctrl+Shift+D listener and the
+  // console handle behind, so a reload could toggle a pig that no longer exists.
+  const { registration, dom, windowListeners } = await loadClient()
+  const dispose = registration.factory(() => {}).apply({})
+  await settle()
+  assert.ok((windowListeners.keydown ?? []).length > 0, 'the shortcut starts hooked')
+  assert.notEqual(window.dshPigDev, undefined)
+
+  dispose()
+  assert.deepEqual(windowListeners.keydown ?? [], [], 'the shortcut must be unhooked')
+  assert.equal(window.dshPigDev, undefined, 'and the console handle must go')
+})
+
+test('a slow poll cannot overwrite the result of an action', async () => {
+  // The panel polls every 4s. A poll that left before an action but landed
+  // after it used to paint stale state back over the action's result.
+  const acted = { ...SNAPSHOT, pig: { ...PIG, name: '动作后' } }
+  const { registration, dom } = await loadClient({ actResult: acted })
+
+  let poll = null
+  const realSetInterval = globalThis.window.setInterval
+  globalThis.window.setInterval = fn => { poll = fn; return 1 }
+  try {
+    registration.factory(() => {}).apply({})
+    await settle()
+    openPanel(dom)
+    assert.ok(hostOf(dom).allText().includes('大花'), 'the first render is the polled state')
+
+    // A poll starts and hangs; an action lands meanwhile.
+    let release
+    const gate = new Promise(resolve => { release = resolve })
+    const realFetch = globalThis.fetch
+    globalThis.fetch = async (url, options) => {
+      if ((options?.method ?? 'GET') === 'GET') { await gate; return realFetch(url, { method: 'GET' }) }
+      return realFetch(url, options)
+    }
+    const stale = poll()
+    findByAttr(contentOf(dom), 'data-action', 'pet').fire('click')
+    await settle()
+    assert.ok(hostOf(dom).allText().includes('动作后'), 'the action repainted the panel')
+
+    release()
+    await stale
+    await settle()
+    assert.ok(hostOf(dom).allText().includes('动作后'), 'the stale poll must be dropped')
+    assert.ok(!hostOf(dom).allText().includes('大花'), 'and must not paint the old name back')
+  } finally {
+    globalThis.window.setInterval = realSetInterval
+  }
+})
+
+test('a repaint keeps the reader where they were', async () => {
+  // The panel rebuilds its body from scratch, so a 4s poll scrolled a long
+  // shelf back to the top while the user was reading it (B1).
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+  const content = contentOf(dom)
+  content.scrollTop = 140
+  pickTab(dom, 'shop')
+  assert.equal(contentOf(dom).scrollTop, 140, 'the scroll offset survived the repaint')
+})
+
+// ===========================================================================
+// #10 — fields the panel silently dropped
+// ===========================================================================
+
+test('a worn dress says so in the shop', async () => {
+  const scarf = {
+    key: 'scarf', label: '围巾', emoji: '🧣', price: 30, kind: 'dress', tier: null, level: 1,
+    owned: true, unlocked: true, worn: true, blurb: '', affordable: false, needed: false,
+  }
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, shop: [scarf] } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+  assert.ok(contentOf(dom).allText().includes('穿着'), contentOf(dom).allText())
+})
+
+test('the shop shows how many of a consumable the pig already has', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+  // The snapshot has no per-shelf count: the inventory map is the real source.
+  assert.ok(contentOf(dom).allText().includes('×2'), contentOf(dom).allText())
+})
+
+test('a render does not wipe the developer-mode highlight', async () => {
+  const { registration, dom, store } = await loadClient()
+  store.set('dsh-pig:dev', '1')
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(hostOf(dom).attributes['data-dev'], 'true')
+  openPanel(dom)
+  // Any action ends in render(); it used to hard-code data-dev back to "false".
+  findByAttr(contentOf(dom), 'data-action', 'pet').fire('click')
+  await settle()
+  assert.equal(hostOf(dom).attributes['data-dev'], 'true', 'dev mode survived a render')
+})
+
+test('the study icon lights up when there is a course to take', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(findByAttr(barOf(dom), 'data-tab', 'study').attributes['data-alert'], 'true')
+})
+
+test('the sick pig is told the medicine it actually needs, not the cheapest one', async () => {
+  const shop = [
+    { key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', tier: 1, affordable: true, needed: false },
+    { key: 'med2', label: '特效药', emoji: '💊', price: 26, kind: 'medicine', tier: 2, affordable: true, needed: true },
+  ]
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      shop,
+      pig: { ...PIG, coins: 5, illness: { name: '发烧', cure: '退烧药', stage: 2 } },
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('特效药'), `expected the tier-2 medicine in: ${text}`)
+  assert.ok(!text.includes('普通药'), `the cheapest medicine is the wrong one: ${text}`)
+})
+
 // ===========================================================================
 // Per-tab content
 // ===========================================================================
@@ -587,7 +730,7 @@ test('the status tab shows labelled bars, traits and the care buttons', async ()
   openPanel(dom)
 
   const text = contentOf(dom).allText()
-  for (const label of ['饱食', '心情', '清洁', '健康', '智力', '魅力', '武力', '体重', '年龄']) {
+  for (const label of ['饱食', '心情', '清洁', '健康', '智力', '魅力', '武力', '体重', '陪伴']) {
     assert.ok(text.includes(label), `expected "${label}" in: ${text}`)
   }
   for (const key of ['feed', 'bathe', 'play', 'pet']) {
@@ -596,35 +739,6 @@ test('the status tab shows labelled bars, traits and the care buttons', async ()
   const play = findByAttr(contentOf(dom), 'data-action', 'play')
   assert.equal(play.disabled, true, 'cooling-down action is disabled')
   assert.ok(play.allText().includes('37'), play.allText())
-})
-
-test('the study tab lists the host stages and only the selected stage courses', async () => {
-  const { registration, dom, net } = await loadClient()
-  registration.factory(() => {}).apply({})
-  await settle()
-  openPanel(dom)
-  pickTab(dom, 'study')
-
-  const text = contentOf(dom).allText()
-  assert.ok(text.includes('幼儿园'), text)
-  assert.ok(text.includes('小学'), text)
-  assert.ok(text.includes('语文'), text)
-  assert.ok(text.includes('本级 2 次'), text)
-  // 哲学 is a 大学 course, so it must not be offered while 小学 is selected.
-  assert.equal(findByAttr(contentOf(dom), 'data-subject', 'philosophy'), undefined)
-
-  // A locked stage stays selectable on purpose: selecting it is how the pig
-  // says what it is still missing.
-  findByAttr(contentOf(dom), 'data-stage', 'extracurricular').fire('click')
-  assert.ok(contentOf(dom).allText().includes('🔒 要先念完幼儿园 3 门课各上一次（1/3）'), contentOf(dom).allText())
-
-  findByAttr(contentOf(dom), 'data-stage', 'college').fire('click')
-  findByAttr(contentOf(dom), 'data-subject', 'philosophy').fire('click')
-  await settle()
-  await settle()
-
-  const post = net.calls.find(call => call.method === 'POST')
-  assert.deepEqual(JSON.parse(post.body), { action: 'study', subject: 'philosophy', stage: 'college' })
 })
 
 test('the shop marks 家当 as 已拥有 or level-locked, and the bag can wear it', async () => {
@@ -759,9 +873,11 @@ test('interest courses live in the study tab, not in a new stat panel', async ()
   await settle()
   openPanel(dom)
   pickTab(dom, 'study')
+  assert.ok(contentOf(dom).allText().includes('🎯 兴趣'), 'the interest button sits with the stage buttons')
+  // 兴趣 is a button beside the stages now; the list shows once it is picked.
+  findByAttr(contentOf(dom), 'data-stage', 'interest').fire('click')
 
   const text = contentOf(dom).allText()
-  assert.ok(text.includes('🎯 兴趣'), text)
   assert.ok(text.includes('摄影'), text)
   assert.ok(text.includes('智力 +2'), text)
   assert.ok(text.includes('学过 3 次'), 'a repeatable course shows how often it has been taken')
@@ -773,7 +889,9 @@ test('interest courses live in the study tab, not in a new stat panel', async ()
   assert.ok(!status.includes('undefined'), status)
 
   pickTab(dom, 'study')
-  findByAttr(contentOf(dom), 'data-interest', 'fitness').fire('click')
+  const interestButtons = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-interest'] === 'fitness') interestButtons.push(node) })
+  interestButtons.at(-1).fire('click')
   await settle()
   await settle()
   const post = net.calls.find(call => call.method === 'POST')
@@ -1068,7 +1186,7 @@ test('a sick pig with no money is told it can still go out and earn', async () =
     status: {
       ...SNAPSHOT,
       canGoOut: true,
-      shop: [{ key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', affordable: true }],
+      shop: [{ key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', tier: 1, affordable: true }],
       pig: { ...PIG, coins: 3, illness: { name: '感冒', cure: '板蓝根', stage: 1 } },
     },
   })
@@ -1159,6 +1277,23 @@ test('a refused operation explains itself in the bubble', async () => {
   const bubble = findByClass(hostOf(dom), 'dp-bubble')
   assert.notEqual(bubble, undefined)
   assert.ok(bubble.allText().includes('钱不够'), bubble.allText())
+})
+
+test('a stale reply is dropped silently instead of scolding the user', async () => {
+  // Answering a line that has already been superseded is normal (two windows,
+  // a slow poll) — it must not pop a refusal bubble (B1 小缺口).
+  const { registration, dom } = await loadClient({
+    actResult: { ...SNAPSHOT, ok: false, reason: 'stale-line' },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  findByAttr(contentOf(dom), 'data-action', 'pet').fire('click')
+  await settle()
+  await settle()
+  const bubble = findByClass(hostOf(dom), 'dp-bubble')
+  const text = bubble === undefined ? '' : bubble.allText()
+  assert.ok(!text.includes('没成') && !text.includes('这个操作'), `nothing should be said: ${text}`)
 })
 
 test('a drawn stage shows a sprite, the others show the emoji', async () => {
@@ -1433,6 +1568,51 @@ test('right-click opens the menu and left-click only pats the pig', async () => 
   assert.match(sceneOf(dom).title, /右键/, 'the pig must say how to open the menu')
 })
 
+test('the study tab keeps its stage tabs; each subject shows where it stands in that stage (B4)', async () => {
+  const subject = (key, label, emoji, lessons, stageKey, stageLabel) => ({
+    key, label, emoji, traitLabel: '智力', traitEmoji: '🧠', lessons,
+    stage: { key: stageKey, label: stageLabel, emoji: '📚' }, nextGraduation: null,
+    minutes: 20, tuition: 10, gain: 1, secondaryGain: 0, available: true, affordable: true,
+  })
+  const stage = (key, label, from, upTo, unlocked) => ({
+    key, label, emoji: '📚', minutes: 20, tuition: 10, gain: 1, from, upTo, unlocked,
+    subjects: ['chinese', 'mathematics'], progress: unlocked ? null : { done: 12, need: from, label: `任意一门课念完第 ${from} 节` },
+  })
+  const { registration, dom, net } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      stages: [stage('primary', '小学', 0, 9, true), stage('middle', '中学', 9, 20, true), stage('college', '大学', 20, 40, false)],
+      subjects: [
+        subject('chinese', '语文', '📖', 12, 'middle', '中学'),
+        subject('mathematics', '数学', '🔢', 0, 'primary', '小学'),
+      ],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'study')
+  let text = contentOf(dom).allText()
+  assert.ok(text.includes('小学') && text.includes('中学') && text.includes('大学 🔒'), 'the stage tabs are back')
+  assert.ok(text.includes('✓ 已毕业'), `语文 has finished 小学: ${text}`)
+  assert.ok(text.includes('0/9 节'), `数学 is in 小学: ${text}`)
+
+  findByAttr(contentOf(dom), 'data-stage', 'middle').fire('click')
+  text = contentOf(dom).allText()
+  assert.ok(text.includes('3/11 节'), `语文 is 3 lessons into 中学: ${text}`)
+  assert.ok(text.includes('🔒 还在小学'), `数学 has not reached 中学: ${text}`)
+  // The fake DOM keeps nodes a repaint dropped, so read the newest button.
+  const mathButtons = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-subject'] === 'mathematics') mathButtons.push(node) })
+  assert.equal(mathButtons.at(-1).disabled, true, 'a subject that has not reached 中学 cannot be taken there')
+
+  findByAttr(contentOf(dom), 'data-subject', 'chinese').fire('click')
+  await settle()
+  const post = JSON.parse(String(net.calls.filter(c => c.method === 'POST').at(-1).body))
+  assert.equal(post.action, 'study')
+  assert.equal(post.subject, 'chinese')
+})
+
 
 test('eligible adult shows optional coronation and clicking sends the action', async () => {
   const status = { ...SNAPSHOT, pig: { ...SNAPSHOT.pig, stage: { key: 'middle', label: '成年猪', art: 'middle', size: 68 }, coronation: { visible: true, ready: true, requirements: [{ label: '本代完成打工', have: 10, need: 10 }] } } }
@@ -1459,5 +1639,58 @@ test('king sprites follow activities and pet reactions without duplicate crown o
     assert.equal(findByAttr(hostOf(dom), 'data-slot', 'head'), undefined)
     patPig(dom)
     assert.ok(image.src.endsWith('pig-king-pet.svg'), image.src)
+  }
+})
+
+
+/** Run the actual bundle's timeout callbacks, without a wall clock. */
+function queuedTimers() {
+  const tasks = new Map()
+  let time = 0
+  let nextId = 0
+  return {
+    schedule(callback, ms) { const id = ++nextId; tasks.set(id, { callback, due: time + ms }); return id },
+    cancel(id) { tasks.delete(id) },
+    advance(ms) {
+      const target = time + ms
+      while (true) {
+        const next = [...tasks.entries()].filter(([, task]) => task.due <= target).sort((a, b) => a[1].due - b[1].due)[0]
+        if (!next) break
+        tasks.delete(next[0]); time = next[1].due; next[1].callback()
+      }
+      time = target
+    },
+  }
+}
+
+test('the built client timer restores the king activity art after a pat', async () => {
+  const timerQueue = queuedTimers()
+  const status = { ...SNAPSHOT, pig: { ...SNAPSHOT.pig, stage: { key: 'middle', label: '猪猪王', art: 'pig-king', size: 68 } }, activity: { kind: 'work', label: '工作', progress: 20 } }
+  const { registration, dom } = await loadClient({ status, timerQueue })
+  const dispose = registration.factory(() => {}).apply({})
+  await settle()
+  const image = findByClass(hostOf(dom), 'dp-pig-img')
+  patPig(dom)
+  assert.ok(image.src.endsWith('pig-king-pet.svg'))
+  timerQueue.advance(419)
+  assert.ok(image.src.endsWith('pig-king-pet.svg'))
+  timerQueue.advance(1)
+  assert.ok(image.src.endsWith('pig-king-work.svg'))
+  assert.equal(findByClass(hostOf(dom), 'dp-pig').getAttribute('data-react'), null)
+  dispose()
+})
+
+test('unqualified coronation is disabled; hidden and dead choices are not offered', async () => {
+  for (const situation of [{ visible: true, ready: false, dead: false }, { visible: false, ready: true, dead: false }, { visible: true, ready: true, dead: true }]) {
+    const status = { ...SNAPSHOT, dead: situation.dead, pig: { ...SNAPSHOT.pig, coronation: { visible: situation.visible, ready: situation.ready, requirements: [] } } }
+    const { registration, dom, net } = await loadClient({ status })
+    const dispose = registration.factory(() => {}).apply({})
+    await settle()
+    openPanel(dom)
+    const btn = findByAttr(contentOf(dom), 'data-action', 'crown')
+    if (situation.visible && !situation.dead) assert.equal(btn.disabled, true)
+    else assert.equal(btn, undefined)
+    assert.equal(net.calls.filter(call => call.method === 'POST').length, 0)
+    dispose()
   }
 })

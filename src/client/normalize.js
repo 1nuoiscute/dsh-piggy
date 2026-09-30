@@ -48,6 +48,8 @@ export function normalize(raw) {
         art: typeof obj(pig.stage).art === 'string' && obj(pig.stage).art !== '' ? obj(pig.stage).art : null,
         faded: obj(pig.stage).faded === true,
       },
+      // Older hosts send no sex; the HUD then simply shows none.
+      sex: isObj(pig.sex) ? { key: str(pig.sex.key, ''), label: str(pig.sex.label, ''), symbol: str(pig.sex.symbol, '') } : null,
       ageLabel: str(pig.ageLabel, ''),
       ageForced: pig.ageForced === true,
       daysToNextStage: typeof pig.daysToNextStage === 'number' ? pig.daysToNextStage : null,
@@ -63,7 +65,7 @@ export function normalize(raw) {
       coins: num(pig.coins, 0),
       weight: str(pig.weight, '—'),
       xp: num(pig.xp, 0),
-      // The other axis: level never resets, not even when the pig dies.
+      // Level is driven by growth and decides the body (B2).
       level: (function (info) {
         var i = obj(info)
         var t = obj(i.title)
@@ -71,6 +73,7 @@ export function normalize(raw) {
           level: num(i.level, 1),
           percent: num(i.percent, 0),
           toNext: num(i.toNext, 0),
+          maxed: i.maxed === true,
           titleLabel: str(t.label, '新来的'),
           titleEmoji: str(t.emoji, '🌱'),
         }
@@ -79,7 +82,9 @@ export function normalize(raw) {
       illness: isObj(pig.illness) ? {
         name: str(pig.illness.name, '生病'),
         cure: str(pig.illness.cure, '药'),
+        cureEmoji: str(pig.illness.cureEmoji, '💊'),
         stage: num(pig.illness.stage, 1),
+        doctorFee: typeof pig.illness.doctorFee === 'number' ? pig.illness.doctorFee : null,
       } : null,
       traits: {
         intel: num(obj(pig.traits).intel, 0),
@@ -127,18 +132,26 @@ export function normalize(raw) {
       // "qualified" — the opposite default would lock every job on upgrade.
       qualified: obj(job).qualified !== false,
       lockText: str(obj(job).lockText, ''),
+      level: num(obj(job).level, 1),
     })).filter(job => job.key !== ''),
+    // B4: nine subjects, each with its own lesson count and stage.
     subjects: arr(d.subjects).map(sub => ({
       key: str(obj(sub).key, ''),
       label: str(obj(sub).label, '课'),
       emoji: str(obj(sub).emoji, '📘'),
       traitLabel: str(obj(sub).traitLabel, ''),
-      level: num(obj(sub).level, 0),
-      // Seven stages share subject names, so the level that matters is the
-      // one for the stage on screen. `levels` is keyed by stage key.
-      levels: isObj(obj(sub).levels) ? obj(sub).levels : {},
-      stages: arr(obj(sub).stages).filter(key => typeof key === 'string'),
+      traitEmoji: str(obj(sub).traitEmoji, ''),
+      lessons: num(obj(sub).lessons, num(obj(sub).level, 0)),
+      stageKey: str(obj(obj(sub).stage).key, ''),
+      stageLabel: str(obj(obj(sub).stage).label, ''),
+      graduatedLabel: isObj(obj(sub).graduated) ? str(obj(sub).graduated.label, '') : '',
+      nextGraduation: typeof obj(sub).nextGraduation === 'number' ? obj(sub).nextGraduation : null,
+      minutes: num(obj(sub).minutes, 0),
+      tuition: num(obj(sub).tuition, 0),
+      gain: num(obj(sub).gain, 0),
+      secondaryGain: num(obj(sub).secondaryGain, 0),
       available: obj(sub).available === true,
+      affordable: obj(sub).affordable !== false,
     })).filter(sub => sub.key !== ''),
     // 兴趣课：学习页里随时能学的一栏，学完加的是既有的三条属性。
     interests: arr(d.interests).map(entry => ({
@@ -152,6 +165,9 @@ export function normalize(raw) {
       gain: num(obj(entry).gain, 0),
       blurb: str(obj(entry).blurb, ''),
       times: num(obj(entry).times, 0),
+      certificate: str(obj(entry).certificate, ''),
+      certificateAfter: num(obj(entry).certificateAfter, 0),
+      certified: obj(entry).certified === true,
       available: obj(entry).available === true,
       affordable: obj(entry).affordable === true,
     })).filter(entry => entry.key !== ''),
@@ -162,6 +178,9 @@ export function normalize(raw) {
       minutes: num(obj(stage).minutes, 0),
       tuition: num(obj(stage).tuition, 0),
       gain: num(obj(stage).gain, 0),
+      // B4: the lesson numbers this stage covers (upTo null = no end).
+      from: num(obj(stage).from, 0),
+      upTo: typeof obj(stage).upTo === 'number' ? obj(stage).upTo : null,
       // Which courses this stage teaches — empty on an old host, in which
       // case the panel shows every subject rather than none.
       subjects: arr(obj(stage).subjects).filter(key => typeof key === 'string'),
@@ -212,6 +231,7 @@ export function normalize(raw) {
       // 家当 fields: a dress item is owned (not counted) or waits for a level.
       level: typeof obj(item).level === 'number' ? obj(item).level : null,
       owned: obj(item).owned === true,
+      worn: obj(item).worn === true,
       unlocked: obj(item).unlocked !== false,
       blurb: str(obj(item).blurb, ''),
       affordable: obj(item).affordable === true,
@@ -253,7 +273,13 @@ export function normalize(raw) {
       size: num(d.boxStage.size, 58),
     } : { key: 'box', label: '纸盒', emoji: '📦', size: 58 },
     awayBlocked: typeof d.awayBlocked === 'string' ? d.awayBlocked : null,
-    pending: arr(d.pending).filter(e => isObj(e) && typeof e.at === 'number'),
+    pending: arr(d.pending).filter(e => isObj(e) && typeof e.at === 'number').map(e => ({
+      id: num(e.id, 0),
+      kind: str(e.kind, ''),
+      text: str(e.text, ''),
+      at: e.at,
+      replies: arr(e.replies).filter(label => typeof label === 'string'),
+    })),
     maxHealth: num(d.maxHealth, 5),
   }
 }

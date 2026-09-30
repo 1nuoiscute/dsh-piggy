@@ -8,8 +8,8 @@
 
 import { readFileSync } from 'node:fs'
 
-import { ACTIONS, ACTION_ORDER, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, coronationView, courseView, currentIllness, daysToNextStage, dressView, finalStageView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
-import { INTERESTS, jobRequirement, rarityByKey, stageSubjectKeys, traitBonus } from './data.js'
+import { ACTIONS, ACTION_ORDER, doctorFee, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, coronationView, courseView, currentIllness, daysToNextStage, dressView, finalStageView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
+import { CERTIFICATE_AFTER, INTERESTS, SEXES, jobRequirement, rarityByKey, traitBonus } from './data.js'
 
 /** The stage the panel shows before there is a pig: the cardboard box. */
 /**
@@ -36,7 +36,13 @@ function boxStageView() {
   return { key: box.key, label: box.label, emoji: box.emoji, size: box.size, line: box.line }
 }
 
-/** "今天刚出生" / "3 天大" / "刚拆开纸盒" — the pig's age in words. */
+/** 性别：男孩 ♂ / 女孩 ♀；还没拆开的纸盒没有。 */
+function sexView(state) {
+  const sex = SEXES[state.sex]
+  return sex === undefined ? null : { key: sex.key, label: sex.label, symbol: sex.symbol }
+}
+
+/** "今天刚到家" / "养了 3 天" / "还没拆开" — how long the pig has been here, in words. */
 function formatAge(days, state, nowMs) {
   if (state.hatched !== true) return '还没拆开'
   // A tombstone is not "newborn today". Once the pig is gone its clock stops,
@@ -45,8 +51,8 @@ function formatAge(days, state, nowMs) {
     const lived = Math.max(0, (state.diedAt ?? nowMs) - state.bornAt)
     return `活了 ${formatSpan(lived)}`
   }
-  if (days < 1) return '今天刚出生'
-  return `${Math.floor(days)} 天大`
+  if (days < 1) return '今天刚到家'
+  return `养了 ${Math.floor(days)} 天`
 }
 
 /** "18 小时" / "3 天" / "2 小时" — a duration in the largest sensible unit. */
@@ -76,7 +82,7 @@ export function snapshot(store, options = {}) {
       jobs: jobsFor(null),
       subjects: subjectsFor(null),
       interests: interestsFor(null),
-      stages: SCHOOL_STAGES.map(stage => ({ ...stage })),
+      stages: stagesFor(null),
       trips: tripsFor(null),
       shop: shopFor(null),
       dress: [],
@@ -111,7 +117,8 @@ export function snapshot(store, options = {}) {
       name: state.name,
       finalForm: state.finalForm ?? null,
       coronation: coronationView(state, nowMs),
-      // Age is the progression now, not a level.
+      sex: sexView(state),
+      // The body follows the level (B2); age is only how long it has been here.
       stage: { key: life.key, label: life.label, emoji: life.emoji, size: life.size, line: life.line, art: life.art ?? null, faded: life.faded === true },
       ageDays: Number(ageDays(state, nowMs).toFixed(2)),
       ageLabel: formatAge(ageDays(state, nowMs), state, nowMs),
@@ -135,14 +142,20 @@ export function snapshot(store, options = {}) {
       courses: courseView(state),
       souvenirs: souvenirsFor(state),
       stageLine: life.line,
-      illness: illness === null ? null : { name: illness.name, cure: illness.cure, stage: illness.stage, chain: illness.chain },
+      illness: illness === null ? null : {
+        name: illness.name, chain: illness.chain, stage: illness.stage,
+        cure: illness.cure, cureKey: illness.cureKey, cureEmoji: illness.cureEmoji,
+        doctorFee: doctorFee(state),
+      },
       memories: state.memories.slice(-3),
     },
     actions: actionsFor(state, nowMs),
     jobs: jobsFor(state),
     subjects: subjectsFor(state),
     interests: interestsFor(state),
-    stages: studyView(state),
+    // B4: every subject has its own stage now, but the panel keeps the stage
+    // tabs the owner liked; a stage is "open" once any subject has reached it.
+    stages: stagesFor(state),
     trips: tripsFor(state),
     shop: shopFor(state),
     dress: dressView(state),
@@ -187,13 +200,13 @@ function actionsFor(state, nowMs) {
 function jobsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
   const traits = state?.traits ?? {}
+  const facts = state === null ? { level: 1, lessons: {}, interests: {} } : jobFacts(state)
   return JOBS.map(job => {
-    // Jobs lean on a trait and lessons raise it, so the panel has to show what
-    // the pig's schooling is actually buying it.
+    // Traits no longer gate a job (B4); they only scale its pay and shift.
     const points = state === null ? 0 : (traits[job.trait] ?? 0)
     const bonus = traitBonus(job.trait, points)
     // A locked job must say exactly what it wants, or the gate reads as a bug.
-    const gate = jobRequirement(job, traits)
+    const gate = jobRequirement(job, facts)
     const missing = gate === null ? [] : gate.missing.slice()
     return {
       key: job.key, label: job.label, emoji: job.emoji,
@@ -201,6 +214,7 @@ function jobsFor(state) {
       traitLabel: TRAITS[job.trait].label,
       traitEmoji: TRAITS[job.trait].emoji,
       traitPoints: points,
+      level: job.requires.level,
       minutes: Math.max(1, Math.round(job.minutes * bonus.minutes)),
       baseMinutes: job.minutes,
       coins: Math.round(job.coins * bonus.pay),
@@ -209,18 +223,16 @@ function jobsFor(state) {
       speedPercent: Math.round((1 - bonus.minutes) * 100),
       satiety: job.satiety,
       available: open,
-      // `available` is "the pig is home"; `qualified` is "the pig has the traits".
+      // `available` is "the pig is home"; `qualified` is "the pig has the schooling".
       qualified: gate === null ? true : gate.ok,
       missing,
-      // Short on purpose: the panel writes only the missing trait and its value.
-      lockText: missing.map(entry => `${entry.emoji} ${entry.label} ${entry.need}`).join('、'),
+      lockText: missing.map(entry => entry.text).join('、'),
     }
   })
 }
 
 /**
- * 兴趣课：学习页里的一栏，随时能学，学完直接加 智力/魅力/武力。
- * 面板把四门都列出来（没学过的显示 0 次），不然玩家不知道有这些选项。
+ * 兴趣课：学习页里的一栏，随时能学，学完加三维；上满 CERTIFICATE_AFTER 次拿证（B4）。
  */
 function interestsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
@@ -230,34 +242,46 @@ function interestsFor(state) {
     trait: entry.trait, traitLabel: TRAITS[entry.trait].label, traitEmoji: TRAITS[entry.trait].emoji,
     minutes: entry.minutes, cost: entry.cost, gain: entry.gain, blurb: entry.blurb,
     times: counts[entry.key] ?? 0,
+    certificate: entry.certificate,
+    certificateAfter: CERTIFICATE_AFTER,
+    certified: (counts[entry.key] ?? 0) >= CERTIFICATE_AFTER,
     available: open,
     affordable: state === null ? false : state.coins >= entry.cost,
   }))
 }
 
+/**
+ * The stage tabs for the study page. `from`/`upTo` bound the lesson numbers a
+ * stage covers; it is open once some subject has finished the stage below.
+ */
+function stagesFor(state) {
+  const taken = state === null ? {} : courseView(state)
+  const best = Math.max(0, ...Object.values(taken))
+  let from = 0
+  return SCHOOL_STAGES.map(stage => {
+    const entry = {
+      key: stage.key, label: stage.label, emoji: stage.emoji,
+      minutes: stage.minutes, tuition: stage.tuition, gain: stage.gain,
+      from, upTo: Number.isFinite(stage.upTo) ? stage.upTo : null,
+      unlocked: best >= from,
+      subjects: SUBJECTS.map(subject => subject.key),
+      progress: best >= from ? null : { done: best, need: from, label: `任意一门课念完第 ${from} 节` },
+    }
+    from = Number.isFinite(stage.upTo) ? stage.upTo : from
+    return entry
+  })
+}
+
+/** The nine subjects with their lesson counts and what the next lesson is (B4). */
 function subjectsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
-  const levels = state === null ? {} : courseView(state)
-  const byStage = state?.coursesByStage ?? {}
-  return SUBJECTS.map(subject => {
-    // Seven stages share subject names, so a subject carries which stages teach
-    // it and how many times it has been taken at each — the panel filters by
-    // the selected stage instead of guessing.
-    const perStage = {}
-    const stages = []
-    for (const stage of SCHOOL_STAGES) {
-      perStage[stage.key] = byStage?.[stage.key]?.[subject.key] ?? 0
-      if (stageSubjectKeys(stage).includes(subject.key)) stages.push(stage.key)
-    }
-    return {
-      key: subject.key, label: subject.label, emoji: subject.emoji,
-      trait: subject.trait, traitLabel: TRAITS[subject.trait].label,
-      level: levels[subject.key] ?? 0,
-      levels: perStage,
-      stages,
-      available: open,
-    }
-  })
+  return studyView(state ?? {}).map(subject => ({
+    ...subject,
+    // Older panels read `level` as "times studied".
+    level: subject.lessons,
+    available: open,
+    affordable: state === null ? false : state.coins >= subject.tuition,
+  }))
 }
 
 function tripsFor(state) {
@@ -282,7 +306,7 @@ function tripsFor(state) {
 /** The collection, with each souvenir's rarity spelled out and priced. */
 function souvenirsFor(state) {
   const list = Array.isArray(state?.souvenirs) ? state.souvenirs : []
-  return list.slice(-40).map(entry => {
+  return list.map(entry => {
     const tier = rarityByKey(entry.rarity)
     return {
       key: entry.key,
@@ -297,6 +321,7 @@ function souvenirsFor(state) {
 }
 
 function shopFor(state) {
+  const neededCure = state === null ? null : (currentIllness(state)?.cureKey ?? null)
   const dress = new Map((state === null ? [] : dressView(state)).map(item => [item.key, item]))
   return SHOP.map(item => {
     // 家当 shows "already yours" or the level it waits for; the consumables
@@ -312,7 +337,9 @@ function shopFor(state) {
       unlocked,
       blurb: item.blurb ?? '',
       affordable: state === null ? false : state.coins >= item.price,
-      needed: state?.illness != null && item.kind === 'medicine' && item.tier === state.illness.stage,
+      // The one cure the pig needs right now (B3: a medicine per illness stage).
+      needed: neededCure !== null && item.key === neededCure,
+      cureAll: item.cureAll === true,
     }
   })
 }

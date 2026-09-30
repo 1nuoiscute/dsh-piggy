@@ -32,11 +32,11 @@ export function renderStatusTab(ui) {
   var lvl = el('div', 'dp-row')
   lvl.appendChild(el('span', null, '⭐ 等级'))
   lvl.appendChild(el('b', null, 'Lv.' + p.level.level + ' ' + p.level.titleEmoji + p.level.titleLabel
-    + (p.level.toNext > 0 ? ' · 还差 ' + p.level.toNext + ' xp' : '')))
+    + (p.level.maxed ? ' · 满级' : ' · 还差 ' + Math.ceil(p.level.toNext) + ' 成长')))
   ui.content.appendChild(lvl)
 
   var age = el('div', 'dp-row')
-  age.appendChild(el('span', null, '🎂 年龄'))
+  age.appendChild(el('span', null, '🏠 陪伴'))
   age.appendChild(el('b', null, p.ageLabel + (p.ageForced ? ' 🔧' : '') + (p.daysToNextStage === null ? ' · 已长成' : '')))
   ui.content.appendChild(age)
 
@@ -82,7 +82,7 @@ export function renderStatusTab(ui) {
   }
 }
 
-/** Keep coronation optional, with progress available throughout old age. */
+/** Keep coronation optional, with progress available throughout adulthood. */
 function renderCoronation(ui) {
   var choice = ui.view.pig.coronation
   if (!choice.visible || ui.view.dead) return
@@ -90,7 +90,7 @@ function renderCoronation(ui) {
   card.appendChild(el('b', null, '猪猪王加冕'))
   card.appendChild(el('div', 'dp-dim', choice.requirements.map(entry =>
     entry.label + ' ' + entry.have + '/' + entry.need).join(' · ')))
-  card.appendChild(el('div', 'dp-dim', choice.ready ? '条件已满足，也可以继续保留普通形态。' : '可以继续学习和打工，到了老年阶段也能补齐后加冕。'))
+  card.appendChild(el('div', 'dp-dim', choice.ready ? '条件已满足，也可以继续保留普通形态。' : '可以继续学习和打工，补齐条件后随时加冕。'))
   var btn = button('dp-btn dp-btn-wide', { 'data-action': 'crown' }, function () { ui.send('crown') })
   btn.textContent = '加冕为猪猪王'
   btn.disabled = !choice.ready

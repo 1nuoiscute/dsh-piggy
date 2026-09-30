@@ -6,8 +6,8 @@
  * @module dsh-pig/commands
  */
 
-import { ACTIONS, JOBS, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRAIT_ORDER, TRIPS, buy, feed, hatch } from './core.js'
-import { jobByKey } from './data.js'
+import { ACTIONS, JOBS, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRAIT_ORDER, TRIPS, buy, coronationView, feed, hatch } from './core.js'
+import { INTERESTS, jobByKey, stageForNextLesson } from './data.js'
 import { renderAbout, renderAction, renderBuy, renderHatch, renderNoPig, renderStatus, renderStudyReport, renderTooSoon, renderTripReport, renderUse, renderWeigh, renderWorkRefusal, renderWorkReport } from './render.js'
 
 const str = value => (typeof value === 'string' ? value : '')
@@ -35,6 +35,7 @@ export function dispatch(store, commandName, rawInput) {
   const verb = sub.toLowerCase()
 
   switch (verb) {
+    case 'crown': return performCoronation(store, nowMs)
     case '':
     case 'status': {
       if (state === null) return { kind: 'success', text: renderNoPig(commandName) }
@@ -64,13 +65,14 @@ export function dispatch(store, commandName, rawInput) {
 
     case 'study': {
       if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
-      const [subjectArg = '', stageArg = SCHOOL_STAGES[0].key] = argument.trim().split(/\s+/)
+      // B4: a subject's stage follows from its lesson count, so only the subject is named.
+      const [subjectArg = ''] = argument.trim().split(/\s+/)
       const subject = SUBJECTS.find(s => s.key === subjectArg || s.label === subjectArg)
-      const stage = SCHOOL_STAGES.find(s => s.key === stageArg || s.label === stageArg)
-      if (subject === undefined || stage === undefined) {
-        return { kind: 'error', text: `用法：/${commandName} study <科目> <学段>\n学段：${SCHOOL_STAGES.map(s => s.label).join(' · ')}\n科目：${SUBJECTS.map(s => s.label).join(' · ')}` }
+      if (subject === undefined) {
+        return { kind: 'error', text: `用法：/${commandName} study <科目>\n科目：${SUBJECTS.map(s => s.label).join(' · ')}` }
       }
-      const result = store.startStudy(subject.key, stage.key)
+      const stage = stageForNextLesson(state.lessons?.[subject.key] ?? 0)
+      const result = store.startStudy(subject.key)
       if (!result.ok) return { kind: 'success', text: renderWorkRefusal(state, refusalText(result, state)) }
       return { kind: 'success', text: renderStudyReport(store.freshen(), Date.now(), subject, stage) }
     }
@@ -113,6 +115,54 @@ export function dispatch(store, commandName, rawInput) {
       if (item === undefined) return { kind: 'error', text: `没有「${argument}」这样东西。` }
       return { kind: 'success', text: renderUse(store.freshen(), store.useItem(item.key), item) }
     }
+    case 'interest': {
+      if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
+      const interest = INTERESTS.find(i => i.key === argument.trim() || i.label === argument.trim())
+      if (interest === undefined) {
+        const names = INTERESTS.map(i => `${i.label}(${i.key})`).join(' · ')
+        return { kind: 'error', text: `没有「${argument}」这门兴趣课。可选：${names}` }
+      }
+      const result = store.startInterest(interest.key)
+      if (!result.ok) return { kind: 'error', text: refusalText(result, state) }
+      return { kind: 'success', text: `${state.name} 去上${interest.label}课了，${interest.minutes} 分钟后回来。` }
+    }
+    case 'sell': {
+      if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
+      const wanted = argument.trim()
+      const owned = state.souvenirs.find(entry => entry.key === wanted || entry.label === wanted)
+      if (owned === undefined) return { kind: 'error', text: `收藏里没有「${wanted}」。` }
+      const result = store.sellSouvenir(owned.key)
+      if (!result.ok) return { kind: 'error', text: refusalText(result, state) }
+      return { kind: 'success', text: `卖掉了「${result.sold.label}」，得到 ${result.sold.price} 金币。` }
+    }
+    case 'wear': {
+      if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
+      const [wanted, mode] = argument.trim().split(/\s+/)
+      const item = SHOP.find(i => i.kind === 'dress' && (i.key === wanted || i.label === wanted))
+      if (item === undefined) return { kind: 'error', text: `没有「${wanted}」这件家当。` }
+      const on = mode !== 'off' && mode !== '脱'
+      const result = store.wear(item.key, on)
+      if (!result.ok) return { kind: 'error', text: refusalText(result, state) }
+      return { kind: 'success', text: `${state.name} ${on ? '穿上' : '脱下'}了「${item.label}」。` }
+    }
+    case 'adopt': {
+      if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
+      if (!store.adopt()) return { kind: 'error', text: `${state.name} 还在，不能领养新的 —— 只有墓碑之后才能。` }
+      return { kind: 'success', text: '门口放了一个新纸盒 📦 用它继续吧。' }
+    }
+    case 'reply': {
+      if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
+      const open = state.dialogue?.open ?? null
+      if (open === null) return { kind: 'error', text: `${state.name} 现在没在说话。` }
+      const index = Number.parseInt(argument.trim(), 10)
+      if (!Number.isInteger(index) || index < 1) {
+        const labels = open.replies.map((reply, i) => `${i + 1}=${reply.label}`).join(' · ')
+        return { kind: 'error', text: `用法：/${commandName} reply <序号>（${labels}）` }
+      }
+      const result = store.reply(open.id, index - 1)
+      if (!result.ok) return { kind: 'error', text: refusalText(result, state) }
+      return { kind: 'success', text: `你说「${result.reply}」，${state.name} 很开心。` }
+    }
     case 'weigh': {
       if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
       return { kind: 'success', text: renderWeigh(state, nowMs) }
@@ -129,7 +179,7 @@ export function dispatch(store, commandName, rawInput) {
     default:
       return {
         kind: 'error',
-        text: `不认识「${sub}」。可用：/${commandName} · hatch · feed · bathe · play · pet · study · work · trip · shop · buy · use · weigh · name · about`,
+        text: `不认识「${sub}」。可用：/${commandName} · hatch · adopt · feed · bathe · play · pet · study · interest · work · trip · calloff · shop · buy · use · sell · wear · weigh · name · reply · about`,
       }
   }
 }
@@ -153,6 +203,11 @@ function refusalText(result, state) {
         ? '这一级还没解锁 —— 先把上一级的课念完。'
         : `要先念完${need.label}（${need.done}/${need.need}）。`
     }
+    case 'box': return '先把纸盒拆开。'
+    case 'not-owned': return `${state.name} 还没有这件东西。`
+    case 'owned': return `${state.name} 已经有这件了。`
+    case 'low-level': return `等级不够（要 Lv.${result.need}，现在 Lv.${result.have}）。`
+    case 'stale-line': return `${state.name} 已经在说下一句了。`
     case 'unknown': return '没有这个选项。'
     default: return '现在没法出门。'
   }
@@ -183,4 +238,15 @@ export function registerSlashCommand(ctx, store, commandName) {
       },
     })
   })
+}
+
+/** The command-only fallback exposes the same optional player choice. */
+function performCoronation(store, nowMs) {
+  const state = store.freshen()
+  if (state === null) return { kind: 'error', text: renderNoPig('pig') }
+  const result = store.crown()
+  if (result.ok) return { kind: 'success', text: '猪猪王加冕了！\n' + renderStatus(store.freshen(), nowMs) }
+  const progress = coronationView(state, nowMs).requirements.map(entry => entry.label + ' ' + entry.have + '/' + entry.need).join(' · ')
+  const reason = result.reason === 'dead' ? '它已经走了，先救它回来。' : result.reason === 'not-adult' ? '成年阶段（Lv40）起才能加冕。' : '条件还没补齐，可以继续学习和打工。'
+  return { kind: 'error', text: reason + '\n' + progress }
 }

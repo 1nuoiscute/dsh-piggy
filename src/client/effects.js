@@ -12,7 +12,7 @@ import { el } from './dom.js'
 
 /**
  * @param {{ scene: object, pig: object, pigArt: object, card: object, bubble: object, isStopped: () => boolean }} deps
- * @returns {{ react: Function, burst: Function, flash: Function, showBubble: Function, toast: Function, dispose: Function }}
+ * @returns {{ react: Function, burst: Function, flash: Function, showBubble: Function, showLine: Function, toast: Function, dispose: Function }}
  */
 export function createEffects(deps) {
   var scene = deps.scene
@@ -106,6 +106,42 @@ function showBubble(text, ms) {
   }, ms || 2600)
 }
 
+/**
+ * A line the pig says, with optional reply buttons. Replying closes the bubble;
+ * a line with buttons stays up longer so there is time to answer it.
+ * @param {string} text
+ * @param {string[]} replies
+ * @param {(index: number) => void} onReply
+ */
+function showLine(text, replies, onReply) {
+  if (replies.length === 0) {
+    showBubble(text, 2600)
+    return
+  }
+  if (bubbleTimer !== null) window.clearTimeout(bubbleTimer)
+  bubble.textContent = text
+  var row = el('div', 'dp-bubble-replies', '')
+  replies.forEach(function (label, index) {
+    var answer = el('button', 'dp-reply', label)
+    answer.type = 'button'
+    answer.addEventListener('click', function (event) {
+      // The bubble sits over the pig; a reply must not also count as a pat.
+      event.stopPropagation()
+      bubble.hidden = true
+      if (bubbleTimer !== null) window.clearTimeout(bubbleTimer)
+      bubbleTimer = null
+      onReply(index)
+    })
+    row.appendChild(answer)
+  })
+  bubble.appendChild(row)
+  bubble.hidden = false
+  bubbleTimer = window.setTimeout(function () {
+    bubble.hidden = true
+    bubbleTimer = null
+  }, 6000)
+}
+
 function toast(text) {
   var node = el('div', 'dp-toast', text)
   card.insertBefore(node, card.firstChild)
@@ -119,5 +155,5 @@ function toast(text) {
     bubbleTimer = null
   }
 
-  return { react: react, burst: burst, flash: flash, showBubble: showBubble, toast: toast, dispose: dispose }
+  return { react: react, burst: burst, flash: flash, showBubble: showBubble, showLine: showLine, toast: toast, dispose: dispose }
 }
