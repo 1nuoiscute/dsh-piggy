@@ -1,757 +1,769 @@
 // GENERATED FILE. Edit src/client/ and run `npm run build`; do not edit by hand.
 (() => {
+  // src/client/values.js
+  var isObj = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+  var obj = (v) => isObj(v) ? v : {};
+  var arr = (v) => Array.isArray(v) ? v : [];
+  var num = (v, dflt) => typeof v === "number" && isFinite(v) ? v : dflt;
+  var str = (v, dflt) => typeof v === "string" && v !== "" ? v : dflt;
+
+  // src/client/dom.js
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== void 0) node.textContent = text;
+    return node;
+  }
+  function button(className, attrs, onClick) {
+    var node = el("button", className);
+    node.type = "button";
+    for (var key in attrs) node.setAttribute(key, attrs[key]);
+    node.addEventListener("click", function(event) {
+      event.stopPropagation();
+      onClick();
+    });
+    return node;
+  }
+  function meter(value, variant) {
+    var wrap = el("div", "dp-meter" + (variant ? " " + variant : ""));
+    var fill = document.createElement("i");
+    fill.style.width = Math.max(0, Math.min(100, num(value, 0))) + "%";
+    wrap.appendChild(fill);
+    return wrap;
+  }
+
+  // src/client/css-base.js
+  var CSS_BASE = [
+    // ---------------------------------------------------------------------
+    // Animal Crossing design language, transcribed from
+    // guokaigdg/animal-island-ui docs/design-system (design-tokens.md and the
+    // standalone css-variables.md template).
+    //
+    // The tokens are declared on the widget root rather than :root: the host
+    // page must not inherit them, and they must not be clobbered by it.
+    //
+    // The rules that shape everything below:
+    //   · warm earth-brown text on cream parchment, never pure black or grey
+    //   · 12px minimum radius; buttons and inputs are 50px pills
+    //   · the thick 3D bottom shadow belongs to primary buttons only
+    //   · cards carry a border, not an elevation shadow
+    //   · motion is 0.15-0.35s on cubic-bezier(.4,0,.2,1)
+    //   · focus rings are yellow or teal, never blue
+    // ---------------------------------------------------------------------
+    "[data-dsh-pig]{",
+    '--ac-font:Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;',
+    "--ac-primary:#19c8b9;--ac-primary-hover:#3dd4c6;--ac-primary-active:#11a89b;",
+    "--ac-primary-bg:#e6f9f6;",
+    "--ac-text:#794f27;--ac-text-body:#725d42;--ac-text-2:#9f927d;--ac-text-muted:#8a7b66;",
+    "--ac-text-disabled:#c4b89e;",
+    "--ac-bg:#f8f8f0;--ac-bg-content:rgb(247,243,223);--ac-bg-input:#fffbe7;",
+    "--ac-bg-disabled:#f0ece2;",
+    "--ac-border:#c4b89e;--ac-border-light:#e5dcc6;--ac-border-hover:#a89878;",
+    "--ac-radius-sm:12px;--ac-radius-card:20px;--ac-pill:50px;",
+    "--ac-shadow-sm:0 2px 4px 0 rgba(61,52,40,.06);",
+    "--ac-shadow:0 3px 10px 0 rgba(61,52,40,.1);",
+    "--ac-shadow-lg:0 8px 24px 0 rgba(61,52,40,.16);",
+    "--ac-inset:inset 0 2px 4px rgba(114,93,66,.15);",
+    // sidebar tokens: the library uses these for the selected menu row, which
+    // is exactly the role the icon bar plays here.
+    "--ac-active:#b7c6e5;--ac-hover:#d6dff0;",
+    "--ac-success:#6fba2c;--ac-warning:#f5c31c;--ac-error:#e05a5a;",
+    "--ac-ease:cubic-bezier(.4,0,.2,1);",
+    // One place to size the pig; the scene and the panel cap derive from it.
+    "--pig-size:56px;--pig-gap-below:12px;--scene-open:132px;--panel-width:292px;",
+    "position:fixed;right:18px;bottom:18px;z-index:2147483000;",
+    "font-family:var(--ac-font);font-weight:500;letter-spacing:.01em;",
+    "-webkit-user-select:none;user-select:none;touch-action:none;",
+    // The wrapper spans a column wider and taller than what it paints (the
+    // scene's padding, the gap above the panel). Without this it swallows
+    // clicks aimed at the page underneath — which once looked like "sending a
+    // message does nothing" while the whole stack was healthy.
+    "pointer-events:none;",
+    // The pig is the only in-flow child, so the wrapper's box is exactly the
+    // pig's box and the panel can be parked anywhere around it without ever
+    // nudging the pig. `fitPanel` places the panel.
+    "display:block}",
+    "[data-dsh-pig] *{box-sizing:border-box}",
+    "[data-dsh-pig]>*{pointer-events:auto}",
+    // `hidden` MUST win. The UA sheet's `[hidden]{display:none}` ties on
+    // specificity with a single class, so any `.dp-x{display:grid|flex}` rule
+    // below silently beats it and the element keeps rendering. That is exactly
+    // how a collapsed panel ended up showing the icon bar and the hud while
+    // every `el.hidden === true` assertion still passed.
+    "[data-dsh-pig] .dp-card[hidden],[data-dsh-pig] .dp-bar[hidden],",
+    "[data-dsh-pig] .dp-content[hidden],[data-dsh-pig] .dp-hud[hidden],",
+    "[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],",
+    "[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],",
+    "[data-dsh-pig] .dp-poke-hint[hidden],",
+    "[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}",
+    /* ---------- the panel: cream parchment, border not shadow ---------- */
+    // Taken out of flow on purpose. In flow it would widen the wrapper, and a
+    // wider wrapper moves the pig — the exact thing this layout exists to
+    // prevent. Absolutely positioned, the wrapper's box stays the pig's box
+    // and `fitPanel` can put the panel on whichever side has room.
+    ".dp-card{position:absolute;right:0;bottom:calc(100% + 8px);width:var(--panel-width);",
+    "border-radius:var(--ac-radius-card);overflow:hidden;",
+    "display:flex;flex-direction:column;",
+    "background:var(--ac-bg);border:2px solid var(--ac-border-light);",
+    "box-shadow:var(--ac-shadow-lg);color:var(--ac-text-body)}",
+    /* ---------- the pig: never moved, never boxed ---------- */
+    ".dp-scene{position:relative;height:var(--scene-open);background:none;cursor:grab;",
+    "overflow:visible;display:flex;align-items:flex-end;justify-content:flex-end;",
+    "padding:0 6px var(--pig-gap-below);width:max-content}",
+    '.dp-scene[data-dragging="true"]{cursor:grabbing}',
+    // Collapsed the scene is exactly the pig, so the wrapper paints nothing
+    // extra to click through. Open it widens to the panel so the hud and the
+    // speech bubble have somewhere to sit — the pig is right-aligned either
+    // way, so widening costs it no movement.
+    '[data-dsh-pig][data-open="true"] .dp-scene{width:var(--panel-width)}',
+    // Collapsed the scene shrinks to just the pig. An explicit height rather
+    // than `auto` keeps the pig's line box identical in both states, so
+    // opening moves it by exactly zero pixels.
+    '[data-dsh-pig][data-open="false"] .dp-scene{height:calc(var(--pig-size) + var(--pig-gap-below));',
+    "cursor:pointer}",
+    ".dp-pig{line-height:1;transform-origin:50% 85%;cursor:pointer;position:relative;",
+    "filter:drop-shadow(0 4px 6px rgba(61,52,40,.28));animation:dp-bob 1.8s ease-in-out infinite}",
+    // 装扮点位：猪身上固定的几个锚点，每个点位挂一件。
+    // 以后换真立绘时，只改这里的偏移/尺寸，逻辑和存档都不用动。
+    ".dp-dress{position:absolute;inset:0;pointer-events:none;z-index:3}",
+    ".dp-slot{position:absolute;line-height:1;font-size:15px;transform:translate(-50%,-50%)}",
+    '.dp-slot[data-slot="head"]{left:50%;top:2%}',
+    '.dp-slot[data-slot="face"]{left:50%;top:32%}',
+    '.dp-slot[data-slot="neck"]{left:50%;top:60%}',
+    '.dp-slot[data-slot="body"]{left:50%;top:78%;font-size:19px}',
+    '.dp-slot[data-slot="back"]{left:14%;top:42%;font-size:19px}',
+    '.dp-slot[data-slot="feet"]{left:50%;top:99%}',
+    '[data-dsh-pig][data-open="false"] .dp-pig{filter:drop-shadow(0 5px 9px rgba(61,52,40,.26))}',
+    // A petting hand rather than an arrow. Drawn inline as an SVG data URI so
+    // it needs no asset and can carry the palette's warm outline; the hotspot
+    // sits in the palm, which is where a pat actually lands. The `pointer`
+    // after it is the fallback for browsers that refuse a custom cursor.
+    `.dp-pig{cursor:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="%23F7C9B6" stroke="%23794F27" stroke-width="1.7" stroke-linejoin="round"><rect x="10" y="13.5" width="14" height="12" rx="4.8"/><rect x="10.6" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="14.9" y="5.1" width="3.6" height="11.5" rx="1.8"/><rect x="19.2" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="5.7" y="12.4" width="3.4" height="7.8" rx="1.7" transform="rotate(-27 7.4 16.3)"/></g></svg>') 16 24, pointer}`,
+    // Transform-only keyframes: the pig is an ordinary flex item, so there is
+    // no translateX(-50%) centring to preserve.
+    "@keyframes dp-bob{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-7px) rotate(-2.5deg)}}",
+    "@keyframes dp-breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(1px) scale(1.09)}}",
+    "@keyframes dp-shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-4px) rotate(-5deg)}60%{transform:translateX(4px) rotate(5deg)}}",
+    "@keyframes dp-squash{0%{transform:scale(1,1)}25%{transform:scale(1.28,.74)}55%{transform:scale(.92,1.14)}100%{transform:scale(1,1)}}",
+    "@keyframes dp-spin{0%{transform:rotate(0)}50%{transform:rotate(180deg) scale(1.2)}100%{transform:rotate(360deg)}}",
+    "@keyframes dp-jump{0%{transform:translateY(0)}30%{transform:translateY(-26px) scale(1.12)}60%{transform:translateY(0) scale(.92)}100%{transform:translateY(0)}}",
+    "@keyframes dp-wobble{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}55%{transform:rotate(14deg)}}",
+    "@keyframes dp-cough{0%,100%{transform:translateX(0)}30%{transform:translateX(-4px) rotate(-7deg)}70%{transform:translateX(4px) rotate(6deg)}}",
+    '.dp-pig[data-mood="happy"]{animation-duration:1.15s}',
+    '.dp-pig[data-mood="sleepy"]{animation-name:dp-breathe;animation-duration:3.6s}',
+    '.dp-pig[data-mood="hungry"]{animation-name:dp-shake;animation-duration:2.4s}',
+    '.dp-pig[data-mood="dirty"]{animation-name:dp-breathe;animation-duration:2.6s;filter:sepia(.4) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
+    '.dp-pig[data-mood="sick"]{animation-name:dp-cough;animation-duration:2.2s;filter:hue-rotate(-28deg) saturate(.75) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
+    // One pose per activity, so being away reads as a thing the pig is doing.
+    "@keyframes dp-typing{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(-1.5deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-2px) rotate(1.5deg)}}",
+    "@keyframes dp-reading{0%,100%{transform:translateY(0) rotate(0)}35%{transform:translateY(1px) rotate(-5deg)}70%{transform:translateY(1px) rotate(-2deg)}}",
+    "@keyframes dp-walking{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-6px) rotate(-4deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-6px) rotate(4deg)}}",
+    '.dp-pig[data-mood="working"]{animation-name:dp-typing;animation-duration:.7s}',
+    '.dp-pig[data-mood="studying"]{animation-name:dp-reading;animation-duration:2.4s}',
+    '.dp-pig[data-mood="traveling"]{animation-name:dp-walking;animation-duration:1s}',
+    '.dp-pig[data-mood="dead"]{animation:none;filter:grayscale(1)}',
+    ".dp-pig[data-react]{animation-duration:.85s;animation-iteration-count:1}",
+    '.dp-pig[data-react="feed"]{animation-name:dp-jump}',
+    '.dp-pig[data-react="bathe"]{animation-name:dp-wobble;animation-duration:1.05s}',
+    '.dp-pig[data-react="play"]{animation-name:dp-spin;animation-duration:.9s}',
+    '.dp-pig[data-react="pet"]{animation-name:dp-squash;animation-duration:.6s}',
+    '.dp-pig[data-react="away"]{animation-name:dp-jump;animation-duration:.9s}',
+    '.dp-pig[data-react="cure"]{animation-name:dp-spin;animation-duration:.9s}',
+    '.dp-pig[data-react="levelup"]{animation-name:dp-jump;animation-duration:.95s}',
+    '.dp-pig[data-react="refuse"]{animation-name:dp-shake;animation-duration:.5s}',
+    /* ---------- what the pig is off doing ---------- */
+    "[data-dsh-pig] .dp-work{display:flex;flex-direction:column;align-items:center;gap:4px;",
+    "margin:0 2px 6px 0}",
+    ".dp-prop{font-size:26px;line-height:1;filter:drop-shadow(0 3px 5px rgba(61,52,40,.22));",
+    "animation:dp-prop-bob 2.4s ease-in-out infinite}",
+    '[data-dsh-pig][data-away="study"] .dp-prop{animation-duration:3.4s}',
+    '[data-dsh-pig][data-away="trip"] .dp-prop{animation-name:dp-prop-swing;animation-duration:1.6s}',
+    "@keyframes dp-prop-bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3px) rotate(3deg)}}",
+    "@keyframes dp-prop-swing{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-4px) rotate(8deg)}}",
+    ".dp-progress{width:42px;height:7px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
+    "box-shadow:var(--ac-inset);overflow:hidden}",
+    ".dp-progress i{display:block;height:100%;border-radius:var(--ac-pill);",
+    "background:var(--ac-primary);transition:width .5s var(--ac-ease)}",
+    // The scene needs room for the prop; it grows leftward, so the pig stays put.
+    '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
+    '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
+    /* ---------- hud: a cream tag beside the pig ---------- */
+    ".dp-hud{position:absolute;left:9px;top:7px;display:flex;flex-direction:column;gap:1px;",
+    "font-size:10.5px;font-weight:600;line-height:1.45;color:var(--ac-text);",
+    "background:var(--ac-bg);border:2px solid var(--ac-border-light);padding:5px 10px;",
+    "border-radius:var(--ac-radius-sm);box-shadow:var(--ac-shadow-sm)}",
+    ".dp-hud b{font-weight:700}",
+    // A drawn sprite is sized by the same variable as the emoji, so growing up
+    // works identically either way.
+    ".dp-pig-img{width:var(--pig-size);height:var(--pig-size);display:block;",
+    "-webkit-user-drag:none;user-select:none}",
+    ".dp-pig-emoji{font-size:var(--pig-size);line-height:1}",
+    // No drawings yet — every stage is the same pig, so age reads as size plus
+    // a faded coat on the last one.
+    '[data-dsh-pig][data-faded="true"] .dp-pig-emoji{filter:grayscale(.5) opacity(.72)}',
+    // The box advertises itself: a slow breathing glow plus a label, so it
+    // does not read as scenery.
+    '[data-dsh-pig][data-unhatched="true"] .dp-pig{cursor:pointer;',
+    "animation:dp-box-breathe 2.4s ease-in-out infinite}",
+    '[data-dsh-pig][data-unhatched="true"] .dp-pig-emoji{',
+    "filter:drop-shadow(0 0 0 rgba(255,214,102,0)) drop-shadow(0 4px 6px rgba(61,52,40,.28))}",
+    "@keyframes dp-box-breathe{0%,100%{transform:translateY(0) scale(1)}",
+    "50%{transform:translateY(-3px) scale(1.06)}}",
+    ".dp-poke-hint{position:absolute;right:2px;bottom:-2px;display:flex;align-items:center;gap:3px;",
+    "font-size:9.5px;font-weight:700;color:var(--ac-text);background:var(--ac-bg);",
+    "border:1.5px solid var(--ac-border-light);border-radius:var(--ac-pill);padding:1px 7px;",
+    "box-shadow:0 2px 0 rgba(61,52,40,.12);pointer-events:none;white-space:nowrap;z-index:3;",
+    "animation:dp-hint-bob 1.6s ease-in-out infinite}",
+    "@keyframes dp-hint-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}",
+    // Each poke shakes it harder; the third one opens it instead.
+    '[data-dsh-pig] .dp-pig[data-mood="poke"],',
+    "[data-dsh-pig][data-poke] .dp-pig{animation-name:dp-poke-shake}",
+    '[data-dsh-pig][data-poke="2"] .dp-pig{animation-duration:.28s}',
+    "@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}",
+    "50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}",
+    /* ---------- shop: a grid of tiles, three to a row ---------- */
+    ".dp-shopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}",
+    // The shelf heading is a grid child too, so it has to span the whole row.
+    ".dp-shopgrid .dp-shelf{grid-column:1/-1;margin:5px 0 0}",
+    ".dp-shopgrid .dp-shelf:first-child{margin-top:0}",
+    ".dp-cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;",
+    "padding:7px 3px 6px;border:1.5px solid var(--ac-border-light);border-radius:12px;"
+  ].join("");
+
+  // src/client/css-tabs.js
+  var CSS_TABS = [
+    "background:var(--ac-bg);cursor:pointer;font-family:inherit;text-align:center;",
+    "transition:transform .12s var(--ac-ease),box-shadow .12s var(--ac-ease)}",
+    ".dp-cell:hover{transform:translateY(-1px);box-shadow:0 3px 0 rgba(61,52,40,.14)}",
+    ".dp-cell:active{transform:translateY(1px)}",
+    ".dp-cell-e{font-size:22px;line-height:1.15}",
+    ".dp-cell-n{font-size:10px;font-weight:700;color:var(--ac-text);line-height:1.2;",
+    "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}",
+    ".dp-cell-p{font-size:9.5px;font-weight:600;color:var(--ac-text-2)}",
+    // Owned count and the "needed" flag are badges so they cost no extra row.
+    ".dp-cell-c{position:absolute;top:3px;right:4px;font-size:9px;font-weight:800;",
+    "color:#fff;background:var(--ac-primary);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}",
+    ".dp-cell-tag{position:absolute;top:3px;left:4px;font-size:8px;font-weight:800;",
+    "color:#7a5a12;background:var(--ac-warning);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}",
+    // Affordable is colour; unaffordable is faded but still clickable, so a
+    // tap can explain how much is missing instead of doing nothing.
+    ".dp-cell.dp-poor{opacity:.45}",
+    // 家当 already owned: not for sale, but not "unaffordable" either.
+    ".dp-cell.dp-owned{opacity:.6;border-style:dashed}",
+    ".dp-cell.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
+    /* ---------- developer tab ---------- */
+    ".dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}",
+    ".dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}",
+    ".dp-dev-btn{flex:0 0 auto;font-size:10px;padding:3px 8px}",
+    ".dp-on{background:var(--ac-primary);color:#fff;border-color:var(--ac-primary)}",
+    '[data-dsh-pig][data-dev="true"] .dp-ico[data-tab="dev"]{color:var(--ac-primary)}',
+    /* ---------- the soul that settles on an unclaimed grave ---------- */
+    ".dp-soul{position:absolute;left:50%;transform:translateX(-50%);top:-4px;font-size:22px;",
+    "line-height:1;opacity:.9;pointer-events:none;z-index:1;",
+    "animation:dp-haunt 3.4s ease-in-out infinite}",
+    "@keyframes dp-haunt{0%,100%{transform:translate(-50%,0) scale(1);opacity:.75}",
+    "50%{transform:translate(-50%,-9px) scale(1.08);opacity:1}}",
+    // A grave does not bob about like a living pig.
+    '.dp-pig[data-stage="grave"]{animation:none;filter:grayscale(.35) drop-shadow(0 4px 6px rgba(61,52,40,.3))}',
+    '.dp-pig[data-stage="box"]{animation:dp-box-wobble 3.2s ease-in-out infinite}',
+    "@keyframes dp-box-wobble{0%,100%{transform:rotate(0)}30%{transform:rotate(-4deg)}",
+    "45%{transform:rotate(3deg)}60%{transform:rotate(-2deg)}}",
+    // Patting squashes the pig flat. Short, so rapid clicking keeps up.
+    '[data-dsh-pig] .dp-pig[data-react="pet"]{animation-name:dp-squash;animation-duration:.42s}',
+    "@keyframes dp-squash{0%{transform:scale(1,1)}35%{transform:scale(1.16,.74) translateY(2px)}",
+    "60%{transform:scale(.94,1.08) translateY(-3px)}100%{transform:scale(1,1)}}",
+    /* ---------- speech bubble ---------- */
+    // `z-index` matters: the pig comes later in the DOM, so without it the pig
+    // paints over the bubble whenever the two boxes overlap — which is exactly
+    // what happened when collapsed and the scene was only as wide as the pig.
+    ".dp-bubble{position:absolute;right:8px;top:7px;z-index:2;max-width:162px;padding:6px 10px;",
+    "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.45;",
+    "color:var(--ac-text-body);background:var(--ac-bg-input);",
+    "border:2px solid var(--ac-border-light);box-shadow:var(--ac-shadow-sm)}",
+    // Tail drawn as a small rotated square so the 2px border stays continuous.
+    '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
+    "background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);",
+    "border-bottom:2px solid var(--ac-border-light);transform:rotate(45deg)}",
+    // Collapsed, the scene is exactly the pig, so a bubble drawn inside it
+    // would sit on the pig's face. Float it above the head with the tail
+    // pointing down, anchored to the right edge so it can never run off the
+    // window. The hearts rise from behind it.
+    '[data-dsh-pig][data-open="false"] .dp-bubble{top:auto;bottom:calc(100% + 8px);',
+    "left:auto;right:0;max-width:230px}",
+    '[data-dsh-pig][data-open="false"] .dp-bubble::after{left:auto;right:26px;',
+    "top:100%;bottom:auto;margin:0;transform:rotate(45deg);",
+    "border:0;border-right:2px solid var(--ac-border-light);",
+    "border-bottom:2px solid var(--ac-border-light)}",
+    /* ---------- icon bar: the library sidebar, laid on its side ---------- */
+    ".dp-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:8px;",
+    "background:var(--ac-bg-content);border-top:2px solid var(--ac-border-light);",
+    "border-bottom:2px solid var(--ac-border-light)}",
+    ".dp-ico{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;",
+    "font:inherit;font-size:9.5px;font-weight:600;color:var(--ac-text-muted);background:none;",
+    "border:2px solid transparent;border-radius:var(--ac-radius-sm);padding:5px 1px;",
+    "transition:all .2s var(--ac-ease)}",
+    ".dp-ico span.dp-ico-e{font-size:18px;line-height:1}",
+    ".dp-ico:hover{background:var(--ac-hover)}",
+    '.dp-ico[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
+    "color:var(--ac-text);font-weight:700}",
+    ".dp-ico:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
+    "@keyframes dp-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}",
+    '.dp-ico[data-alert="true"] span.dp-ico-e{animation:dp-pulse 1.4s ease-in-out infinite}',
+    /* ---------- content ---------- */
+    ".dp-content{padding:12px 13px 13px;overflow-y:auto;flex:1 1 auto;min-height:0}",
+    ".dp-content::-webkit-scrollbar{width:8px}",
+    ".dp-content::-webkit-scrollbar-thumb{background:var(--ac-border-light);border-radius:4px}",
+    ".dp-content::-webkit-scrollbar-track{background:transparent}",
+    ".dp-title{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;",
+    "margin-bottom:8px}",
+    ".dp-title b{font-weight:700;color:var(--ac-text)}",
+    ".dp-title span{color:var(--ac-text-2);font-size:10.5px;font-weight:600}",
+    ".dp-row{display:flex;justify-content:space-between;font-size:11px;font-weight:600;",
+    "color:var(--ac-text-body);margin:2px 0}",
+    ".dp-row b{font-weight:700;color:var(--ac-text)}",
+    /* ---------- attribute bars: pill track with an inset well ---------- */
+    ".dp-meter{height:9px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
+    "box-shadow:var(--ac-inset);overflow:hidden;margin:3px 0 8px}",
+    ".dp-meter i{display:block;height:100%;border-radius:var(--ac-pill);",
+    "background:var(--ac-warning);transition:width .35s var(--ac-ease)}",
+    ".dp-meter.dp-mood i{background:#f8a6b2}",
+    ".dp-meter.dp-clean i{background:#82d5bb}",
+    ".dp-meter.dp-health i{background:#8ac68a}",
+    ".dp-traits{display:flex;gap:10px;font-size:10.5px;font-weight:600;color:var(--ac-text-2);",
+    "margin:8px 0 3px}",
+    /* ---------- banners ---------- */
+    ".dp-alert{margin:0 0 9px;padding:8px 10px;border-radius:var(--ac-radius-sm);",
+    "font-size:10.5px;font-weight:600;line-height:1.55;border:2px solid}",
+    ".dp-alert b{font-weight:700;color:var(--ac-text)}",
+    ".dp-alert.dp-sick{background:#fdeeee;border-color:#f2c2c2}",
+    ".dp-alert.dp-work{background:#eef1fb;border-color:#c3cdf0}",
+    ".dp-alert.dp-dead{background:var(--ac-bg-disabled);border-color:var(--ac-border-light)}",
+    ".dp-alert.dp-legacy{background:#fdf7e2;border-color:#f0dfa8}",
+    /* ---------- buttons: secondary is a cream pill with soft elevation ---- */
+    ".dp-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}",
+    ".dp-btn{display:flex;align-items:center;justify-content:center;gap:5px;font:inherit;",
+    "font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--ac-text-body);",
+    "cursor:pointer;padding:8px 6px;border-radius:var(--ac-pill);",
+    "border:2px solid var(--ac-border);background:var(--ac-bg-input);",
+    "box-shadow:var(--ac-shadow-sm);transition:all .2s var(--ac-ease)}",
+    ".dp-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--ac-shadow);",
+    "border-color:var(--ac-border-hover)}",
+    ".dp-btn:active:not(:disabled){transform:translateY(2px);box-shadow:var(--ac-shadow-sm)}",
+    ".dp-btn:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
+    ".dp-btn:disabled{background:var(--ac-bg-disabled);color:var(--ac-text-disabled);",
+    "border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}",
+    ".dp-btn-wide{grid-column:1/-1}",
+    ".dp-btn .dp-wait{color:var(--ac-text-2);font-size:10px;font-weight:600}",
+    /* ---------- segmented control ---------- */
+    ".dp-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}",
+    ".dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);",
+    "cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);",
+    "border:2px solid var(--ac-border-light);background:var(--ac-bg-input);",
+    "transition:all .2s var(--ac-ease)}",
+    ".dp-seg button:hover{background:var(--ac-hover)}",
+    '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
+    "color:var(--ac-text);font-weight:700}",
+    /* ---------- list rows ---------- */
+    ".dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}",
+    ".dp-list{display:flex;flex-direction:column;gap:7px}",
+    ".dp-shelf{margin:9px 0 1px;font-size:10px;font-weight:700;color:var(--ac-text-2);",
+    "letter-spacing:.04em}",
+    ".dp-shelf:first-child{margin-top:0}",
+    ".dp-item{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;",
+    "color:var(--ac-text-body);padding:7px 9px;border-radius:var(--ac-radius-sm);",
+    "background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
+    ".dp-item .dp-grow{flex:1;min-width:0}",
+    ".dp-item .dp-dim{color:var(--ac-text-2);font-size:10px;font-weight:500;overflow:hidden;",
+    "text-overflow:ellipsis;white-space:nowrap}",
+    ".dp-item.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
+    /* ---------- primary buttons: teal pill with the game 3D bottom edge --- */
+    ".dp-mini{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#fff;",
+    "cursor:pointer;padding:6px 13px;border-radius:var(--ac-pill);",
+    "border:2px solid var(--ac-primary-active);background:var(--ac-primary);",
+    "box-shadow:0 3px 0 0 var(--ac-primary-active);transition:all .15s var(--ac-ease)}",
+    ".dp-mini:hover:not(:disabled){background:var(--ac-primary-hover);transform:translateY(-1px);",
+    "box-shadow:0 4px 0 0 var(--ac-primary-active)}",
+    ".dp-mini:active:not(:disabled){transform:translateY(2px);",
+    "box-shadow:0 1px 0 0 var(--ac-primary-active)}",
+    ".dp-mini:focus-visible{outline:2px solid var(--ac-primary);outline-offset:2px}",
+    ".dp-mini:disabled{background:var(--ac-bg-disabled);color:var(--ac-text-disabled);",
+    "border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}",
+    /* ---------- the care item picker ---------- */
+    ".dp-pick{margin-top:9px;padding:9px 10px;border-radius:var(--ac-radius-sm);",
+    "background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
+    ".dp-pick-head{font-size:10.5px;font-weight:700;color:var(--ac-text);margin-bottom:7px}",
+    ".dp-cancel{display:block;width:100%;margin-top:8px;font:inherit;font-size:10.5px;",
+    "font-weight:600;color:var(--ac-text-2);cursor:pointer;padding:5px;",
+    "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);",
+    "background:var(--ac-bg-input);transition:all .2s var(--ac-ease)}",
+    ".dp-cancel:hover{background:var(--ac-hover);color:var(--ac-text)}",
+    ".dp-count{margin-left:2px;font-size:9px;font-weight:700;color:var(--ac-text-2);",
+    "background:var(--ac-bg-content);border-radius:var(--ac-pill);padding:0 5px}",
+    '.dp-btn[data-open-picker="true"]{background:var(--ac-active);border-color:#9db0d6}',
+    '.dp-seg button[data-locked="true"]{color:var(--ac-text-disabled);',
+    "border-style:dashed;background:var(--ac-bg-disabled)}",
+    '.dp-seg button[data-locked="true"]:hover{background:var(--ac-bg-disabled)}',
+    ".dp-locked{margin:0 0 8px;font-size:10.5px;font-weight:600;line-height:1.5;",
+    "color:var(--ac-text-body);background:#fdf7e2;border:2px solid #f0dfa8;",
+    "border-radius:var(--ac-radius-sm);padding:6px 9px}",
+    // The per-job gate reads as a lock, not as another grey stat line: a
+    // threshold the pig cannot see is indistinguishable from a broken button.
+    ".dp-lock{font-size:10px;font-weight:700;line-height:1.5;color:#9a6b1f}",
+    ".dp-empty{color:var(--ac-text-2);font-size:10.5px;font-weight:500;line-height:1.65;",
+    "margin-top:4px}",
+    ".dp-memo{margin-top:9px;padding-top:8px;border-top:2px solid var(--ac-border-light);",
+    "color:var(--ac-text-muted);font-size:10px;font-weight:500;line-height:1.55;",
+    "white-space:pre-wrap;word-break:break-word}",
+    /* ---------- particles and toast ---------- */
+    ".dp-fx{position:absolute;z-index:1;pointer-events:none;font-size:17px;",
+    "animation:dp-rise 1.1s ease-out forwards}",
+    "@keyframes dp-rise{0%{opacity:0;transform:translate(var(--dx0,0),4px) scale(.5)}18%{opacity:1}",
+    "100%{opacity:0;transform:translate(var(--dx,0),-56px) scale(1.15)}}",
+    ".dp-toast{position:absolute;left:9px;right:9px;top:8px;padding:8px 11px;",
+    "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.5;",
+    "color:var(--ac-text);background:var(--ac-bg-input);border:2px solid var(--ac-border);",
+    "box-shadow:var(--ac-shadow);pointer-events:none;white-space:normal;",
+    "animation:dp-toast 4.6s var(--ac-ease) forwards}",
+    "@keyframes dp-toast{0%{opacity:0;transform:translateY(-8px)}8%{opacity:1;transform:translateY(0)}",
+    "82%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}"
+  ].join("");
+
+  // src/client/styles.js
+  var CSS = CSS_BASE + CSS_TABS;
+
+  // src/client/constants.js
+  var STATE_URL = "/dsh-pig/state";
+  var ART_URL = "/dsh-pig/art/";
+  var ACT_URL = "/dsh-pig/act";
+  var POLL_MS = 4e3;
+  var MOUNTED = "data-dsh-pig";
+  var OPEN_KEY = "dsh-pig:open";
+  var POSITION_KEY = "dsh-pig:position";
+  var PANEL_WIDTH = 292;
+  var PANEL_GAP = 8;
+  var PANEL_MARGIN = 10;
+  var PANEL_MIN_HEIGHT = 120;
+  var SCENE_RESERVE = 132;
+  var PIG_PADDING_X = 6;
+  var TABS = [
+    { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
+    { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
+    { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
+    { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
+    { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
+    { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" }
+  ];
+  var DEV_KEY = "dsh-pig:dev";
+  var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
+  var PET_LINES = [
+    "\u597D\u8212\u670D\u2026",
+    "\u518D\u6478\u6478\uFF5E",
+    "\u563F\u563F",
+    "\u547C\u565C\u547C\u565C\u2026",
+    "\u8FD9\u91CC\u8FD9\u91CC\uFF01",
+    "\uFF08\u772F\u8D77\u773C\u775B\uFF09",
+    "\u4ECA\u5929\u5FC3\u60C5\u4E0D\u9519",
+    "\u5514\u2026\u597D\u75D2",
+    "\u4F60\u5728\u5FD9\u4EC0\u4E48\u5440",
+    "\u518D\u591A\u5F85\u4E00\u4F1A\u513F"
+  ];
+  var MODES = ["feed", "bathe", "play", "pet"];
+  var CARE_LABEL = { feed: ["\u5582\u98DF", "\u{1F34E}"], bathe: ["\u6D17\u6FA1", "\u{1F6C1}"], play: ["\u73A9\u800D", "\u{1F3BE}"], pet: ["\u6478\u6478", "\u2764\uFE0F"] };
+  var BOX_POKES_TO_OPEN = 3;
+  var BOX_POKE_LINES = [
+    "\u91CC\u9762\u597D\u50CF\u6709\u4E1C\u897F\u2026",
+    "\u52A8\u4E86\uFF01\u518D\u6233\u4E00\u4E0B\uFF01"
+  ];
+  var NO_ITEM_LINE = {
+    food: "\u6CA1\u6709\u5403\u7684\u5566\uFF0C\u5FEB\u53BB\u4E70\u4E00\u70B9 \u{1F34E}",
+    bath: "\u6CA1\u6709\u6D17\u6D74\u7528\u54C1\u4E86\uFF0C\u53BB\u4E70\u70B9\u5427 \u{1F9FC}",
+    toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
+  };
+  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B" };
+  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive"];
+  var STAGES = [
+    { key: "preschool", label: "\u5E7C\u513F\u56ED" },
+    { key: "extracurricular", label: "\u8BFE\u5916" },
+    { key: "primary", label: "\u5C0F\u5B66" },
+    { key: "middle", label: "\u4E2D\u5B66" },
+    { key: "high", label: "\u9AD8\u4E2D" },
+    { key: "college", label: "\u5927\u5B66" },
+    { key: "graduate", label: "\u7814\u7A76\u751F" }
+  ];
+
+  // src/client/normalize.js
+  function normalize(raw) {
+    var d = obj(raw);
+    var pig = isObj(d.pig) ? d.pig : null;
+    var legacy = pig !== null && !("coins" in pig) && !("health" in pig);
+    return {
+      legacy,
+      // Host build version, shown in the debug tab so a stale bundle is
+      // visible instead of being guessed at.
+      version: str(d.version, ""),
+      // Trust the flag when the host sends one. Older hosts did not, and for
+      // those "a pig exists" is still the right answer.
+      hatched: d.hatched === true || d.hatched === void 0 && pig !== null,
+      dead: d.dead === true || pig !== null && num(pig.health, 5) <= 0,
+      pig: pig === null ? null : {
+        name: str(pig.name, "\u732A\u732A"),
+        // The pig is measured in days now; `stage` carries how big it is and
+        // what it looks like.
+        stage: {
+          key: str(obj(pig.stage).key, "piglet"),
+          label: str(obj(pig.stage).label, "\u5C0F\u732A"),
+          emoji: str(obj(pig.stage).emoji, "\u{1F416}"),
+          size: num(obj(pig.stage).size, 56),
+          line: str(obj(pig.stage).line, ""),
+          art: typeof obj(pig.stage).art === "string" && obj(pig.stage).art !== "" ? obj(pig.stage).art : null,
+          faded: obj(pig.stage).faded === true
+        },
+        ageLabel: str(pig.ageLabel, ""),
+        ageForced: pig.ageForced === true,
+        daysToNextStage: typeof pig.daysToNextStage === "number" ? pig.daysToNextStage : null,
+        soul: pig.soul === true,
+        mood: str(pig.mood, "fine"),
+        moodEmoji: str(pig.moodEmoji, "\u{1F60A}"),
+        moodLabel: str(pig.moodLabel, "\u8FD8\u4E0D\u9519"),
+        satiety: Math.round(num(pig.satiety, 0)),
+        happiness: Math.round(num(pig.happiness, 0)),
+        cleanliness: Math.round(num(pig.cleanliness, 0)),
+        health: num(pig.health, 5),
+        healthPercent: num(pig.healthPercent, 100),
+        coins: num(pig.coins, 0),
+        weight: str(pig.weight, "\u2014"),
+        xp: num(pig.xp, 0),
+        // The other axis: level never resets, not even when the pig dies.
+        level: (function(info) {
+          var i = obj(info);
+          var t = obj(i.title);
+          return {
+            level: num(i.level, 1),
+            percent: num(i.percent, 0),
+            toNext: num(i.toNext, 0),
+            titleLabel: str(t.label, "\u65B0\u6765\u7684"),
+            titleEmoji: str(t.emoji, "\u{1F331}")
+          };
+        })(pig.levelInfo),
+        stageLine: str(pig.stageLine, ""),
+        illness: isObj(pig.illness) ? {
+          name: str(pig.illness.name, "\u751F\u75C5"),
+          cure: str(pig.illness.cure, "\u836F"),
+          stage: num(pig.illness.stage, 1)
+        } : null,
+        traits: {
+          intel: num(obj(pig.traits).intel, 0),
+          charm: num(obj(pig.traits).charm, 0),
+          strong: num(obj(pig.traits).strong, 0)
+        },
+        courses: obj(pig.courses),
+        // Souvenirs are objects now (rarity + story). An old host sent bare
+        // strings, and those must still list rather than turn into [object
+        // Object] or vanish.
+        souvenirs: arr(pig.souvenirs).map((entry) => {
+          if (typeof entry === "string") {
+            return { key: entry, emoji: "\u{1F381}", label: entry, rarityLabel: "\u666E\u901A", rarityEmoji: "\u26AA", price: 0, story: "", fromLabel: "" };
+          }
+          return {
+            key: str(obj(entry).key, ""),
+            emoji: str(obj(entry).emoji, "\u{1F381}"),
+            label: str(obj(entry).label, "\u7EAA\u5FF5\u54C1"),
+            rarityLabel: str(obj(entry).rarityLabel, "\u666E\u901A"),
+            rarityEmoji: str(obj(entry).rarityEmoji, "\u26AA"),
+            price: num(obj(entry).price, 0),
+            story: str(obj(entry).story, ""),
+            fromLabel: str(obj(entry).fromLabel, "")
+          };
+        }).filter((entry) => entry.key !== ""),
+        memories: arr(pig.memories).filter((m) => typeof m === "string")
+      },
+      actions: normalizeActions(d.actions),
+      jobs: arr(d.jobs).map((job) => ({
+        key: str(obj(job).key, ""),
+        label: str(obj(job).label, "\u5DE5\u4F5C"),
+        emoji: str(obj(job).emoji, "\u{1F4BC}"),
+        minutes: num(obj(job).minutes, 0),
+        coins: num(obj(job).coins, 0),
+        available: obj(job).available === true,
+        // What schooling has bought this job.
+        traitLabel: str(obj(job).traitLabel, ""),
+        traitEmoji: str(obj(job).traitEmoji, ""),
+        traitPoints: num(obj(job).traitPoints, 0),
+        baseMinutes: num(obj(job).baseMinutes, 0),
+        baseCoins: num(obj(job).baseCoins, 0),
+        payPercent: num(obj(job).payPercent, 0),
+        speedPercent: num(obj(job).speedPercent, 0),
+        // An old host has no gate at all, so a missing flag must read as
+        // "qualified" — the opposite default would lock every job on upgrade.
+        qualified: obj(job).qualified !== false,
+        lockText: str(obj(job).lockText, "")
+      })).filter((job) => job.key !== ""),
+      subjects: arr(d.subjects).map((sub) => ({
+        key: str(obj(sub).key, ""),
+        label: str(obj(sub).label, "\u8BFE"),
+        emoji: str(obj(sub).emoji, "\u{1F4D8}"),
+        traitLabel: str(obj(sub).traitLabel, ""),
+        level: num(obj(sub).level, 0),
+        // Seven stages share subject names, so the level that matters is the
+        // one for the stage on screen. `levels` is keyed by stage key.
+        levels: isObj(obj(sub).levels) ? obj(sub).levels : {},
+        stages: arr(obj(sub).stages).filter((key) => typeof key === "string"),
+        available: obj(sub).available === true
+      })).filter((sub) => sub.key !== ""),
+      // 兴趣课：学习页里随时能学的一栏，学完加的是既有的三条属性。
+      interests: arr(d.interests).map((entry) => ({
+        key: str(obj(entry).key, ""),
+        label: str(obj(entry).label, "\u5174\u8DA3"),
+        emoji: str(obj(entry).emoji, "\u{1F3AF}"),
+        traitLabel: str(obj(entry).traitLabel, ""),
+        traitEmoji: str(obj(entry).traitEmoji, ""),
+        minutes: num(obj(entry).minutes, 0),
+        cost: num(obj(entry).cost, 0),
+        gain: num(obj(entry).gain, 0),
+        blurb: str(obj(entry).blurb, ""),
+        times: num(obj(entry).times, 0),
+        available: obj(entry).available === true,
+        affordable: obj(entry).affordable === true
+      })).filter((entry) => entry.key !== ""),
+      stages: arr(d.stages).map((stage) => ({
+        key: str(obj(stage).key, ""),
+        label: str(obj(stage).label, "\u5B66\u6BB5"),
+        emoji: str(obj(stage).emoji, "\u{1F4DA}"),
+        minutes: num(obj(stage).minutes, 0),
+        tuition: num(obj(stage).tuition, 0),
+        gain: num(obj(stage).gain, 0),
+        // Which courses this stage teaches — empty on an old host, in which
+        // case the panel shows every subject rather than none.
+        subjects: arr(obj(stage).subjects).filter((key) => typeof key === "string"),
+        // The school ladder: a stage with `unlocked === false` is gated behind
+        // finishing the previous one, and says by how much.
+        unlocked: obj(stage).unlocked !== false,
+        progress: isObj(obj(stage).progress) ? {
+          done: num(obj(stage).progress.done, 0),
+          need: num(obj(stage).progress.need, 0),
+          label: str(obj(stage).progress.label, "")
+        } : null
+      })).filter((stage) => stage.key !== ""),
+      trips: arr(d.trips).map((trip) => ({
+        key: str(obj(trip).key, ""),
+        label: str(obj(trip).label, "\u76EE\u7684\u5730"),
+        emoji: str(obj(trip).emoji, "\u{1F9F3}"),
+        minutes: num(obj(trip).minutes, 0),
+        cost: num(obj(trip).cost, 0),
+        happiness: num(obj(trip).happiness, 0),
+        // What the destination can bring back — the far trips advertise it.
+        souvenirCount: num(obj(trip).souvenirCount, 0),
+        bestRarity: str(obj(trip).bestRarity, ""),
+        bestRarityEmoji: str(obj(trip).bestRarityEmoji, ""),
+        affordable: obj(trip).affordable === true,
+        available: obj(trip).available === true
+      })).filter((trip) => trip.key !== ""),
+      // 家当: owned and worn, never counted. An old host sends none.
+      dress: arr(d.dress).map((entry) => ({
+        key: str(obj(entry).key, ""),
+        label: str(obj(entry).label, "\u88C5\u626E"),
+        emoji: str(obj(entry).emoji, "\u{1F455}"),
+        price: num(obj(entry).price, 0),
+        level: num(obj(entry).level, 1),
+        slot: str(obj(entry).slot, ""),
+        slotLabel: str(obj(entry).slotLabel, ""),
+        blurb: str(obj(entry).blurb, ""),
+        owned: obj(entry).owned === true,
+        worn: obj(entry).worn === true,
+        unlocked: obj(entry).unlocked !== false
+      })).filter((entry) => entry.key !== ""),
+      shop: arr(d.shop).map((item) => ({
+        key: str(obj(item).key, ""),
+        label: str(obj(item).label, "\u7269\u54C1"),
+        emoji: str(obj(item).emoji, "\u{1F4E6}"),
+        price: num(obj(item).price, 0),
+        kind: str(obj(item).kind, "food"),
+        tier: typeof obj(item).tier === "number" ? obj(item).tier : null,
+        // 家当 fields: a dress item is owned (not counted) or waits for a level.
+        level: typeof obj(item).level === "number" ? obj(item).level : null,
+        owned: obj(item).owned === true,
+        unlocked: obj(item).unlocked !== false,
+        blurb: str(obj(item).blurb, ""),
+        affordable: obj(item).affordable === true,
+        needed: obj(item).needed === true
+      })).filter((item) => item.key !== ""),
+      inventory: obj(d.inventory),
+      // Which items each care action could spend right now.
+      care: (() => {
+        const out = {};
+        const source = obj(d.care);
+        for (const action of ["feed", "bathe", "play"]) {
+          out[action] = arr(source[action]).map((entry) => ({
+            key: str(obj(entry).key, ""),
+            label: str(obj(entry).label, "\u7269\u54C1"),
+            emoji: str(obj(entry).emoji, "\u{1F4E6}"),
+            default: obj(entry).default === true,
+            count: typeof obj(entry).count === "number" ? obj(entry).count : null,
+            satiety: num(obj(entry).satiety, 0),
+            happiness: num(obj(entry).happiness, 0),
+            cleanliness: num(obj(entry).cleanliness, 0)
+          })).filter((entry) => entry.key !== "");
+        }
+        return out;
+      })(),
+      activity: isObj(d.activity) ? {
+        kind: str(d.activity.kind, "work"),
+        key: str(d.activity.key, ""),
+        label: str(d.activity.label, "\u5916\u9762"),
+        emoji: str(d.activity.emoji, "\u{1F4BC}"),
+        secondsLeft: num(d.activity.secondsLeft, 0),
+        progress: num(d.activity.progress, 0)
+      } : null,
+      canGoOut: d.canGoOut === true,
+      timeScale: num(d.timeScale, 1),
+      boxStage: isObj(d.boxStage) ? {
+        key: str(d.boxStage.key, "box"),
+        label: str(d.boxStage.label, "\u7EB8\u76D2"),
+        emoji: str(d.boxStage.emoji, "\u{1F4E6}"),
+        size: num(d.boxStage.size, 58)
+      } : { key: "box", label: "\u7EB8\u76D2", emoji: "\u{1F4E6}", size: 58 },
+      awayBlocked: typeof d.awayBlocked === "string" ? d.awayBlocked : null,
+      pending: arr(d.pending).filter((e) => isObj(e) && typeof e.at === "number"),
+      maxHealth: num(d.maxHealth, 5)
+    };
+  }
+  function normalizeActions(raw) {
+    var source = obj(raw);
+    var out = {};
+    for (var i = 0; i < MODES.length; i += 1) {
+      var key = MODES[i];
+      var entry = obj(source[key]);
+      out[key] = {
+        ready: entry.ready !== false,
+        waitSeconds: num(entry.waitSeconds, 0),
+        blocked: typeof entry.blocked === "string" ? entry.blocked : null
+      };
+    }
+    return out;
+  }
+
+  // src/client/storage.js
+  function readStore(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch (error) {
+      return null;
+    }
+  }
+  function writeStore(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (error) {
+    }
+  }
+
   // src/client/index.js
   window.__ModuleLoader__.load({
     id: "dsh-piggy",
     factory: (require2) => {
       var module = { exports: {} };
       var exports = module.exports;
-      var STATE_URL = "/dsh-pig/state";
-      var ART_URL = "/dsh-pig/art/";
-      var ACT_URL = "/dsh-pig/act";
-      var POLL_MS = 4e3;
-      var MOUNTED = "data-dsh-pig";
-      var OPEN_KEY = "dsh-pig:open";
-      var POSITION_KEY = "dsh-pig:position";
       var devMode = false;
-      var PANEL_WIDTH = 292;
-      var PANEL_GAP = 8;
-      var PANEL_MARGIN = 10;
-      var PANEL_MIN_HEIGHT = 120;
-      var SCENE_RESERVE = 132;
-      var PIG_PADDING_X = 6;
-      var TABS = [
-        { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
-        { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
-        { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
-        { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
-        { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
-        { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" }
-      ];
-      var DEV_KEY = "dsh-pig:dev";
-      var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
-      var PET_LINES = [
-        "\u597D\u8212\u670D\u2026",
-        "\u518D\u6478\u6478\uFF5E",
-        "\u563F\u563F",
-        "\u547C\u565C\u547C\u565C\u2026",
-        "\u8FD9\u91CC\u8FD9\u91CC\uFF01",
-        "\uFF08\u772F\u8D77\u773C\u775B\uFF09",
-        "\u4ECA\u5929\u5FC3\u60C5\u4E0D\u9519",
-        "\u5514\u2026\u597D\u75D2",
-        "\u4F60\u5728\u5FD9\u4EC0\u4E48\u5440",
-        "\u518D\u591A\u5F85\u4E00\u4F1A\u513F"
-      ];
-      var MODES = ["feed", "bathe", "play", "pet"];
-      var CARE_LABEL = { feed: ["\u5582\u98DF", "\u{1F34E}"], bathe: ["\u6D17\u6FA1", "\u{1F6C1}"], play: ["\u73A9\u800D", "\u{1F3BE}"], pet: ["\u6478\u6478", "\u2764\uFE0F"] };
-      var BOX_POKES_TO_OPEN = 3;
-      var BOX_POKE_LINES = [
-        "\u91CC\u9762\u597D\u50CF\u6709\u4E1C\u897F\u2026",
-        "\u52A8\u4E86\uFF01\u518D\u6233\u4E00\u4E0B\uFF01"
-      ];
-      var NO_ITEM_LINE = {
-        food: "\u6CA1\u6709\u5403\u7684\u5566\uFF0C\u5FEB\u53BB\u4E70\u4E00\u70B9 \u{1F34E}",
-        bath: "\u6CA1\u6709\u6D17\u6D74\u7528\u54C1\u4E86\uFF0C\u53BB\u4E70\u70B9\u5427 \u{1F9FC}",
-        toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
-      };
-      var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B" };
-      var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive"];
-      var STAGES = [
-        { key: "preschool", label: "\u5E7C\u513F\u56ED" },
-        { key: "extracurricular", label: "\u8BFE\u5916" },
-        { key: "primary", label: "\u5C0F\u5B66" },
-        { key: "middle", label: "\u4E2D\u5B66" },
-        { key: "high", label: "\u9AD8\u4E2D" },
-        { key: "college", label: "\u5927\u5B66" },
-        { key: "graduate", label: "\u7814\u7A76\u751F" }
-      ];
-      var isObj = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
-      var obj = (v) => isObj(v) ? v : {};
-      var arr = (v) => Array.isArray(v) ? v : [];
-      var num = (v, dflt) => typeof v === "number" && isFinite(v) ? v : dflt;
-      var str = (v, dflt) => typeof v === "string" && v !== "" ? v : dflt;
-      function normalize(raw) {
-        var d = obj(raw);
-        var pig = isObj(d.pig) ? d.pig : null;
-        var legacy = pig !== null && !("coins" in pig) && !("health" in pig);
-        return {
-          legacy,
-          // Host build version, shown in the debug tab so a stale bundle is
-          // visible instead of being guessed at.
-          version: str(d.version, ""),
-          // Trust the flag when the host sends one. Older hosts did not, and for
-          // those "a pig exists" is still the right answer.
-          hatched: d.hatched === true || d.hatched === void 0 && pig !== null,
-          dead: d.dead === true || pig !== null && num(pig.health, 5) <= 0,
-          pig: pig === null ? null : {
-            name: str(pig.name, "\u732A\u732A"),
-            // The pig is measured in days now; `stage` carries how big it is and
-            // what it looks like.
-            stage: {
-              key: str(obj(pig.stage).key, "piglet"),
-              label: str(obj(pig.stage).label, "\u5C0F\u732A"),
-              emoji: str(obj(pig.stage).emoji, "\u{1F416}"),
-              size: num(obj(pig.stage).size, 56),
-              line: str(obj(pig.stage).line, ""),
-              art: typeof obj(pig.stage).art === "string" && obj(pig.stage).art !== "" ? obj(pig.stage).art : null,
-              faded: obj(pig.stage).faded === true
-            },
-            ageLabel: str(pig.ageLabel, ""),
-            ageForced: pig.ageForced === true,
-            daysToNextStage: typeof pig.daysToNextStage === "number" ? pig.daysToNextStage : null,
-            soul: pig.soul === true,
-            mood: str(pig.mood, "fine"),
-            moodEmoji: str(pig.moodEmoji, "\u{1F60A}"),
-            moodLabel: str(pig.moodLabel, "\u8FD8\u4E0D\u9519"),
-            satiety: Math.round(num(pig.satiety, 0)),
-            happiness: Math.round(num(pig.happiness, 0)),
-            cleanliness: Math.round(num(pig.cleanliness, 0)),
-            health: num(pig.health, 5),
-            healthPercent: num(pig.healthPercent, 100),
-            coins: num(pig.coins, 0),
-            weight: str(pig.weight, "\u2014"),
-            xp: num(pig.xp, 0),
-            // The other axis: level never resets, not even when the pig dies.
-            level: (function(info) {
-              var i = obj(info);
-              var t = obj(i.title);
-              return {
-                level: num(i.level, 1),
-                percent: num(i.percent, 0),
-                toNext: num(i.toNext, 0),
-                titleLabel: str(t.label, "\u65B0\u6765\u7684"),
-                titleEmoji: str(t.emoji, "\u{1F331}")
-              };
-            })(pig.levelInfo),
-            stageLine: str(pig.stageLine, ""),
-            illness: isObj(pig.illness) ? {
-              name: str(pig.illness.name, "\u751F\u75C5"),
-              cure: str(pig.illness.cure, "\u836F"),
-              stage: num(pig.illness.stage, 1)
-            } : null,
-            traits: {
-              intel: num(obj(pig.traits).intel, 0),
-              charm: num(obj(pig.traits).charm, 0),
-              strong: num(obj(pig.traits).strong, 0)
-            },
-            courses: obj(pig.courses),
-            // Souvenirs are objects now (rarity + story). An old host sent bare
-            // strings, and those must still list rather than turn into [object
-            // Object] or vanish.
-            souvenirs: arr(pig.souvenirs).map((entry) => {
-              if (typeof entry === "string") {
-                return { key: entry, emoji: "\u{1F381}", label: entry, rarityLabel: "\u666E\u901A", rarityEmoji: "\u26AA", price: 0, story: "", fromLabel: "" };
-              }
-              return {
-                key: str(obj(entry).key, ""),
-                emoji: str(obj(entry).emoji, "\u{1F381}"),
-                label: str(obj(entry).label, "\u7EAA\u5FF5\u54C1"),
-                rarityLabel: str(obj(entry).rarityLabel, "\u666E\u901A"),
-                rarityEmoji: str(obj(entry).rarityEmoji, "\u26AA"),
-                price: num(obj(entry).price, 0),
-                story: str(obj(entry).story, ""),
-                fromLabel: str(obj(entry).fromLabel, "")
-              };
-            }).filter((entry) => entry.key !== ""),
-            memories: arr(pig.memories).filter((m) => typeof m === "string")
-          },
-          actions: normalizeActions(d.actions),
-          jobs: arr(d.jobs).map((job) => ({
-            key: str(obj(job).key, ""),
-            label: str(obj(job).label, "\u5DE5\u4F5C"),
-            emoji: str(obj(job).emoji, "\u{1F4BC}"),
-            minutes: num(obj(job).minutes, 0),
-            coins: num(obj(job).coins, 0),
-            available: obj(job).available === true,
-            // What schooling has bought this job.
-            traitLabel: str(obj(job).traitLabel, ""),
-            traitEmoji: str(obj(job).traitEmoji, ""),
-            traitPoints: num(obj(job).traitPoints, 0),
-            baseMinutes: num(obj(job).baseMinutes, 0),
-            baseCoins: num(obj(job).baseCoins, 0),
-            payPercent: num(obj(job).payPercent, 0),
-            speedPercent: num(obj(job).speedPercent, 0),
-            // An old host has no gate at all, so a missing flag must read as
-            // "qualified" — the opposite default would lock every job on upgrade.
-            qualified: obj(job).qualified !== false,
-            lockText: str(obj(job).lockText, "")
-          })).filter((job) => job.key !== ""),
-          subjects: arr(d.subjects).map((sub) => ({
-            key: str(obj(sub).key, ""),
-            label: str(obj(sub).label, "\u8BFE"),
-            emoji: str(obj(sub).emoji, "\u{1F4D8}"),
-            traitLabel: str(obj(sub).traitLabel, ""),
-            level: num(obj(sub).level, 0),
-            // Seven stages share subject names, so the level that matters is the
-            // one for the stage on screen. `levels` is keyed by stage key.
-            levels: isObj(obj(sub).levels) ? obj(sub).levels : {},
-            stages: arr(obj(sub).stages).filter((key) => typeof key === "string"),
-            available: obj(sub).available === true
-          })).filter((sub) => sub.key !== ""),
-          // 兴趣课：学习页里随时能学的一栏，学完加的是既有的三条属性。
-          interests: arr(d.interests).map((entry) => ({
-            key: str(obj(entry).key, ""),
-            label: str(obj(entry).label, "\u5174\u8DA3"),
-            emoji: str(obj(entry).emoji, "\u{1F3AF}"),
-            traitLabel: str(obj(entry).traitLabel, ""),
-            traitEmoji: str(obj(entry).traitEmoji, ""),
-            minutes: num(obj(entry).minutes, 0),
-            cost: num(obj(entry).cost, 0),
-            gain: num(obj(entry).gain, 0),
-            blurb: str(obj(entry).blurb, ""),
-            times: num(obj(entry).times, 0),
-            available: obj(entry).available === true,
-            affordable: obj(entry).affordable === true
-          })).filter((entry) => entry.key !== ""),
-          stages: arr(d.stages).map((stage) => ({
-            key: str(obj(stage).key, ""),
-            label: str(obj(stage).label, "\u5B66\u6BB5"),
-            emoji: str(obj(stage).emoji, "\u{1F4DA}"),
-            minutes: num(obj(stage).minutes, 0),
-            tuition: num(obj(stage).tuition, 0),
-            gain: num(obj(stage).gain, 0),
-            // Which courses this stage teaches — empty on an old host, in which
-            // case the panel shows every subject rather than none.
-            subjects: arr(obj(stage).subjects).filter((key) => typeof key === "string"),
-            // The school ladder: a stage with `unlocked === false` is gated behind
-            // finishing the previous one, and says by how much.
-            unlocked: obj(stage).unlocked !== false,
-            progress: isObj(obj(stage).progress) ? {
-              done: num(obj(stage).progress.done, 0),
-              need: num(obj(stage).progress.need, 0),
-              label: str(obj(stage).progress.label, "")
-            } : null
-          })).filter((stage) => stage.key !== ""),
-          trips: arr(d.trips).map((trip) => ({
-            key: str(obj(trip).key, ""),
-            label: str(obj(trip).label, "\u76EE\u7684\u5730"),
-            emoji: str(obj(trip).emoji, "\u{1F9F3}"),
-            minutes: num(obj(trip).minutes, 0),
-            cost: num(obj(trip).cost, 0),
-            happiness: num(obj(trip).happiness, 0),
-            // What the destination can bring back — the far trips advertise it.
-            souvenirCount: num(obj(trip).souvenirCount, 0),
-            bestRarity: str(obj(trip).bestRarity, ""),
-            bestRarityEmoji: str(obj(trip).bestRarityEmoji, ""),
-            affordable: obj(trip).affordable === true,
-            available: obj(trip).available === true
-          })).filter((trip) => trip.key !== ""),
-          // 家当: owned and worn, never counted. An old host sends none.
-          dress: arr(d.dress).map((entry) => ({
-            key: str(obj(entry).key, ""),
-            label: str(obj(entry).label, "\u88C5\u626E"),
-            emoji: str(obj(entry).emoji, "\u{1F455}"),
-            price: num(obj(entry).price, 0),
-            level: num(obj(entry).level, 1),
-            slot: str(obj(entry).slot, ""),
-            slotLabel: str(obj(entry).slotLabel, ""),
-            blurb: str(obj(entry).blurb, ""),
-            owned: obj(entry).owned === true,
-            worn: obj(entry).worn === true,
-            unlocked: obj(entry).unlocked !== false
-          })).filter((entry) => entry.key !== ""),
-          shop: arr(d.shop).map((item) => ({
-            key: str(obj(item).key, ""),
-            label: str(obj(item).label, "\u7269\u54C1"),
-            emoji: str(obj(item).emoji, "\u{1F4E6}"),
-            price: num(obj(item).price, 0),
-            kind: str(obj(item).kind, "food"),
-            tier: typeof obj(item).tier === "number" ? obj(item).tier : null,
-            // 家当 fields: a dress item is owned (not counted) or waits for a level.
-            level: typeof obj(item).level === "number" ? obj(item).level : null,
-            owned: obj(item).owned === true,
-            unlocked: obj(item).unlocked !== false,
-            blurb: str(obj(item).blurb, ""),
-            affordable: obj(item).affordable === true,
-            needed: obj(item).needed === true
-          })).filter((item) => item.key !== ""),
-          inventory: obj(d.inventory),
-          // Which items each care action could spend right now.
-          care: (() => {
-            const out = {};
-            const source = obj(d.care);
-            for (const action of ["feed", "bathe", "play"]) {
-              out[action] = arr(source[action]).map((entry) => ({
-                key: str(obj(entry).key, ""),
-                label: str(obj(entry).label, "\u7269\u54C1"),
-                emoji: str(obj(entry).emoji, "\u{1F4E6}"),
-                default: obj(entry).default === true,
-                count: typeof obj(entry).count === "number" ? obj(entry).count : null,
-                satiety: num(obj(entry).satiety, 0),
-                happiness: num(obj(entry).happiness, 0),
-                cleanliness: num(obj(entry).cleanliness, 0)
-              })).filter((entry) => entry.key !== "");
-            }
-            return out;
-          })(),
-          activity: isObj(d.activity) ? {
-            kind: str(d.activity.kind, "work"),
-            key: str(d.activity.key, ""),
-            label: str(d.activity.label, "\u5916\u9762"),
-            emoji: str(d.activity.emoji, "\u{1F4BC}"),
-            secondsLeft: num(d.activity.secondsLeft, 0),
-            progress: num(d.activity.progress, 0)
-          } : null,
-          canGoOut: d.canGoOut === true,
-          timeScale: num(d.timeScale, 1),
-          boxStage: isObj(d.boxStage) ? {
-            key: str(d.boxStage.key, "box"),
-            label: str(d.boxStage.label, "\u7EB8\u76D2"),
-            emoji: str(d.boxStage.emoji, "\u{1F4E6}"),
-            size: num(d.boxStage.size, 58)
-          } : { key: "box", label: "\u7EB8\u76D2", emoji: "\u{1F4E6}", size: 58 },
-          awayBlocked: typeof d.awayBlocked === "string" ? d.awayBlocked : null,
-          pending: arr(d.pending).filter((e) => isObj(e) && typeof e.at === "number"),
-          maxHealth: num(d.maxHealth, 5)
-        };
-      }
-      function normalizeActions(raw) {
-        var source = obj(raw);
-        var out = {};
-        for (var i = 0; i < MODES.length; i += 1) {
-          var key = MODES[i];
-          var entry = obj(source[key]);
-          out[key] = {
-            ready: entry.ready !== false,
-            waitSeconds: num(entry.waitSeconds, 0),
-            blocked: typeof entry.blocked === "string" ? entry.blocked : null
-          };
-        }
-        return out;
-      }
-      var CSS = [
-        // ---------------------------------------------------------------------
-        // Animal Crossing design language, transcribed from
-        // guokaigdg/animal-island-ui docs/design-system (design-tokens.md and the
-        // standalone css-variables.md template).
-        //
-        // The tokens are declared on the widget root rather than :root: the host
-        // page must not inherit them, and they must not be clobbered by it.
-        //
-        // The rules that shape everything below:
-        //   · warm earth-brown text on cream parchment, never pure black or grey
-        //   · 12px minimum radius; buttons and inputs are 50px pills
-        //   · the thick 3D bottom shadow belongs to primary buttons only
-        //   · cards carry a border, not an elevation shadow
-        //   · motion is 0.15-0.35s on cubic-bezier(.4,0,.2,1)
-        //   · focus rings are yellow or teal, never blue
-        // ---------------------------------------------------------------------
-        "[data-dsh-pig]{",
-        '--ac-font:Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;',
-        "--ac-primary:#19c8b9;--ac-primary-hover:#3dd4c6;--ac-primary-active:#11a89b;",
-        "--ac-primary-bg:#e6f9f6;",
-        "--ac-text:#794f27;--ac-text-body:#725d42;--ac-text-2:#9f927d;--ac-text-muted:#8a7b66;",
-        "--ac-text-disabled:#c4b89e;",
-        "--ac-bg:#f8f8f0;--ac-bg-content:rgb(247,243,223);--ac-bg-input:#fffbe7;",
-        "--ac-bg-disabled:#f0ece2;",
-        "--ac-border:#c4b89e;--ac-border-light:#e5dcc6;--ac-border-hover:#a89878;",
-        "--ac-radius-sm:12px;--ac-radius-card:20px;--ac-pill:50px;",
-        "--ac-shadow-sm:0 2px 4px 0 rgba(61,52,40,.06);",
-        "--ac-shadow:0 3px 10px 0 rgba(61,52,40,.1);",
-        "--ac-shadow-lg:0 8px 24px 0 rgba(61,52,40,.16);",
-        "--ac-inset:inset 0 2px 4px rgba(114,93,66,.15);",
-        // sidebar tokens: the library uses these for the selected menu row, which
-        // is exactly the role the icon bar plays here.
-        "--ac-active:#b7c6e5;--ac-hover:#d6dff0;",
-        "--ac-success:#6fba2c;--ac-warning:#f5c31c;--ac-error:#e05a5a;",
-        "--ac-ease:cubic-bezier(.4,0,.2,1);",
-        // One place to size the pig; the scene and the panel cap derive from it.
-        "--pig-size:56px;--pig-gap-below:12px;--scene-open:132px;--panel-width:292px;",
-        "position:fixed;right:18px;bottom:18px;z-index:2147483000;",
-        "font-family:var(--ac-font);font-weight:500;letter-spacing:.01em;",
-        "-webkit-user-select:none;user-select:none;touch-action:none;",
-        // The wrapper spans a column wider and taller than what it paints (the
-        // scene's padding, the gap above the panel). Without this it swallows
-        // clicks aimed at the page underneath — which once looked like "sending a
-        // message does nothing" while the whole stack was healthy.
-        "pointer-events:none;",
-        // The pig is the only in-flow child, so the wrapper's box is exactly the
-        // pig's box and the panel can be parked anywhere around it without ever
-        // nudging the pig. `fitPanel` places the panel.
-        "display:block}",
-        "[data-dsh-pig] *{box-sizing:border-box}",
-        "[data-dsh-pig]>*{pointer-events:auto}",
-        // `hidden` MUST win. The UA sheet's `[hidden]{display:none}` ties on
-        // specificity with a single class, so any `.dp-x{display:grid|flex}` rule
-        // below silently beats it and the element keeps rendering. That is exactly
-        // how a collapsed panel ended up showing the icon bar and the hud while
-        // every `el.hidden === true` assertion still passed.
-        "[data-dsh-pig] .dp-card[hidden],[data-dsh-pig] .dp-bar[hidden],",
-        "[data-dsh-pig] .dp-content[hidden],[data-dsh-pig] .dp-hud[hidden],",
-        "[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],",
-        "[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],",
-        "[data-dsh-pig] .dp-poke-hint[hidden],",
-        "[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}",
-        /* ---------- the panel: cream parchment, border not shadow ---------- */
-        // Taken out of flow on purpose. In flow it would widen the wrapper, and a
-        // wider wrapper moves the pig — the exact thing this layout exists to
-        // prevent. Absolutely positioned, the wrapper's box stays the pig's box
-        // and `fitPanel` can put the panel on whichever side has room.
-        ".dp-card{position:absolute;right:0;bottom:calc(100% + 8px);width:var(--panel-width);",
-        "border-radius:var(--ac-radius-card);overflow:hidden;",
-        "display:flex;flex-direction:column;",
-        "background:var(--ac-bg);border:2px solid var(--ac-border-light);",
-        "box-shadow:var(--ac-shadow-lg);color:var(--ac-text-body)}",
-        /* ---------- the pig: never moved, never boxed ---------- */
-        ".dp-scene{position:relative;height:var(--scene-open);background:none;cursor:grab;",
-        "overflow:visible;display:flex;align-items:flex-end;justify-content:flex-end;",
-        "padding:0 6px var(--pig-gap-below);width:max-content}",
-        '.dp-scene[data-dragging="true"]{cursor:grabbing}',
-        // Collapsed the scene is exactly the pig, so the wrapper paints nothing
-        // extra to click through. Open it widens to the panel so the hud and the
-        // speech bubble have somewhere to sit — the pig is right-aligned either
-        // way, so widening costs it no movement.
-        '[data-dsh-pig][data-open="true"] .dp-scene{width:var(--panel-width)}',
-        // Collapsed the scene shrinks to just the pig. An explicit height rather
-        // than `auto` keeps the pig's line box identical in both states, so
-        // opening moves it by exactly zero pixels.
-        '[data-dsh-pig][data-open="false"] .dp-scene{height:calc(var(--pig-size) + var(--pig-gap-below));',
-        "cursor:pointer}",
-        ".dp-pig{line-height:1;transform-origin:50% 85%;cursor:pointer;position:relative;",
-        "filter:drop-shadow(0 4px 6px rgba(61,52,40,.28));animation:dp-bob 1.8s ease-in-out infinite}",
-        // 装扮点位：猪身上固定的几个锚点，每个点位挂一件。
-        // 以后换真立绘时，只改这里的偏移/尺寸，逻辑和存档都不用动。
-        ".dp-dress{position:absolute;inset:0;pointer-events:none;z-index:3}",
-        ".dp-slot{position:absolute;line-height:1;font-size:15px;transform:translate(-50%,-50%)}",
-        '.dp-slot[data-slot="head"]{left:50%;top:2%}',
-        '.dp-slot[data-slot="face"]{left:50%;top:32%}',
-        '.dp-slot[data-slot="neck"]{left:50%;top:60%}',
-        '.dp-slot[data-slot="body"]{left:50%;top:78%;font-size:19px}',
-        '.dp-slot[data-slot="back"]{left:14%;top:42%;font-size:19px}',
-        '.dp-slot[data-slot="feet"]{left:50%;top:99%}',
-        '[data-dsh-pig][data-open="false"] .dp-pig{filter:drop-shadow(0 5px 9px rgba(61,52,40,.26))}',
-        // A petting hand rather than an arrow. Drawn inline as an SVG data URI so
-        // it needs no asset and can carry the palette's warm outline; the hotspot
-        // sits in the palm, which is where a pat actually lands. The `pointer`
-        // after it is the fallback for browsers that refuse a custom cursor.
-        `.dp-pig{cursor:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="%23F7C9B6" stroke="%23794F27" stroke-width="1.7" stroke-linejoin="round"><rect x="10" y="13.5" width="14" height="12" rx="4.8"/><rect x="10.6" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="14.9" y="5.1" width="3.6" height="11.5" rx="1.8"/><rect x="19.2" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="5.7" y="12.4" width="3.4" height="7.8" rx="1.7" transform="rotate(-27 7.4 16.3)"/></g></svg>') 16 24, pointer}`,
-        // Transform-only keyframes: the pig is an ordinary flex item, so there is
-        // no translateX(-50%) centring to preserve.
-        "@keyframes dp-bob{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-7px) rotate(-2.5deg)}}",
-        "@keyframes dp-breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(1px) scale(1.09)}}",
-        "@keyframes dp-shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-4px) rotate(-5deg)}60%{transform:translateX(4px) rotate(5deg)}}",
-        "@keyframes dp-squash{0%{transform:scale(1,1)}25%{transform:scale(1.28,.74)}55%{transform:scale(.92,1.14)}100%{transform:scale(1,1)}}",
-        "@keyframes dp-spin{0%{transform:rotate(0)}50%{transform:rotate(180deg) scale(1.2)}100%{transform:rotate(360deg)}}",
-        "@keyframes dp-jump{0%{transform:translateY(0)}30%{transform:translateY(-26px) scale(1.12)}60%{transform:translateY(0) scale(.92)}100%{transform:translateY(0)}}",
-        "@keyframes dp-wobble{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}55%{transform:rotate(14deg)}}",
-        "@keyframes dp-cough{0%,100%{transform:translateX(0)}30%{transform:translateX(-4px) rotate(-7deg)}70%{transform:translateX(4px) rotate(6deg)}}",
-        '.dp-pig[data-mood="happy"]{animation-duration:1.15s}',
-        '.dp-pig[data-mood="sleepy"]{animation-name:dp-breathe;animation-duration:3.6s}',
-        '.dp-pig[data-mood="hungry"]{animation-name:dp-shake;animation-duration:2.4s}',
-        '.dp-pig[data-mood="dirty"]{animation-name:dp-breathe;animation-duration:2.6s;filter:sepia(.4) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
-        '.dp-pig[data-mood="sick"]{animation-name:dp-cough;animation-duration:2.2s;filter:hue-rotate(-28deg) saturate(.75) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
-        // One pose per activity, so being away reads as a thing the pig is doing.
-        "@keyframes dp-typing{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(-1.5deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-2px) rotate(1.5deg)}}",
-        "@keyframes dp-reading{0%,100%{transform:translateY(0) rotate(0)}35%{transform:translateY(1px) rotate(-5deg)}70%{transform:translateY(1px) rotate(-2deg)}}",
-        "@keyframes dp-walking{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-6px) rotate(-4deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-6px) rotate(4deg)}}",
-        '.dp-pig[data-mood="working"]{animation-name:dp-typing;animation-duration:.7s}',
-        '.dp-pig[data-mood="studying"]{animation-name:dp-reading;animation-duration:2.4s}',
-        '.dp-pig[data-mood="traveling"]{animation-name:dp-walking;animation-duration:1s}',
-        '.dp-pig[data-mood="dead"]{animation:none;filter:grayscale(1)}',
-        ".dp-pig[data-react]{animation-duration:.85s;animation-iteration-count:1}",
-        '.dp-pig[data-react="feed"]{animation-name:dp-jump}',
-        '.dp-pig[data-react="bathe"]{animation-name:dp-wobble;animation-duration:1.05s}',
-        '.dp-pig[data-react="play"]{animation-name:dp-spin;animation-duration:.9s}',
-        '.dp-pig[data-react="pet"]{animation-name:dp-squash;animation-duration:.6s}',
-        '.dp-pig[data-react="away"]{animation-name:dp-jump;animation-duration:.9s}',
-        '.dp-pig[data-react="cure"]{animation-name:dp-spin;animation-duration:.9s}',
-        '.dp-pig[data-react="levelup"]{animation-name:dp-jump;animation-duration:.95s}',
-        '.dp-pig[data-react="refuse"]{animation-name:dp-shake;animation-duration:.5s}',
-        /* ---------- what the pig is off doing ---------- */
-        "[data-dsh-pig] .dp-work{display:flex;flex-direction:column;align-items:center;gap:4px;",
-        "margin:0 2px 6px 0}",
-        ".dp-prop{font-size:26px;line-height:1;filter:drop-shadow(0 3px 5px rgba(61,52,40,.22));",
-        "animation:dp-prop-bob 2.4s ease-in-out infinite}",
-        '[data-dsh-pig][data-away="study"] .dp-prop{animation-duration:3.4s}',
-        '[data-dsh-pig][data-away="trip"] .dp-prop{animation-name:dp-prop-swing;animation-duration:1.6s}',
-        "@keyframes dp-prop-bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3px) rotate(3deg)}}",
-        "@keyframes dp-prop-swing{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-4px) rotate(8deg)}}",
-        ".dp-progress{width:42px;height:7px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
-        "box-shadow:var(--ac-inset);overflow:hidden}",
-        ".dp-progress i{display:block;height:100%;border-radius:var(--ac-pill);",
-        "background:var(--ac-primary);transition:width .5s var(--ac-ease)}",
-        // The scene needs room for the prop; it grows leftward, so the pig stays put.
-        '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
-        '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
-        /* ---------- hud: a cream tag beside the pig ---------- */
-        ".dp-hud{position:absolute;left:9px;top:7px;display:flex;flex-direction:column;gap:1px;",
-        "font-size:10.5px;font-weight:600;line-height:1.45;color:var(--ac-text);",
-        "background:var(--ac-bg);border:2px solid var(--ac-border-light);padding:5px 10px;",
-        "border-radius:var(--ac-radius-sm);box-shadow:var(--ac-shadow-sm)}",
-        ".dp-hud b{font-weight:700}",
-        // A drawn sprite is sized by the same variable as the emoji, so growing up
-        // works identically either way.
-        ".dp-pig-img{width:var(--pig-size);height:var(--pig-size);display:block;",
-        "-webkit-user-drag:none;user-select:none}",
-        ".dp-pig-emoji{font-size:var(--pig-size);line-height:1}",
-        // No drawings yet — every stage is the same pig, so age reads as size plus
-        // a faded coat on the last one.
-        '[data-dsh-pig][data-faded="true"] .dp-pig-emoji{filter:grayscale(.5) opacity(.72)}',
-        // The box advertises itself: a slow breathing glow plus a label, so it
-        // does not read as scenery.
-        '[data-dsh-pig][data-unhatched="true"] .dp-pig{cursor:pointer;',
-        "animation:dp-box-breathe 2.4s ease-in-out infinite}",
-        '[data-dsh-pig][data-unhatched="true"] .dp-pig-emoji{',
-        "filter:drop-shadow(0 0 0 rgba(255,214,102,0)) drop-shadow(0 4px 6px rgba(61,52,40,.28))}",
-        "@keyframes dp-box-breathe{0%,100%{transform:translateY(0) scale(1)}",
-        "50%{transform:translateY(-3px) scale(1.06)}}",
-        ".dp-poke-hint{position:absolute;right:2px;bottom:-2px;display:flex;align-items:center;gap:3px;",
-        "font-size:9.5px;font-weight:700;color:var(--ac-text);background:var(--ac-bg);",
-        "border:1.5px solid var(--ac-border-light);border-radius:var(--ac-pill);padding:1px 7px;",
-        "box-shadow:0 2px 0 rgba(61,52,40,.12);pointer-events:none;white-space:nowrap;z-index:3;",
-        "animation:dp-hint-bob 1.6s ease-in-out infinite}",
-        "@keyframes dp-hint-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}",
-        // Each poke shakes it harder; the third one opens it instead.
-        '[data-dsh-pig] .dp-pig[data-mood="poke"],',
-        "[data-dsh-pig][data-poke] .dp-pig{animation-name:dp-poke-shake}",
-        '[data-dsh-pig][data-poke="2"] .dp-pig{animation-duration:.28s}',
-        "@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}",
-        "50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}",
-        /* ---------- shop: a grid of tiles, three to a row ---------- */
-        ".dp-shopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}",
-        // The shelf heading is a grid child too, so it has to span the whole row.
-        ".dp-shopgrid .dp-shelf{grid-column:1/-1;margin:5px 0 0}",
-        ".dp-shopgrid .dp-shelf:first-child{margin-top:0}",
-        ".dp-cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;",
-        "padding:7px 3px 6px;border:1.5px solid var(--ac-border-light);border-radius:12px;",
-        "background:var(--ac-bg);cursor:pointer;font-family:inherit;text-align:center;",
-        "transition:transform .12s var(--ac-ease),box-shadow .12s var(--ac-ease)}",
-        ".dp-cell:hover{transform:translateY(-1px);box-shadow:0 3px 0 rgba(61,52,40,.14)}",
-        ".dp-cell:active{transform:translateY(1px)}",
-        ".dp-cell-e{font-size:22px;line-height:1.15}",
-        ".dp-cell-n{font-size:10px;font-weight:700;color:var(--ac-text);line-height:1.2;",
-        "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}",
-        ".dp-cell-p{font-size:9.5px;font-weight:600;color:var(--ac-text-2)}",
-        // Owned count and the "needed" flag are badges so they cost no extra row.
-        ".dp-cell-c{position:absolute;top:3px;right:4px;font-size:9px;font-weight:800;",
-        "color:#fff;background:var(--ac-primary);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}",
-        ".dp-cell-tag{position:absolute;top:3px;left:4px;font-size:8px;font-weight:800;",
-        "color:#7a5a12;background:var(--ac-warning);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}",
-        // Affordable is colour; unaffordable is faded but still clickable, so a
-        // tap can explain how much is missing instead of doing nothing.
-        ".dp-cell.dp-poor{opacity:.45}",
-        // 家当 already owned: not for sale, but not "unaffordable" either.
-        ".dp-cell.dp-owned{opacity:.6;border-style:dashed}",
-        ".dp-cell.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
-        /* ---------- developer tab ---------- */
-        ".dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}",
-        ".dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}",
-        ".dp-dev-btn{flex:0 0 auto;font-size:10px;padding:3px 8px}",
-        ".dp-on{background:var(--ac-primary);color:#fff;border-color:var(--ac-primary)}",
-        '[data-dsh-pig][data-dev="true"] .dp-ico[data-tab="dev"]{color:var(--ac-primary)}',
-        /* ---------- the soul that settles on an unclaimed grave ---------- */
-        ".dp-soul{position:absolute;left:50%;transform:translateX(-50%);top:-4px;font-size:22px;",
-        "line-height:1;opacity:.9;pointer-events:none;z-index:1;",
-        "animation:dp-haunt 3.4s ease-in-out infinite}",
-        "@keyframes dp-haunt{0%,100%{transform:translate(-50%,0) scale(1);opacity:.75}",
-        "50%{transform:translate(-50%,-9px) scale(1.08);opacity:1}}",
-        // A grave does not bob about like a living pig.
-        '.dp-pig[data-stage="grave"]{animation:none;filter:grayscale(.35) drop-shadow(0 4px 6px rgba(61,52,40,.3))}',
-        '.dp-pig[data-stage="box"]{animation:dp-box-wobble 3.2s ease-in-out infinite}',
-        "@keyframes dp-box-wobble{0%,100%{transform:rotate(0)}30%{transform:rotate(-4deg)}",
-        "45%{transform:rotate(3deg)}60%{transform:rotate(-2deg)}}",
-        // Patting squashes the pig flat. Short, so rapid clicking keeps up.
-        '[data-dsh-pig] .dp-pig[data-react="pet"]{animation-name:dp-squash;animation-duration:.42s}',
-        "@keyframes dp-squash{0%{transform:scale(1,1)}35%{transform:scale(1.16,.74) translateY(2px)}",
-        "60%{transform:scale(.94,1.08) translateY(-3px)}100%{transform:scale(1,1)}}",
-        /* ---------- speech bubble ---------- */
-        // `z-index` matters: the pig comes later in the DOM, so without it the pig
-        // paints over the bubble whenever the two boxes overlap — which is exactly
-        // what happened when collapsed and the scene was only as wide as the pig.
-        ".dp-bubble{position:absolute;right:8px;top:7px;z-index:2;max-width:162px;padding:6px 10px;",
-        "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.45;",
-        "color:var(--ac-text-body);background:var(--ac-bg-input);",
-        "border:2px solid var(--ac-border-light);box-shadow:var(--ac-shadow-sm)}",
-        // Tail drawn as a small rotated square so the 2px border stays continuous.
-        '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
-        "background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);",
-        "border-bottom:2px solid var(--ac-border-light);transform:rotate(45deg)}",
-        // Collapsed, the scene is exactly the pig, so a bubble drawn inside it
-        // would sit on the pig's face. Float it above the head with the tail
-        // pointing down, anchored to the right edge so it can never run off the
-        // window. The hearts rise from behind it.
-        '[data-dsh-pig][data-open="false"] .dp-bubble{top:auto;bottom:calc(100% + 8px);',
-        "left:auto;right:0;max-width:230px}",
-        '[data-dsh-pig][data-open="false"] .dp-bubble::after{left:auto;right:26px;',
-        "top:100%;bottom:auto;margin:0;transform:rotate(45deg);",
-        "border:0;border-right:2px solid var(--ac-border-light);",
-        "border-bottom:2px solid var(--ac-border-light)}",
-        /* ---------- icon bar: the library sidebar, laid on its side ---------- */
-        ".dp-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:8px;",
-        "background:var(--ac-bg-content);border-top:2px solid var(--ac-border-light);",
-        "border-bottom:2px solid var(--ac-border-light)}",
-        ".dp-ico{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;",
-        "font:inherit;font-size:9.5px;font-weight:600;color:var(--ac-text-muted);background:none;",
-        "border:2px solid transparent;border-radius:var(--ac-radius-sm);padding:5px 1px;",
-        "transition:all .2s var(--ac-ease)}",
-        ".dp-ico span.dp-ico-e{font-size:18px;line-height:1}",
-        ".dp-ico:hover{background:var(--ac-hover)}",
-        '.dp-ico[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
-        "color:var(--ac-text);font-weight:700}",
-        ".dp-ico:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
-        "@keyframes dp-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}",
-        '.dp-ico[data-alert="true"] span.dp-ico-e{animation:dp-pulse 1.4s ease-in-out infinite}',
-        /* ---------- content ---------- */
-        ".dp-content{padding:12px 13px 13px;overflow-y:auto;flex:1 1 auto;min-height:0}",
-        ".dp-content::-webkit-scrollbar{width:8px}",
-        ".dp-content::-webkit-scrollbar-thumb{background:var(--ac-border-light);border-radius:4px}",
-        ".dp-content::-webkit-scrollbar-track{background:transparent}",
-        ".dp-title{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;",
-        "margin-bottom:8px}",
-        ".dp-title b{font-weight:700;color:var(--ac-text)}",
-        ".dp-title span{color:var(--ac-text-2);font-size:10.5px;font-weight:600}",
-        ".dp-row{display:flex;justify-content:space-between;font-size:11px;font-weight:600;",
-        "color:var(--ac-text-body);margin:2px 0}",
-        ".dp-row b{font-weight:700;color:var(--ac-text)}",
-        /* ---------- attribute bars: pill track with an inset well ---------- */
-        ".dp-meter{height:9px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
-        "box-shadow:var(--ac-inset);overflow:hidden;margin:3px 0 8px}",
-        ".dp-meter i{display:block;height:100%;border-radius:var(--ac-pill);",
-        "background:var(--ac-warning);transition:width .35s var(--ac-ease)}",
-        ".dp-meter.dp-mood i{background:#f8a6b2}",
-        ".dp-meter.dp-clean i{background:#82d5bb}",
-        ".dp-meter.dp-health i{background:#8ac68a}",
-        ".dp-traits{display:flex;gap:10px;font-size:10.5px;font-weight:600;color:var(--ac-text-2);",
-        "margin:8px 0 3px}",
-        /* ---------- banners ---------- */
-        ".dp-alert{margin:0 0 9px;padding:8px 10px;border-radius:var(--ac-radius-sm);",
-        "font-size:10.5px;font-weight:600;line-height:1.55;border:2px solid}",
-        ".dp-alert b{font-weight:700;color:var(--ac-text)}",
-        ".dp-alert.dp-sick{background:#fdeeee;border-color:#f2c2c2}",
-        ".dp-alert.dp-work{background:#eef1fb;border-color:#c3cdf0}",
-        ".dp-alert.dp-dead{background:var(--ac-bg-disabled);border-color:var(--ac-border-light)}",
-        ".dp-alert.dp-legacy{background:#fdf7e2;border-color:#f0dfa8}",
-        /* ---------- buttons: secondary is a cream pill with soft elevation ---- */
-        ".dp-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}",
-        ".dp-btn{display:flex;align-items:center;justify-content:center;gap:5px;font:inherit;",
-        "font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--ac-text-body);",
-        "cursor:pointer;padding:8px 6px;border-radius:var(--ac-pill);",
-        "border:2px solid var(--ac-border);background:var(--ac-bg-input);",
-        "box-shadow:var(--ac-shadow-sm);transition:all .2s var(--ac-ease)}",
-        ".dp-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--ac-shadow);",
-        "border-color:var(--ac-border-hover)}",
-        ".dp-btn:active:not(:disabled){transform:translateY(2px);box-shadow:var(--ac-shadow-sm)}",
-        ".dp-btn:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
-        ".dp-btn:disabled{background:var(--ac-bg-disabled);color:var(--ac-text-disabled);",
-        "border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}",
-        ".dp-btn-wide{grid-column:1/-1}",
-        ".dp-btn .dp-wait{color:var(--ac-text-2);font-size:10px;font-weight:600}",
-        /* ---------- segmented control ---------- */
-        ".dp-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}",
-        ".dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);",
-        "cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);",
-        "border:2px solid var(--ac-border-light);background:var(--ac-bg-input);",
-        "transition:all .2s var(--ac-ease)}",
-        ".dp-seg button:hover{background:var(--ac-hover)}",
-        '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
-        "color:var(--ac-text);font-weight:700}",
-        /* ---------- list rows ---------- */
-        ".dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}",
-        ".dp-list{display:flex;flex-direction:column;gap:7px}",
-        ".dp-shelf{margin:9px 0 1px;font-size:10px;font-weight:700;color:var(--ac-text-2);",
-        "letter-spacing:.04em}",
-        ".dp-shelf:first-child{margin-top:0}",
-        ".dp-item{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;",
-        "color:var(--ac-text-body);padding:7px 9px;border-radius:var(--ac-radius-sm);",
-        "background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
-        ".dp-item .dp-grow{flex:1;min-width:0}",
-        ".dp-item .dp-dim{color:var(--ac-text-2);font-size:10px;font-weight:500;overflow:hidden;",
-        "text-overflow:ellipsis;white-space:nowrap}",
-        ".dp-item.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
-        /* ---------- primary buttons: teal pill with the game 3D bottom edge --- */
-        ".dp-mini{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#fff;",
-        "cursor:pointer;padding:6px 13px;border-radius:var(--ac-pill);",
-        "border:2px solid var(--ac-primary-active);background:var(--ac-primary);",
-        "box-shadow:0 3px 0 0 var(--ac-primary-active);transition:all .15s var(--ac-ease)}",
-        ".dp-mini:hover:not(:disabled){background:var(--ac-primary-hover);transform:translateY(-1px);",
-        "box-shadow:0 4px 0 0 var(--ac-primary-active)}",
-        ".dp-mini:active:not(:disabled){transform:translateY(2px);",
-        "box-shadow:0 1px 0 0 var(--ac-primary-active)}",
-        ".dp-mini:focus-visible{outline:2px solid var(--ac-primary);outline-offset:2px}",
-        ".dp-mini:disabled{background:var(--ac-bg-disabled);color:var(--ac-text-disabled);",
-        "border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}",
-        /* ---------- the care item picker ---------- */
-        ".dp-pick{margin-top:9px;padding:9px 10px;border-radius:var(--ac-radius-sm);",
-        "background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
-        ".dp-pick-head{font-size:10.5px;font-weight:700;color:var(--ac-text);margin-bottom:7px}",
-        ".dp-cancel{display:block;width:100%;margin-top:8px;font:inherit;font-size:10.5px;",
-        "font-weight:600;color:var(--ac-text-2);cursor:pointer;padding:5px;",
-        "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);",
-        "background:var(--ac-bg-input);transition:all .2s var(--ac-ease)}",
-        ".dp-cancel:hover{background:var(--ac-hover);color:var(--ac-text)}",
-        ".dp-count{margin-left:2px;font-size:9px;font-weight:700;color:var(--ac-text-2);",
-        "background:var(--ac-bg-content);border-radius:var(--ac-pill);padding:0 5px}",
-        '.dp-btn[data-open-picker="true"]{background:var(--ac-active);border-color:#9db0d6}',
-        '.dp-seg button[data-locked="true"]{color:var(--ac-text-disabled);',
-        "border-style:dashed;background:var(--ac-bg-disabled)}",
-        '.dp-seg button[data-locked="true"]:hover{background:var(--ac-bg-disabled)}',
-        ".dp-locked{margin:0 0 8px;font-size:10.5px;font-weight:600;line-height:1.5;",
-        "color:var(--ac-text-body);background:#fdf7e2;border:2px solid #f0dfa8;",
-        "border-radius:var(--ac-radius-sm);padding:6px 9px}",
-        // The per-job gate reads as a lock, not as another grey stat line: a
-        // threshold the pig cannot see is indistinguishable from a broken button.
-        ".dp-lock{font-size:10px;font-weight:700;line-height:1.5;color:#9a6b1f}",
-        ".dp-empty{color:var(--ac-text-2);font-size:10.5px;font-weight:500;line-height:1.65;",
-        "margin-top:4px}",
-        ".dp-memo{margin-top:9px;padding-top:8px;border-top:2px solid var(--ac-border-light);",
-        "color:var(--ac-text-muted);font-size:10px;font-weight:500;line-height:1.55;",
-        "white-space:pre-wrap;word-break:break-word}",
-        /* ---------- particles and toast ---------- */
-        ".dp-fx{position:absolute;z-index:1;pointer-events:none;font-size:17px;",
-        "animation:dp-rise 1.1s ease-out forwards}",
-        "@keyframes dp-rise{0%{opacity:0;transform:translate(var(--dx0,0),4px) scale(.5)}18%{opacity:1}",
-        "100%{opacity:0;transform:translate(var(--dx,0),-56px) scale(1.15)}}",
-        ".dp-toast{position:absolute;left:9px;right:9px;top:8px;padding:8px 11px;",
-        "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.5;",
-        "color:var(--ac-text);background:var(--ac-bg-input);border:2px solid var(--ac-border);",
-        "box-shadow:var(--ac-shadow);pointer-events:none;white-space:normal;",
-        "animation:dp-toast 4.6s var(--ac-ease) forwards}",
-        "@keyframes dp-toast{0%{opacity:0;transform:translateY(-8px)}8%{opacity:1;transform:translateY(0)}",
-        "82%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}"
-      ].join("");
-      function readStore(key) {
-        try {
-          return window.localStorage.getItem(key);
-        } catch (error) {
-          return null;
-        }
-      }
-      function readStore(key) {
-        try {
-          return window.localStorage.getItem(key);
-        } catch (error) {
-          return null;
-        }
-      }
-      function writeStore(key, value) {
-        try {
-          window.localStorage.setItem(key, value);
-        } catch (error) {
-        }
-      }
-      function el(tag, className, text) {
-        var node = document.createElement(tag);
-        if (className) node.className = className;
-        if (text !== void 0) node.textContent = text;
-        return node;
-      }
-      function button(className, attrs, onClick) {
-        var node = el("button", className);
-        node.type = "button";
-        for (var key in attrs) node.setAttribute(key, attrs[key]);
-        node.addEventListener("click", function(event) {
-          event.stopPropagation();
-          onClick();
-        });
-        return node;
-      }
-      function meter(value, variant) {
-        var wrap = el("div", "dp-meter" + (variant ? " " + variant : ""));
-        var fill = document.createElement("i");
-        fill.style.width = Math.max(0, Math.min(100, num(value, 0))) + "%";
-        wrap.appendChild(fill);
-        return wrap;
-      }
       function apply(ctx) {
         try {
           return mount();

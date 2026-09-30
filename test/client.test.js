@@ -11,40 +11,55 @@
  */
 
 import assert from 'node:assert/strict'
+import { readdirSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 
 /**
- * The authored source. Static assertions (CSS shape, guards) read this; the
- * behaviour tests below load the built bundle instead, so they exercise exactly
- * what DSH ships.
+ * The authored client source, as written.
+ *
+ * Static assertions (CSS shape, guards) read this; the behaviour tests below
+ * load the built bundle instead, so they exercise exactly what DSH ships.
+ * Stage 2 of docs/REFACTOR-PLAN.md split the client into modules, so this joins
+ * them back into the one text those assertions used to see.
  */
-const readSource = () => readFile(new URL('../src/client/index.js', import.meta.url), 'utf8')
+async function readSource() {
+  const dir = new URL('../src/client/', import.meta.url)
+  const names = readdirSync(dir).filter(name => name.endsWith('.js')).sort()
+  const parts = await Promise.all(names.map(name => readFile(new URL(name, dir), 'utf8')))
+  return parts.join('\n')
+}
 
 /**
  * The stylesheet the browser actually receives.
  *
- * The bundle assembles `CSS` from many concatenated string literals, so a regex
- * run against the source can only ever see one fragment at a time — a rule
- * split across two literals looks absent even when it is there. Joining the
- * literals back together first is what makes these static assertions mean
+ * The styles are assembled from many concatenated string literals across the
+ * CSS modules, so a regex run against one file can only ever see a fragment — a
+ * rule split across two literals looks absent even when it is there. Joining
+ * the literals back together first is what makes these static assertions mean
  * something.
  */
 async function readCss() {
-  const source = await readSource()
-  const start = source.indexOf('var CSS = [')
-  const end = source.indexOf("].join('')", start)
-  assert.ok(start >= 0 && end > start, 'could not locate the CSS array')
-  const body = source.slice(start, end)
-  // Two shapes of literal: one that begins a line, and one appended to a
-  // previous literal with `+`. The cursor data-URI is split across seven of the
-  // latter, so matching only line-anchored literals silently truncated the sheet
-  // and made the brace-balance check below meaningless.
-  // Anchoring matters: a plain quoted-string scan is fooled by apostrophes
-  // inside comments ("the UA sheet's ...").
-  return [...body.matchAll(/(?:^[ \t]*|\+[ \t]*)'((?:[^'\\]|\\.)*)'/gm)]
-    .map(match => match[1])
-    .join('')
+  const dir = new URL('../src/client/', import.meta.url)
+  const modules = ['css-base.js', 'css-tabs.js']
+  const sources = await Promise.all(modules.map(name => readFile(new URL(name, dir), 'utf8')))
+  let css = ''
+  for (const source of sources) {
+    const start = source.indexOf('export const CSS_')
+    const end = source.indexOf("].join('')", start)
+    assert.ok(start >= 0 && end > start, 'could not locate the CSS array')
+    const body = source.slice(start, end)
+    // Two shapes of literal: one that begins a line, and one appended to a
+    // previous literal with `+`. The cursor data-URI is split across seven of the
+    // latter, so matching only line-anchored literals silently truncated the sheet
+    // and made the brace-balance check below meaningless.
+    // Anchoring matters: a plain quoted-string scan is fooled by apostrophes
+    // inside comments ("the UA sheet's ...").
+    css += [...body.matchAll(/(?:^[ \t]*|\+[ \t]*)'((?:[^'\\]|\\.)*)'/gm)]
+      .map(match => match[1])
+      .join('')
+  }
+  return css
 }
 
 /** The smallest DOM that satisfies the bundle. */
@@ -1382,7 +1397,7 @@ test('the JS scene reserve tracks the CSS token it stands in for', async () => {
   const source = await readSource()
   const css = await readCss()
   const fromCss = /--scene-open:\s*(\d+)px/.exec(css)
-  const fromJs = /var SCENE_RESERVE = (\d+)/.exec(source)
+  const fromJs = /(?:var|export const) SCENE_RESERVE = (\d+)/.exec(source)
   assert.ok(fromCss !== null, 'the CSS must declare --scene-open')
   assert.ok(fromJs !== null, 'the bundle must declare SCENE_RESERVE')
   assert.equal(fromJs[1], fromCss[1], 'SCENE_RESERVE must match --scene-open')
