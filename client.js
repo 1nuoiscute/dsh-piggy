@@ -802,7 +802,6 @@
     "@keyframes dp-bob{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-7px) rotate(-2.5deg)}}",
     "@keyframes dp-breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(1px) scale(1.09)}}",
     "@keyframes dp-shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-4px) rotate(-5deg)}60%{transform:translateX(4px) rotate(5deg)}}",
-    "@keyframes dp-squash{0%{transform:scale(1,1)}25%{transform:scale(1.28,.74)}55%{transform:scale(.92,1.14)}100%{transform:scale(1,1)}}",
     "@keyframes dp-spin{0%{transform:rotate(0)}50%{transform:rotate(180deg) scale(1.2)}100%{transform:rotate(360deg)}}",
     "@keyframes dp-jump{0%{transform:translateY(0)}30%{transform:translateY(-26px) scale(1.12)}60%{transform:translateY(0) scale(.92)}100%{transform:translateY(0)}}",
     "@keyframes dp-wobble{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}55%{transform:rotate(14deg)}}",
@@ -824,7 +823,6 @@
     '.dp-pig[data-react="feed"]{animation-name:dp-jump}',
     '.dp-pig[data-react="bathe"]{animation-name:dp-wobble;animation-duration:1.05s}',
     '.dp-pig[data-react="play"]{animation-name:dp-spin;animation-duration:.9s}',
-    '.dp-pig[data-react="pet"]{animation-name:dp-squash;animation-duration:.6s}',
     '.dp-pig[data-react="away"]{animation-name:dp-jump;animation-duration:.9s}',
     '.dp-pig[data-react="cure"]{animation-name:dp-spin;animation-duration:.9s}',
     '.dp-pig[data-react="levelup"]{animation-name:dp-jump;animation-duration:.95s}',
@@ -951,10 +949,12 @@
     ".dp-daily{position:absolute;top:-6px;left:50%;transform:translateX(-50%);",
     "font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;",
     "border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);",
-    "box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-bob 2.4s var(--ac-ease) infinite}",
+    "box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-daily-bob 2.4s var(--ac-ease) infinite}",
     ".dp-daily:hover{border-color:var(--ac-border-hover)}",
     ".dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
-    "@keyframes dp-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}",
+    // 名字必须独占：叫 dp-bob 会覆盖猪的待机动画（css-base.js），
+    // 而那个动画的 transform 一被替掉，猪就会横跳半个身位。
+    "@keyframes dp-daily-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}",
     // 日记：折叠时只有首句，展开是全文。
     ".dp-diary{cursor:pointer}",
     '.dp-diary[data-open="true"] .dp-diary-full{display:block}',

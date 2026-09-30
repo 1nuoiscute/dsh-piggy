@@ -72,10 +72,12 @@ export const CSS_TABS = [
   '.dp-daily{position:absolute;top:-6px;left:50%;transform:translateX(-50%);',
   'font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;',
   'border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);',
-  'box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-bob 2.4s var(--ac-ease) infinite}',
+  'box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-daily-bob 2.4s var(--ac-ease) infinite}',
   '.dp-daily:hover{border-color:var(--ac-border-hover)}',
   '.dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',
-  '@keyframes dp-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}',
+  // 名字必须独占：叫 dp-bob 会覆盖猪的待机动画（css-base.js），
+  // 而那个动画的 transform 一被替掉，猪就会横跳半个身位。
+  '@keyframes dp-daily-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}',
   // 日记：折叠时只有首句，展开是全文。
   '.dp-diary{cursor:pointer}',
   '.dp-diary[data-open="true"] .dp-diary-full{display:block}',

@@ -654,6 +654,21 @@ test('a repaint keeps the reader where they were', async () => {
   assert.equal(contentOf(dom).scrollTop, 140, 'the scroll offset survived the repaint')
 })
 
+test('each @keyframes is defined once, and the pig idles in place', async () => {
+  // The sign-in bubble introduced a second `@keyframes dp-bob`, which silently
+  // overrode the pig's idle bob (it centres with translateX(-50%)). Every
+  // reaction animation then replaced that transform, so a pat snapped the pig
+  // half its width sideways and back — the "clicking moves it" bug.
+  const css = await readCss()
+  const names = [...css.matchAll(/@keyframes ([\w-]+)/g)].map(m => m[1])
+  const duplicates = [...new Set(names.filter((name, index) => names.indexOf(name) !== index))]
+  assert.deepEqual(duplicates, [], 'a duplicate @keyframes silently overrides the first one')
+
+  const idle = /@keyframes dp-bob\{([^}]*)\}/.exec(css)
+  assert.notEqual(idle, null, 'the pig needs its idle bob')
+  assert.ok(!/translateX/.test(idle[1]), 'the idle bob must not shift the pig sideways')
+})
+
 // ===========================================================================
 // B5 日常
 // ===========================================================================
