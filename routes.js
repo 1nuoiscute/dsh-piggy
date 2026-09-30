@@ -52,6 +52,8 @@ const OPERATIONS = {
   bathe: (store, body) => store.act('bathe', str(body.item)),
   play: (store, body) => store.act('play', str(body.item)),
   pet: store => store.act('pet'),
+  // Answer the pig's latest line: `line` is the message id, `index` the button.
+  reply: (store, body) => store.reply(Number(body.line), Number(body.index)),
   work: (store, body) => store.startWork(str(body.job)),
   study: (store, body) => store.startStudy(str(body.subject), str(body.stage)),
   interest: (store, body) => store.startInterest(str(body.interest)),

@@ -9,7 +9,11 @@
 import { CARE_KIND, careItems } from '../data.js'
 import { ACTIONS, DIET } from './constants.js'
 import { applyEffects, remember } from './effects.js'
+import { say } from './lines.js'
 import { decay } from './settlement.js'
+
+/** Which line scene each care action makes the pig speak from. */
+const CARE_SCENE = Object.freeze({ feed: 'eat', bathe: 'bathe', play: 'play', pet: 'pet' })
 
 /** Which shelves the pig can actually use right now, for the panel's picker. */
 export function careView(state) {
@@ -83,6 +87,7 @@ export function act(state, action, nowMs, itemKey) {
 
   applyEffects(state, careEffects(item, spec), nowMs)
   remember(state, item === null ? spec.verb : `${item.emoji} ${spec.label}用了「${item.label}」`, nowMs)
+  say(state, CARE_SCENE[action], nowMs)
   return { ok: true, item: item === null ? null : item.key, spent: item !== null && item.default !== true }
 }
 

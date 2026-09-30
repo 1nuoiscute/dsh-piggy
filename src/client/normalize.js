@@ -245,7 +245,13 @@ export function normalize(raw) {
       size: num(d.boxStage.size, 58),
     } : { key: 'box', label: '纸盒', emoji: '📦', size: 58 },
     awayBlocked: typeof d.awayBlocked === 'string' ? d.awayBlocked : null,
-    pending: arr(d.pending).filter(e => isObj(e) && typeof e.at === 'number'),
+    pending: arr(d.pending).filter(e => isObj(e) && typeof e.at === 'number').map(e => ({
+      id: num(e.id, 0),
+      kind: str(e.kind, ''),
+      text: str(e.text, ''),
+      at: e.at,
+      replies: arr(e.replies).filter(label => typeof label === 'string'),
+    })),
     maxHealth: num(d.maxHealth, 5),
   }
 }

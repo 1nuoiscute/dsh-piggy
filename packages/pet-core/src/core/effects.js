@@ -32,10 +32,27 @@ export function remember(state, text, nowMs) {
   if (state.memories.length > MEMORY_LIMIT) state.memories.splice(0, state.memories.length - MEMORY_LIMIT)
 }
 
-export function announce(state, kind, text, nowMs) {
+/**
+ * Queue a message for the panel.
+ *
+ * Every message gets an `id` from a counter that only goes up, so the panel
+ * can tell two messages from the same instant apart — keying on `at` showed
+ * only the first of "病情加重" + "走了" and lost the second.
+ * @param {object} state
+ * @param {string} kind
+ * @param {string} text
+ * @param {number} nowMs
+ * @param {Record<string, unknown>} [extra] - kind-specific fields, e.g. a line's replies.
+ * @returns {{id: number, kind: string, text: string, at: number}}
+ */
+export function announce(state, kind, text, nowMs, extra = {}) {
   state.pending = Array.isArray(state.pending) ? state.pending : []
-  state.pending.push({ kind, text, at: nowMs })
+  const id = (Number.isInteger(state.pendingSeq) && state.pendingSeq >= 0 ? state.pendingSeq : 0) + 1
+  state.pendingSeq = id
+  const message = { ...extra, id, kind, text, at: nowMs }
+  state.pending.push(message)
   if (state.pending.length > PENDING_LIMIT) state.pending.splice(0, state.pending.length - PENDING_LIMIT)
+  return message
 }
 
 export function takePending(state) {

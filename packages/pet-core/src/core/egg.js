@@ -9,6 +9,7 @@
 import { DEFAULT_TIME_SCALE, MAX } from '../data.js'
 import { BIRTH_WEIGHT_G, HATCH_WEIGHT_G, STATE_VERSION } from './constants.js'
 import { remember } from './effects.js'
+import { emptyDialogue } from './lines.js'
 
 export function layEgg(nowMs) {
   return {
@@ -60,6 +61,8 @@ export function layEgg(nowMs) {
     lastSeenAt: nowMs,
     cooldowns: {},
     pending: [],
+    pendingSeq: 0,
+    dialogue: emptyDialogue(),
     memories: [],
     stats: {
       turns: 0, messages: 0, tools: 0, toolErrors: 0, agentErrors: 0,

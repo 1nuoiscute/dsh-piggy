@@ -79,6 +79,7 @@ export { ageDays, ageMonths, daysToNextStage, hasSoul, isElderly, levelFor, leve
 export { hatch, hatchEgg, layEgg } from './core/egg.js'
 export { adopt, ageFromNow, applyDevPatch, inherit, rename, reset, revive, setTimeScale } from './core/state.js'
 export { migrate } from './core/migrate.js'
+export { pickLine, replyToLine, say } from './core/lines.js'
 export { currentIllness, decay } from './core/settlement.js'
 export { activitySecondsLeft, awayBlockedReason, callOffActivity, callOffWork, canStartActivity, canWork, workSecondsLeft } from './core/activity.js'
 export { act, actionCooldownSeconds, actionReady, canFeed, careOptions, careView, feed, feedCooldownSeconds } from './core/care.js'

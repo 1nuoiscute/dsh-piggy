@@ -826,6 +826,14 @@
     '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
     "background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);",
     "border-bottom:2px solid var(--ac-border-light);transform:rotate(45deg)}",
+    // Reply buttons under a line: small pills, the mint of the primary colour
+    // without the 3D base, which the spec keeps for real primary buttons.
+    ".dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
+    ".dp-reply{font:inherit;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;",
+    "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);background:var(--ac-bg);",
+    "color:var(--ac-text);transition:border-color .15s var(--ac-ease)}",
+    ".dp-reply:hover{border-color:var(--ac-border-hover)}",
+    ".dp-reply:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
     // Collapsed, the scene is exactly the pig, so a bubble drawn inside it
     // would sit on the pig's face. Float it above the head with the tail
     // pointing down, anchored to the right edge so it can never run off the
@@ -1153,6 +1161,33 @@
         bubbleTimer = null;
       }, ms || 2600);
     }
+    function showLine(text, replies, onReply) {
+      if (replies.length === 0) {
+        showBubble(text, 2600);
+        return;
+      }
+      if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
+      bubble.textContent = text;
+      var row = el("div", "dp-bubble-replies", "");
+      replies.forEach(function(label, index) {
+        var answer = el("button", "dp-reply", label);
+        answer.type = "button";
+        answer.addEventListener("click", function(event) {
+          event.stopPropagation();
+          bubble.hidden = true;
+          if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
+          bubbleTimer = null;
+          onReply(index);
+        });
+        row.appendChild(answer);
+      });
+      bubble.appendChild(row);
+      bubble.hidden = false;
+      bubbleTimer = window.setTimeout(function() {
+        bubble.hidden = true;
+        bubbleTimer = null;
+      }, 6e3);
+    }
     function toast(text) {
       var node = el("div", "dp-toast", text);
       card.insertBefore(node, card.firstChild);
@@ -1166,7 +1201,7 @@
       reactTimer = null;
       bubbleTimer = null;
     }
-    return { react, burst, flash, showBubble, toast, dispose };
+    return { react, burst, flash, showBubble, showLine, toast, dispose };
   }
 
   // src/client/io.js
@@ -1531,7 +1566,13 @@
         size: num(d.boxStage.size, 58)
       } : { key: "box", label: "\u7EB8\u76D2", emoji: "\u{1F4E6}", size: 58 },
       awayBlocked: typeof d.awayBlocked === "string" ? d.awayBlocked : null,
-      pending: arr(d.pending).filter((e) => isObj(e) && typeof e.at === "number"),
+      pending: arr(d.pending).filter((e) => isObj(e) && typeof e.at === "number").map((e) => ({
+        id: num(e.id, 0),
+        kind: str(e.kind, ""),
+        text: str(e.text, ""),
+        at: e.at,
+        replies: arr(e.replies).filter((label) => typeof label === "string")
+      })),
       maxHealth: num(d.maxHealth, 5)
     };
   }
@@ -1759,8 +1800,13 @@
       ctx.icons.travel.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? "true" : "false");
       for (var i = 0; i < ctx.view.pending.length; i += 1) {
         var event = ctx.view.pending[i];
-        if (event.at <= ctx.lastPendingAt) continue;
-        ctx.lastPendingAt = event.at;
+        if (event.id > 0 ? event.id <= ctx.lastPendingId : event.at <= ctx.lastPendingAt) continue;
+        if (event.id > 0) ctx.lastPendingId = event.id;
+        ctx.lastPendingAt = Math.max(ctx.lastPendingAt, event.at);
+        if (event.kind === "line") {
+          showPigLine(event);
+          continue;
+        }
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
         if (event.kind === "levelup") {
           ctx.react("levelup", 950);
@@ -1781,6 +1827,12 @@
         }
       }
       renderContent();
+    }
+    function showPigLine(event) {
+      var lineId = event.id;
+      ctx.showLine(event.text, event.replies, function(index) {
+        ctx.send("reply", { line: lineId, index });
+      });
     }
     return { setOpen, select, renderContent, render };
   }
@@ -1964,6 +2016,7 @@
         var isOpen = readStore(OPEN_KEY) === "true";
         var lastStage = null;
         var lastPendingAt = 0;
+        var lastPendingId = 0;
         var pollTimer = null;
         var fx = createEffects({
           scene,
@@ -1975,7 +2028,7 @@
           }
         });
         var react = fx.react, burst = fx.burst, flash = fx.flash;
-        var showBubble = fx.showBubble, toast = fx.toast;
+        var showBubble = fx.showBubble, showLine = fx.showLine, toast = fx.toast;
         var stopped = false;
         var busy = false;
         var ctx = {
@@ -2005,6 +2058,7 @@
           react,
           burst,
           showBubble,
+          showLine,
           toast,
           get view() {
             return view;
@@ -2047,6 +2101,12 @@
           },
           set lastPendingAt(next) {
             lastPendingAt = next;
+          },
+          get lastPendingId() {
+            return lastPendingId;
+          },
+          set lastPendingId(next) {
+            lastPendingId = next;
           },
           get userRight() {
             return userRight;

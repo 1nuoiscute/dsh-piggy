@@ -242,8 +242,16 @@ export function createPanel(ctx) {
 
         for (var i = 0; i < ctx.view.pending.length; i += 1) {
           var event = ctx.view.pending[i]
-          if (event.at <= ctx.lastPendingAt) continue
-          ctx.lastPendingAt = event.at
+          // Messages carry an id that only goes up; two from the same instant
+          // ("病情加重" then "走了") used to collapse into the first one.
+          // Hosts older than the id still dedupe on the timestamp.
+          if (event.id > 0 ? event.id <= ctx.lastPendingId : event.at <= ctx.lastPendingAt) continue
+          if (event.id > 0) ctx.lastPendingId = event.id
+          ctx.lastPendingAt = Math.max(ctx.lastPendingAt, event.at)
+          if (event.kind === 'line') {
+            showPigLine(event)
+            continue
+          }
           ctx.toast(str(event.text, '猪有新消息'))
           if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
           else if (event.kind === 'cured') { ctx.react('cure', 900); ctx.burst(['💚', '✨'], 3) }
@@ -255,6 +263,14 @@ export function createPanel(ctx) {
 
         renderContent()
       }
+
+  /** A line from the pig goes in its bubble, with the owner's reply buttons under it. */
+  function showPigLine(event) {
+    var lineId = event.id
+    ctx.showLine(event.text, event.replies, function (index) {
+      ctx.send('reply', { line: lineId, index: index })
+    })
+  }
 
   return { setOpen, select, renderContent, render }
 }

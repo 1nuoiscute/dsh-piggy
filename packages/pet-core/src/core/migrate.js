@@ -10,6 +10,7 @@ import { ILLNESS_CHAINS, INTERESTS, MAX, SCHOOL_STAGES, SHOP, SOUVENIR_RARITY, T
 import { MEMORY_LIMIT, STATE_VERSION } from './constants.js'
 import { clamp, clamp100 } from './effects.js'
 import { layEgg } from './egg.js'
+import { ensureDialogue } from './lines.js'
 import { isSeed, seedFor } from './random.js'
 import { applyUpgrades } from './upgrades.js'
 
@@ -65,6 +66,8 @@ export function migrate(input, nowMs) {
   state.dead = state.dead === true || state.health <= 0
   state.hatched = state.hatched === true
   if (!isSeed(state.seed)) state.seed = seedFor(state)
+  if (!Number.isInteger(state.pendingSeq) || state.pendingSeq < 0) state.pendingSeq = 0
+  ensureDialogue(state)
   return state
 }
 
