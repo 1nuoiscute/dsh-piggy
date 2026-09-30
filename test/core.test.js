@@ -57,7 +57,7 @@ import {
   useItem,
   workSecondsLeft,
 } from '../core.js'
-import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, ILLNESS_STAGE_MINUTES, SICK_RISK_MINUTES, illnessAt, medicineForStage } from '../data.js'
+import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, medicineForStage } from '../data.js'
 
 const T0 = 1_700_000_000_000
 const MIN = 60_000
@@ -67,9 +67,12 @@ function advance(state, minutes) {
   return decay(state, (state.lastSeenAt ?? T0) + minutes * MIN)
 }
 
+/** Stage length converted to the minutes `advance` wants. */
+const stageMinutes = stage => illnessStageMs(stage) / MIN
+
 /** Walk the illness all the way down the chain, one stage per call. */
 function worsen(state, times) {
-  for (let i = 0; i < times; i += 1) advance(state, ILLNESS_STAGE_MINUTES + 1)
+  for (let i = 0; i < times; i += 1) advance(state, stageMinutes(state.illness.stage) + 1)
 }
 
 /** Give the pig something without paying for it. */
@@ -581,7 +584,7 @@ test('an untreated illness runs its stages in days, and can shake itself off', (
     pig.satiety = 80
     pig.cleanliness = 80
 
-    advance(pig, ILLNESS_STAGE_MINUTES - 1)
+    advance(pig, stageMinutes(1) - 1)
     assert.equal(pig.illness.stage, 1, 'not yet')
 
     advance(pig, 2)
@@ -600,7 +603,7 @@ test('an untreated illness runs its stages in days, and can shake itself off', (
     const lucky = hatchEgg(T0)
     lucky.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
     lucky.health = 4
-    decay(lucky, T0 + ILLNESS_STAGE_MINUTES * 60000 + 1000)
+    decay(lucky, T0 + illnessStageMs(1) + 1000)
     assert.equal(lucky.illness, null, 'it shrugged the cold off')
     assert.equal(lucky.health, 5, 'and got a little health back')
 
@@ -609,7 +612,7 @@ test('an untreated illness runs its stages in days, and can shake itself off', (
     const terminal = hatchEgg(T0)
     terminal.illness = { chain: 0, stage: 4, since: T0, progressMs: 0 }
     terminal.health = 1
-    decay(terminal, T0 + ILLNESS_STAGE_MINUTES * 60000 + 1000)
+    decay(terminal, T0 + illnessStageMs(4) + 1000)
     assert.equal(terminal.dead, true, 'the last stage is fatal without medicine')
   } finally {
     Math.random = real

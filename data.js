@@ -56,9 +56,18 @@ export const SICK_RISK_MINUTES = 12
 // react and go shopping, fast enough to matter.
 // ---------------------------------------------------------------------------
 
-/** How long one illness stage lasts. */
-export const ILLNESS_STAGE_HOURS = 24
-export const ILLNESS_STAGE_MINUTES = ILLNESS_STAGE_HOURS * 60
+/**
+ * How long each stage lasts, in hours, indexed by stage - 1.
+ *
+ * A cold comes on fast; pneumonia takes days to develop. Making every stage the
+ * same length is what killed the pig in 100 minutes: four stages of 25 minutes.
+ * Untreated, this ladder runs 1 + 1.5 + 2 + 3 days.
+ */
+export const ILLNESS_STAGE_HOURS = Object.freeze([24, 36, 48, 72])
+export const ILLNESS_STAGE_MINUTES = ILLNESS_STAGE_HOURS[0] * 60
+
+/** Milliseconds one stage lasts. */
+export const illnessStageMs = stage => (ILLNESS_STAGE_HOURS[stage - 1] ?? 24) * 3_600_000
 
 /**
  * Chance an untreated illness shakes itself off when a stage would otherwise

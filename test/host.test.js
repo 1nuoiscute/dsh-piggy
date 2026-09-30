@@ -540,3 +540,25 @@ test('the cordis patch names the package exactly as package.json does', async ()
     )
   }
 })
+
+test('a tombstone reports how long the pig lived, not when it hatched', () => {
+  const now = Date.now()
+  const HOUR = 3_600_000
+  const store = pig => ({ freshen: () => pig, drainPending: () => {} })
+
+  // Born 18 hours ago and died just now.
+  const young = hatchEgg(now - 18 * HOUR)
+  young.dead = true
+  young.diedAt = now
+  assert.equal(snapshot(store(young), { drain: false }).pig.ageLabel, '活了 18 小时')
+
+  // A pig that lasted three days.
+  const old = hatchEgg(now - 72 * HOUR)
+  old.dead = true
+  old.diedAt = now
+  assert.equal(snapshot(store(old), { drain: false }).pig.ageLabel, '活了 3 天')
+
+  // And a living pig still counts up from birth.
+  const alive = hatchEgg(now - 5 * HOUR)
+  assert.equal(snapshot(store(alive), { drain: false }).pig.ageLabel, '今天刚出生')
+})

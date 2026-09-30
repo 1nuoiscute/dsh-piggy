@@ -29,7 +29,7 @@ import {
   SOUL,
   SOUL_AFTER_DAYS,
   ILLNESS_CHAINS,
-  ILLNESS_STAGE_MINUTES,
+  illnessStageMs,
   SELF_HEAL_CHANCE,
   SICK_AWAY_MULTIPLIER,
   SICK_PAY_MULTIPLIER,
@@ -556,13 +556,18 @@ export function decay(state, nowMs) {
   // and about while ill runs it at SICK_AWAY_MULTIPLIER, so a day of work costs
   // two days of illness and staying home is the cheap way to wait it out.
   if (state.illness !== null) {
-    const stageMs = ILLNESS_STAGE_MINUTES * 60000
     const rate = away ? SICK_AWAY_MULTIPLIER : 1
-    state.illness.progressMs = (state.illness.progressMs ?? 0) + elapsedMs * rate
+    const gained = elapsedMs * rate
+    state.illness.progressMs = (state.illness.progressMs ?? 0) + gained
     let guard = 0
-    while (state.illness !== null && state.illness.progressMs >= stageMs && guard < 16) {
-      state.illness.progressMs -= stageMs
+    while (state.illness !== null && guard < 16) {
+      // Each stage has its own length, so it has to be re-read after every step.
+      const stageMs = illnessStageMs(state.illness.stage)
+      if (state.illness.progressMs < stageMs) break
+      // Carry the excess into the next stage rather than dropping it.
+      const carried = state.illness.progressMs - stageMs
       advanceIllness(state, nowMs)
+      if (state.illness !== null) state.illness.progressMs = carried
       guard += 1
     }
   }

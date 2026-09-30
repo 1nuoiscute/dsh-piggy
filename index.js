@@ -243,10 +243,24 @@ export function apply(ctx, config = {}) {
 // ---------------------------------------------------------------------------
 
 /** "今天刚出生" / "3 天大" / "刚拆开纸盒" — the pig's age in words. */
-function formatAge(days, state) {
+function formatAge(days, state, nowMs) {
   if (state.hatched !== true) return '还没拆开'
+  // A tombstone is not "newborn today". Once the pig is gone its clock stops,
+  // and what matters is how long it had — not how long ago it hatched.
+  if (state.dead === true) {
+    const lived = Math.max(0, (state.diedAt ?? nowMs) - state.bornAt)
+    return `活了 ${formatSpan(lived)}`
+  }
   if (days < 1) return '今天刚出生'
   return `${Math.floor(days)} 天大`
+}
+
+/** "18 小时" / "3 天" / "2 小时" — a duration in the largest sensible unit. */
+function formatSpan(ms) {
+  const hours = ms / 3_600_000
+  if (hours < 1) return `${Math.max(1, Math.round(ms / 60000))} 分钟`
+  if (hours < 48) return `${Math.round(hours)} 小时`
+  return `${Math.round(hours / 24)} 天`
 }
 
 /** 0-100 through the current activity, for the scene's progress line. */
@@ -293,7 +307,7 @@ export function snapshot(store, options = {}) {
       // Age is the progression now, not a level.
       stage: { key: life.key, label: life.label, emoji: life.emoji, size: life.size, line: life.line, art: life.art ?? null, faded: life.faded === true },
       ageDays: Number(ageDays(state, nowMs).toFixed(2)),
-      ageLabel: formatAge(ageDays(state, nowMs), state),
+      ageLabel: formatAge(ageDays(state, nowMs), state, nowMs),
       daysToNextStage: daysToNextStage(state, nowMs) === null ? null : Number(daysToNextStage(state, nowMs).toFixed(2)),
       soul: hasSoul(state, nowMs),
       mood: current.key,
