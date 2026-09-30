@@ -713,6 +713,24 @@ test('a sick pig shows its illness and what it needs', async () => {
   assert.ok(text.includes('金色消炎药水'), text)
 })
 
+test('a graveside pig can be replaced at once, soul or no soul', async () => {
+  for (const soul of [false, true]) {
+    const { registration, dom } = await loadClient({
+      status: {
+        ...SNAPSHOT,
+        dead: true,
+        pig: { ...PIG, stage: { key: 'grave', label: '墓碑', emoji: '🪦', size: 52 }, soul, health: 0 },
+      },
+    })
+    registration.factory(() => {}).apply({})
+    await settle()
+    openPanel(dom)
+    const adopt = findByAttr(contentOf(dom), 'data-action', 'adopt')
+    assert.notEqual(adopt, undefined, `adopt must be offered (soul=${soul})`)
+    assert.ok(adopt.allText().includes('领养新猪'))
+  }
+})
+
 test('a sick pig with no money is told it can still go out and earn', async () => {
   const broke = await loadClient({
     status: {

@@ -30,6 +30,7 @@ import {
   SOUL_AFTER_DAYS,
   ILLNESS_CHAINS,
   illnessStageMs,
+  traitBonus,
   SELF_HEAL_CHANCE,
   SICK_AWAY_MULTIPLIER,
   SICK_PAY_MULTIPLIER,
@@ -604,14 +605,19 @@ function finishWork(state, activity, nowMs) {
   // deadlock — but it works at half speed, so being ill costs money rather than
   // being an outright wall.
   const sick = state.illness !== null
-  const coins = sick ? Math.max(1, Math.round(job.coins * SICK_PAY_MULTIPLIER)) : job.coins
+  // Trait bonus first, then the sick penalty: going to school should still be
+  // worth it while the pig is under the weather.
+  const points = state.traits?.[job.trait] ?? 0
+  const withTrait = job.coins * traitBonus(job.trait, points).pay
+  const coins = sick ? Math.max(1, Math.round(withTrait * SICK_PAY_MULTIPLIER)) : Math.round(withTrait)
   state.coins += coins
   state.satiety = clamp100(state.satiety + job.satiety)
   state.cleanliness = clamp100(state.cleanliness + job.cleanliness)
   state.stats.jobs += 1
   state.stats.coinsEarned += coins
   applyEffects(state, { xp: job.xp }, nowMs)
-  remember(state, `${job.emoji} ${job.label}回来，赚了 ${coins} 金币${sick ? '（带病上工，只有一半）' : ''}`, nowMs)
+  const tag = sick ? '（带病上工，只有一半）' : (points > 0 ? `（${TRAITS[job.trait].label} ${points}）` : '')
+  remember(state, `${job.emoji} ${job.label}回来，赚了 ${coins} 金币${tag}`, nowMs)
   announce(state, 'work', sick
     ? `${state.name} 带病打工回来了，只赚到 ${coins} 金币 🤒`
     : `${state.name} 打工回来了！赚到 ${coins} 金币 💰`)
@@ -876,10 +882,18 @@ export function startWork(state, jobKey, nowMs) {
   if (state.activity !== null) return { ok: false, reason: 'away' }
   if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
   if (state.satiety < 15) return { ok: false, reason: 'hungry' }
+  // The pig's trait shortens the shift; the pay bonus is applied on the way out.
+  const points = state.traits?.[job.trait] ?? 0
+  const bonus = traitBonus(job.trait, points)
+  const minutes = Math.max(1, Math.round(job.minutes * bonus.minutes))
   const result = begin(state, {
-    kind: 'work', key: job.key, label: job.label, emoji: job.emoji, minutes: job.minutes, cost: 0,
+    kind: 'work', key: job.key, label: job.label, emoji: job.emoji, minutes, cost: 0,
+    trait: job.trait ?? null,
   }, nowMs)
-  if (result.ok) remember(state, `${job.emoji} 出门${job.label}去了`, nowMs)
+  if (result.ok) {
+    const saved = job.minutes - minutes
+    remember(state, `${job.emoji} 出门${job.label}去了${saved > 0 ? `（${TRAITS[job.trait].label} ${points}，省了 ${saved} 分钟）` : ''}`, nowMs)
+  }
   return result
 }
 

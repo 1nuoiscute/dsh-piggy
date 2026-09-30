@@ -44,7 +44,7 @@ import {
   studyView,
   traitView,
 } from './core.js'
-import { jobByKey } from './data.js'
+import { jobByKey, traitBonus } from './data.js'
 import {
   renderAbout,
   renderAction,
@@ -373,11 +373,27 @@ function actionsFor(state, nowMs) {
 
 function jobsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
-  return JOBS.map(job => ({
-    key: job.key, label: job.label, emoji: job.emoji,
-    minutes: job.minutes, coins: job.coins, satiety: job.satiety,
-    available: open,
-  }))
+  return JOBS.map(job => {
+    // Jobs lean on a trait and lessons raise it, so the panel has to show what
+    // the pig's schooling is actually buying it.
+    const points = state === null ? 0 : (state.traits?.[job.trait] ?? 0)
+    const bonus = traitBonus(job.trait, points)
+    return {
+      key: job.key, label: job.label, emoji: job.emoji,
+      trait: job.trait,
+      traitLabel: TRAITS[job.trait].label,
+      traitEmoji: TRAITS[job.trait].emoji,
+      traitPoints: points,
+      minutes: Math.max(1, Math.round(job.minutes * bonus.minutes)),
+      baseMinutes: job.minutes,
+      coins: Math.round(job.coins * bonus.pay),
+      baseCoins: job.coins,
+      payPercent: Math.round((bonus.pay - 1) * 100),
+      speedPercent: Math.round((1 - bonus.minutes) * 100),
+      satiety: job.satiety,
+      available: open,
+    }
+  })
 }
 
 function subjectsFor(state) {

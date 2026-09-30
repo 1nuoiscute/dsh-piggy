@@ -76,6 +76,37 @@ export const illnessStageMs = stage => (ILLNESS_STAGE_HOURS[stage - 1] ?? 24) * 
  */
 export const SELF_HEAL_CHANCE = Object.freeze([0.25, 0.12, 0.05, 0])
 
+/**
+ * ---------------------------------------------------------------------------
+ * Study feeds work.
+ *
+ * Each job leans on one trait, and every lesson the pig sits through raises
+ * that trait by one point. So 体育/武术/劳动 make 搬砖 pay better and go
+ * faster, 语文/数学/政治 do the same for 上班, and 美术/音乐/礼仪 for 打零工.
+ * Going to school is no longer a side activity — it is how the pig gets a
+ * better job.
+ * ---------------------------------------------------------------------------
+ */
+
+/** Extra pay per trait point, as a fraction. 15 points doubles the wage. */
+export const TRAIT_PAY_PER_POINT = 1 / 15
+/** ...but a pig that studied everything still only triples the wage, or the
+ *  late game has no shape left. */
+export const TRAIT_PAY_CAP = 3
+
+/** Shorter shift per trait point, capped so a job never vanishes. */
+export const TRAIT_SPEED_PER_POINT = 0.04
+export const TRAIT_SPEED_CAP = 0.5
+
+/** What one trait point buys on a given job. */
+export function traitBonus(traitKey, points) {
+  const n = Number.isFinite(points) ? Math.max(0, points) : 0
+  return {
+    pay: Math.min(TRAIT_PAY_CAP, 1 + n * TRAIT_PAY_PER_POINT),
+    minutes: Math.max(1 - TRAIT_SPEED_CAP, 1 - n * TRAIT_SPEED_PER_POINT),
+  }
+}
+
 /** A sick pig works at half speed, so being ill has a cost without being a wall. */
 export const SICK_PAY_MULTIPLIER = 0.5
 
@@ -190,9 +221,9 @@ export const REVIVE_ITEM = Object.freeze({ key: 'soul', label: '还魂丹', emoj
 // ---------------------------------------------------------------------------
 
 export const JOBS = Object.freeze([
-  Object.freeze({ key: 'odd', label: '打零工', emoji: '🧹', minutes: MINUTES.quarter, coins: 30, xp: 40, satiety: -6, cleanliness: -4 }),
-  Object.freeze({ key: 'site', label: '搬砖', emoji: '🧱', minutes: MINUTES.hour, coins: 160, xp: 200, satiety: -16, cleanliness: -14 }),
-  Object.freeze({ key: 'office', label: '上班', emoji: '💼', minutes: MINUTES.fourHours, coins: 900, xp: 900, satiety: -34, cleanliness: -26 }),
+  Object.freeze({ key: 'odd', label: '打零工', emoji: '🧹', trait: 'charm', minutes: MINUTES.quarter, coins: 30, xp: 40, satiety: -6, cleanliness: -4 }),
+  Object.freeze({ key: 'site', label: '搬砖', emoji: '🧱', trait: 'strong', minutes: MINUTES.hour, coins: 160, xp: 200, satiety: -16, cleanliness: -14 }),
+  Object.freeze({ key: 'office', label: '上班', emoji: '💼', trait: 'intel', minutes: MINUTES.fourHours, coins: 900, xp: 900, satiety: -34, cleanliness: -26 }),
 ])
 
 // ---------------------------------------------------------------------------

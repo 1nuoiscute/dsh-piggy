@@ -141,6 +141,14 @@ window.__ModuleLoader__.load({
           minutes: num(obj(job).minutes, 0),
           coins: num(obj(job).coins, 0),
           available: obj(job).available === true,
+          // What schooling has bought this job.
+          traitLabel: str(obj(job).traitLabel, ''),
+          traitEmoji: str(obj(job).traitEmoji, ''),
+          traitPoints: num(obj(job).traitPoints, 0),
+          baseMinutes: num(obj(job).baseMinutes, 0),
+          baseCoins: num(obj(job).baseCoins, 0),
+          payPercent: num(obj(job).payPercent, 0),
+          speedPercent: num(obj(job).speedPercent, 0),
         })).filter(job => job.key !== ''),
         subjects: arr(d.subjects).map(sub => ({
           key: str(obj(sub).key, ''),
@@ -1148,7 +1156,16 @@ window.__ModuleLoader__.load({
             row.appendChild(el('span', null, job.emoji))
             var grow = el('div', 'dp-grow')
             grow.appendChild(el('div', null, job.label))
-            grow.appendChild(el('div', 'dp-dim', job.minutes + ' 分钟 · 赚 ' + job.coins + ' 🪙'))
+            var line = job.minutes + ' 分钟 · 赚 ' + job.coins + ' 🪙'
+            if (job.traitPoints > 0) {
+              line += ' · 省 ' + job.speedPercent + '% 时间'
+            }
+            grow.appendChild(el('div', 'dp-dim', line))
+            // Spell out which lessons are paying for this, or the linkage between
+            // 学习 and 打工 is invisible.
+            var byTrait = job.traitEmoji + job.traitLabel + ' ' + job.traitPoints
+              + (job.payPercent > 0 ? ' · 报酬 +' + job.payPercent + '%' : ' · 去上课就能涨')
+            grow.appendChild(el('div', 'dp-dim', byTrait))
             row.appendChild(grow)
             var go = button('dp-mini', { 'data-job': job.key }, function () { send('work', { job: job.key }) })
             go.textContent = '出发'
@@ -1301,14 +1318,15 @@ window.__ModuleLoader__.load({
             ? '用还魂丹可以把它叫回来，或者领养一只新的小猪'
             : '在「背包」里用还魂丹就能救回来（金币、收藏、上过的课都保留）'))
           content.appendChild(dead)
-          if (view.pig.soul) {
-            var adoptWrap = el('div', 'dp-actions')
-            var adopt = button('dp-btn dp-btn-wide', { 'data-action': 'adopt' }, function () { send('adopt') })
-            adopt.appendChild(el('span', null, '📦'))
-            adopt.appendChild(el('span', null, '领养新猪'))
-            adoptWrap.appendChild(adopt)
-            content.appendChild(adoptWrap)
-          }
+          // Adopting is available the moment the pig dies — not only once the
+          // soul turns up a day later. Waiting a day to start over was a
+          // mistake: the grave is already a dead end with nothing to do.
+          var adoptWrap = el('div', 'dp-actions')
+          var adopt = button('dp-btn dp-btn-wide', { 'data-action': 'adopt' }, function () { send('adopt') })
+          adopt.appendChild(el('span', null, '📦'))
+          adopt.appendChild(el('span', null, '领养新猪'))
+          adoptWrap.appendChild(adopt)
+          content.appendChild(adoptWrap)
         } else if (view.pig !== null && view.pig.illness !== null) {
           var sick = el('div', 'dp-alert dp-sick')
           sick.appendChild(el('b', null, '🤒 ' + view.pig.illness.name + '（第 ' + view.pig.illness.stage + '/4 期）'))
