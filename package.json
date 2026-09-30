@@ -38,6 +38,7 @@
     "assets"
   ],
   "scripts": {
+    "build": "node scripts/build-client.mjs",
     "test": "node --test \"test/**/*.test.js\"",
     "preview": "echo \"open tools/preview.html in a browser\""
   },

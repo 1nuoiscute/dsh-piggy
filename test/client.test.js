@@ -14,8 +14,12 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { test } from 'node:test'
 
-/** The bundle source, as written. */
-const readSource = () => readFile(new URL('../client.js', import.meta.url), 'utf8')
+/**
+ * The authored source. Static assertions (CSS shape, guards) read this; the
+ * behaviour tests below load the built bundle instead, so they exercise exactly
+ * what DSH ships.
+ */
+const readSource = () => readFile(new URL('../src/client/index.js', import.meta.url), 'utf8')
 
 /**
  * The stylesheet the browser actually receives.

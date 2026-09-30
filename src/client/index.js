@@ -111,6 +111,9 @@ window.__ModuleLoader__.load({
 
       return {
         legacy: legacy,
+        // Host build version, shown in the debug tab so a stale bundle is
+        // visible instead of being guessed at.
+        version: str(d.version, ''),
         // Trust the flag when the host sends one. Older hosts did not, and for
         // those "a pig exists" is still the right answer.
         hatched: d.hatched === true || (d.hatched === undefined && pig !== null),
@@ -1194,7 +1197,7 @@ window.__ModuleLoader__.load({
        * can be checked at all.
        */
       function devTab() {
-        content.appendChild(el('div', 'dp-dev-note', '🔧 开发者模式 · Ctrl+Shift+D 关闭'))
+        content.appendChild(el('div', 'dp-dev-note', '🔧 开发者模式 · 构建 v' + (view.version === '' ? '未知' : view.version) + ' · Ctrl+Shift+D 关闭'))
         if (view.pig !== null && view.pig.ageForced) {
           content.appendChild(el('div', 'dp-dev-note',
             '⚠️ 年龄是调试改的（HUD 上有 🔧）—— 按「⏪ 年龄归零」才会重新按真实时间算'))
