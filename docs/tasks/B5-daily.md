@@ -5,12 +5,12 @@
 
 ## 和 Claude 的分工边界（重要）
 
-Claude 同时在做 B2（成长）/ B3（疾病）/ B4（学习→职业），会改 `settlement.js`、`clock.js`、`migrate.js`、`upgrades.js`、
+B2（成长）/ B3（疾病）/ B4（学习→职业）**都已合入 main**（存档到 v11）。Claude 之后还可能改 `settlement.js`、`clock.js`、`migrate.js`、`upgrades.js`、
 `data/{life,illness,shop,school,jobs,interests}.js`。**这些文件 B5 尽量不碰**：
 
 - 新东西放新文件：`packages/pet-core/src/data/daily.js`、`packages/pet-core/src/core/daily.js`、`packages/pet-core/src/core/diary.js`
 - 新存档字段（`daily`、`diary`、`onlineMs` 等）**不加 upgrades 级、不改 STATE_VERSION**：像 `core/lines.js` 的 `ensureDialogue` 一样写 `ensureDaily(state)` / `ensureDiary(state)`，缺字段就补默认值，在 `migrate()` 末尾调用（migrate.js 只加这一两行）
-- 礼包里用到 B3 的药，**物品 key 先按下表写**，B3 会用同样的 key 上架；B3 没合进来之前测试里可以跳过这两天的发放断言：
+- 礼包里用到 B3 的药，物品 key 如下 —— **B3 已合入，这些都已上架**（`itemByKey` 能查到）：
 
   | 物品 | key |
   |---|---|
@@ -22,7 +22,8 @@ Claude 同时在做 B2（成长）/ B3（疾病）/ B4（学习→职业），�
 
 ## 1. 一天的边界：06:00
 
-- `core/daily.js` 导出 `dayKeyFor(nowMs)` → `'2026-10-01'`：本地时间减 6 小时后的日期。用 `new Date(nowMs)`（带参数，守卫允许），**不许 `new Date()` / `Date.now()`**
+- **已经有了**：`dayKeyFor(nowMs)` 在 `core/clock.js`（B2 写的，`core.js` 已导出），06:00 为界，返回 `'2026-10-01'`。直接用，不要再写一个
+- 成长的「每天真实干活上限」也用它（`state.realWorkGrowth`），签到/礼包/日记跟它保持同一个「天」
 - 签到、在线礼包计数、日记都用它判断「是不是新的一天」
 
 ## 2. 每日签到
