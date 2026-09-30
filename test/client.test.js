@@ -726,7 +726,7 @@ test('a sick pig with no money is told it can still go out and earn', async () =
   await settle()
   openPanel(broke.dom)
   const text = contentOf(broke.dom).allText()
-  assert.ok(text.includes('生病照样能出门打工'), `the way out must be spelled out: ${text}`)
+  assert.ok(text.includes('带病也能出门'), `the way out must be spelled out: ${text}`)
   assert.ok(text.includes('12'), `and how much it needs: ${text}`)
 
   // With enough money there is no need for the hint.
@@ -741,7 +741,7 @@ test('a sick pig with no money is told it can still go out and earn', async () =
   rich.registration.factory(() => {}).apply({})
   await settle()
   openPanel(rich.dom)
-  assert.ok(!contentOf(rich.dom).allText().includes('生病照样能出门打工'))
+  assert.ok(!contentOf(rich.dom).allText().includes('先去打工'))
 })
 
 test('a dead pig shows the revive banner and greys out', async () => {

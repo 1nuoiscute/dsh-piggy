@@ -1319,9 +1319,13 @@ window.__ModuleLoader__.load({
           // the price has to come from the shop listing.
           var cures = (view.shop || []).filter(function (i) { return i.kind === 'medicine' })
           var cheapest = cures.length === 0 ? null : cures.reduce(function (a, b) { return a.price <= b.price ? a : b })
+          if (view.canGoOut) {
+            sick.appendChild(el('div', 'dp-dim',
+              '带病也能出门，但报酬只有一半；在外面病情会走得更快，躺着养最省'))
+          }
           if (cheapest !== null && view.canGoOut && view.pig.coins < cheapest.price) {
             sick.appendChild(el('div', 'dp-dim',
-              '钱不够也没关系 —— 生病照样能出门打工，先赚 ' + cheapest.price + ' 🪙 买「' + cheapest.label + '」'))
+              '钱不够也没关系 —— 先去打工，赚够 ' + cheapest.price + ' 🪙 买「' + cheapest.label + '」'))
           }
           content.appendChild(sick)
         } else if (view.pig !== null && view.activity !== null) {
