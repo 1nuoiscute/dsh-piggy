@@ -185,8 +185,10 @@ export function sanitizeCoursesByStage(raw, lessonsByStage) {
  */
 export function sanitizeSouvenirs(raw) {
   if (!Array.isArray(raw)) return []
+  // No cap: the shelf used to keep only the last 40, which threw away the
+  // oldest keepsakes (and made them unsellable) without telling anyone.
   const out = []
-  for (const entry of raw.slice(-40)) {
+  for (const entry of raw) {
     if (typeof entry === 'string' && entry !== '') {
       out.push({ key: entry, emoji: '🎁', label: entry, rarity: 'common', story: '', from: null, fromLabel: '' })
       continue

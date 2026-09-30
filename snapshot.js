@@ -280,7 +280,7 @@ function tripsFor(state) {
 /** The collection, with each souvenir's rarity spelled out and priced. */
 function souvenirsFor(state) {
   const list = Array.isArray(state?.souvenirs) ? state.souvenirs : []
-  return list.slice(-40).map(entry => {
+  return list.map(entry => {
     const tier = rarityByKey(entry.rarity)
     return {
       key: entry.key,

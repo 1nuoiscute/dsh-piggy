@@ -694,6 +694,19 @@ test('the cordis patch names the package exactly as package.json does', async ()
   }
 })
 
+test('the souvenir shelf shows the whole collection, not just the last 40', () => {
+  const now = Date.now()
+  const pig = hatchEgg(now)
+  pig.souvenirs = Array.from({ length: 41 }, (_, index) => ({
+    key: 'shell-' + index, emoji: '🐚', label: '贝壳 ' + index, rarity: 'common',
+    story: '', from: null, fromLabel: '',
+  }))
+  const store = { freshen: () => pig, drainPending: () => {} }
+  const snap = snapshot(store, { drain: false })
+  assert.equal(snap.pig.souvenirs.length, 41)
+  assert.equal(snap.pig.souvenirs[0].key, 'shell-0', 'the oldest one must still be sellable')
+})
+
 test('a tombstone reports how long the pig lived, not when it hatched', () => {
   const now = Date.now()
   const HOUR = 3_600_000

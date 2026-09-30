@@ -1036,6 +1036,23 @@ test('an interest course survives a restart instead of vanishing with the fee', 
   assert.equal(reloaded.traits.intel, 2, 'the lesson still pays out when it ends')
 })
 
+test('a collection bigger than 40 keeps everything across a restart', () => {
+  // #5: sanitizeSouvenirs sliced to the last 40, so the 41st souvenir pushed the
+  // oldest one out of the save — and the museum sold from a truncated list.
+  const pig = hatchEgg(T0)
+  pig.coins = 5000
+  const souvenirs = Array.from({ length: 41 }, (_, index) => ({
+    key: 'shell-' + index, emoji: '🐚', label: '贝壳 ' + index, rarity: 'common',
+    story: '', from: null, fromLabel: '',
+  }))
+  pig.souvenirs = souvenirs
+
+  const reloaded = migrate(JSON.parse(JSON.stringify(pig)), T0 + 60_000)
+  assert.equal(reloaded.souvenirs.length, 41)
+  assert.equal(reloaded.souvenirs[0].key, 'shell-0', 'the oldest keepsake must survive')
+  assert.equal(reloaded.souvenirs[40].key, 'shell-40')
+})
+
 test('interests are repeatable and outside the school ladder', () => {
   const pig = hatchEgg(T0)
   pig.coins = 5000
