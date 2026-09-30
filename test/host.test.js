@@ -689,6 +689,28 @@ test('the pure dispatch helper routes every documented subcommand', () => {
   assert.equal(dispatch(store, 'pig', 'bogus').kind, 'error')
 })
 
+test('the slash command covers what the panel covers', () => {
+  // The GUI is the primary path, but the command is the fallback and it was
+  // missing half the verbs: 兴趣课、卖纪念品、穿脱家当、领养、回话（B1 小缺口）。
+  const pig = hatchEgg(Date.now())
+  pig.dialogue = { open: { id: 7, text: '好舒服…', replies: [{ label: '真乖', happiness: 2 }] } }
+  pig.souvenirs = [{ key: 'shell', label: '贝壳', emoji: '🐚', rarity: 'common' }]
+  const store = makeFakeStore(pig)
+
+  assert.equal(dispatch(store, 'pig', 'interest coding').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'sell 贝壳').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'wear scarf').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'wear scarf off').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'adopt').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'reply 1').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'reply 9').kind, 'error', 'out-of-range reply')
+
+  const help = dispatch(store, 'pig', 'bogus')
+  for (const verb of ['interest', 'sell', 'wear', 'adopt', 'reply']) {
+    assert.ok(help.text.includes(verb), `the error text must list ${verb}: ${help.text}`)
+  }
+})
+
 /** A store stub good enough for the pure dispatcher. */
 function makeFakeStore(state) {
   let live = state
@@ -702,6 +724,11 @@ function makeFakeStore(state) {
     useItem: () => ({ ok: true, item: SHOP[0], crossed: [] }),
     hatch: () => false,
     rename: raw => String(raw).trim() || null,
+    startInterest: () => ({ ok: true }),
+    sellSouvenir: () => ({ ok: true, sold: { label: '贝壳', price: 60 } }),
+    wear: () => ({ ok: true, item: { label: '围巾' } }),
+    adopt: () => true,
+    reply: (lineId, index) => (index === 0 ? { ok: true, reply: '真乖' } : { ok: false, reason: 'unknown' }),
     drainPending: () => [],
     dispose: () => {},
     set live(next) { live = next },
