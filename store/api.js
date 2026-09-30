@@ -154,11 +154,8 @@ export function createApi(control) {
 
     /** Developer mode: force the pig into any state. */
     dev(patch) {
-      const state = getState()
-      if (state === null) return false
-      setState(coreDevPatch(state, patch, now()))
-      scheduleSave()
-      return true
+      // Through mutate(): a patch that blows up halfway must not be written.
+      return mutate(live => { coreDevPatch(live, patch, now()); return true }) === true
     },
 
     /** Start from a brand new box, living pig or not. */

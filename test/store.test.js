@@ -127,3 +127,27 @@ test('a mutation is written through a temp file and leaves no debris', () => {
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('a mutation that throws halfway is rolled back and never written', () => {
+  const dir = makeDir()
+  try {
+    const statePath = join(dir, 'state.json')
+    const pig = hatchEgg(1_700_000_000_000)
+    pig.satiety = 70
+    writeFileSync(statePath, JSON.stringify(pig))
+    const store = createStore(statePath, { setTimer: fn => { fn(); return { unref() {} } } })
+    assert.equal(store.state.satiety, 70)
+
+    // applyDevPatch reads the patch field by field: this one mutates satiety and
+    // then throws while reading the next field, leaving the state half-applied.
+    const patch = { satiety: 11 }
+    Object.defineProperty(patch, 'traits', { get() { throw new Error('boom') }, enumerable: true })
+
+    assert.equal(store.dev(patch), false, 'the caller is told it failed')
+    assert.equal(store.state.satiety, 70, 'the half-applied change is rolled back')
+    store.dispose()
+    assert.equal(JSON.parse(readFileSync(statePath, 'utf8')).satiety, 70, 'and nothing was written')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
