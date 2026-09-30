@@ -33,6 +33,27 @@ const v8LevelFloor = level => (level <= 1 ? 0 : 20 * level * (level - 1))
 const v9LevelFloor = level => (level <= 1 ? 0 : 122 * level * level)
 const V9_MAX_LEVEL = 60
 
+/**
+ * v11: the 23 subjects of the old seven-stage ladder, folded into the nine
+ * QQ Pet subjects (B4 sheet §6). 礼仪 and 武术 had no old counterpart.
+ */
+const V11_SUBJECT_OF = Object.freeze({
+  literacy: 'chinese', chinese: 'chinese', english: 'chinese', history: 'chinese', philosophy: 'chinese',
+  mathematics: 'mathematics', science: 'mathematics', physics: 'mathematics', chemistry: 'mathematics',
+  biology: 'mathematics', it: 'mathematics', economics: 'mathematics', go: 'mathematics',
+  politics: 'politics', geography: 'politics',
+  sing: 'music', piano: 'music',
+  doodle: 'art', painting: 'art', art: 'art',
+  pe: 'pe', football: 'pe',
+  engineering: 'labour',
+})
+
+/** v11: what each job of the old table paid, for a shift still in progress. */
+const V11_OLD_JOB_PAY = Object.freeze({
+  odd: 30, dish: 70, site: 260, foreman: 700, street: 200,
+  tutor: 480, office: 900, manager: 2200, researcher: 4000,
+})
+
 /** v10 refund for each retired generic medicine: the new price of the same tier. */
 const V10_REFUND = Object.freeze({ med1: 30, med2: 70, med3: 140, med4: 260 })
 
@@ -104,6 +125,38 @@ export const UPGRADES = Object.freeze([
       delete next.riskMinutes
       next.outingStreak = 0
       next.restMinutes = 0
+      return next
+    },
+  }),
+  Object.freeze({
+    to: 11,
+    why: 'B4 学习→职业：23 门课按对照表并进九门课的课时；旧职业表里在打的工按旧报酬结算',
+    up(raw) {
+      const next = { ...raw, version: 11 }
+      const lessons = raw.lessons !== null && typeof raw.lessons === 'object' ? { ...raw.lessons } : {}
+      const courses = raw.courses !== null && typeof raw.courses === 'object' ? raw.courses : {}
+      for (const [oldKey, count] of Object.entries(courses)) {
+        const into = V11_SUBJECT_OF[oldKey]
+        if (into === undefined || !Number.isFinite(count) || count <= 0) continue
+        lessons[into] = (lessons[into] ?? 0) + Math.floor(count)
+      }
+      next.lessons = lessons
+      delete next.courses
+      delete next.coursesByStage
+      delete next.lessonsByStage
+      // v3 saves kept a shift under `work: { job }`; migrate() lifts it later.
+      const legacyWork = raw.work !== null && typeof raw.work === 'object' ? { kind: 'work', key: raw.work.job, ...raw.work } : null
+      const activity = raw.activity ?? legacyWork
+      if (activity !== null && typeof activity === 'object') {
+        if (activity.kind === 'study') {
+          // Same lesson, new subject name; the stage is decided afresh.
+          const into = V11_SUBJECT_OF[activity.key] ?? activity.key
+          next.activity = { ...activity, key: into, stage: undefined }
+        } else if (activity.kind === 'work' && V11_OLD_JOB_PAY[activity.key] !== undefined) {
+          const minutes = Math.max(0, Math.round((activity.endsAt - activity.startedAt) / 60000))
+          next.activity = { ...activity, legacyCoins: V11_OLD_JOB_PAY[activity.key], minutes }
+        }
+      }
       return next
     },
   }),

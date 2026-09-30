@@ -205,13 +205,13 @@ export function renderStudyReport(state, nowMs, subject, stage) {
   return [
     `${state.name} 背上书包去上课了 ${subject.emoji}`,
     '',
-    `📚 课程    ${stage.label}${subject.label}`,
+    `📚 课程    ${subject.label}（${stage.label}）`,
     `⏱  时长    ${stage.minutes} 分钟`,
     `🪙 学费    ${stage.tuition} 金币`,
     `📈 收获    ${TRAITS[subject.trait].label} +${stage.gain} · 成长 +${STUDY_GROWTH_PER_LESSON}`,
     `🍚 消耗    饱食 ${stage.satiety} · 心情 ${stage.happiness}`,
     '',
-    `这门课已经上了 ${level} 次。预计 ${activitySecondsLeft(state, nowMs)} 秒后下课。`,
+    `这是${subject.label}第 ${level + 1} 节。预计 ${activitySecondsLeft(state, nowMs)} 秒后下课。`,
   ].join('\n')
 }
 
@@ -310,9 +310,9 @@ export function renderWeigh(state, nowMs) {
 /** `/pig about`. */
 export function renderAbout(commandName) {
   const actions = ACTION_ORDER.map(key => `  ${ACTIONS[key].emoji} ${ACTIONS[key].label}`).join(' · ')
-  const jobs = JOBS.map(job => `  ${job.emoji} ${job.label}（${job.minutes} 分钟 · ${job.coins} 金币）`).join('\n')
+  const jobs = JOBS.map(job => `  ${job.emoji} ${job.label}（Lv.${job.requires.level} · ${job.minutes} 分钟 · ${job.coins} 金币）`).join('\n')
   const courses = SUBJECTS.map(s => `${s.emoji}${s.label}`).join(' ')
-  const stages = SCHOOL_STAGES.map(s => `${s.label}（${s.minutes} 分钟 · 学费 ${s.tuition} · +${s.gain}）`).join('\n')
+  const stages = SCHOOL_STAGES.map(s => `  ${s.label}${Number.isFinite(s.upTo) ? `（到第 ${s.upTo} 节）` : ''}：${s.minutes} 分钟 · 学费 ${s.tuition} · +${s.gain}`).join('\n')
   const trips = TRIPS.map(t => `  ${t.emoji} ${t.label}（${t.minutes} 分钟 · ${t.cost} 金币）`).join('\n')
   const shop = SHOP.map(item => `  ${item.emoji} ${item.label}  ${String(item.price).padStart(3)} 金币`).join('\n')
   return [
@@ -323,7 +323,7 @@ export function renderAbout(commandName) {
     RULE,
     `照顾：${actions}`,
     '',
-    '📚 学习（涨智力 / 魅力 / 武力）：',
+    '📚 学习（九门课各算各的课时，课时决定能干什么工作）：',
     `  ${courses}`,
     stages,
     '',

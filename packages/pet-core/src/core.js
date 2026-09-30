@@ -63,9 +63,6 @@ import {
   nextIllness,
   rarityByKey,
   schoolStageByKey,
-  stageProgress,
-  stageSubjectKeys,
-  stageUnlocked,
   subjectByKey,
   tripByKey,
 } from './data.js'
@@ -84,6 +81,7 @@ export { activitySecondsLeft, awayBlockedReason, callOffActivity, callOffWork, c
 export { act, actionCooldownSeconds, actionReady, canFeed, careOptions, careView, feed, feedCooldownSeconds } from './core/care.js'
 export { buy, canAfford, dressView, grantAll, inventoryView, takeOff, useItem, wearItem } from './core/inventory.js'
 export { courseView, startStudy, studyView } from './core/school.js'
+export { jobFacts } from './core/work.js'
 export { interestView, startInterest } from './core/interests.js'
 export { startWork } from './core/work.js'
 export { sellSouvenir, startTrip } from './core/travel.js'

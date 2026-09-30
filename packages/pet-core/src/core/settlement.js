@@ -6,11 +6,13 @@
  * @module dsh-pig/core/settlement
  */
 
-import { DEFAULT_TIME_SCALE, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, STUDY_GROWTH_PER_LESSON, TRAITS, illnessStageMs, interestByKey, jobByKey, rarityByKey, schoolStageByKey, subjectByKey, traitBonus, tripByKey } from '../data.js'
+import { CERTIFICATE_AFTER, DEFAULT_TIME_SCALE, GRADUATION_GROWTH, GRADUATION_LESSONS, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, STUDY_GROWTH_PER_LESSON, TRAITS, illnessStageMs, interestByKey, jobByKey, rarityByKey, schoolStageByKey, stageForNextLesson, subjectByKey, traitBonus, tripByKey } from '../data.js'
 import { AWAY_DECAY_MULTIPLIER, AWAY_FLOOR, CLEANLINESS_DECAY_PER_MIN, HAPPINESS_DECAY_PER_MIN, SATIETY_DECAY_PER_MIN, SETTLE_STEP_MS } from './constants.js'
 import { announce, clamp100, remember } from './effects.js'
 import { growWithTime, grow, outingGrowth } from './growth.js'
+import { describeDrops, graduationDrops, studyDrops, workDrops } from './drops.js'
 import { advanceIllness, noteOuting, restAtHome, rollForIllness } from './illness.js'
+import { say } from './lines.js'
 import { rollerFor } from './random.js'
 
 export { currentIllness, die } from './illness.js'
@@ -57,7 +59,7 @@ export function decay(state, nowMs, options = {}) {
     cursor = untilMs
     // Settle at the moment it ended, not at the moment someone looked.
     if (state.dead !== true && state.activity === activity && untilMs >= activity.endsAt) {
-      finishActivity(state, untilMs)
+      finishActivity(state, untilMs, next)
     }
   }
   if (state.dead !== true) passTime(state, { fromMs: cursor, toMs: nowMs, away: false }, next)
@@ -156,13 +158,18 @@ function growOlder(state, elapsedMs, atMs) {
   if (state.hatched === true) growWithTime(state, pigMs, atMs)
 }
 
-export function finishActivity(state, nowMs) {
+/**
+ * @param {object} state
+ * @param {number} nowMs
+ * @param {import('./random.js').Roll} [next] - for drops; defaults to the pig's own seed.
+ */
+export function finishActivity(state, nowMs, next = rollerFor(state)) {
   const activity = state.activity
   state.activity = null
   if (activity === null) return
   state.lastActiveAt = nowMs
-  if (activity.kind === 'work') finishWork(state, activity, nowMs)
-  else if (activity.kind === 'study') finishStudy(state, activity, nowMs)
+  if (activity.kind === 'work') finishWork(state, activity, nowMs, next)
+  else if (activity.kind === 'study') finishStudy(state, activity, nowMs, next)
   else if (activity.kind === 'interest') finishInterest(state, activity, nowMs)
   else if (activity.kind === 'trip') finishTrip(state, activity, nowMs)
 }
@@ -175,6 +182,7 @@ export function finishInterest(state, activity, nowMs) {
   state.traits[interest.trait] = (state.traits[interest.trait] ?? 0) + interest.gain
   state.interests = { ...(state.interests ?? {}) }
   state.interests[interest.key] = (state.interests[interest.key] ?? 0) + 1
+  const certified = state.interests[interest.key] === CERTIFICATE_AFTER
   state.satiety = clamp100(state.satiety - 4)
   state.happiness = clamp100(state.happiness + 3)
   state.stats.interests = (state.stats.interests ?? 0) + 1
@@ -182,58 +190,83 @@ export function finishInterest(state, activity, nowMs) {
   grow(state, STUDY_GROWTH_PER_LESSON, nowMs)
   remember(state, `${interest.emoji} 学完${interest.label}，${TRAITS[interest.trait].label} +${interest.gain}`, nowMs)
   announce(state, 'study', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`, nowMs)
+  if (certified) {
+    remember(state, `📜 拿到了${interest.certificate}`, nowMs)
+    announce(state, 'certificate', `${state.name} 拿到了${interest.certificate} 📜`, nowMs)
+  }
 }
 
-export function finishWork(state, activity, nowMs) {
+export function finishWork(state, activity, nowMs, next = rollerFor(state)) {
   const job = jobByKey(activity.key)
-  if (job === null) return
+  // A shift started under an older job table is paid what it promised then
+  // (the v11 upgrade stamps `legacyCoins` on it), even if the job is gone.
+  if (job === null && !Number.isFinite(activity.legacyCoins)) return
+  const base = job === null ? activity.legacyCoins : job.coins
+  const trait = job === null ? null : job.trait
   // A sick pig still goes to work — that is the way out of the sick-and-broke
-  // deadlock — but it works at half speed, so being ill costs money rather than
-  // being an outright wall.
+  // deadlock — but at half pay, so being ill costs money rather than being a wall.
   const sick = state.illness !== null
-  // Trait bonus first, then the sick penalty: going to school should still be
-  // worth it while the pig is under the weather.
-  const points = state.traits?.[job.trait] ?? 0
-  const withTrait = job.coins * traitBonus(job.trait, points).pay
+  const points = trait === null ? 0 : (state.traits?.[trait] ?? 0)
+  const withTrait = trait === null ? base : base * traitBonus(trait, points).pay
   const coins = sick ? Math.max(1, Math.round(withTrait * SICK_PAY_MULTIPLIER)) : Math.round(withTrait)
   state.coins += coins
-  state.satiety = clamp100(state.satiety + job.satiety)
-  state.cleanliness = clamp100(state.cleanliness + job.cleanliness)
+  if (job !== null) {
+    state.satiety = clamp100(state.satiety + job.satiety)
+    state.cleanliness = clamp100(state.cleanliness + job.cleanliness)
+  }
   state.stats.jobs += 1
   state.stats.coinsEarned += coins
   noteOuting(state)
-  grow(state, outingGrowth(job.minutes), nowMs)
-  const tag = sick ? '（带病上工，只有一半）' : (points > 0 ? `（${TRAITS[job.trait].label} ${points}）` : '')
-  remember(state, `${job.emoji} ${job.label}回来，赚了 ${coins} 金币${tag}`, nowMs)
+  grow(state, outingGrowth(job === null ? activity.minutes ?? 0 : job.minutes), nowMs)
+  const brought = workDrops(state, coins, next)
+  const label = job === null ? activity.label : job.label
+  const emoji = job === null ? activity.emoji : job.emoji
+  const tag = sick ? '（带病上工，只有一半）' : (points > 0 && trait !== null ? `（${TRAITS[trait].label} ${points}）` : '')
+  const extra = brought.length > 0 ? `，还带回了${describeDrops(brought)}` : ''
+  remember(state, `${emoji} ${label}回来，赚了 ${coins} 金币${tag}${extra}`, nowMs)
   announce(state, 'work', sick
-    ? `${state.name} 带病打工回来了，只赚到 ${coins} 金币 🤒`
-    : `${state.name} 打工回来了！赚到 ${coins} 金币 💰`, nowMs)
+    ? `${state.name} 带病打工回来了，只赚到 ${coins} 金币 🤒${extra}`
+    : `${state.name} 打工回来了！赚到 ${coins} 金币 💰${extra}`, nowMs)
 }
 
-export function finishStudy(state, activity, nowMs) {
+/**
+ * A lesson is over: one more on this subject's count. Crossing 9 / 20 / 40 / 95
+ * is a graduation — three gifts, extra growth, and 「我没有留级」.
+ */
+export function finishStudy(state, activity, nowMs, next = rollerFor(state)) {
   const subject = subjectByKey(activity.key)
-  const stage = schoolStageByKey(activity.stage)
-  if (subject === null || stage === null) return
+  if (subject === null) return
+  const taken = state.lessons?.[subject.key] ?? 0
+  // The stage is the one the lesson was booked at, so a table change mid-lesson
+  // cannot change what it pays.
+  const stage = schoolStageByKey(activity.stage) ?? stageForNextLesson(taken)
+  state.lessons = { ...(state.lessons ?? {}), [subject.key]: taken + 1 }
   state.traits = { ...(state.traits ?? {}) }
   state.traits[subject.trait] = (state.traits[subject.trait] ?? 0) + stage.gain
-  state.courses = { ...(state.courses ?? {}) }
-  state.courses[subject.key] = (state.courses[subject.key] ?? 0) + 1
-  // Counted per stage AND per subject: that pair is what opens the next school.
-  state.coursesByStage = { ...(state.coursesByStage ?? {}) }
-  const perStage = { ...(state.coursesByStage[stage.key] ?? {}) }
-  perStage[subject.key] = (perStage[subject.key] ?? 0) + 1
-  state.coursesByStage[stage.key] = perStage
-  // Running total per stage, kept for the panel and for older saves.
-  state.lessonsByStage = { ...(state.lessonsByStage ?? {}) }
-  state.lessonsByStage[stage.key] = (state.lessonsByStage[stage.key] ?? 0) + 1
+  if (subject.secondary !== null && stage.secondaryGain > 0) {
+    state.traits[subject.secondary] = (state.traits[subject.secondary] ?? 0) + stage.secondaryGain
+  }
   state.satiety = clamp100(state.satiety + stage.satiety)
   state.happiness = clamp100(state.happiness + stage.happiness)
   state.stats.courses += 1
   state.stats.lessons += 1
   noteOuting(state)
   grow(state, STUDY_GROWTH_PER_LESSON, nowMs)
-  remember(state, `${subject.emoji} 上完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain}`, nowMs)
-  announce(state, 'study', `${state.name} 学完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain} 📚`, nowMs)
+  const gains = `${TRAITS[subject.trait].label} +${stage.gain}`
+    + (subject.secondary !== null && stage.secondaryGain > 0 ? `、${TRAITS[subject.secondary].label} +${stage.secondaryGain}` : '')
+  if (GRADUATION_LESSONS.includes(taken + 1)) {
+    const gifts = graduationDrops(state, next)
+    grow(state, GRADUATION_GROWTH, nowMs)
+    state.stats.graduations = (state.stats.graduations ?? 0) + 1
+    remember(state, `🎓 ${subject.label}${stage.label}毕业（第 ${taken + 1} 节）`, nowMs)
+    announce(state, 'graduate', `${state.name} ${subject.label}${stage.label}毕业啦 🎓 ${gains}，带回${describeDrops(gifts)}`, nowMs)
+    say(state, 'graduate', nowMs)
+    return
+  }
+  const brought = studyDrops(state, next)
+  const extra = brought.length > 0 ? `，还带回了${describeDrops(brought)}` : ''
+  remember(state, `${subject.emoji} 上完${subject.label}第 ${taken + 1} 节，${gains}`, nowMs)
+  announce(state, 'study', `${state.name} 上完${subject.label}第 ${taken + 1} 节，${gains} 📚${extra}`, nowMs)
 }
 
 export function finishTrip(state, activity, nowMs) {

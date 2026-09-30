@@ -307,7 +307,7 @@ test('an away pig reports how far through its activity it is', async () => {
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs - 30 * MIN)
     pig.activity = {
-      kind: 'work', key: 'office', label: '上班', emoji: '💼',
+      kind: 'work', key: 'editor', label: '编辑', emoji: '📰',
       startedAt: nowMs - 2 * 60 * MIN, endsAt: nowMs + 2 * 60 * MIN,
     }
     pig.lastSeenAt = nowMs - 2 * 60 * MIN
@@ -328,23 +328,21 @@ test('care is refused while working, and the refusal is honest', async () => {
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs)
     pig.satiety = 80
-    // 上班 needs 智力 14 + 魅力 6 since 0.17.0; the pig earns those by studying.
-    pig.traits = { intel: 14, charm: 6, strong: 0 }
     return pig
   })
   try {
-    const started = await app.post({ action: 'work', job: 'office' })
+    const started = await app.post({ action: 'work', job: 'bricks' })
     assert.equal(started.ok, true)
     assert.equal(started.canGoOut, false)
     assert.equal(started.activity.kind, 'work')
-    assert.equal(started.activity.key, 'office')
+    assert.equal(started.activity.key, 'bricks')
     assert.ok(started.activity.secondsLeft > 0)
 
     const feed = await app.post({ action: 'feed' })
     assert.equal(feed.ok, false)
     assert.equal(feed.reason, 'away')
 
-    const second = await app.post({ action: 'work', job: 'odd' })
+    const second = await app.post({ action: 'work', job: 'bricks' })
     assert.equal(second.ok, false)
     assert.equal(second.reason, 'away')
 
@@ -358,21 +356,22 @@ test('care is refused while working, and the refusal is honest', async () => {
   }
 })
 
-test('the route refuses an unqualified job and hands back the missing axes', async () => {
+test('the route refuses an unqualified job and hands back what it is missing', async () => {
   const app = boot(nowMs => hatchEgg(nowMs))
   try {
-    const refused = await app.post({ action: 'work', job: 'tutor' })
+    // 收银员: Lv5 and 数学 9 lessons (B4). A fresh pig has neither.
+    const refused = await app.post({ action: 'work', job: 'cashier' })
     assert.equal(refused.ok, false)
     assert.equal(refused.reason, 'underqualified')
-    assert.deepEqual(refused.missing.map(m => m.key), ['intel'])
-    assert.equal(refused.missing[0].need, 10)
+    assert.deepEqual(refused.missing.map(m => m.kind), ['level', 'lesson'])
+    assert.equal(refused.missing[1].need, 9)
     // The refusal must not leave the pig mid-shift, and the panel needs the
     // gate on the board itself, not only in the POST result.
     assert.equal(refused.activity, null)
-    const board = refused.jobs.find(job => job.key === 'tutor')
+    const board = refused.jobs.find(job => job.key === 'cashier')
     assert.equal(board.qualified, false)
-    assert.match(board.lockText, /智力 10/)
-    assert.equal(refused.jobs.find(job => job.key === 'odd').qualified, true)
+    assert.match(board.lockText, /Lv\.5、🔢数学 9 节/)
+    assert.equal(refused.jobs.find(job => job.key === 'bricks').qualified, true)
   } finally {
     app.cleanup()
   }
@@ -515,7 +514,7 @@ test('a finished shift pays out on the next read and is announced once', async (
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs - 10 * MIN)
     pig.coins = 0
-    pig.activity = { kind: 'work', key: 'site', label: '搬砖', emoji: '🧱', startedAt: nowMs - 4 * MIN, endsAt: nowMs - MIN }
+    pig.activity = { kind: 'work', key: 'bricks', label: '搬砖', emoji: '🧱', startedAt: nowMs - 4 * MIN, endsAt: nowMs - MIN }
     pig.lastSeenAt = nowMs - 4 * MIN
     return pig
   })
@@ -523,7 +522,8 @@ test('a finished shift pays out on the next read and is announced once', async (
     const first = await app.get()
     // The seeded shift is 搬砖; look its pay up by key — the board's order is
     // content, not API.
-    assert.equal(first.pig.coins, JOBS.find(job => job.key === 'site').coins)
+    // Coins may include nothing else: drops go to the bag, not the purse.
+    assert.equal(first.pig.coins, JOBS.find(job => job.key === 'bricks').coins)
     assert.equal(first.activity, null)
     // A shift is worth enough XP to cross a level too, so there may be more
     // than one announcement — the payday is the one that must be there.
@@ -541,7 +541,7 @@ test('a finished shift pays out on the next read and is announced once', async (
 test('snapshot() can be asked not to drain the queue', async () => {
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs - 10 * MIN)
-    pig.activity = { kind: 'work', key: 'odd', label: '打零工', emoji: '🧹', startedAt: nowMs - 2 * MIN, endsAt: nowMs - MIN }
+    pig.activity = { kind: 'work', key: 'bricks', label: '打零工', emoji: '🧹', startedAt: nowMs - 2 * MIN, endsAt: nowMs - MIN }
     pig.lastSeenAt = nowMs - 2 * MIN
     return pig
   })
@@ -630,7 +630,7 @@ test('a dead pig only answers to the revive item', async () => {
       assert.equal(refused.ok, false, `${action} must be refused`)
       assert.equal(refused.reason, 'dead')
     }
-    assert.equal((await app.post({ action: 'work', job: 'odd' })).reason, 'dead')
+    assert.equal((await app.post({ action: 'work', job: 'bricks' })).reason, 'dead')
 
     const reviveKey = dead.shop.find(i => i.kind === 'revive').key
     assert.equal((await app.post({ action: 'buy', item: reviveKey })).ok, true)
@@ -673,8 +673,8 @@ test('the slash command line for work and the shop agree with the tables', () =>
     for (const item of SHOP) assert.ok(shop.includes(item.label), `${item.label} missing from /pig shop`)
     const bought = run('buy 苹果')
     assert.match(bought.text, /苹果/)
-    const work = run('work odd')
-    assert.match(work.text, /打零工/)
+    const work = run('work 搬砖')
+    assert.match(work.text, /搬砖/)
     assert.match(run('calloff').text, /提前回来/)
   } finally {
     app.cleanup()

@@ -6,7 +6,7 @@
  * @module dsh-pig/core/migrate
  */
 
-import { ILLNESS_CHAINS, INTERESTS, MAX, SCHOOL_STAGES, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, interestByKey, itemByKey, jobByKey, schoolStageByKey, stageSubjectKeys, subjectByKey, tripByKey } from '../data.js'
+import { ILLNESS_CHAINS, INTERESTS, MAX, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, interestByKey, itemByKey, jobByKey, schoolStageByKey, subjectByKey, tripByKey } from '../data.js'
 import { MEMORY_LIMIT, STATE_VERSION } from './constants.js'
 import { clamp, clamp100 } from './effects.js'
 import { layEgg, pickSex } from './egg.js'
@@ -30,9 +30,7 @@ export function migrate(input, nowMs) {
   // Only owned items can be worn, and unknown keys are dropped.
   state.worn = sanitizeDressList(raw.worn).filter(key => state.dress.includes(key))
   state.traits = sanitizeTraits(raw.traits)
-  state.courses = sanitizeCourses(raw.courses)
-  state.lessonsByStage = sanitizeLessonsByStage(raw.lessonsByStage, raw.courses)
-  state.coursesByStage = sanitizeCoursesByStage(raw.coursesByStage, state.lessonsByStage)
+  state.lessons = sanitizeLessons(raw.lessons)
   state.interests = sanitizeInterests(raw.interests)
   state.souvenirs = sanitizeSouvenirs(raw.souvenirs)
   state.pending = []
@@ -99,83 +97,15 @@ export function sanitizeTraits(raw) {
   return out
 }
 
-export function sanitizeCourses(raw) {
+/** Lessons taken per subject (B4): known subject keys, whole positive counts. */
+export function sanitizeLessons(raw) {
   const source = asObject(raw)
   if (source === null) return {}
   const out = {}
-  for (const [key, level] of Object.entries(source)) {
-    if (!Number.isFinite(level)) continue
-    const n = Math.floor(level)
+  for (const [key, count] of Object.entries(source)) {
+    if (!Number.isFinite(count)) continue
+    const n = Math.floor(count)
     if (n > 0 && subjectByKey(key) !== null) out[key] = n
-  }
-  return out
-}
-
-/**
- * Lesson counts per school stage.
- *
- * A save written before the stage ladder existed only has per-subject totals,
- * and no way to say which stage they came from. Rather than locking an existing
- * player out of everything, assume those lessons were the entry stage — which is
- * the only one that existed to them.
- */
-export function sanitizeLessonsByStage(raw, rawCourses) {
-  const source = asObject(raw)
-  const out = {}
-  for (const stage of SCHOOL_STAGES) out[stage.key] = 0
-  if (source !== null) {
-    for (const stage of SCHOOL_STAGES) {
-      const n = source[stage.key]
-      if (Number.isFinite(n) && n > 0) out[stage.key] = Math.floor(n)
-    }
-  }
-  const total = Object.values(out).reduce((sum, n) => sum + n, 0)
-  if (total === 0) {
-    const legacy = Object.values(sanitizeCourses(rawCourses)).reduce((sum, n) => sum + n, 0)
-    if (legacy > 0) out[SCHOOL_STAGES[0].key] = legacy
-  }
-  return out
-}
-
-/**
- * Per-stage, per-subject lesson counts.
- *
- * New saves carry the real table. Saves written before 0.18.0 only counted
- * lessons per stage, so the exact subjects are unknowable; credit that stage's
- * course list from the top until the old count runs out. A pig that had
- * finished 小学's nine lessons gets all six of the new 小学 courses — nobody
- * loses a school they had already opened.
- */
-export function sanitizeCoursesByStage(raw, lessonsByStage) {
-  const source = asObject(raw)
-  const out = {}
-  if (source !== null) {
-    for (const stage of SCHOOL_STAGES) {
-      const entry = asObject(source[stage.key])
-      if (entry === null) continue
-      const counts = {}
-      for (const key of stageSubjectKeys(stage)) {
-        const value = entry[key]
-        if (Number.isFinite(value) && value > 0) counts[key] = Math.floor(value)
-      }
-      if (Object.keys(counts).length > 0) out[stage.key] = counts
-    }
-    if (Object.keys(out).length > 0) return out
-  }
-  // Legacy saves counted lessons per stage only. Rebuild the ladder from the
-  // bottom: having lessons in a stage means every stage below it was cleared,
-  // and the stage itself is credited from its own count.
-  let highest = -1
-  for (const [index, stage] of SCHOOL_STAGES.entries()) {
-    if (Math.floor(lessonsByStage?.[stage.key] ?? 0) > 0) highest = index
-  }
-  for (const [index, stage] of SCHOOL_STAGES.entries()) {
-    if (index > highest) break
-    const keys = stageSubjectKeys(stage)
-    const counts = {}
-    const done = index < highest ? keys.length : Math.floor(lessonsByStage?.[stage.key] ?? 0)
-    for (const key of keys.slice(0, Math.min(done, keys.length))) counts[key] = 1
-    if (Object.keys(counts).length > 0) out[stage.key] = counts
   }
   return out
 }
@@ -260,8 +190,9 @@ export function sanitizeActivity(raw) {
   if (!Number.isFinite(source.endsAt)) return null
   const kind = source.kind ?? 'work'
   if (!['work', 'study', 'trip', 'interest'].includes(kind)) return null
+  // A shift from an older job table survives if the upgrade priced it.
   const known = kind === 'work'
-    ? jobByKey(source.key ?? source.job) !== null
+    ? jobByKey(source.key ?? source.job) !== null || Number.isFinite(source.legacyCoins)
     : kind === 'study'
       ? subjectByKey(source.key) !== null
       : kind === 'interest'
@@ -277,6 +208,7 @@ export function sanitizeActivity(raw) {
     startedAt: Number(source.startedAt) || 0,
     endsAt: source.endsAt,
     cost: Number(source.cost) || 0,
+    ...(Number.isFinite(source.legacyCoins) ? { legacyCoins: source.legacyCoins, minutes: Number(source.minutes) || 0 } : {}),
   }
 }
 

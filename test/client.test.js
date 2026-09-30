@@ -741,35 +741,6 @@ test('the status tab shows labelled bars, traits and the care buttons', async ()
   assert.ok(play.allText().includes('37'), play.allText())
 })
 
-test('the study tab lists the host stages and only the selected stage courses', async () => {
-  const { registration, dom, net } = await loadClient()
-  registration.factory(() => {}).apply({})
-  await settle()
-  openPanel(dom)
-  pickTab(dom, 'study')
-
-  const text = contentOf(dom).allText()
-  assert.ok(text.includes('幼儿园'), text)
-  assert.ok(text.includes('小学'), text)
-  assert.ok(text.includes('语文'), text)
-  assert.ok(text.includes('本级 2 次'), text)
-  // 哲学 is a 大学 course, so it must not be offered while 小学 is selected.
-  assert.equal(findByAttr(contentOf(dom), 'data-subject', 'philosophy'), undefined)
-
-  // A locked stage stays selectable on purpose: selecting it is how the pig
-  // says what it is still missing.
-  findByAttr(contentOf(dom), 'data-stage', 'extracurricular').fire('click')
-  assert.ok(contentOf(dom).allText().includes('🔒 要先念完幼儿园 3 门课各上一次（1/3）'), contentOf(dom).allText())
-
-  findByAttr(contentOf(dom), 'data-stage', 'college').fire('click')
-  findByAttr(contentOf(dom), 'data-subject', 'philosophy').fire('click')
-  await settle()
-  await settle()
-
-  const post = net.calls.find(call => call.method === 'POST')
-  assert.deepEqual(JSON.parse(post.body), { action: 'study', subject: 'philosophy', stage: 'college' })
-})
-
 test('the shop marks 家当 as 已拥有 or level-locked, and the bag can wear it', async () => {
   const { registration, dom, net } = await loadClient({
     status: {
@@ -1321,19 +1292,6 @@ test('a stale reply is dropped silently instead of scolding the user', async () 
   assert.ok(!text.includes('没成') && !text.includes('这个操作'), `nothing should be said: ${text}`)
 })
 
-test('the study tab opens on a stage the pig can actually attend', async () => {
-  // The client hard-coded 'primary'; if that stage is still locked the whole tab
-  // opened on a padlocked shelf (B1 小缺口).
-  const stages = STAGES.map(entry => (entry.key === 'primary' ? { ...entry, unlocked: false } : entry))
-  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, stages } })
-  registration.factory(() => {}).apply({})
-  await settle()
-  openPanel(dom)
-  pickTab(dom, 'study')
-  assert.equal(findByAttr(contentOf(dom), 'data-stage', 'preschool').attributes['data-active'], 'true')
-  assert.equal(findByAttr(contentOf(dom), 'data-stage', 'primary').attributes['data-active'], 'false')
-})
-
 test('a drawn stage shows a sprite, the others show the emoji', async () => {
   const drawn = await loadClient({
     status: {
@@ -1604,4 +1562,36 @@ test('right-click opens the menu and left-click only pats the pig', async () => 
 
   // The tooltip is the only discoverability right-click gets.
   assert.match(sceneOf(dom).title, /右键/, 'the pig must say how to open the menu')
+})
+
+test('the study tab shows the nine subjects with their own lesson counts (B4)', async () => {
+  const subject = (key, label, emoji, lessons, stageLabel, nextGraduation) => ({
+    key, label, emoji, traitLabel: '智力', traitEmoji: '🧠', lessons,
+    stage: { key: 'x', label: stageLabel, emoji: '📚' }, nextGraduation,
+    minutes: 20, tuition: 10, gain: 1, secondaryGain: 0, available: true, affordable: true,
+  })
+  const { registration, dom, net } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      stages: [],
+      subjects: [
+        subject('chinese', '语文', '📖', 12, '中学', 20),
+        subject('mathematics', '数学', '🔢', 0, '小学', 9),
+      ],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'study')
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('语文 · 中学'), text)
+  assert.ok(text.includes('上过 12 节 · 差 8 节毕业'), text)
+  assert.ok(text.includes('上过 0 节 · 差 9 节毕业'), text)
+  assert.ok(!text.includes('🔒'), 'no stage ladder to lock any more')
+  findByAttr(contentOf(dom), 'data-subject', 'mathematics').fire('click')
+  await settle()
+  const post = JSON.parse(String(net.calls.filter(c => c.method === 'POST').at(-1).body))
+  assert.equal(post.action, 'study')
+  assert.equal(post.subject, 'mathematics')
 })

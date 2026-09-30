@@ -8,8 +8,17 @@
 
 import { TRAITS, jobByKey, jobRequirement, traitBonus } from '../data.js'
 import { begin } from './activity.js'
+import { levelFor } from './clock.js'
 import { TOO_WEAK_HEALTH } from './constants.js'
 import { remember } from './effects.js'
+
+/**
+ * What a job's gate looks at: level, lessons per subject, 兴趣课 counts (B4).
+ * @param {object} state
+ */
+export function jobFacts(state) {
+  return { level: levelFor(state.xp), lessons: state.lessons ?? {}, interests: state.interests ?? {} }
+}
 
 export function startWork(state, jobKey, nowMs) {
   const job = jobByKey(jobKey)
@@ -19,8 +28,8 @@ export function startWork(state, jobKey, nowMs) {
   if (state.activity !== null) return { ok: false, reason: 'away' }
   if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
   // The gate is checked before the pig walks out: an unqualified job is refused
-  // with the exact axes it is short on, so the panel can point at 学习.
-  const gate = jobRequirement(job, state.traits)
+  // with everything it is short on (level, lessons, certificate).
+  const gate = jobRequirement(job, jobFacts(state))
   if (gate !== null && !gate.ok) {
     return { ok: false, reason: 'underqualified', missing: gate.missing, job: job.key }
   }

@@ -1,68 +1,135 @@
 // @ts-check
 /**
- * 工作与门槛 —— 静态数值表（零逻辑、零 IO，见 docs/CONVENTIONS.md）。
+ * 职业与门槛 —— 静态数值表（零逻辑、零 IO，见 docs/CONVENTIONS.md）。
+ *
+ * 数字全部来自 docs/tasks/numbers/B4-study-jobs.md（用户 2026-10-01 确认）：
+ * 原版 18 种 + 新增 15 种，门槛 = 等级 + 某几门课的课时（+ 兴趣证书）。
+ * 三维不再是门槛，只决定报酬加成（`trait` 是算加成用的那一维）。
+ *
  * @module dsh-pig/data/jobs
  */
 
-import { MINUTES } from './minutes.js'
-import { TRAITS, TRAIT_ORDER } from './traits.js'
+import { CERTIFICATE_AFTER, interestByKey } from './interests.js'
+import { SUBJECTS, subjectByKey } from './school.js'
+import { TRAITS } from './traits.js'
 
 /**
- * Ten jobs, each behind a three-axis threshold.
- *
- * Before 0.17.0 there were three jobs and **no gate at all** — a pig with 智力 0
- * and a pig with 智力 40 could do exactly the same work, which made the whole
- * 学习 page pointless. `requires` is the fix: `intel` / `charm` / `strong` are
- * the minimum points the pig must already have. `trait` stays the *primary*
- * trait — the one that scales pay and shortens the shift — so a job can need
- * two axes while still paying off one.
- *
- * The ladder is ordered: odd jobs are ungated, then the physical line, then the
- * charm line, then the desk line that only schooling can open.
+ * @typedef {object} JobRequires
+ * @property {number} level
+ * @property {Readonly<Record<string, number>>} [lessons] - 某几门课各要多少节
+ * @property {number} [every] - 九门课每门都要这么多节
+ * @property {{count: number, lessons: number}} [anyOf] - 任意 count 门课达到 lessons 节
+ * @property {string} [certificate] - 要哪门兴趣课的证书（interest key）
  */
+
+/** 每班饱食 / 清洁消耗，按时长分档（沿用 B4 以前的消耗比例）。 */
+const COST_BY_MINUTES = Object.freeze({
+  30: Object.freeze({ satiety: -6, cleanliness: -4 }),
+  45: Object.freeze({ satiety: -8, cleanliness: -6 }),
+  60: Object.freeze({ satiety: -15, cleanliness: -12 }),
+  120: Object.freeze({ satiety: -18, cleanliness: -10 }),
+  240: Object.freeze({ satiety: -34, cleanliness: -26 }),
+  480: Object.freeze({ satiety: -60, cleanliness: -40 }),
+})
+
+/**
+ * @param {string} key
+ * @param {string} label
+ * @param {string} emoji
+ * @param {'intel'|'charm'|'strong'} trait
+ * @param {number} minutes
+ * @param {number} coins
+ * @param {JobRequires} requires
+ */
+const job = (key, label, emoji, trait, minutes, coins, requires) =>
+  Object.freeze({ key, label, emoji, trait, minutes, coins, ...COST_BY_MINUTES[minutes], requires: Object.freeze(requires) })
+
 export const JOBS = Object.freeze([
-  // --- anyone can start here ----------------------------------------------
-  Object.freeze({ key: 'odd', label: '打零工', emoji: '🧹', trait: 'charm', minutes: MINUTES.quarter, coins: 30, satiety: -6, cleanliness: -4, requires: Object.freeze({ intel: 0, charm: 0, strong: 0 }) }),
-  // --- body line: 武力 -----------------------------------------------------
-  Object.freeze({ key: 'dish', label: '端盘子', emoji: '🍽', trait: 'charm', minutes: MINUTES.half, coins: 70, satiety: -10, cleanliness: -7, requires: Object.freeze({ intel: 0, charm: 2, strong: 2 }) }),
-  Object.freeze({ key: 'courier', label: '送快递', emoji: '🚚', trait: 'strong', minutes: MINUTES.hour, coins: 150, satiety: -15, cleanliness: -12, requires: Object.freeze({ intel: 0, charm: 0, strong: 4 }) }),
-  Object.freeze({ key: 'site', label: '搬砖', emoji: '🧱', trait: 'strong', minutes: MINUTES.ninety, coins: 260, satiety: -20, cleanliness: -18, requires: Object.freeze({ intel: 0, charm: 0, strong: 8 }) }),
-  Object.freeze({ key: 'foreman', label: '工地领班', emoji: '🏗', trait: 'strong', minutes: MINUTES.threeHours, coins: 700, satiety: -32, cleanliness: -24, requires: Object.freeze({ intel: 0, charm: 4, strong: 16 }) }),
-  // --- charm line: 魅力 ----------------------------------------------------
-  Object.freeze({ key: 'street', label: '街头卖艺', emoji: '🎤', trait: 'charm', minutes: MINUTES.hour, coins: 200, satiety: -12, cleanliness: -8, requires: Object.freeze({ intel: 0, charm: 8, strong: 0 }) }),
-  // --- desk line: 智力（只有上学能开）-------------------------------------
-  Object.freeze({ key: 'tutor', label: '家教', emoji: '📚', trait: 'intel', minutes: MINUTES.twoHours, coins: 480, satiety: -18, cleanliness: -10, requires: Object.freeze({ intel: 10, charm: 0, strong: 0 }) }),
-  Object.freeze({ key: 'office', label: '上班', emoji: '💼', trait: 'intel', minutes: MINUTES.fourHours, coins: 900, satiety: -34, cleanliness: -26, requires: Object.freeze({ intel: 14, charm: 6, strong: 0 }) }),
-  Object.freeze({ key: 'manager', label: '部门主管', emoji: '🏢', trait: 'intel', minutes: MINUTES.sixHours, coins: 2200, satiety: -46, cleanliness: -34, requires: Object.freeze({ intel: 22, charm: 10, strong: 0 }) }),
-  Object.freeze({ key: 'researcher', label: '研究员', emoji: '🔬', trait: 'intel', minutes: MINUTES.eightHours, coins: 4000, satiety: -60, cleanliness: -40, requires: Object.freeze({ intel: 32, charm: 0, strong: 0 }) }),
+  // --- 起步：不用上学 · 30–45 分钟 ------------------------------------------
+  job('bricks', '搬砖', '🧱', 'strong', 30, 40, { level: 1 }),
+  job('flyers', '发传单', '📄', 'charm', 30, 40, { level: 1 }),
+  job('dishes', '洗碗工', '🍽', 'strong', 30, 45, { level: 3 }),
+  job('delivery', '送外卖', '🛵', 'strong', 45, 70, { level: 5, lessons: { pe: 3 } }),
+  // --- 小学毕业（某门课 9 节）· 1 小时 --------------------------------------
+  job('mason', '泥瓦工', '🧱', 'strong', 60, 150, { level: 3, lessons: { labour: 9 } }),
+  job('cashier', '收银员', '🧾', 'intel', 60, 150, { level: 5, lessons: { mathematics: 9 } }),
+  job('florist', '花匠', '💐', 'charm', 60, 160, { level: 6, lessons: { manners: 9 } }),
+  job('carpenter', '木匠', '🪚', 'strong', 60, 160, { level: 6, lessons: { labour: 9 } }),
+  job('courier', '快递员', '📦', 'strong', 60, 170, { level: 8, lessons: { pe: 9, wushu: 9 } }),
+  job('gardener', '园丁', '🌳', 'charm', 60, 180, { level: 9, lessons: { chinese: 9, art: 9 } }),
+  job('guard', '保安', '🛡', 'strong', 60, 180, { level: 9, lessons: { politics: 9, wushu: 9 } }),
+  job('actor', '演员', '🎭', 'charm', 60, 180, { level: 9, lessons: { manners: 9, labour: 9 } }),
+  // --- 中学毕业（20 节）· 2 小时 --------------------------------------------
+  job('chef', '厨师', '👨‍🍳', 'strong', 120, 480, { level: 12, lessons: { labour: 20, manners: 9 } }),
+  job('singer', '歌手', '🎤', 'charm', 120, 500, { level: 12, lessons: { music: 20 } }),
+  job('lawyer', '律师', '⚖️', 'intel', 120, 520, { level: 12, lessons: { politics: 20 } }),
+  job('nurse', '护士', '💉', 'charm', 120, 520, { level: 14, lessons: { chinese: 20, manners: 20 } }),
+  job('athlete', '运动员', '🏅', 'strong', 120, 540, { level: 14, lessons: { pe: 20, wushu: 20 } }),
+  job('cartoonist', '漫画家', '✏️', 'charm', 120, 560, { level: 15, lessons: { art: 20, labour: 20 } }),
+  job('police', '警察', '👮', 'strong', 120, 560, { level: 15, lessons: { politics: 20, wushu: 20 } }),
+  job('songwriter', '词曲作者', '🎼', 'charm', 120, 560, { level: 15, lessons: { chinese: 20, music: 20 } }),
+  // --- 大学毕业（40 节）· 4 小时 --------------------------------------------
+  job('editor', '编辑', '📰', 'intel', 240, 1500, { level: 18, lessons: { chinese: 40 } }),
+  job('photographer', '摄影师', '📷', 'charm', 240, 1600, { level: 18, lessons: { art: 40 }, certificate: 'photography' }),
+  job('coach', '教练', '🏋', 'strong', 240, 1500, { level: 20, lessons: { pe: 40 }, certificate: 'fitness' }),
+  job('programmer', '程序员', '💻', 'intel', 240, 1800, { level: 22, lessons: { mathematics: 40 }, certificate: 'coding' }),
+  job('dancer', '舞蹈家', '💃', 'charm', 240, 1800, { level: 22, lessons: { music: 40, pe: 40 }, certificate: 'dancing' }),
+  job('architect', '建筑师', '📐', 'intel', 240, 1800, { level: 24, lessons: { art: 40, mathematics: 40 } }),
+  job('doctor', '医生', '🩺', 'intel', 240, 2000, { level: 26, lessons: { chinese: 40, mathematics: 40, politics: 20 } }),
+  // --- 研究生（95 节，或九门都到 40）· 8 小时 -------------------------------
+  job('scientist', '科研人员', '🔬', 'intel', 480, 4800, { level: 30, lessons: { chinese: 40, mathematics: 40, art: 40, pe: 40 } }),
+  job('official', '公务员', '🏛', 'intel', 480, 5200, { level: 35, every: 40 }),
+  job('professor', '大学教授', '👨‍🏫', 'intel', 480, 5600, { level: 40, anyOf: { count: 3, lessons: 95 } }),
+  job('star', '明星', '🌟', 'charm', 480, 6000, { level: 40, lessons: { music: 95, manners: 95, art: 40 } }),
+  job('astronaut', '宇航员', '🚀', 'strong', 480, 6400, { level: 45, lessons: { mathematics: 95, pe: 95, wushu: 40 } }),
+  job('ceo', '总裁', '💼', 'intel', 480, 8000, { level: 50, lessons: { mathematics: 95, chinese: 95, manners: 95, politics: 40 } }),
 ])
 
+export const jobByKey = key => JOBS.find(entry => entry.key === key) ?? null
+
 /**
- * Compare a job's three-axis threshold against the pig's current traits.
- *
- * Returns every axis the pig is short on, not just the first: a locked job must
- * be able to say *why*, and "需要 🧠 智力 10、💪 武力 4" is the difference
- * between a gate and a shrug.
- *
- * @param {{requires?: {intel?: number, charm?: number, strong?: number}}|null} job
- * @param {Record<string, number>|null|undefined} traits
- * @returns {{ok: boolean, missing: ReadonlyArray<{key: string, label: string, emoji: string, need: number, have: number}>}|null}
+ * @typedef {object} Shortfall
+ * @property {'level'|'lesson'|'every'|'anyOf'|'certificate'} kind
+ * @property {string} text - 给面板看的一小段，如「🔢 数学 9 节」
+ * @property {number} need
+ * @property {number} have
  */
-export function jobRequirement(job, traits) {
-  if (job === null || job === undefined) return null
-  const need = job.requires ?? {}
+
+/**
+ * Everything a job asks for that the pig does not have yet — all of it, not
+ * just the first, so a locked job can say exactly why.
+ * @param {{requires: JobRequires}|null} target
+ * @param {{level: number, lessons: Record<string, number>, interests: Record<string, number>}} pig
+ * @returns {{ok: boolean, missing: Shortfall[]}|null}
+ */
+export function jobRequirement(target, pig) {
+  if (target === null || target === undefined) return null
+  const need = target.requires
+  /** @type {Shortfall[]} */
   const missing = []
-  for (const key of TRAIT_ORDER) {
-    const required = need[key] ?? 0
-    const have = traits?.[key] ?? 0
-    if (required > 0 && have < required) {
-      missing.push({ key, label: TRAITS[key].label, emoji: TRAITS[key].emoji, need: required, have })
-    }
+  const lessonsOf = key => pig.lessons?.[key] ?? 0
+  if (pig.level < need.level) missing.push({ kind: 'level', text: `Lv.${need.level}`, need: need.level, have: pig.level })
+  for (const [key, count] of Object.entries(need.lessons ?? {})) {
+    const have = lessonsOf(key)
+    const subject = subjectByKey(key)
+    if (have < count && subject !== null) missing.push({ kind: 'lesson', text: `${subject.emoji}${subject.label} ${count} 节`, need: count, have })
+  }
+  if (need.every !== undefined) {
+    const behind = SUBJECTS.filter(subject => lessonsOf(subject.key) < /** @type {number} */ (need.every)).length
+    if (behind > 0) missing.push({ kind: 'every', text: `九门课各 ${need.every} 节`, need: SUBJECTS.length, have: SUBJECTS.length - behind })
+  }
+  if (need.anyOf !== undefined) {
+    const { count, lessons } = need.anyOf
+    const reached = SUBJECTS.filter(subject => lessonsOf(subject.key) >= lessons).length
+    if (reached < count) missing.push({ kind: 'anyOf', text: `任意 ${count} 门课各 ${lessons} 节`, need: count, have: reached })
+  }
+  if (need.certificate !== undefined) {
+    const interest = interestByKey(need.certificate)
+    const have = pig.interests?.[need.certificate] ?? 0
+    if (interest !== null && have < CERTIFICATE_AFTER) missing.push({ kind: 'certificate', text: `${interest.emoji}${interest.certificate}`, need: CERTIFICATE_AFTER, have })
   }
   return { ok: missing.length === 0, missing }
 }
 
-/** Whether the pig already meets every axis a job asks for. */
-export const jobUnlocked = (job, traits) => jobRequirement(job, traits)?.ok === true
-
-export const jobByKey = key => JOBS.find(job => job.key === key) ?? null
+/** The trait a job pays out on, spelled out for the panel. */
+export const jobTrait = target => TRAITS[target.trait]

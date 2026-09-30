@@ -43,16 +43,11 @@ export function layEgg(nowMs) {
     dress: [],
     worn: [],
     traits: { intel: 0, charm: 0, strong: 0 },
-    courses: {},
-    // Lessons finished per stage **and per subject**. Seven stages share subject
-    // names (语文 is taught in 小学/中学/高中), so "how many lessons" cannot say
-    // whether this stage's course list is complete — this can.
-    coursesByStage: {},
-    // 兴趣课修读次数（不是属性，只是记录学了几次）。
+    // Lessons taken per subject (B4): the count decides the subject's stage
+    // and which jobs the pig qualifies for.
+    lessons: {},
+    // 兴趣课修读次数；满 CERTIFICATE_AFTER 次拿证。
     interests: {},
-    // Finished lessons per school stage, kept as the running total for the
-    // panel and for saves written before the per-subject table existed.
-    lessonsByStage: { preschool: 0, extracurricular: 0, primary: 0, middle: 0, high: 0, college: 0, graduate: 0 },
     souvenirs: [],
     illness: null,
     activity: null,

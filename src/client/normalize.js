@@ -124,18 +124,25 @@ export function normalize(raw) {
       // "qualified" — the opposite default would lock every job on upgrade.
       qualified: obj(job).qualified !== false,
       lockText: str(obj(job).lockText, ''),
+      level: num(obj(job).level, 1),
     })).filter(job => job.key !== ''),
+    // B4: nine subjects, each with its own lesson count and stage.
     subjects: arr(d.subjects).map(sub => ({
       key: str(obj(sub).key, ''),
       label: str(obj(sub).label, '课'),
       emoji: str(obj(sub).emoji, '📘'),
       traitLabel: str(obj(sub).traitLabel, ''),
-      level: num(obj(sub).level, 0),
-      // Seven stages share subject names, so the level that matters is the
-      // one for the stage on screen. `levels` is keyed by stage key.
-      levels: isObj(obj(sub).levels) ? obj(sub).levels : {},
-      stages: arr(obj(sub).stages).filter(key => typeof key === 'string'),
+      traitEmoji: str(obj(sub).traitEmoji, ''),
+      lessons: num(obj(sub).lessons, num(obj(sub).level, 0)),
+      stageLabel: str(obj(obj(sub).stage).label, ''),
+      graduatedLabel: isObj(obj(sub).graduated) ? str(obj(sub).graduated.label, '') : '',
+      nextGraduation: typeof obj(sub).nextGraduation === 'number' ? obj(sub).nextGraduation : null,
+      minutes: num(obj(sub).minutes, 0),
+      tuition: num(obj(sub).tuition, 0),
+      gain: num(obj(sub).gain, 0),
+      secondaryGain: num(obj(sub).secondaryGain, 0),
       available: obj(sub).available === true,
+      affordable: obj(sub).affordable !== false,
     })).filter(sub => sub.key !== ''),
     // 兴趣课：学习页里随时能学的一栏，学完加的是既有的三条属性。
     interests: arr(d.interests).map(entry => ({
@@ -149,6 +156,9 @@ export function normalize(raw) {
       gain: num(obj(entry).gain, 0),
       blurb: str(obj(entry).blurb, ''),
       times: num(obj(entry).times, 0),
+      certificate: str(obj(entry).certificate, ''),
+      certificateAfter: num(obj(entry).certificateAfter, 0),
+      certified: obj(entry).certified === true,
       available: obj(entry).available === true,
       affordable: obj(entry).affordable === true,
     })).filter(entry => entry.key !== ''),

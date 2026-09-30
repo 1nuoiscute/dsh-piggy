@@ -8,8 +8,8 @@
 
 import { readFileSync } from 'node:fs'
 
-import { ACTIONS, ACTION_ORDER, doctorFee, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, courseView, currentIllness, daysToNextStage, dressView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
-import { INTERESTS, SEXES, jobRequirement, rarityByKey, stageSubjectKeys, traitBonus } from './data.js'
+import { ACTIONS, ACTION_ORDER, doctorFee, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, courseView, currentIllness, daysToNextStage, dressView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
+import { CERTIFICATE_AFTER, INTERESTS, SEXES, jobRequirement, rarityByKey, traitBonus } from './data.js'
 
 /** The stage the panel shows before there is a pig: the cardboard box. */
 /**
@@ -82,7 +82,7 @@ export function snapshot(store, options = {}) {
       jobs: jobsFor(null),
       subjects: subjectsFor(null),
       interests: interestsFor(null),
-      stages: SCHOOL_STAGES.map(stage => ({ ...stage })),
+      stages: [],
       trips: tripsFor(null),
       shop: shopFor(null),
       dress: [],
@@ -151,7 +151,8 @@ export function snapshot(store, options = {}) {
     jobs: jobsFor(state),
     subjects: subjectsFor(state),
     interests: interestsFor(state),
-    stages: studyView(state),
+    // The seven-stage ladder is gone (B4): each subject carries its own stage.
+    stages: [],
     trips: tripsFor(state),
     shop: shopFor(state),
     dress: dressView(state),
@@ -196,13 +197,13 @@ function actionsFor(state, nowMs) {
 function jobsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
   const traits = state?.traits ?? {}
+  const facts = state === null ? { level: 1, lessons: {}, interests: {} } : jobFacts(state)
   return JOBS.map(job => {
-    // Jobs lean on a trait and lessons raise it, so the panel has to show what
-    // the pig's schooling is actually buying it.
+    // Traits no longer gate a job (B4); they only scale its pay and shift.
     const points = state === null ? 0 : (traits[job.trait] ?? 0)
     const bonus = traitBonus(job.trait, points)
     // A locked job must say exactly what it wants, or the gate reads as a bug.
-    const gate = jobRequirement(job, traits)
+    const gate = jobRequirement(job, facts)
     const missing = gate === null ? [] : gate.missing.slice()
     return {
       key: job.key, label: job.label, emoji: job.emoji,
@@ -210,6 +211,7 @@ function jobsFor(state) {
       traitLabel: TRAITS[job.trait].label,
       traitEmoji: TRAITS[job.trait].emoji,
       traitPoints: points,
+      level: job.requires.level,
       minutes: Math.max(1, Math.round(job.minutes * bonus.minutes)),
       baseMinutes: job.minutes,
       coins: Math.round(job.coins * bonus.pay),
@@ -218,18 +220,16 @@ function jobsFor(state) {
       speedPercent: Math.round((1 - bonus.minutes) * 100),
       satiety: job.satiety,
       available: open,
-      // `available` is "the pig is home"; `qualified` is "the pig has the traits".
+      // `available` is "the pig is home"; `qualified` is "the pig has the schooling".
       qualified: gate === null ? true : gate.ok,
       missing,
-      // Short on purpose: the panel writes only the missing trait and its value.
-      lockText: missing.map(entry => `${entry.emoji} ${entry.label} ${entry.need}`).join('、'),
+      lockText: missing.map(entry => entry.text).join('、'),
     }
   })
 }
 
 /**
- * 兴趣课：学习页里的一栏，随时能学，学完直接加 智力/魅力/武力。
- * 面板把四门都列出来（没学过的显示 0 次），不然玩家不知道有这些选项。
+ * 兴趣课：学习页里的一栏，随时能学，学完加三维；上满 CERTIFICATE_AFTER 次拿证（B4）。
  */
 function interestsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
@@ -239,34 +239,24 @@ function interestsFor(state) {
     trait: entry.trait, traitLabel: TRAITS[entry.trait].label, traitEmoji: TRAITS[entry.trait].emoji,
     minutes: entry.minutes, cost: entry.cost, gain: entry.gain, blurb: entry.blurb,
     times: counts[entry.key] ?? 0,
+    certificate: entry.certificate,
+    certificateAfter: CERTIFICATE_AFTER,
+    certified: (counts[entry.key] ?? 0) >= CERTIFICATE_AFTER,
     available: open,
     affordable: state === null ? false : state.coins >= entry.cost,
   }))
 }
 
+/** The nine subjects with their lesson counts and what the next lesson is (B4). */
 function subjectsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
-  const levels = state === null ? {} : courseView(state)
-  const byStage = state?.coursesByStage ?? {}
-  return SUBJECTS.map(subject => {
-    // Seven stages share subject names, so a subject carries which stages teach
-    // it and how many times it has been taken at each — the panel filters by
-    // the selected stage instead of guessing.
-    const perStage = {}
-    const stages = []
-    for (const stage of SCHOOL_STAGES) {
-      perStage[stage.key] = byStage?.[stage.key]?.[subject.key] ?? 0
-      if (stageSubjectKeys(stage).includes(subject.key)) stages.push(stage.key)
-    }
-    return {
-      key: subject.key, label: subject.label, emoji: subject.emoji,
-      trait: subject.trait, traitLabel: TRAITS[subject.trait].label,
-      level: levels[subject.key] ?? 0,
-      levels: perStage,
-      stages,
-      available: open,
-    }
-  })
+  return studyView(state ?? {}).map(subject => ({
+    ...subject,
+    // Older panels read `level` as "times studied".
+    level: subject.lessons,
+    available: open,
+    affordable: state === null ? false : state.coins >= subject.tuition,
+  }))
 }
 
 function tripsFor(state) {

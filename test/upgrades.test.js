@@ -54,7 +54,9 @@ test('the real v7 save upgrades with its level, money, bag and schooling intact'
   assert.equal(after.coins, before.coins)
   assert.deepEqual(after.inventory, before.inventory)
   assert.deepEqual(after.traits, before.traits)
-  assert.deepEqual(after.coursesByStage, before.coursesByStage)
+  // v11 folded the old course totals into the nine subjects; this pig never studied.
+  assert.deepEqual(after.lessons, {})
+  assert.equal(after.coursesByStage, undefined)
   assert.deepEqual(after.dress, before.dress)
   assert.equal(after.souvenirs.length, before.souvenirs.length)
   assert.ok(Number.isInteger(after.seed), 'and it gets a random seed of its own')

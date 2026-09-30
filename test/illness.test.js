@@ -65,7 +65,7 @@ test('the pig does not fall ill while it is out', () => {
 
 test('three outings in a row with no rest count as overwork; an hour at home resets it', () => {
   const pig = wellPig()
-  for (let i = 0; i < ILLNESS_ONSET.overworkStreak; i += 1) finishWork(pig, { kind: 'work', key: 'odd' }, T0)
+  for (let i = 0; i < ILLNESS_ONSET.overworkStreak; i += 1) finishWork(pig, { kind: 'work', key: 'bricks' }, T0)
   assert.equal(pig.outingStreak, 3)
   finishStudy(pig, { kind: 'study', key: 'chinese', stage: 'primary' }, T0)
   assert.equal(pig.outingStreak, 4)

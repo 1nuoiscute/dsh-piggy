@@ -34,7 +34,7 @@ export function reset(nowMs) {
  * grown. Losing a pig is only ever an accident now (there is no old age), and
  * the revive item is the way to keep the one you have.
  */
-export const INHERITED = ['traits', 'courses', 'coursesByStage', 'lessonsByStage', 'souvenirs']
+export const INHERITED = ['traits', 'lessons', 'interests', 'souvenirs']
 
 export function inherit(oldState, fresh, nowMs) {
   if (oldState === null) return fresh

@@ -77,6 +77,9 @@ export const LINES = Object.freeze({
   study: Object.freeze([
     Object.freeze({ text: '今天学到好多！', replies: praise }),
   ]),
+  graduate: Object.freeze([
+    Object.freeze({ text: '我毕业啦！我没有留级！', replies: praise }),
+  ]),
   idle: Object.freeze([
     Object.freeze({ text: '[主人]在忙什么呀？' }),
     Object.freeze({ text: '（打了个哈欠）' }),

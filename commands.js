@@ -7,7 +7,7 @@
  */
 
 import { ACTIONS, JOBS, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRAIT_ORDER, TRIPS, buy, feed, hatch } from './core.js'
-import { INTERESTS, jobByKey } from './data.js'
+import { INTERESTS, jobByKey, stageForNextLesson } from './data.js'
 import { renderAbout, renderAction, renderBuy, renderHatch, renderNoPig, renderStatus, renderStudyReport, renderTooSoon, renderTripReport, renderUse, renderWeigh, renderWorkRefusal, renderWorkReport } from './render.js'
 
 const str = value => (typeof value === 'string' ? value : '')
@@ -64,13 +64,14 @@ export function dispatch(store, commandName, rawInput) {
 
     case 'study': {
       if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
-      const [subjectArg = '', stageArg = SCHOOL_STAGES[0].key] = argument.trim().split(/\s+/)
+      // B4: a subject's stage follows from its lesson count, so only the subject is named.
+      const [subjectArg = ''] = argument.trim().split(/\s+/)
       const subject = SUBJECTS.find(s => s.key === subjectArg || s.label === subjectArg)
-      const stage = SCHOOL_STAGES.find(s => s.key === stageArg || s.label === stageArg)
-      if (subject === undefined || stage === undefined) {
-        return { kind: 'error', text: `用法：/${commandName} study <科目> <学段>\n学段：${SCHOOL_STAGES.map(s => s.label).join(' · ')}\n科目：${SUBJECTS.map(s => s.label).join(' · ')}` }
+      if (subject === undefined) {
+        return { kind: 'error', text: `用法：/${commandName} study <科目>\n科目：${SUBJECTS.map(s => s.label).join(' · ')}` }
       }
-      const result = store.startStudy(subject.key, stage.key)
+      const stage = stageForNextLesson(state.lessons?.[subject.key] ?? 0)
+      const result = store.startStudy(subject.key)
       if (!result.ok) return { kind: 'success', text: renderWorkRefusal(state, refusalText(result, state)) }
       return { kind: 'success', text: renderStudyReport(store.freshen(), Date.now(), subject, stage) }
     }

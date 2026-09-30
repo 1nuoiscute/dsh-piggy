@@ -283,8 +283,11 @@ export function createPanel(ctx) {
           if (ctx.view.stages[st].key === ctx.stage) studyStage = ctx.view.stages[st]
         }
         var studyOpen = ctx.view.canGoOut && (studyStage === null || studyStage.unlocked !== false)
+        // B4: no stage ladder any more, so "a course to take" is simply one the
+        // pig can afford (older hosts still send stages, handled above).
         var hasCourse = studyOpen && ctx.view.subjects.some(function (subject) {
-          return studyStage === null || studyStage.subjects.length === 0 || studyStage.subjects.indexOf(subject.key) >= 0
+          var onStage = studyStage === null || studyStage.subjects.length === 0 || studyStage.subjects.indexOf(subject.key) >= 0
+          return onStage && subject.affordable
         })
         ctx.icons.study.setAttribute('data-alert', hasCourse ? 'true' : 'false')
         ctx.icons.shop.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.illness !== null ? 'true' : 'false')
