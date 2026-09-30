@@ -204,6 +204,7 @@ export function normalize(raw) {
       // 家当 fields: a dress item is owned (not counted) or waits for a level.
       level: typeof obj(item).level === 'number' ? obj(item).level : null,
       owned: obj(item).owned === true,
+      worn: obj(item).worn === true,
       unlocked: obj(item).unlocked !== false,
       blurb: str(obj(item).blurb, ''),
       affordable: obj(item).affordable === true,

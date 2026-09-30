@@ -363,7 +363,8 @@
         } else {
           cell.appendChild(el("span", "dp-cell-p", item.price + " \u{1FA99}"));
         }
-        if (item.count > 0) cell.appendChild(el("b", "dp-cell-c", "\xD7" + item.count));
+        var owned = num(ui.view.inventory[item.key], 0);
+        if (owned > 0) cell.appendChild(el("b", "dp-cell-c", "\xD7" + owned));
         if (item.needed) cell.appendChild(el("b", "dp-cell-tag", "\u9700\u8981"));
         if (item.owned && item.worn) cell.appendChild(el("b", "dp-cell-tag", "\u7A7F\u7740"));
         list.appendChild(cell);
@@ -1231,6 +1232,7 @@
             return;
           }
           var reasons = {
+            box: "\u5148\u628A\u7EB8\u76D2\u62C6\u5F00",
             cooldown: "\u8FD8\u8981\u7B49 " + num(next.wait, 0) + " \u79D2",
             poor: "\u94B1\u4E0D\u591F",
             away: "\u5B83\u5728\u5916\u9762",
@@ -1527,6 +1529,7 @@
         // 家当 fields: a dress item is owned (not counted) or waits for a level.
         level: typeof obj(item).level === "number" ? obj(item).level : null,
         owned: obj(item).owned === true,
+        worn: obj(item).worn === true,
         unlocked: obj(item).unlocked !== false,
         blurb: str(obj(item).blurb, ""),
         affordable: obj(item).affordable === true,
@@ -1668,12 +1671,18 @@
         var sick = el("div", "dp-alert dp-sick");
         sick.appendChild(el("b", null, "\u{1F912} " + ctx.view.pig.illness.name + "\uFF08\u7B2C " + ctx.view.pig.illness.stage + "/4 \u671F\uFF09"));
         sick.appendChild(el("div", null, "\u9700\u8981\u300C" + ctx.view.pig.illness.cure + "\u300D\u2014\u2014 \u53BB\u5546\u5E97\u4E70\u5BF9\u5E94\u7684\u836F"));
+        var needed = null;
         var cures = (ctx.view.shop || []).filter(function(i) {
           return i.kind === "medicine";
         });
-        var cheapest = cures.length === 0 ? null : cures.reduce(function(a, b) {
-          return a.price <= b.price ? a : b;
-        });
+        for (var c = 0; c < cures.length; c += 1) {
+          if (cures[c].tier === ctx.view.pig.illness.stage) needed = cures[c];
+        }
+        if (needed === null) {
+          for (var n = 0; n < cures.length; n += 1) {
+            if (cures[n].label === ctx.view.pig.illness.cure) needed = cures[n];
+          }
+        }
         if (ctx.view.canGoOut) {
           sick.appendChild(el(
             "div",
@@ -1681,11 +1690,11 @@
             "\u5E26\u75C5\u4E5F\u80FD\u51FA\u95E8\uFF0C\u4F46\u62A5\u916C\u53EA\u6709\u4E00\u534A\uFF1B\u5728\u5916\u9762\u75C5\u60C5\u4F1A\u8D70\u5F97\u66F4\u5FEB\uFF0C\u8EBA\u7740\u517B\u6700\u7701"
           ));
         }
-        if (cheapest !== null && ctx.view.canGoOut && ctx.view.pig.coins < cheapest.price) {
+        if (needed !== null && ctx.view.canGoOut && ctx.view.pig.coins < needed.price) {
           sick.appendChild(el(
             "div",
             "dp-dim",
-            "\u94B1\u4E0D\u591F\u4E5F\u6CA1\u5173\u7CFB \u2014\u2014 \u5148\u53BB\u6253\u5DE5\uFF0C\u8D5A\u591F " + cheapest.price + " \u{1FA99} \u4E70\u300C" + cheapest.label + "\u300D"
+            "\u94B1\u4E0D\u591F\u4E5F\u6CA1\u5173\u7CFB \u2014\u2014 \u5148\u53BB\u6253\u5DE5\uFF0C\u8D5A\u591F " + needed.price + " \u{1FA99} \u4E70\u300C" + needed.label + "\u300D"
           ));
         }
         ctx.content.appendChild(sick);
@@ -1729,7 +1738,7 @@
       ctx.view = normalize(next);
       ctx.host.setAttribute("data-dead", ctx.view.dead ? "true" : "false");
       ctx.host.setAttribute("data-open", ctx.isOpen ? "true" : "false");
-      ctx.host.setAttribute("data-dev", "false");
+      ctx.host.setAttribute("data-dev", ctx.devMode ? "true" : "false");
       ctx.host.setAttribute("data-away", ctx.view.activity === null ? "false" : ctx.view.activity.kind);
       if (ctx.view.activity === null) {
         ctx.work.hidden = true;
@@ -1797,7 +1806,15 @@
         }
         ctx.lastStage = pigStage.key;
       }
-      ctx.icons.study.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.illness === null && ctx.view.activity === null && ctx.view.pig.satiety < 25 ? "false" : "false");
+      var studyStage = null;
+      for (var st = 0; st < ctx.view.stages.length; st += 1) {
+        if (ctx.view.stages[st].key === ctx.stage) studyStage = ctx.view.stages[st];
+      }
+      var studyOpen = ctx.view.canGoOut && (studyStage === null || studyStage.unlocked !== false);
+      var hasCourse = studyOpen && ctx.view.subjects.some(function(subject) {
+        return studyStage === null || studyStage.subjects.length === 0 || studyStage.subjects.indexOf(subject.key) >= 0;
+      });
+      ctx.icons.study.setAttribute("data-alert", hasCourse ? "true" : "false");
       ctx.icons.shop.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.illness !== null ? "true" : "false");
       ctx.icons.travel.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? "true" : "false");
       for (var i = 0; i < ctx.view.pending.length; i += 1) {

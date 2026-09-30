@@ -577,6 +577,73 @@ test('the shop icon flags itself when the pig is sick', async () => {
 })
 
 // ===========================================================================
+// #10 — fields the panel silently dropped
+// ===========================================================================
+
+test('a worn dress says so in the shop', async () => {
+  const scarf = {
+    key: 'scarf', label: '围巾', emoji: '🧣', price: 30, kind: 'dress', tier: null, level: 1,
+    owned: true, unlocked: true, worn: true, blurb: '', affordable: false, needed: false,
+  }
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, shop: [scarf] } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+  assert.ok(contentOf(dom).allText().includes('穿着'), contentOf(dom).allText())
+})
+
+test('the shop shows how many of a consumable the pig already has', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+  // The snapshot has no per-shelf count: the inventory map is the real source.
+  assert.ok(contentOf(dom).allText().includes('×2'), contentOf(dom).allText())
+})
+
+test('a render does not wipe the developer-mode highlight', async () => {
+  const { registration, dom, store } = await loadClient()
+  store.set('dsh-pig:dev', '1')
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(hostOf(dom).attributes['data-dev'], 'true')
+  openPanel(dom)
+  // Any action ends in render(); it used to hard-code data-dev back to "false".
+  findByAttr(contentOf(dom), 'data-action', 'pet').fire('click')
+  await settle()
+  assert.equal(hostOf(dom).attributes['data-dev'], 'true', 'dev mode survived a render')
+})
+
+test('the study icon lights up when there is a course to take', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(findByAttr(barOf(dom), 'data-tab', 'study').attributes['data-alert'], 'true')
+})
+
+test('the sick pig is told the medicine it actually needs, not the cheapest one', async () => {
+  const shop = [
+    { key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', tier: 1, affordable: true, needed: false },
+    { key: 'med2', label: '特效药', emoji: '💊', price: 26, kind: 'medicine', tier: 2, affordable: true, needed: true },
+  ]
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      shop,
+      pig: { ...PIG, coins: 5, illness: { name: '发烧', cure: '退烧药', stage: 2 } },
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('特效药'), `expected the tier-2 medicine in: ${text}`)
+  assert.ok(!text.includes('普通药'), `the cheapest medicine is the wrong one: ${text}`)
+})
+
+// ===========================================================================
 // Per-tab content
 // ===========================================================================
 
@@ -1068,7 +1135,7 @@ test('a sick pig with no money is told it can still go out and earn', async () =
     status: {
       ...SNAPSHOT,
       canGoOut: true,
-      shop: [{ key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', affordable: true }],
+      shop: [{ key: 'med1', label: '普通药', emoji: '💊', price: 12, kind: 'medicine', tier: 1, affordable: true }],
       pig: { ...PIG, coins: 3, illness: { name: '感冒', cure: '板蓝根', stage: 1 } },
     },
   })

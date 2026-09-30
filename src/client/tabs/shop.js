@@ -8,6 +8,7 @@
 
 import { KIND_ORDER, KIND_TITLE } from '../constants.js'
 import { button, el } from '../dom.js'
+import { num } from '../values.js'
 
 export function renderShopTab(ui) {
   if (ui.view.shop.length === 0) {
@@ -51,7 +52,10 @@ export function renderShopTab(ui) {
       } else {
         cell.appendChild(el('span', 'dp-cell-p', item.price + ' 🪙'))
       }
-      if (item.count > 0) cell.appendChild(el('b', 'dp-cell-c', '×' + item.count))
+      // The shop listing has no count of its own; the inventory map is where
+      // "how many do I have" actually lives (same source as the bag tab).
+      var owned = num(ui.view.inventory[item.key], 0)
+      if (owned > 0) cell.appendChild(el('b', 'dp-cell-c', '×' + owned))
       if (item.needed) cell.appendChild(el('b', 'dp-cell-tag', '需要'))
       if (item.owned && item.worn) cell.appendChild(el('b', 'dp-cell-tag', '穿着'))
       list.appendChild(cell)

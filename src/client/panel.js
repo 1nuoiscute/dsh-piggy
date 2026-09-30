@@ -101,15 +101,27 @@ export function createPanel(ctx) {
           // not a reason to stay home, so it can go out and earn the medicine.
           // careView only carries the consumable shelves (feed/bathe/play), so
           // the price has to come from the shop listing.
+          // The cure that matters is the one for this stage, not the cheapest
+          // medicine on the shelf: naming the wrong drug sent people shopping
+          // for something that cannot cure what the pig has (#10).
+          var needed = null
           var cures = (ctx.view.shop || []).filter(function (i) { return i.kind === 'medicine' })
-          var cheapest = cures.length === 0 ? null : cures.reduce(function (a, b) { return a.price <= b.price ? a : b })
+          for (var c = 0; c < cures.length; c += 1) {
+            if (cures[c].tier === ctx.view.pig.illness.stage) needed = cures[c]
+          }
+          // Hosts that do not tier their medicine yet: match the cure by name.
+          if (needed === null) {
+            for (var n = 0; n < cures.length; n += 1) {
+              if (cures[n].label === ctx.view.pig.illness.cure) needed = cures[n]
+            }
+          }
           if (ctx.view.canGoOut) {
             sick.appendChild(el('div', 'dp-dim',
               '带病也能出门，但报酬只有一半；在外面病情会走得更快，躺着养最省'))
           }
-          if (cheapest !== null && ctx.view.canGoOut && ctx.view.pig.coins < cheapest.price) {
+          if (needed !== null && ctx.view.canGoOut && ctx.view.pig.coins < needed.price) {
             sick.appendChild(el('div', 'dp-dim',
-              '钱不够也没关系 —— 先去打工，赚够 ' + cheapest.price + ' 🪙 买「' + cheapest.label + '」'))
+              '钱不够也没关系 —— 先去打工，赚够 ' + needed.price + ' 🪙 买「' + needed.label + '」'))
           }
           ctx.content.appendChild(sick)
         } else if (ctx.view.pig !== null && ctx.view.activity !== null) {
@@ -154,7 +166,7 @@ export function createPanel(ctx) {
         ctx.view = normalize(next)
         ctx.host.setAttribute('data-dead', ctx.view.dead ? 'true' : 'false')
         ctx.host.setAttribute('data-open', ctx.isOpen ? 'true' : 'false')
-      ctx.host.setAttribute('data-dev', 'false')
+        ctx.host.setAttribute('data-dev', ctx.devMode ? 'true' : 'false')
         // Drives both the prop and the pig's own activity animation.
         ctx.host.setAttribute('data-away', ctx.view.activity === null ? 'false' : ctx.view.activity.kind)
         if (ctx.view.activity === null) {
@@ -236,7 +248,17 @@ export function createPanel(ctx) {
         }
 
         // Alerts on the icon bar itself, so a collapsed pig still warns.
-        ctx.icons.study.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.illness === null && ctx.view.activity === null && ctx.view.pig.satiety < 25 ? 'false' : 'false')
+        // The study icon lights when there is a course to take right now:
+        // idle, the stage on screen is unlocked, and it still has a subject.
+        var studyStage = null
+        for (var st = 0; st < ctx.view.stages.length; st += 1) {
+          if (ctx.view.stages[st].key === ctx.stage) studyStage = ctx.view.stages[st]
+        }
+        var studyOpen = ctx.view.canGoOut && (studyStage === null || studyStage.unlocked !== false)
+        var hasCourse = studyOpen && ctx.view.subjects.some(function (subject) {
+          return studyStage === null || studyStage.subjects.length === 0 || studyStage.subjects.indexOf(subject.key) >= 0
+        })
+        ctx.icons.study.setAttribute('data-alert', hasCourse ? 'true' : 'false')
         ctx.icons.shop.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.illness !== null ? 'true' : 'false')
         ctx.icons.travel.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? 'true' : 'false')
 
