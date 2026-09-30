@@ -680,7 +680,6 @@ test('a job behind a trait gate says what it needs instead of just greying out',
       jobs: [
         { key: 'odd', label: '打零工', emoji: '🧹', minutes: 15, coins: 30, available: true, qualified: true, lockText: '', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 0, baseMinutes: 15, baseCoins: 30, payPercent: 0, speedPercent: 0 },
         { key: 'tutor', label: '家教', emoji: '📚', minutes: 120, coins: 480, available: true, qualified: false, lockText: '🧠 智力 10（你现在 0）', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 0, baseMinutes: 120, baseCoins: 480, payPercent: 0, speedPercent: 0 },
-        { key: 'street', label: '街头卖艺', emoji: '🎤', minutes: 48, coins: 240, available: true, qualified: true, lockText: '', reliefNote: '🎤 才艺 抵扣了 8 点门槛', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 0, baseMinutes: 60, baseCoins: 200, payPercent: 20, speedPercent: 20 },
       ],
     },
   })
@@ -692,37 +691,59 @@ test('a job behind a trait gate says what it needs instead of just greying out',
   const text = contentOf(dom).allText()
   assert.ok(text.includes('🔒 需要 🧠 智力 10（你现在 0）'), text)
   assert.ok(text.includes('去「学习」上课就能涨这些属性'), text)
-  assert.ok(text.includes('🎤 才艺 抵扣了 8 点门槛'), 'a discounted gate must say why the number is smaller')
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'tutor').disabled, true)
   assert.ok(findByAttr(contentOf(dom), 'data-job', 'tutor').allText().includes('没资格'))
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
-  assert.equal(findByAttr(contentOf(dom), 'data-job', 'street').disabled, false, 'the discount opened it')
 })
 
-test('the status tab lists the four interest skills', async () => {
-  const { registration, dom } = await loadClient({
+test('interest courses live in the study tab, not in a new stat panel', async () => {
+  const { registration, dom, net } = await loadClient({
     status: {
       ...SNAPSHOT,
-      skills: [
-        { key: 'stamina', label: '体力', emoji: '💪', source: '足球', level: 2, percent: 10, perLevelPercent: 5, capPercent: 25, blurb: '体力活时长 −5%/级', active: true },
-        { key: 'talent', label: '才艺', emoji: '🎤', source: '钢琴', level: 4, percent: 20, perLevelPercent: 5, capPercent: 25, blurb: '魅力类报酬 +5%/级', active: true },
-        { key: 'taste', label: '审美', emoji: '🖼', source: '画画', level: 0, percent: 0, perLevelPercent: 10, capPercent: 50, blurb: '旅行心情 +10%/级', active: false },
-        { key: 'wits', label: '头脑', emoji: '♟', source: '围棋', level: 0, percent: 0, perLevelPercent: 5, capPercent: 25, blurb: '上课时长 −5%/级', active: false },
+      interests: [
+        { key: 'photography', label: '摄影', emoji: '📷', traitLabel: '魅力', traitEmoji: '✨', minutes: 30, cost: 40, gain: 2, blurb: '会拍照的猪', times: 0, available: true, affordable: true },
+        { key: 'coding', label: '编程', emoji: '💻', traitLabel: '智力', traitEmoji: '🧠', minutes: 60, cost: 80, gain: 2, blurb: '学会让别的猪干活', times: 0, available: true, affordable: false },
+        { key: 'fitness', label: '健身', emoji: '🏋', traitLabel: '武力', traitEmoji: '💪', minutes: 30, cost: 35, gain: 2, blurb: '举得动更重的东西', times: 3, available: true, affordable: true },
       ],
     },
   })
   registration.factory(() => {}).apply({})
   await settle()
   openPanel(dom)
-  pickTab(dom, 'status')
+  pickTab(dom, 'study')
 
   const text = contentOf(dom).allText()
-  assert.ok(text.includes('🎯 本事'), text)
-  assert.ok(text.includes('才艺 Lv.4'), text)
-  assert.ok(text.includes('+20%'), text)
-  assert.ok(text.includes('还没练'), 'a skill at level 0 says so instead of showing +0%')
-  assert.ok(text.includes('上足球课升级'), text)
-  assert.ok(!text.includes('undefined'), text)
+  assert.ok(text.includes('🎯 兴趣'), text)
+  assert.ok(text.includes('摄影'), text)
+  assert.ok(text.includes('智力 +2'), text)
+  assert.ok(text.includes('学过 3 次'), 'a repeatable course shows how often it has been taken')
+  // 兴趣 pays into the three existing traits — no new bars, no percentages.
+  pickTab(dom, 'status')
+  const status = contentOf(dom).allText()
+  assert.ok(!status.includes('本事'), status)
+  assert.ok(!status.includes('Lv.0'), status)
+  assert.ok(!status.includes('undefined'), status)
+
+  pickTab(dom, 'study')
+  findByAttr(contentOf(dom), 'data-interest', 'fitness').fire('click')
+  await settle()
+  await settle()
+  const post = net.calls.find(call => call.method === 'POST')
+  assert.deepEqual(JSON.parse(post.body), { action: 'interest', interest: 'fitness' })
+})
+
+test('the time-scale switch is developer-only', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'status')
+  assert.equal(findByAttr(contentOf(dom), 'data-scale', '12'), undefined, 'a normal user must not see it')
+
+  // And the only thing that renders it is the developer flag — a static guard,
+  // because the fake DOM cannot dispatch the Ctrl+Shift+D listener.
+  const source = await readSource()
+  assert.match(source, /if \(devMode\) \{[\s\S]{0,600}data-scale/, 'the ×1/×12/×30/×60 row must sit behind devMode')
 })
 
 test('an older host with no job gates does not lock the whole board', async () => {

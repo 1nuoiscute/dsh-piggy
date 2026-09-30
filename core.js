@@ -45,7 +45,6 @@ import {
   SCHOOL_STAGES,
   SHOP,
   SICK_RISK_MINUTES,
-  SKILLS,
   SLEEPY_AFTER_MINUTES,
   SOUVENIR_RARITY,
   STAGE_HEALTH,
@@ -55,6 +54,8 @@ import {
   TRAIT_ORDER,
   TRIPS,
   illnessAt,
+  interestByKey,
+  INTERESTS,
   itemByKey,
   jobByKey,
   jobRequirement,
@@ -67,7 +68,6 @@ import {
   stageSubjectKeys,
   stageUnlocked,
   subjectByKey,
-  skillByKey,
   tripByKey,
 } from './data.js'
 
@@ -452,6 +452,8 @@ export function layEgg(nowMs) {
     // names (语文 is taught in 小学/中学/高中), so "how many lessons" cannot say
     // whether this stage's course list is complete — this can.
     coursesByStage: {},
+    // 兴趣课修读次数（不是属性，只是记录学了几次）。
+    interests: {},
     // Finished lessons per school stage, kept as the running total for the
     // panel and for saves written before the per-subject table existed.
     lessonsByStage: { preschool: 0, extracurricular: 0, primary: 0, middle: 0, high: 0, college: 0, graduate: 0 },
@@ -469,7 +471,7 @@ export function layEgg(nowMs) {
       turns: 0, messages: 0, tools: 0, toolErrors: 0, agentErrors: 0,
       levelUps: 0, feeds: 0, baths: 0, plays: 0, pets: 0,
       jobs: 0, coinsEarned: 0, purchases: 0, illnesses: 0, cures: 0, deaths: 0, revives: 0,
-      courses: 0, lessons: 0, trips: 0, sales: 0,
+      courses: 0, lessons: 0, trips: 0, sales: 0, interests: 0,
     },
   }
 }
@@ -522,6 +524,7 @@ export function migrate(raw) {
   state.courses = sanitizeCourses(raw.courses)
   state.lessonsByStage = sanitizeLessonsByStage(raw.lessonsByStage, raw.courses)
   state.coursesByStage = sanitizeCoursesByStage(raw.coursesByStage, state.lessonsByStage)
+  state.interests = sanitizeInterests(raw.interests)
   state.souvenirs = sanitizeSouvenirs(raw.souvenirs)
   state.pending = []
   state.memories = Array.isArray(raw.memories)
@@ -707,6 +710,18 @@ function sanitizeDressList(raw) {
   return out
 }
 
+/** How many times each 兴趣课 has been taken; unknown keys are dropped. */
+function sanitizeInterests(raw) {
+  const source = asObject(raw)
+  if (source === null) return {}
+  const out = {}
+  for (const entry of INTERESTS) {
+    const value = source[entry.key]
+    if (Number.isFinite(value) && value > 0) out[entry.key] = Math.floor(value)
+  }
+  return out
+}
+
 function sanitizeIllness(raw) {
   const source = asObject(raw)
   if (source === null) return null
@@ -851,31 +866,17 @@ export function courseView(state) {
 }
 
 /**
- * The pig's four 兴趣技能 levels.
+/**
+ * 兴趣课的修读次数, per interest key.
  *
- * A skill is not stored: its level is how many times the pig has taken the
- * matching 课外 course, so the whole feature rides on the lesson table — and
- * repeating a course is exactly how you level the skill up.
- *
- * @param {{coursesByStage?: Record<string, Record<string, number>>}|null} state
- * @returns {Record<string, number>} level per skill key, always all four.
+ * The point of 兴趣 is that it feeds an *existing* trait (智力/魅力/武力) — it
+ * is not a fourth axis, so there is nothing else to track.
  */
-export function skillLevels(state) {
-  const extracurricular = state?.coursesByStage?.extracurricular ?? {}
+export function interestView(state) {
   const out = {}
-  for (const skill of SKILLS) out[skill.key] = extracurricular[skill.from] ?? 0
+  for (const entry of INTERESTS) out[entry.key] = state.interests?.[entry.key] ?? 0
   return out
 }
-
-/** The capped bonus one skill currently gives, as a fraction (0.15 = +15%). */
-export function skillBonusFrom(levels, skillKey) {
-  const skill = skillByKey(skillKey)
-  if (skill === null) return 0
-  return Math.min(skill.per * (levels?.[skillKey] ?? 0), skill.cap)
-}
-
-/** Convenience: the current bonus straight from a state. */
-export const skillBonus = (state, skillKey) => skillBonusFrom(skillLevels(state), skillKey)
 
 export function currentIllness(state) {
   if (state.illness === null || state.illness === undefined) return null
@@ -985,7 +986,24 @@ function finishActivity(state, nowMs) {
   state.lastActiveAt = nowMs
   if (activity.kind === 'work') finishWork(state, activity, nowMs)
   else if (activity.kind === 'study') finishStudy(state, activity, nowMs)
+  else if (activity.kind === 'interest') finishInterest(state, activity, nowMs)
   else if (activity.kind === 'trip') finishTrip(state, activity, nowMs)
+}
+
+function finishInterest(state, activity, nowMs) {
+  const interest = interestByKey(activity.key)
+  if (interest === null) return
+  // Straight into the same three traits the school ladder feeds.
+  state.traits = { ...(state.traits ?? {}) }
+  state.traits[interest.trait] = (state.traits[interest.trait] ?? 0) + interest.gain
+  state.interests = { ...(state.interests ?? {}) }
+  state.interests[interest.key] = (state.interests[interest.key] ?? 0) + 1
+  state.satiety = clamp100(state.satiety - 4)
+  state.happiness = clamp100(state.happiness + 3)
+  state.stats.interests = (state.stats.interests ?? 0) + 1
+  applyEffects(state, { xp: interest.xp }, nowMs)
+  remember(state, `${interest.emoji} 学完${interest.label}，${TRAITS[interest.trait].label} +${interest.gain}`, nowMs)
+  announce(state, 'study', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`)
 }
 
 function finishWork(state, activity, nowMs) {
@@ -998,9 +1016,7 @@ function finishWork(state, activity, nowMs) {
   // Trait bonus first, then the sick penalty: going to school should still be
   // worth it while the pig is under the weather.
   const points = state.traits?.[job.trait] ?? 0
-  // 才艺 pays on top of the trait bonus, but only for the jobs that perform.
-  const talent = job.trait === 'charm' ? 1 + skillBonus(state, 'talent') : 1
-  const withTrait = job.coins * traitBonus(job.trait, points).pay * talent
+  const withTrait = job.coins * traitBonus(job.trait, points).pay
   const coins = sick ? Math.max(1, Math.round(withTrait * SICK_PAY_MULTIPLIER)) : Math.round(withTrait)
   state.coins += coins
   state.satiety = clamp100(state.satiety + job.satiety)
@@ -1053,9 +1069,7 @@ function finishTrip(state, activity, nowMs) {
     rarity: pick.rarity, story: pick.story,
     from: trip.key, fromLabel: trip.label,
   }]
-  // 审美（画画练出来的）makes the pig enjoy the trip more, not just look at it.
-  const taste = 1 + skillBonus(state, 'taste')
-  state.happiness = clamp100(state.happiness + Math.round(trip.happiness * taste))
+  state.happiness = clamp100(state.happiness + trip.happiness)
   state.satiety = clamp100(state.satiety + trip.satiety)
   state.stats.trips += 1
   applyEffects(state, { xp: trip.xp }, nowMs)
@@ -1311,10 +1325,8 @@ export function startWork(state, jobKey, nowMs) {
   if (state.activity !== null) return { ok: false, reason: 'away' }
   if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
   // The gate is checked before the pig walks out: an unqualified job is refused
-  // with the exact axes it is short on, so the panel can point at 学习. Interest
-  // skills can pay part of a threshold (才艺 → 街头卖艺, 头脑 → 家教).
-  const skills = skillLevels(state)
-  const gate = jobRequirement(job, state.traits, skills)
+  // with the exact axes it is short on, so the panel can point at 学习.
+  const gate = jobRequirement(job, state.traits)
   if (gate !== null && !gate.ok) {
     return { ok: false, reason: 'underqualified', missing: gate.missing, job: job.key }
   }
@@ -1322,9 +1334,7 @@ export function startWork(state, jobKey, nowMs) {
   // The pig's trait shortens the shift; the pay bonus is applied on the way out.
   const points = state.traits?.[job.trait] ?? 0
   const bonus = traitBonus(job.trait, points)
-  // 体力 only helps the jobs that are actually physical.
-  const stamina = job.heavy === true ? 1 - skillBonusFrom(skills, 'stamina') : 1
-  const minutes = Math.max(1, Math.round(job.minutes * bonus.minutes * stamina))
+  const minutes = Math.max(1, Math.round(job.minutes * bonus.minutes))
   const result = begin(state, {
     kind: 'work', key: job.key, label: job.label, emoji: job.emoji, minutes, cost: 0,
     trait: job.trait ?? null,
@@ -1356,18 +1366,45 @@ export function startStudy(state, subjectKey, stageKey, nowMs) {
   if (state.satiety < 15) return { ok: false, reason: 'hungry' }
 
   state.coins -= stage.tuition
-  // 头脑（围棋练出来的）makes every lesson shorter, whichever stage it is.
-  const minutes = Math.max(1, Math.round(stage.minutes * (1 - skillBonus(state, 'wits'))))
   const result = begin(state, {
     kind: 'study', key: subject.key, stage: stage.key,
     label: `${stage.label}${subject.label}`, emoji: subject.emoji,
-    minutes, cost: stage.tuition,
+    minutes: stage.minutes, cost: stage.tuition,
   }, nowMs)
   if (!result.ok) {
     state.coins += stage.tuition // refund if the pig turned out to be unavailable
     return result
   }
   remember(state, `${subject.emoji} 去上${stage.label}${subject.label}（学费 ${stage.tuition}）`, nowMs)
+  return result
+}
+
+/**
+ * 兴趣课 — like 上课, but outside the school ladder and repeatable.
+ *
+ * It pays into the same three traits (智力/魅力/武力); there is no separate
+ * skill stat, because a skill stat would just be a second name for those three.
+ */
+export function startInterest(state, interestKey, nowMs) {
+  const interest = interestByKey(interestKey)
+  if (interest === null) return { ok: false, reason: 'unknown' }
+  if (state.dead) return { ok: false, reason: 'dead' }
+  if (state.activity !== null) return { ok: false, reason: 'away' }
+  if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
+  if (state.coins < interest.cost) return { ok: false, reason: 'poor', price: interest.cost }
+  if (state.satiety < 15) return { ok: false, reason: 'hungry' }
+
+  state.coins -= interest.cost
+  const result = begin(state, {
+    kind: 'interest', key: interest.key,
+    label: `兴趣·${interest.label}`, emoji: interest.emoji,
+    minutes: interest.minutes, cost: interest.cost,
+  }, nowMs)
+  if (!result.ok) {
+    state.coins += interest.cost
+    return result
+  }
+  remember(state, `${interest.emoji} 去学${interest.label}（花了 ${interest.cost} 金币）`, nowMs)
   return result
 }
 

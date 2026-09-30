@@ -207,9 +207,6 @@ window.__ModuleLoader__.load({
           // "qualified" — the opposite default would lock every job on upgrade.
           qualified: obj(job).qualified !== false,
           lockText: str(obj(job).lockText, ''),
-          // An interest skill that paid part of the gate: shown, or the reduced
-          // threshold looks like a bug.
-          reliefNote: str(obj(job).reliefNote, ''),
         })).filter(job => job.key !== ''),
         subjects: arr(d.subjects).map(sub => ({
           key: str(obj(sub).key, ''),
@@ -223,20 +220,21 @@ window.__ModuleLoader__.load({
           stages: arr(obj(sub).stages).filter(key => typeof key === 'string'),
           available: obj(sub).available === true,
         })).filter(sub => sub.key !== ''),
-        // The four interest skills. An old host sends none, and the panel then
-        // simply shows no 本事 block rather than an empty one.
-        skills: arr(d.skills).map(skill => ({
-          key: str(obj(skill).key, ''),
-          label: str(obj(skill).label, '本事'),
-          emoji: str(obj(skill).emoji, '✨'),
-          source: str(obj(skill).source, ''),
-          level: num(obj(skill).level, 0),
-          percent: num(obj(skill).percent, 0),
-          perLevelPercent: num(obj(skill).perLevelPercent, 0),
-          capPercent: num(obj(skill).capPercent, 0),
-          blurb: str(obj(skill).blurb, ''),
-          active: obj(skill).active === true,
-        })).filter(skill => skill.key !== ''),
+        // 兴趣课：学习页里随时能学的一栏，学完加的是既有的三条属性。
+        interests: arr(d.interests).map(entry => ({
+          key: str(obj(entry).key, ''),
+          label: str(obj(entry).label, '兴趣'),
+          emoji: str(obj(entry).emoji, '🎯'),
+          traitLabel: str(obj(entry).traitLabel, ''),
+          traitEmoji: str(obj(entry).traitEmoji, ''),
+          minutes: num(obj(entry).minutes, 0),
+          cost: num(obj(entry).cost, 0),
+          gain: num(obj(entry).gain, 0),
+          blurb: str(obj(entry).blurb, ''),
+          times: num(obj(entry).times, 0),
+          available: obj(entry).available === true,
+          affordable: obj(entry).affordable === true,
+        })).filter(entry => entry.key !== ''),
         stages: arr(d.stages).map(stage => ({
           key: str(obj(stage).key, ''),
           label: str(obj(stage).label, '学段'),
@@ -1285,20 +1283,6 @@ window.__ModuleLoader__.load({
         traits.appendChild(el('span', null, '💪 武力 ' + p.traits.strong))
         content.appendChild(traits)
 
-        // 兴趣技能 are passive and invisible unless the panel says them out loud.
-        if (view.skills.length > 0) {
-          content.appendChild(el('div', 'dp-empty', '🎯 本事（课外课练出来的）'))
-          for (var sk = 0; sk < view.skills.length; sk += 1) {
-            (function (skill) {
-              var row = el('div', 'dp-row')
-              row.appendChild(el('span', null, skill.emoji + ' ' + skill.label + ' Lv.' + skill.level))
-              row.appendChild(el('b', null, skill.percent > 0 ? '+' + skill.percent + '%' : '还没练'))
-              content.appendChild(row)
-              content.appendChild(el('div', 'dp-empty', skill.blurb + ' · 上' + skill.source + '课升级'))
-            })(view.skills[sk])
-          }
-        }
-
         var info = el('div', 'dp-row')
         info.appendChild(el('span', null, '⚖️ 体重 ' + p.weight))
         info.appendChild(el('b', null, '🪙 ' + p.coins))
@@ -1320,16 +1304,19 @@ window.__ModuleLoader__.load({
           content.appendChild(el('div', 'dp-empty',
             '再过 ' + formatDays(p.daysToNextStage) + ' 就长成下一阶段了'))
         }
-        // Time scale: ×1 is real months, which is a long wait for the ending.
-        var scaleWrap = el('div', 'dp-dev-row')
-        scaleWrap.appendChild(el('span', 'dp-dim', '时间倍率 ×' + view.timeScale))
-        ;[1, 12, 30, 60].forEach(function (m) {
-          var b = button('dp-mini dp-dev-btn' + (view.timeScale === m ? ' dp-on' : ''), { 'data-scale': String(m) },
-            function () { send('timeScale', { scale: m }) })
-          b.textContent = '×' + m
-          scaleWrap.appendChild(b)
-        })
-        content.appendChild(scaleWrap)
+        // 时间倍率是调试用的，只在开发者模式（Ctrl+Shift+D）里出现 —— 用户不需要
+        // 为了「猪长得慢」去点这个。
+        if (devMode) {
+          var scaleWrap = el('div', 'dp-dev-row')
+          scaleWrap.appendChild(el('span', 'dp-dim', '时间倍率 ×' + view.timeScale))
+          ;[1, 12, 30, 60].forEach(function (m) {
+            var b = button('dp-mini dp-dev-btn' + (view.timeScale === m ? ' dp-on' : ''), { 'data-scale': String(m) },
+              function () { send('timeScale', { scale: m }) })
+            b.textContent = '×' + m
+            scaleWrap.appendChild(b)
+          })
+          content.appendChild(scaleWrap)
+        }
 
         var grid = el('div', 'dp-actions')
         for (var i = 0; i < MODES.length; i += 1) {
@@ -1487,6 +1474,36 @@ window.__ModuleLoader__.load({
           })(view.subjects[i])
         }
         content.appendChild(grid)
+
+        // ---- 兴趣：不按学段排队，随时能学，加的是同三条属性 ----
+        if (view.interests.length > 0) {
+          var ihead = el('div', 'dp-title')
+          ihead.style.marginTop = '10px'
+          ihead.appendChild(el('b', null, '🎯 兴趣'))
+          content.appendChild(ihead)
+          content.appendChild(el('div', 'dp-empty', '不用解锁，想学就学；学一次直接加属性，可以反复学。'))
+          var ilist = el('div', 'dp-list')
+          for (var n = 0; n < view.interests.length; n += 1) {
+            (function (entry) {
+              var row = el('div', 'dp-item')
+              row.appendChild(el('span', null, entry.emoji))
+              var grow = el('div', 'dp-grow')
+              grow.appendChild(el('div', null, entry.label))
+              grow.appendChild(el('div', 'dp-dim', entry.minutes + ' 分钟 · ' + entry.cost + ' 🪙 · '
+                + entry.traitEmoji + entry.traitLabel + ' +' + entry.gain
+                + (entry.times > 0 ? ' · 学过 ' + entry.times + ' 次' : '')))
+              row.appendChild(grow)
+              var go = button('dp-mini', { 'data-interest': entry.key }, function () {
+                send('interest', { interest: entry.key })
+              })
+              go.textContent = entry.times > 0 ? '再学' : '去学'
+              go.disabled = !view.canGoOut || !entry.affordable
+              row.appendChild(go)
+              ilist.appendChild(row)
+            })(view.interests[n])
+          }
+          content.appendChild(ilist)
+        }
       }
 
       function workTab() {
@@ -1511,9 +1528,6 @@ window.__ModuleLoader__.load({
             var byTrait = job.traitEmoji + job.traitLabel + ' ' + job.traitPoints
               + (job.payPercent > 0 ? ' · 报酬 +' + job.payPercent + '%' : ' · 去上课就能涨')
             grow.appendChild(el('div', 'dp-dim', byTrait))
-            // An interest skill that quietly paid part of the gate must say so,
-            // or the reduced number looks like a bug.
-            if (job.reliefNote) grow.appendChild(el('div', 'dp-dim', job.reliefNote))
             // A gate with no reason on screen is a bug report waiting to happen.
             var locked = job.qualified === false
             if (locked) {

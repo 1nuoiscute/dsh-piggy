@@ -37,6 +37,7 @@ import {
   rename as coreRename,
   sellSouvenir as coreSellSouvenir,
   startStudy as coreStartStudy,
+  startInterest as coreStartInterest,
   startTrip as coreStartTrip,
   startWork as coreStartWork,
   useItem as coreUseItem,
@@ -158,6 +159,9 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
 
     /** Send the pig to class. */
     startStudy: (subjectKey, stageKey) => mutate(live => coreStartStudy(live, subjectKey, stageKey, now())),
+
+    /** Send the pig to an 兴趣课. */
+    startInterest: interestKey => mutate(live => coreStartInterest(live, interestKey, now())),
 
     /** Send the pig travelling. */
     startTrip: tripKey => mutate(live => coreStartTrip(live, tripKey, now())),

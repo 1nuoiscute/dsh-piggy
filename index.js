@@ -44,12 +44,11 @@ import {
   levelProgress,
   lifeStageFor,
   mood,
-  skillBonusFrom,
-  skillLevels,
+  interestView,
   studyView,
   traitView,
 } from './core.js'
-import { jobByKey, jobRequirement, rarityByKey, skillByKey, SKILLS, stageSubjectKeys, traitBonus } from './data.js'
+import { INTERESTS, jobByKey, jobRequirement, rarityByKey, stageSubjectKeys, traitBonus } from './data.js'
 import {
   renderAbout,
   renderAction,
@@ -124,6 +123,7 @@ const OPERATIONS = {
   pet: store => store.act('pet'),
   work: (store, body) => store.startWork(str(body.job)),
   study: (store, body) => store.startStudy(str(body.subject), str(body.stage)),
+  interest: (store, body) => store.startInterest(str(body.interest)),
   trip: (store, body) => store.startTrip(str(body.trip)),
   calloff: store => store.callOffActivity(),
   buy: (store, body) => store.buy(str(body.item)),
@@ -304,7 +304,7 @@ export function snapshot(store, options = {}) {
       actions: actionsFor(null, nowMs),
       jobs: jobsFor(null),
       subjects: subjectsFor(null),
-      skills: skillsFor(null),
+      interests: interestsFor(null),
       stages: SCHOOL_STAGES.map(stage => ({ ...stage })),
       trips: tripsFor(null),
       shop: shopFor(null),
@@ -365,7 +365,7 @@ export function snapshot(store, options = {}) {
     actions: actionsFor(state, nowMs),
     jobs: jobsFor(state),
     subjects: subjectsFor(state),
-    skills: skillsFor(state),
+    interests: interestsFor(state),
     stages: studyView(state),
     trips: tripsFor(state),
     shop: shopFor(state),
@@ -410,72 +410,51 @@ function actionsFor(state, nowMs) {
 function jobsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
   const traits = state?.traits ?? {}
-  const levels = state === null ? {} : skillLevels(state)
-  // 体力 only discounts the physical jobs; 才艺 only raises the performing ones.
-  const stamina = job => (job.heavy === true ? 1 - skillBonusFrom(levels, 'stamina') : 1)
-  const talent = job => (job.trait === 'charm' ? 1 + skillBonusFrom(levels, 'talent') : 1)
   return JOBS.map(job => {
     // Jobs lean on a trait and lessons raise it, so the panel has to show what
     // the pig's schooling is actually buying it.
     const points = state === null ? 0 : (traits[job.trait] ?? 0)
     const bonus = traitBonus(job.trait, points)
     // A locked job must say exactly what it wants, or the gate reads as a bug.
-    // Interest skills already paid into the threshold, so the numbers shown are
-    // the ones the pig actually has to clear.
-    const gate = jobRequirement(job, traits, levels)
+    const gate = jobRequirement(job, traits)
     const missing = gate === null ? [] : gate.missing.slice()
-    const relief = gate === null ? 0 : gate.relief
-    const reliefSkill = job.relief === undefined ? null : skillByKey(job.relief.skill)
-    const speed = bonus.minutes * stamina(job)
-    const pay = bonus.pay * talent(job)
     return {
       key: job.key, label: job.label, emoji: job.emoji,
       trait: job.trait,
       traitLabel: TRAITS[job.trait].label,
       traitEmoji: TRAITS[job.trait].emoji,
       traitPoints: points,
-      minutes: Math.max(1, Math.round(job.minutes * speed)),
+      minutes: Math.max(1, Math.round(job.minutes * bonus.minutes)),
       baseMinutes: job.minutes,
-      coins: Math.round(job.coins * pay),
+      coins: Math.round(job.coins * bonus.pay),
       baseCoins: job.coins,
-      payPercent: Math.round((pay - 1) * 100),
-      speedPercent: Math.round((1 - speed) * 100),
+      payPercent: Math.round((bonus.pay - 1) * 100),
+      speedPercent: Math.round((1 - bonus.minutes) * 100),
       satiety: job.satiety,
-      heavy: job.heavy === true,
       available: open,
       // `available` is "the pig is home"; `qualified` is "the pig has the traits".
       qualified: gate === null ? true : gate.ok,
       missing,
       lockText: missing.map(entry => `${entry.emoji} ${entry.label} ${entry.need}（你现在 ${entry.have}）`).join('、'),
-      reliefNote: relief > 0 && reliefSkill !== null
-        ? `${reliefSkill.emoji} ${reliefSkill.label} 抵扣了 ${relief} 点门槛`
-        : '',
     }
   })
 }
 
 /**
- * The four 兴趣技能, with the level and the bonus they currently give.
- *
- * The client shows all four even at level 0: a skill the player cannot see is a
- * skill they will never train.
+ * 兴趣课：学习页里的一栏，随时能学，学完直接加 智力/魅力/武力。
+ * 面板把四门都列出来（没学过的显示 0 次），不然玩家不知道有这些选项。
  */
-function skillsFor(state) {
-  const levels = state === null ? {} : skillLevels(state)
-  return SKILLS.map(skill => {
-    const level = levels[skill.key] ?? 0
-    const value = Math.min(skill.per * level, skill.cap)
-    return {
-      key: skill.key, label: skill.label, emoji: skill.emoji,
-      from: skill.from, source: skill.source,
-      level,
-      percent: Math.round(value * 100),
-      perLevelPercent: Math.round(skill.per * 100),
-      capPercent: Math.round(skill.cap * 100),
-      blurb: skill.blurb,
-      active: level > 0,
-    }
-  })
+function interestsFor(state) {
+  const open = state !== null && awayBlockedReason(state) === null
+  const counts = state === null ? {} : interestView(state)
+  return INTERESTS.map(entry => ({
+    key: entry.key, label: entry.label, emoji: entry.emoji,
+    trait: entry.trait, traitLabel: TRAITS[entry.trait].label, traitEmoji: TRAITS[entry.trait].emoji,
+    minutes: entry.minutes, cost: entry.cost, gain: entry.gain, blurb: entry.blurb,
+    times: counts[entry.key] ?? 0,
+    available: open,
+    affordable: state === null ? false : state.coins >= entry.cost,
+  }))
 }
 
 function subjectsFor(state) {

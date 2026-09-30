@@ -54,8 +54,7 @@ import {
   levelFor,
   rename,
   sellSouvenir,
-  skillBonus,
-  skillLevels,
+  startInterest,
   startStudy,
   studyView,
   startTrip,
@@ -65,7 +64,7 @@ import {
   wear,
   workSecondsLeft,
 } from '../core.js'
-import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, medicineForStage, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
+import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, interestByKey, INTERESTS, medicineForStage, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
 
 const T0 = 1_700_000_000_000
 const MIN = 60_000
@@ -1000,120 +999,64 @@ test('study is refused when broke, away, sick or dead', () => {
 })
 
 // ===========================================================================
-// Interest skills — the 课外 courses, worn as passives
+// 兴趣 — 学习页里可选的课，加的是既有的三条属性
 // ===========================================================================
 
-test('a skill level is the 课外 course count, not a field of its own', () => {
+test('an interest lesson pays straight into one of the three traits', () => {
+  const cases = [['photography', 'charm'], ['coding', 'intel'], ['dancing', 'charm'], ['fitness', 'strong']]
+  for (const [key, trait] of cases) {
+    const pig = hatchEgg(T0)
+    pig.coins = 5000
+    const interest = INTERESTS.find(entry => entry.key === key)
+    assert.equal(startInterest(pig, key, T0).ok, true)
+    assert.equal(pig.coins, 5000 - interest.cost, 'the fee is taken up front')
+    assert.equal(pig.activity.kind, 'interest')
+    decay(pig, pig.activity.endsAt)
+    assert.equal(pig.traits[trait], interest.gain, `${interest.label} should feed ${trait}`)
+    for (const other of ['intel', 'charm', 'strong']) {
+      if (other !== trait) assert.equal(pig.traits[other], 0, `${interest.label} must not feed ${other}`)
+    }
+    assert.equal(pig.interests[key], 1)
+  }
+})
+
+test('interests are repeatable and outside the school ladder', () => {
   const pig = hatchEgg(T0)
   pig.coins = 5000
-  assert.deepEqual(skillLevels(pig), { stamina: 0, talent: 0, taste: 0, wits: 0 })
-  creditStage(pig, 'preschool')
+  // A brand-new pig may take one immediately: no stage gate, no tuition ladder.
   let clock = T0
-  for (let i = 0; i < 2; i += 1) {
+  for (let i = 0; i < 3; i += 1) {
     pig.satiety = 100
-    assert.equal(startStudy(pig, 'football', 'extracurricular', clock).ok, true)
-    clock += (SCHOOL_STAGES[1].minutes + 1) * MIN
+    assert.equal(startInterest(pig, 'fitness', clock).ok, true)
+    clock += (interestByKey('fitness').minutes + 1) * MIN
     decay(pig, clock)
   }
-  assert.equal(skillLevels(pig).stamina, 2, 'two 足球 lessons = 体力 Lv.2')
-  assert.equal(skillBonus(pig, 'stamina'), 0.1)
-  // The effect is capped, the level is not.
-  pig.coursesByStage.extracurricular.football = 40
-  assert.equal(skillLevels(pig).stamina, 40)
-  assert.equal(skillBonus(pig, 'stamina'), 0.25, 'capped at +25%')
+  assert.equal(pig.interests.fitness, 3)
+  assert.equal(pig.traits.strong, interestByKey('fitness').gain * 3)
+  assert.equal(pig.stats.interests, 3)
 })
 
-test('体力 shortens the physical jobs and leaves the others alone', () => {
-  const site = JOBS.find(job => job.key === 'site')
-  const build = (football) => {
-    const pig = hatchEgg(T0)
-    pig.traits = { intel: 0, charm: 0, strong: 8 }
-    pig.coursesByStage = football > 0 ? { extracurricular: { football } } : {}
-    assert.equal(startWork(pig, 'site', T0).ok, true)
-    return pig.activity.minutes
-  }
-  const plain = build(0)
-  const skilled = build(3)
-  // 强 8 already shortens the shift; 体力 Lv.3 takes another 15% off on top.
-  assert.equal(plain, Math.round(site.minutes * (1 - 0.32)))
-  assert.equal(skilled, Math.round(site.minutes * (1 - 0.32) * 0.85))
-  assert.ok(skilled < plain)
+test('an interest is refused when broke, away or unknown, and spends nothing', () => {
+  const poor = hatchEgg(T0)
+  poor.coins = 1
+  assert.equal(startInterest(poor, 'coding', T0).reason, 'poor')
+  assert.equal(poor.coins, 1)
 
-  // 打零工 is not physical work, so 体力 must not touch it.
-  const odd = (football) => {
-    const pig = hatchEgg(T0)
-    pig.coursesByStage = football > 0 ? { extracurricular: { football } } : {}
-    startWork(pig, 'odd', T0)
-    return pig.activity.minutes
-  }
-  assert.equal(odd(4), odd(0))
+  const away = hatchEgg(T0)
+  away.coins = 500
+  assert.equal(startInterest(away, 'photography', T0).ok, true)
+  assert.equal(startInterest(away, 'dancing', T0).reason, 'away')
+
+  assert.equal(startInterest(hatchEgg(T0), 'underwater-basket-weaving', T0).reason, 'unknown')
+
+  const dead = hatchEgg(T0)
+  dead.dead = true
+  assert.equal(startInterest(dead, 'fitness', T0).reason, 'dead')
 })
 
-test('才艺 raises pay on the performing jobs only', () => {
-  const run = (jobKey, piano) => {
-    const pig = hatchEgg(T0)
-    pig.coins = 0
-    pig.traits = { intel: 0, charm: 0, strong: 8 }
-    pig.coursesByStage = piano > 0 ? { extracurricular: { piano } } : {}
-    assert.equal(startWork(pig, jobKey, T0).ok, true)
-    decay(pig, pig.activity.endsAt)
-    return pig.coins
-  }
-  const plain = run('odd', 0)
-  const skilled = run('odd', 4)
-  assert.equal(plain, JOBS.find(job => job.key === 'odd').coins)
-  assert.equal(skilled, Math.round(plain * 1.2), '才艺 Lv.4 = +20%')
-  // 搬砖 pays for muscle, so a piano player earns exactly the same.
-  assert.equal(run('site', 4), run('site', 0))
-})
-
-test('头脑 shortens every lesson', () => {
-  const build = (go) => {
-    const pig = hatchEgg(T0)
-    pig.coins = 5000
-    pig.coursesByStage = go > 0 ? { extracurricular: { go } } : {}
-    assert.equal(startStudy(pig, 'sing', 'preschool', T0).ok, true)
-    return pig.activity.minutes
-  }
-  const preschool = SCHOOL_STAGES[0]
-  assert.equal(build(0), preschool.minutes)
-  assert.equal(build(4), Math.round(preschool.minutes * 0.8), '头脑 Lv.4 = −20%')
-})
-
-test('审美 makes a trip lift the mood more', () => {
-  const run = (painting) => {
-    const pig = hatchEgg(T0)
-    pig.coins = 5000
-    pig.happiness = 50
-    pig.coursesByStage = painting > 0 ? { extracurricular: { painting } } : {}
-    assert.equal(startTrip(pig, 'suburb', T0).ok, true)
-    decay(pig, pig.activity.endsAt)
-    return pig.happiness
-  }
-  const plain = run(0)
-  const tasty = run(5)
-  assert.equal(tasty - plain, Math.round(TRIPS[0].happiness * 1.5) - TRIPS[0].happiness, '审美 Lv.5 = +50%')
-})
-
-test('才艺 pays part of the 街头卖艺 gate, 头脑 part of the 家教 gate', () => {
-  const fresh = hatchEgg(T0)
-  assert.equal(startWork(fresh, 'street', T0).reason, 'underqualified')
-
-  const performer = hatchEgg(T0)
-  // 才艺 Lv.4 = 8 points of relief, which covers 街头卖艺's charm 8 exactly.
-  performer.coursesByStage = { extracurricular: { piano: 4 } }
-  assert.equal(startWork(performer, 'street', T0).ok, true)
-
-  const scholar = hatchEgg(T0)
-  scholar.coursesByStage = { extracurricular: { go: 5 } }
-  assert.equal(startWork(scholar, 'tutor', T0).ok, true, '头脑 Lv.5 covers 家教\'s 智力 10')
-
-  // One level short, and the refusal reports the *reduced* threshold.
-  const nearly = hatchEgg(T0)
-  nearly.coursesByStage = { extracurricular: { go: 4 } }
-  const refusal = startWork(nearly, 'tutor', T0)
-  assert.equal(refusal.reason, 'underqualified')
-  assert.equal(refusal.missing[0].need, 2, '10 minus 8 of relief')
+test('兴趣 counts survive a save, and junk keys are dropped', () => {
+  const upgraded = migrate({ ...layEgg(T0), interests: { coding: 4, nope: 9, photography: 0 } })
+  assert.deepEqual(upgraded.interests, { coding: 4 })
 })
 
 // ===========================================================================
