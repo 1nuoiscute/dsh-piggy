@@ -133,18 +133,25 @@ function registerActRoute(webServer, store) {
       if (run === null) {
         return sendJson(res, 400, { error: `unknown action "${operation}"`, allowed: Object.keys(OPERATIONS) })
       }
-      const result = run(store, body)
-      sendJson(res, 200, {
-        ...snapshot(store),
-        ok: result.ok !== false,
-        reason: result.reason,
-        wait: result.wait,
-        price: result.price,
-        missing: result.missing,
-        sold: result.sold,
-        need: result.need,
-        have: result.have,
-      }, { 'cache-control': 'no-store' })
+      // A throwing operation must answer, not take the route down with it: an
+      // unhandled error here would leave the panel polling a dead handler.
+      try {
+        const result = run(store, body)
+        sendJson(res, 200, {
+          ...snapshot(store),
+          ok: result.ok !== false,
+          reason: result.reason,
+          wait: result.wait,
+          price: result.price,
+          missing: result.missing,
+          sold: result.sold,
+          need: result.need,
+          have: result.have,
+        }, { 'cache-control': 'no-store' })
+      } catch (error) {
+        console.warn(`[dsh-pig] action failed: action="${operation}" reason="${error instanceof Error ? error.message : String(error)}"`)
+        sendJson(res, 500, { ok: false, reason: 'error' })
+      }
     },
   })
 }

@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 
 import { apply, dispatch, snapshot } from '../index.js'
+import { registerRoutes } from '../routes.js'
 import { JOBS, SHOP, hatchEgg, layEgg } from '../core.js'
 import { DEFAULT_TOY } from '../data.js'
 
@@ -96,6 +97,38 @@ async function call(route, method, body) {
 // ===========================================================================
 // Registration
 // ===========================================================================
+
+test('an operation that throws answers 500 and names the action, instead of losing the route', async () => {
+  const routes = {}
+  const ctx = {
+    inject: (deps, fn) => {
+      if (deps.includes('webServer')) {
+        fn({ webServer: { register: route => { routes[route.path] = route; return () => {} } } })
+      }
+    },
+  }
+  const store = {
+    dev: () => { throw new Error('boom') },
+    freshen: () => null,
+    drainPending: () => [],
+  }
+  registerRoutes(ctx, store)
+
+  const warnings = []
+  const original = console.warn
+  console.warn = (...args) => warnings.push(args.map(String).join(' '))
+  let result
+  try {
+    result = await call(routes['/dsh-pig/act'], 'POST', { action: 'dev' })
+  } finally {
+    console.warn = original
+  }
+  const body = JSON.parse(result.text)
+  assert.equal(result.status, 500)
+  assert.equal(body.ok, false)
+  assert.equal(body.reason, 'error')
+  assert.ok(warnings.some(line => line.includes('dev')), `the log must name the action: ${warnings.join(' | ')}`)
+})
 
 test('the host registers both routes, the four diet events and the command', () => {
   const app = boot()
