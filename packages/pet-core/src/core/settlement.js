@@ -8,8 +8,9 @@
 
 import { DEFAULT_TIME_SCALE, GRAVE, ILLNESS_CHAINS, LIFESPAN_DAYS, MAX, REVIVE_ITEM, SELF_HEAL_CHANCE, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, SICK_RISK_MINUTES, STAGE_HEALTH, THRESHOLDS, TRAITS, illnessAt, illnessStageMs, interestByKey, jobByKey, nextIllness, rarityByKey, schoolStageByKey, subjectByKey, traitBonus, tripByKey } from '../data.js'
 import { ageDays, lifeStageFor } from './clock.js'
-import { AWAY_DECAY_MULTIPLIER, AWAY_FLOOR, CLEANLINESS_DECAY_PER_MIN, HAPPINESS_DECAY_PER_MIN, SATIETY_DECAY_PER_MIN } from './constants.js'
+import { AWAY_DECAY_MULTIPLIER, AWAY_FLOOR, CLEANLINESS_DECAY_PER_MIN, HAPPINESS_DECAY_PER_MIN, SATIETY_DECAY_PER_MIN, SETTLE_STEP_MS } from './constants.js'
 import { announce, applyEffects, clamp100, remember } from './effects.js'
+import { chance, rollerFor } from './random.js'
 
 /**
  * Let the pig go. Used by illness at the end of a chain and by old age.
@@ -36,96 +37,153 @@ export function currentIllness(state) {
 // The clock: decay, activity settlement, illness progression
 // ---------------------------------------------------------------------------
 
-export function decay(state, nowMs) {
-  const elapsedMs = Math.max(0, nowMs - (state.lastSeenAt ?? nowMs))
+/**
+ * Bring the pig up to `nowMs`, resolving everything that happened in between.
+ *
+ * The gap is cut into at most two stretches — away until the activity ends,
+ * then home — and each stretch is walked in steps of SETTLE_STEP_MS. That is
+ * what lets a long absence play out the way it would have live: a job that
+ * ended at 18:56 is paid (and stamped) at 18:56, the evening after it is time
+ * at home, and a bar that crosses a threshold at 3 a.m. starts its sickness
+ * risk at 3 a.m. rather than at whatever moment the panel was next opened.
+ *
+ * Randomness comes from the pig's own seed (see random.js); pass `roll` to pin
+ * the outcome, as the tests and dev mode do.
+ *
+ * @param {object} state
+ * @param {number} nowMs
+ * @param {{roll?: import('./random.js').Roll}} [options]
+ */
+export function decay(state, nowMs, options = {}) {
+  const fromMs = state.lastSeenAt ?? nowMs
   state.lastSeenAt = nowMs
-  if (elapsedMs <= 0) return state
-
-  const minutes = elapsedMs / 60000
-  // Read the away flag *before* settling: finishActivity clears `activity`, and
-  // everything below needs to know whether this stretch was spent out of the
-  // house. Getting this order wrong is what let a day trip come home sick.
-  const away = state.activity !== null
-  const speed = away ? AWAY_DECAY_MULTIPLIER : 1
-
-  // Settle whatever the pig was away doing before anything else, so its payout
-  // lands in the right order relative to decay.
-  if (state.activity !== null && nowMs >= state.activity.endsAt) finishActivity(state, nowMs)
-
-  if (state.dead) return state
-
-  /**
-   * Time passing, with one floor: an activity may not empty a bar on its own.
-   * A pig back from a day trip should be ravenous and filthy — a welcome-home
-   * meal and bath — not sitting at zero before you can even react to it.
-   * Going away never *raises* a bar either.
-   */
-  // Pig time: elapsed real time times the scale. The birthday is kept only so
-  // the panel can say when the pig arrived.
-  const scale = Number.isFinite(state.timeScale) && state.timeScale > 0
-    ? state.timeScale
-    : DEFAULT_TIME_SCALE
+  if (!(nowMs > fromMs) || state.dead === true) return state
+  const next = options.roll ?? rollerFor(state)
   if (typeof state.ageMs !== 'number' || !Number.isFinite(state.ageMs)) {
     // First tick after loading an old save: seed pig time from the birthday.
-    state.ageMs = typeof state.bornAt === 'number' ? Math.max(0, nowMs - state.bornAt) : 0
-  } else {
-    state.ageMs += elapsedMs * scale
+    state.ageMs = typeof state.bornAt === 'number' ? Math.max(0, fromMs - state.bornAt) : 0
   }
 
+  let cursor = fromMs
+  const activity = state.activity
+  if (activity !== null && activity !== undefined) {
+    const untilMs = Math.min(nowMs, Math.max(cursor, activity.endsAt))
+    passTime(state, { fromMs: cursor, toMs: untilMs, away: true }, next)
+    cursor = untilMs
+    // Settle at the moment it ended, not at the moment someone looked.
+    if (state.dead !== true && state.activity === activity && untilMs >= activity.endsAt) {
+      finishActivity(state, untilMs)
+    }
+  }
+  if (state.dead !== true) passTime(state, { fromMs: cursor, toMs: nowMs, away: false }, next)
+  return state
+}
+
+/**
+ * Walk one stretch, all of it either away or at home, in bounded steps.
+ * @param {object} state
+ * @param {{fromMs: number, toMs: number, away: boolean}} stretch
+ * @param {import('./random.js').Roll} next
+ */
+function passTime(state, stretch, next) {
+  let cursor = stretch.fromMs
+  while (cursor < stretch.toMs && state.dead !== true) {
+    const stepEnd = Math.min(stretch.toMs, cursor + SETTLE_STEP_MS)
+    step(state, { elapsedMs: stepEnd - cursor, atMs: stepEnd, away: stretch.away }, next)
+    cursor = stepEnd
+  }
+}
+
+/**
+ * One step of pig time: bars, sickness risk, illness, age.
+ * @param {object} state
+ * @param {{elapsedMs: number, atMs: number, away: boolean}} tick
+ * @param {import('./random.js').Roll} next
+ */
+function step(state, tick, next) {
+  const { elapsedMs, atMs, away } = tick
+  drainBars(state, elapsedMs / 60000, away)
+  trackSicknessRisk(state, elapsedMs / 60000, away, atMs)
+  progressIllness(state, elapsedMs, { away, atMs }, next)
+  if (state.dead !== true) growOlder(state, elapsedMs, atMs)
+}
+
+/**
+ * Time passing, with one floor: an activity may not empty a bar on its own.
+ * A pig back from a day trip should be ravenous and filthy — a welcome-home
+ * meal and bath — not sitting at zero before you can even react to it.
+ * Going away never *raises* a bar either.
+ */
+function drainBars(state, minutes, away) {
+  const speed = away ? AWAY_DECAY_MULTIPLIER : 1
   const drain = (value, perMinute) => {
-    const next = value - minutes * perMinute * speed
-    return away ? Math.max(next, Math.min(value, AWAY_FLOOR)) : next
+    const lowered = value - minutes * perMinute * speed
+    return away ? Math.max(lowered, Math.min(value, AWAY_FLOOR)) : lowered
   }
   state.satiety = clamp100(drain(state.satiety, SATIETY_DECAY_PER_MIN))
   state.happiness = clamp100(drain(state.happiness, HAPPINESS_DECAY_PER_MIN))
   state.cleanliness = clamp100(drain(state.cleanliness, CLEANLINESS_DECAY_PER_MIN))
+}
 
-  // Illness only comes from being left at home. A pig that was out living its
-  // life has not been neglected, and coming back sick every trip is not a game.
+/**
+ * Illness only comes from being left at home. A pig that was out living its
+ * life has not been neglected, and coming back sick every trip is not a game.
+ */
+function trackSicknessRisk(state, minutes, away, atMs) {
   if (away) {
     state.riskMinutes = 0
-  } else {
-    const neglected = state.satiety < THRESHOLDS.sickSatiety || state.cleanliness < THRESHOLDS.sickCleanliness
-    state.riskMinutes = neglected ? (state.riskMinutes ?? 0) + minutes : 0
-    if (state.illness === null && state.riskMinutes >= SICK_RISK_MINUTES) {
-      state.riskMinutes = 0
-      catchIllness(state, nowMs)
-    }
+    return
   }
-
-  // Illness advances on accumulated *effective* time, not wall clock: being out
-  // and about while ill runs it at SICK_AWAY_MULTIPLIER, so a day of work costs
-  // two days of illness and staying home is the cheap way to wait it out.
-  if (state.illness !== null) {
-    const rate = away ? SICK_AWAY_MULTIPLIER : 1
-    const gained = elapsedMs * rate
-    state.illness.progressMs = (state.illness.progressMs ?? 0) + gained
-    let guard = 0
-    while (state.illness !== null && guard < 16) {
-      // Each stage has its own length, so it has to be re-read after every step.
-      const stageMs = illnessStageMs(state.illness.stage)
-      if (state.illness.progressMs < stageMs) break
-      // Carry the excess into the next stage rather than dropping it.
-      const carried = state.illness.progressMs - stageMs
-      advanceIllness(state, nowMs)
-      if (state.illness !== null) state.illness.progressMs = carried
-      guard += 1
-    }
+  // Risk is about catching a *new* illness, so it only builds while healthy:
+  // otherwise a day of being ill and hungry would be banked and spent the very
+  // step the pig shook the first one off.
+  const neglected = state.satiety < THRESHOLDS.sickSatiety || state.cleanliness < THRESHOLDS.sickCleanliness
+  state.riskMinutes = neglected && state.illness === null ? (state.riskMinutes ?? 0) + minutes : 0
+  if (state.illness === null && state.riskMinutes >= SICK_RISK_MINUTES) {
+    state.riskMinutes = 0
+    catchIllness(state, atMs)
   }
+}
 
-  // Time does the growing now, not XP. Age passes whether or not anyone is
-  // watching, so a pig left alone comes back a day older.
-  if (state.dead !== true && state.hatched === true) {
-    const stage = lifeStageFor(state, nowMs)
-    if (state.stage !== stage.key) {
-      state.stage = stage.key
-      remember(state, `长成了${stage.label} ${stage.emoji}`, nowMs)
-      announce(state, 'stage', `${state.name} 长成了${stage.label} ${stage.emoji}`, nowMs)
-    }
-    if (ageDays(state, nowMs) >= LIFESPAN_DAYS) die(state, nowMs, '老了')
+/**
+ * Illness advances on accumulated *effective* time, not wall clock: being out
+ * and about while ill runs it at SICK_AWAY_MULTIPLIER, so a day of work costs
+ * two days of illness and staying home is the cheap way to wait it out.
+ */
+function progressIllness(state, elapsedMs, where, next) {
+  if (state.illness === null || state.illness === undefined) return
+  const rate = where.away ? SICK_AWAY_MULTIPLIER : 1
+  state.illness.progressMs = (state.illness.progressMs ?? 0) + elapsedMs * rate
+  let guard = 0
+  while (state.illness !== null && guard < 16) {
+    // Each stage has its own length, so it has to be re-read after every step.
+    const stageMs = illnessStageMs(state.illness.stage)
+    if (state.illness.progressMs < stageMs) break
+    // Carry the excess into the next stage rather than dropping it.
+    const carried = state.illness.progressMs - stageMs
+    advanceIllness(state, where.atMs, next)
+    if (state.illness !== null) state.illness.progressMs = carried
+    guard += 1
   }
+}
 
-  return state
+/**
+ * Pig time is elapsed real time times the scale; age passes whether or not
+ * anyone is watching, so a pig left alone comes back a day older.
+ */
+function growOlder(state, elapsedMs, atMs) {
+  const scale = Number.isFinite(state.timeScale) && state.timeScale > 0
+    ? state.timeScale
+    : DEFAULT_TIME_SCALE
+  state.ageMs += elapsedMs * scale
+  if (state.hatched !== true) return
+  const stage = lifeStageFor(state, atMs)
+  if (state.stage !== stage.key) {
+    state.stage = stage.key
+    remember(state, `长成了${stage.label} ${stage.emoji}`, atMs)
+    announce(state, 'stage', `${state.name} 长成了${stage.label} ${stage.emoji}`, atMs)
+  }
+  if (ageDays(state, atMs) >= LIFESPAN_DAYS) die(state, atMs, '老了')
 }
 
 export function finishActivity(state, nowMs) {
@@ -238,7 +296,12 @@ export function catchIllness(state, nowMs) {
   }
 }
 
-export function advanceIllness(state, nowMs) {
+/**
+ * @param {object} state
+ * @param {number} nowMs
+ * @param {import('./random.js').Roll} [next] - defaults to the pig's own seed.
+ */
+export function advanceIllness(state, nowMs, next = rollerFor(state)) {
   const chain = state.illness.chain
   const stage = state.illness.stage
   const worse = nextIllness(chain, stage)
@@ -246,7 +309,7 @@ export function advanceIllness(state, nowMs) {
   // Before it gets worse, it might just get better. An untreated cold shakes
   // itself off fairly often; the last stage never does.
   const healChance = SELF_HEAL_CHANCE[stage - 1] ?? 0
-  if (healChance > 0 && Math.random() < healChance) {
+  if (chance(next, healChance)) {
     state.illness = null
     state.health = Math.min(MAX.health, state.health + 1)
     remember(state, `自己好了，扛过去了 💚`, nowMs)

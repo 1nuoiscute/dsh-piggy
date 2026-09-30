@@ -72,9 +72,13 @@ import { LIFESPAN_DAYS, DEFAULT_TOY, DRESS_SLOTS, ILLNESS_CHAINS, illnessStageMs
 const T0 = 1_700_000_000_000
 const MIN = 60_000
 
-/** Push the clock forward by `minutes`, resolving everything that happens. */
-function advance(state, minutes) {
-  return decay(state, (state.lastSeenAt ?? T0) + minutes * MIN)
+/**
+ * Push the clock forward by `minutes`, resolving everything that happens.
+ * Illnesses never shake themselves off here unless a test asks for it, so
+ * nothing depends on which way a die happened to fall.
+ */
+function advance(state, minutes, roll = () => 0.99) {
+  return decay(state, (state.lastSeenAt ?? T0) + minutes * MIN, { roll })
 }
 
 /**
@@ -726,10 +730,8 @@ test('a sick pig earns half, but still earns', () => {
 })
 
 test('an untreated illness runs its stages in days, and can shake itself off', () => {
-  const real = Math.random
-  try {
     // --- it gets worse, one stage a day ---------------------------------
-    Math.random = () => 0.99 // never self-heal
+    const never = { roll: () => 0.99 } // never self-heal
     const pig = hatchEgg(T0)
     pig.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
     pig.health = 4
@@ -747,34 +749,29 @@ test('an untreated illness runs its stages in days, and can shake itself off', (
     // --- a day really is the unit ---------------------------------------
     const day = hatchEgg(T0)
     day.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
-    decay(day, T0 + 23 * 60 * 60000)
+    decay(day, T0 + 23 * 60 * 60000, never)
     assert.equal(day.illness.stage, 1, '23 hours is not a day')
 
     // --- an untreated cold really can just go away ----------------------
-    Math.random = () => 0.01 // always self-heal
+    const always = { roll: () => 0.01 } // always self-heal
     const lucky = hatchEgg(T0)
     lucky.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
     lucky.health = 4
-    decay(lucky, T0 + illnessStageMs(1) + 1000)
+    decay(lucky, T0 + illnessStageMs(1) + 1000, always)
     assert.equal(lucky.illness, null, 'it shrugged the cold off')
     assert.equal(lucky.health, 5, 'and got a little health back')
 
     // --- the last stage never heals on its own --------------------------
-    Math.random = () => 0.0001
     const terminal = hatchEgg(T0)
     terminal.illness = { chain: 0, stage: 4, since: T0, progressMs: 0 }
     terminal.health = 1
-    decay(terminal, T0 + illnessStageMs(4) + 1000)
+    decay(terminal, T0 + illnessStageMs(4) + 1000, always)
     assert.equal(terminal.dead, true, 'the last stage is fatal without medicine')
-  } finally {
-    Math.random = real
-  }
 })
 
 test('being out while ill runs the illness clock faster than resting', () => {
-  const real = Math.random
-  try {
-    Math.random = () => 0.99 // never self-heal, so only the rate differs
+  {
+    const never = { roll: () => 0.99 } // never self-heal, so only the rate differs
     const build = () => {
       const pig = hatchEgg(T0)
       pig.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
@@ -786,16 +783,14 @@ test('being out while ill runs the illness clock faster than resting', () => {
 
     // Half a day at home: still stage 1.
     const home = build()
-    decay(home, T0 + 12 * 60 * 60000)
+    decay(home, T0 + 12 * 60 * 60000, never)
     assert.equal(home.illness.stage, 1, 'resting is slow')
 
     // Half a day out, which counts double: a full stage.
     const out = build()
     out.activity = { kind: 'work', key: 'office', label: '上班', emoji: '💼', startedAt: T0, endsAt: T0 + 12 * 60 * 60000 }
-    decay(out, T0 + 12 * 60 * 60000)
+    decay(out, T0 + 12 * 60 * 60000, never)
     assert.equal(out.illness.stage, 2, 'a half day out is a whole day of illness')
-  } finally {
-    Math.random = real
   }
 })
 
@@ -1399,10 +1394,7 @@ test('display helpers', () => {
 })
 
 test('developer mode can force any state, but only valid ones', () => {
-  const real = Math.random
-  try {
-    Math.random = () => 0.99 // keep illnesses from self-healing mid-test
-
+  {
     const pig = hatchEgg(T0)
     // Numbers are clamped, so dev mode cannot produce a corrupt pig.
     applyDevPatch(pig, { satiety: 999, cleanliness: -50, health: 99, coins: -5 }, T0)
@@ -1433,8 +1425,6 @@ test('developer mode can force any state, but only valid ones', () => {
     before.satiety = 100
     applyDevPatch(before, { __advanceMs: 12 * 3600_000 }, T0)
     assert.ok(before.satiety < 100, 'time moved')
-  } finally {
-    Math.random = real
   }
 })
 

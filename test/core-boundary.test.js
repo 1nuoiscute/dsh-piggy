@@ -41,6 +41,7 @@ test('pet-core has no host-specific APIs: no IO, DOM, clock or randomness of its
     [/\bprocess\./, 'process'],
     [/Date\.now\(\)/, 'Date.now()'],
     [/new Date\(\)/, 'new Date()'],
+    [/Math\.random\(\)/, 'Math.random()'],
   ]
   const offenders = []
   for (const url of files) {

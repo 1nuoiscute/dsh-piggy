@@ -85,6 +85,13 @@ export const AWAY_FLOOR = 15
 export const DAY_MS = 86_400_000
 
 /**
+ * The longest single step decay() takes. Long absences are walked in steps of
+ * this size so thresholds are crossed when they really were; five minutes keeps
+ * a month offline under ten thousand cheap steps.
+ */
+export const SETTLE_STEP_MS = 5 * 60_000
+
+/**
  * Health at or below which the pig is too weak to leave the house. The scale is
  * 5 = full, and the four illness stages set it to 4/3/2/1, so 1 is the last
  * stage before it dies.
