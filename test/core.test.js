@@ -310,7 +310,7 @@ test('migrate drops unknown inventory keys and bad illness records', () => {
 // ===========================================================================
 
 test('passive events accumulate xp, satiety and weight', () => {
-  const pig = layEgg(T0)
+  const pig = hatchEgg(T0)
   feed(pig, 'turn', T0)
   // A turn is worth 2 after the rebalance; tool calls used to drown everything.
   assert.equal(pig.xp, 2)
@@ -489,7 +489,7 @@ test('the whole care loop is exposed in a stable order', () => {
 // ===========================================================================
 
 test('attributes decay with wall-clock time', () => {
-  const pig = layEgg(T0)
+  const pig = hatchEgg(T0)
   pig.satiety = 100
   pig.happiness = 100
   pig.cleanliness = 100
@@ -500,7 +500,7 @@ test('attributes decay with wall-clock time', () => {
 })
 
 test('decay never goes below zero', () => {
-  const pig = layEgg(T0)
+  const pig = hatchEgg(T0)
   pig.satiety = 5
   pig.happiness = 5
   pig.cleanliness = 5
@@ -1016,6 +1016,44 @@ test('an interest lesson pays straight into one of the three traits', () => {
     }
     assert.equal(pig.interests[key], 1)
   }
+})
+
+test('an unopened box cannot work, study, take a course, travel or be fed', () => {
+  // #2: the box is a state, not a pet. It used to accept every action, get sick
+  // and even die before anyone had opened it.
+  const box = layEgg(T0)
+  const cases = [
+    ['work', () => startWork(box, 'odd', T0)],
+    ['study', () => startStudy(box, 'chinese', 'primary', T0)],
+    ['interest', () => startInterest(box, 'coding', T0)],
+    ['trip', () => startTrip(box, 'suburb', T0)],
+    ['act', () => act(box, 'pet', T0)],
+  ]
+  for (const [what, run] of cases) {
+    assert.deepEqual(run(), { ok: false, reason: 'box' }, `${what} must be refused with reason box`)
+  }
+  assert.equal(box.activity, null, 'and nothing may start')
+})
+
+test('an unopened box waits without getting hungry, dirty, sick or older', () => {
+  const box = layEgg(T0)
+  const before = { satiety: box.satiety, happiness: box.happiness, cleanliness: box.cleanliness, health: box.health, ageMs: box.ageMs }
+  decay(box, T0 + 3 * 24 * 60 * MIN)
+  assert.equal(box.dead, false)
+  assert.equal(box.illness, null)
+  assert.deepEqual(
+    { satiety: box.satiety, happiness: box.happiness, cleanliness: box.cleanliness, health: box.health, ageMs: box.ageMs },
+    before,
+    'a box does not live, so nothing about it may drift',
+  )
+})
+
+test('real work only counts the stats while the pig is still a box', () => {
+  const box = layEgg(T0)
+  const before = { xp: box.xp, satiety: box.satiety, happiness: box.happiness, weightG: box.weightG }
+  feed(box, 'turn', T0)
+  assert.equal(box.stats.turns, 1, 'the work still happened')
+  assert.deepEqual({ xp: box.xp, satiety: box.satiety, happiness: box.happiness, weightG: box.weightG }, before, 'but the box does not eat')
 })
 
 test('an interest course survives a restart instead of vanishing with the fee', () => {

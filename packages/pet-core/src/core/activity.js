@@ -20,6 +20,7 @@ import { decay } from './settlement.js'
  */
 export function awayBlockedReason(state) {
   if (state === null) return 'absent'
+  if (state.hatched !== true) return 'box'
   if (state.dead) return 'dead'
   if (state.activity !== null) return 'away'
   if (state.health <= TOO_WEAK_HEALTH) return 'weak'

@@ -35,6 +35,7 @@ export function sellSouvenir(state, souvenirKey, nowMs) {
 }
 
 export function startTrip(state, tripKey, nowMs) {
+  if (state.hatched !== true) return { ok: false, reason: 'box' }
   const trip = tripByKey(tripKey)
   if (trip === null) return { ok: false, reason: 'unknown' }
   if (state.dead) return { ok: false, reason: 'dead' }

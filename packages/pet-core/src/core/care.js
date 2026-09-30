@@ -35,6 +35,8 @@ export function feed(state, event, nowMs) {
     case 'agentError': state.stats.agentErrors += 1; break
     default: break
   }
+  // The box does not eat: the work still counts in the stats, nothing else.
+  if (state.hatched !== true) return []
   return applyEffects(state, diet, nowMs)
 }
 
@@ -56,6 +58,7 @@ export function act(state, action, nowMs, itemKey) {
   const spec = ACTIONS[action]
   if (spec === undefined) return { ok: false, reason: 'unknown' }
   if (state === null) return { ok: false, reason: 'absent' }
+  if (state.hatched !== true) return { ok: false, reason: 'box' }
   decay(state, nowMs)
   if (state.dead) return { ok: false, reason: 'dead' }
   if (state.activity !== null && action !== 'pet') return { ok: false, reason: 'away' }

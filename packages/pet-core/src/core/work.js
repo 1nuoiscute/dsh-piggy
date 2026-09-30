@@ -14,6 +14,7 @@ import { remember } from './effects.js'
 export function startWork(state, jobKey, nowMs) {
   const job = jobByKey(jobKey)
   if (job === null) return { ok: false, reason: 'unknown' }
+  if (state.hatched !== true) return { ok: false, reason: 'box' }
   if (state.dead) return { ok: false, reason: 'dead' }
   if (state.activity !== null) return { ok: false, reason: 'away' }
   if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }

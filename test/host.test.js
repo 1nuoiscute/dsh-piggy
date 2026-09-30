@@ -694,6 +694,15 @@ test('the cordis patch names the package exactly as package.json does', async ()
   }
 })
 
+test('a box reports that it cannot go out, and says why', () => {
+  const now = Date.now()
+  const box = layEgg(now)
+  const store = { freshen: () => box, drainPending: () => {} }
+  const snap = snapshot(store, { drain: false })
+  assert.equal(snap.canGoOut, false)
+  assert.equal(snap.awayBlocked, 'box')
+})
+
 test('the souvenir shelf shows the whole collection, not just the last 40', () => {
   const now = Date.now()
   const pig = hatchEgg(now)

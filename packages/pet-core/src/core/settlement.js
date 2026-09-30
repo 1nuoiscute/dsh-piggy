@@ -57,6 +57,9 @@ export function currentIllness(state) {
 export function decay(state, nowMs, options = {}) {
   const fromMs = state.lastSeenAt ?? nowMs
   state.lastSeenAt = nowMs
+  // An unopened box is not a pet yet: it never gets hungry, dirty, sick or
+  // older, and it cannot die while it waits to be poked open (#2).
+  if (state.hatched !== true) return state
   if (!(nowMs > fromMs) || state.dead === true) return state
   const next = options.roll ?? rollerFor(state)
   if (typeof state.ageMs !== 'number' || !Number.isFinite(state.ageMs)) {

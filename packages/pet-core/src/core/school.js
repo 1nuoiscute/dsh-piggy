@@ -37,6 +37,7 @@ export function courseView(state) {
 }
 
 export function startStudy(state, subjectKey, stageKey, nowMs) {
+  if (state.hatched !== true) return { ok: false, reason: 'box' }
   const subject = subjectByKey(subjectKey)
   const stage = schoolStageByKey(stageKey)
   if (subject === null || stage === null) return { ok: false, reason: 'unknown' }

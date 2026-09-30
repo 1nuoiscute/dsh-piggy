@@ -33,6 +33,7 @@ export function interestView(state) {
 export function startInterest(state, interestKey, nowMs) {
   const interest = interestByKey(interestKey)
   if (interest === null) return { ok: false, reason: 'unknown' }
+  if (state.hatched !== true) return { ok: false, reason: 'box' }
   if (state.dead) return { ok: false, reason: 'dead' }
   if (state.activity !== null) return { ok: false, reason: 'away' }
   if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
