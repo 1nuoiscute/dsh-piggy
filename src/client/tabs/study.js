@@ -40,6 +40,7 @@ export function renderStudyTab(ui) {
       // do not fit in a 292px panel with a price glued to each.
       var btn = button(null, { 'data-stage': entry.key }, function () {
         ui.stage = entry.key
+        ui.stagePicked = true
         ui.renderContent()
       })
       // Locked is shown by the button's own dashed style, not a padlock in the
@@ -55,6 +56,7 @@ export function renderStudyTab(ui) {
   if (ui.view.interests.length > 0) {
     var interestBtn = button(null, { 'data-stage': INTEREST_TAB }, function () {
       ui.stage = INTEREST_TAB
+      ui.stagePicked = true
       ui.renderContent()
     })
     interestBtn.textContent = '🎯 兴趣'

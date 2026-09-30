@@ -96,6 +96,11 @@ function fakeDom() {
     get textContent() { return this._text }
     set textContent(value) {
       this._text = String(value)
+      // A real element replaces its child nodes when textContent is assigned —
+      // including the `= ''` every repaint starts with. Without this the fake
+      // DOM accumulated every previous render and stale nodes stayed findable.
+      for (const child of this.children) child.parentNode = null
+      this.children = []
       if (this._text === '') this.scrollTop = 0
     }
 
@@ -667,6 +672,36 @@ test('each @keyframes is defined once, and the pig idles in place', async () => 
   const idle = /@keyframes dp-bob\{([^}]*)\}/.exec(css)
   assert.notEqual(idle, null, 'the pig needs its idle bob')
   assert.ok(!/translateX/.test(idle[1]), 'the idle bob must not shift the pig sideways')
+})
+
+test('a stage the user picked survives the next poll', async () => {
+  // The panel used to yank the selection back to the first unlocked stage on
+  // every render, so picking a locked stage and scrolling down bounced you to
+  // 小学 four seconds later (user report).
+  const stages = STAGES.map(entry => (entry.key === 'college' ? { ...entry, unlocked: false } : entry))
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, stages } })
+
+  let poll = null
+  const realSetInterval = globalThis.window.setInterval
+  globalThis.window.setInterval = fn => { poll = fn; return 1 }
+  try {
+    registration.factory(() => {}).apply({})
+    await settle()
+    openPanel(dom)
+    pickTab(dom, 'study')
+    findByAttr(contentOf(dom), 'data-stage', 'college').fire('click')
+    assert.equal(findByAttr(contentOf(dom), 'data-stage', 'college').attributes['data-active'], 'true')
+
+    await poll()
+    await settle()
+    assert.equal(
+      findByAttr(contentOf(dom), 'data-stage', 'college').attributes['data-active'],
+      'true',
+      'a poll must not take the user\'s stage away',
+    )
+  } finally {
+    globalThis.window.setInterval = realSetInterval
+  }
 })
 
 // ===========================================================================

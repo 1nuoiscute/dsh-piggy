@@ -101,6 +101,8 @@ import { arr, num, obj, str } from './values.js'
       var view = normalize(null)
       var tab = 'status'
       var stage = 'primary'
+      // 用户自己点过学段之后，轮询就不许再替他改（B1 的「默认学段」只在没选过时生效）。
+      var stagePicked = false
       // Which souvenir's story card is open in the travel tab, if any.
       var souvenirPick = null
       // Which care action's item picker is open, if any.
@@ -118,6 +120,7 @@ import { arr, num, obj, str } from './values.js'
         get host() { return host }, set host(next) { host = next },
         get picker() { return picker }, set picker(next) { picker = next },
         get stage() { return stage }, set stage(next) { stage = next },
+        get stagePicked() { return stagePicked }, set stagePicked(next) { stagePicked = next },
         get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
         get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
         get workTrait() { return workTrait }, set workTrait(next) { workTrait = next },
@@ -171,6 +174,7 @@ import { arr, num, obj, str } from './values.js'
         get view() { return view }, set view(next) { view = next },
         get tab() { return tab }, set tab(next) { tab = next },
         get stage() { return stage }, set stage(next) { stage = next },
+        get stagePicked() { return stagePicked }, set stagePicked(next) { stagePicked = next },
         get picker() { return picker }, set picker(next) { picker = next },
         get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
         get isOpen() { return isOpen }, set isOpen(next) { isOpen = next },

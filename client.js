@@ -598,6 +598,7 @@
         var locked = detail2 !== null && detail2.unlocked === false;
         var btn = button(null, { "data-stage": entry.key }, function() {
           ui.stage = entry.key;
+          ui.stagePicked = true;
           ui.renderContent();
         });
         btn.textContent = entry.label;
@@ -609,6 +610,7 @@
     if (ui.view.interests.length > 0) {
       var interestBtn = button(null, { "data-stage": INTEREST_TAB }, function() {
         ui.stage = INTEREST_TAB;
+        ui.stagePicked = true;
         ui.renderContent();
       });
       interestBtn.textContent = "\u{1F3AF} \u5174\u8DA3";
@@ -2002,7 +2004,7 @@
         if (entry.unlocked !== false && firstOpen === null) firstOpen = entry.key;
         if (entry.key === ctx.stage) stageEntry = entry;
       }
-      if (ctx.stage !== "interest" && firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen;
+      if (!ctx.stagePicked && firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen;
       ctx.host.setAttribute("data-dead", ctx.view.dead ? "true" : "false");
       ctx.host.setAttribute("data-open", ctx.isOpen ? "true" : "false");
       ctx.host.setAttribute("data-dev", ctx.devMode ? "true" : "false");
@@ -2274,6 +2276,7 @@
         var view = normalize(null);
         var tab = "status";
         var stage = "primary";
+        var stagePicked = false;
         var souvenirPick = null;
         var picker = null;
         var ownerEdit = null;
@@ -2309,6 +2312,12 @@
           },
           set stage(next) {
             stage = next;
+          },
+          get stagePicked() {
+            return stagePicked;
+          },
+          set stagePicked(next) {
+            stagePicked = next;
           },
           get souvenirPick() {
             return souvenirPick;
@@ -2400,6 +2409,12 @@
           },
           set stage(next) {
             stage = next;
+          },
+          get stagePicked() {
+            return stagePicked;
+          },
+          set stagePicked(next) {
+            stagePicked = next;
           },
           get picker() {
             return picker;
