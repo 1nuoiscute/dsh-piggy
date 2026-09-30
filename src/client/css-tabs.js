@@ -71,7 +71,7 @@ export const CSS_TABS = [
   // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
   '.dp-daily{position:absolute;top:-6px;left:50%;transform:translateX(-50%);',
   'font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;',
-  'border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-card);',
+  'border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);',
   'box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-bob 2.4s var(--ac-ease) infinite}',
   '.dp-daily:hover{border-color:var(--ac-border-hover)}',
   '.dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',

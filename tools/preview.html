@@ -207,6 +207,13 @@
     },
     activity: null, canGoOut: true, awayBlocked: null, pending: [],
     reviveItem: 'soul', maxHealth: 5,
+    // B5 日常：默认停在「可以签到」的样子，方便看猪头上的 📅。
+    daily: { canSignIn: true, signInDay: 3, signInTotal: 2, cycle: 12, unclaimed: 2, onlineMinutes: 35 },
+    diary: [
+      { day: '2026-09-30', text: '今天吃了 2 顿，主人喂的，好饱。洗了 1 次澡，身上香香的。[主人]摸了我 4 次，我呼噜呼噜了一下午。[主人]今天敲了 43 轮代码，我在旁边看着。' },
+      { day: '2026-09-29', text: '出门打工 2 趟，赚了 120 金币！上了 1 节课，脑袋里又装进去一点东西。' },
+      { day: '2026-09-28', text: '今天主人没来，我睡了一整天。' },
+    ],
   }
 
   // Capture the self-registration instead of loading it as a DSH client plugin.
@@ -233,6 +240,12 @@
         scene.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
       }
       return host.getAttribute('data-open')
+    },
+    /** 把签到切成「已签、有礼包」，看猪头上的 🎁。 */
+    signInTaken() {
+      const snap = liveOrStub()
+      snap.daily = { ...snap.daily, canSignIn: false, signInTotal: 3 }
+      return snap.daily
     },
     /** Left click = a pat on the head. */
     pet() {
