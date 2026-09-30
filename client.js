@@ -219,7 +219,7 @@
         });
       })(kinds[s]);
     }
-    if (owned.length === 0) ui.content.appendChild(el("div", "dp-empty", "\u80CC\u5305\u7A7A\u7A7A\u7684 \u2014\u2014 \u53BB\u300C\u5546\u5E97\u300D\u4E70\u70B9\u4E1C\u897F\u3002"));
+    if (owned.length === 0) ui.content.appendChild(el("div", "dp-empty", "\u80CC\u5305\u7A7A\u7A7A\u7684\u3002"));
     var wornCount = 0;
     for (var w = 0; w < ui.view.dress.length; w += 1) if (ui.view.dress[w].worn) wornCount += 1;
     var ownedDress = ui.view.dress.filter(function(item) {
@@ -228,7 +228,7 @@
     if (ui.view.dress.length > 0) {
       section(ui, "bag:dress", "\u{1F455} \u5BB6\u5F53 " + wornCount + "/" + ui.view.dress.length + " \u7A7F\u7740\u4E2D", function(body) {
         if (ownedDress.length === 0) {
-          body.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u88C5\u626E \u2014\u2014 \u5546\u5E97\u300C\u88C5\u626E\u300D\u90A3\u4E00\u680F\uFF0C\u7B49\u7EA7\u591F\u4E86\u5C31\u80FD\u4E70\u3002"));
+          body.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u88C5\u626E\u3002"));
           return;
         }
         var list = el("div", "dp-list");
@@ -558,26 +558,30 @@
   }
   function talkRow(ui) {
     var row = el("div", "dp-row dp-talk");
-    if (ui.ownerEdit !== null) {
+    if (ui.ownerEdit !== null || ui.pigNameEdit !== null) {
+      var forPig = ui.pigNameEdit !== null;
       var input = (
         /** @type {HTMLInputElement} */
         el("input", "dp-input")
       );
-      input.value = ui.ownerEdit;
-      input.maxLength = 12;
-      input.setAttribute("data-owner-input", "true");
+      input.value = forPig ? ui.pigNameEdit : ui.ownerEdit;
+      input.maxLength = 16;
+      input.setAttribute(forPig ? "data-pig-input" : "data-owner-input", "true");
       input.addEventListener("input", function() {
-        ui.ownerEdit = input.value;
+        if (forPig) ui.pigNameEdit = input.value;
+        else ui.ownerEdit = input.value;
       });
-      var save = button("dp-mini", { "data-owner-save": "true" }, function() {
-        var name = (ui.ownerEdit || "").trim();
-        ui.ownerEdit = null;
-        if (name !== "") ui.send("owner", { name });
+      var save = button("dp-mini", { "data-name-save": forPig ? "pig" : "owner" }, function() {
+        var name = ((forPig ? ui.pigNameEdit : ui.ownerEdit) || "").trim();
+        if (forPig) ui.pigNameEdit = null;
+        else ui.ownerEdit = null;
+        if (name !== "") ui.send(forPig ? "name" : "owner", { name });
         ui.renderContent();
       });
       save.textContent = "\u597D";
-      var cancel = button("dp-mini dp-mini-plain", { "data-owner-cancel": "true" }, function() {
+      var cancel = button("dp-mini dp-mini-plain", { "data-name-cancel": "true" }, function() {
         ui.ownerEdit = null;
+        ui.pigNameEdit = null;
         ui.renderContent();
       });
       cancel.textContent = "\u7B97\u4E86";
@@ -586,18 +590,24 @@
       row.appendChild(cancel);
       return row;
     }
-    var who = el("span", null, "\u{1F64B} \u53EB\u4F60\u300C" + ui.view.dialogue.ownerName + "\u300D");
-    var rename = button("dp-mini dp-mini-plain", { "data-owner-edit": "true" }, function() {
+    var renameOwner = button("dp-mini dp-mini-plain", { "data-owner-edit": "true" }, function() {
       ui.ownerEdit = ui.view.dialogue.ownerName;
       ui.renderContent();
     });
-    rename.textContent = "\u6539";
+    renameOwner.textContent = "\u270F\uFE0F \u79F0\u547C";
+    renameOwner.title = "\u73B0\u5728\u53EB\u300C" + ui.view.dialogue.ownerName + "\u300D";
+    var renamePig = button("dp-mini dp-mini-plain", { "data-pig-edit": "true" }, function() {
+      ui.pigNameEdit = ui.view.pig === null ? "" : ui.view.pig.name;
+      ui.renderContent();
+    });
+    renamePig.textContent = "\u270F\uFE0F \u540D\u5B57";
+    renamePig.title = ui.view.pig === null ? "\u732A\u8FD8\u6CA1\u6765" : "\u73B0\u5728\u53EB\u300C" + ui.view.pig.name + "\u300D";
     var quiet = button("dp-mini dp-mini-plain", { "data-quiet": ui.view.dialogue.quiet ? "on" : "off" }, function() {
       ui.send("quiet", { on: !ui.view.dialogue.quiet });
     });
     quiet.textContent = ui.view.dialogue.quiet ? "\u{1F515} \u514D\u6253\u6270\u4E2D" : "\u{1F514} \u514D\u6253\u6270";
-    row.appendChild(who);
-    row.appendChild(rename);
+    row.appendChild(renameOwner);
+    row.appendChild(renamePig);
     row.appendChild(quiet);
     return row;
   }
@@ -1935,7 +1945,7 @@
       if (ctx.view.pig !== null && ctx.view.dead) {
         var dead = el("div", "dp-alert dp-dead");
         dead.appendChild(el("b", null, "\u{1FAA6} " + ctx.view.pig.name + " \u8D70\u4E86" + (ctx.view.pig.soul ? "\uFF0C\u7075\u9B42\u8FD8\u7559\u5728\u5893\u7891\u4E0A \u{1F47B}" : "")));
-        dead.appendChild(el("div", null, ctx.view.pig.soul ? "\u7528\u8FD8\u9B42\u4E39\u53EF\u4EE5\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u6216\u8005\u9886\u517B\u4E00\u53EA\u65B0\u7684\u5C0F\u732A" : "\u5728\u300C\u80CC\u5305\u300D\u91CC\u7528\u8FD8\u9B42\u4E39\u5C31\u80FD\u6551\u56DE\u6765\uFF08\u91D1\u5E01\u3001\u6536\u85CF\u3001\u4E0A\u8FC7\u7684\u8BFE\u90FD\u4FDD\u7559\uFF09"));
+        dead.appendChild(el("div", null, ctx.view.pig.soul ? "\u7528\u8FD8\u9B42\u4E39\u53EF\u4EE5\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u4E5F\u53EF\u4EE5\u9886\u517B\u65B0\u7684" : "\u80CC\u5305\u91CC\u7684\u8FD8\u9B42\u4E39\u5C31\u80FD\u6551\u56DE\u6765"));
         ctx.content.appendChild(dead);
         var adoptWrap = el("div", "dp-actions");
         var adopt = button("dp-btn dp-btn-wide", { "data-action": "adopt" }, function() {
@@ -1962,18 +1972,10 @@
           if (shelf[n].label === illness.cure) needed = shelf[n];
         }
         if (ctx.view.canGoOut) {
-          sick.appendChild(el(
-            "div",
-            "dp-dim",
-            "\u5E26\u75C5\u4E5F\u80FD\u51FA\u95E8\uFF0C\u4F46\u62A5\u916C\u53EA\u6709\u4E00\u534A\uFF1B\u5728\u5916\u9762\u75C5\u60C5\u4F1A\u8D70\u5F97\u66F4\u5FEB\uFF0C\u8EBA\u7740\u517B\u6700\u7701"
-          ));
+          sick.appendChild(el("div", "dp-dim", "\u5E26\u75C5\u51FA\u95E8\u62A5\u916C\u51CF\u534A\u3001\u75C5\u60C5\u66F4\u5FEB"));
         }
         if (needed !== null && ctx.view.canGoOut && ctx.view.pig.coins < needed.price) {
-          sick.appendChild(el(
-            "div",
-            "dp-dim",
-            "\u94B1\u4E0D\u591F\u4E5F\u6CA1\u5173\u7CFB \u2014\u2014 \u5148\u53BB\u6253\u5DE5\uFF0C\u8D5A\u591F " + needed.price + " \u{1FA99} \u4E70\u300C" + needed.label + "\u300D"
-          ));
+          sick.appendChild(el("div", "dp-dim", "\u8FD8\u5DEE " + needed.price + " \u{1FA99} \u4E70\u300C" + needed.label + "\u300D\uFF0C\u5148\u53BB\u6253\u5DE5"));
         }
         ctx.content.appendChild(sick);
         if (illness.doctorFee !== null) {
@@ -2010,7 +2012,6 @@
         hatch.appendChild(el("span", null, "\u62C6\u5F00\u7EB8\u76D2"));
         grid.appendChild(hatch);
         ctx.content.appendChild(grid);
-        ctx.content.appendChild(el("div", "dp-empty", "\u62C6\u5F00\u5C31\u4F1A\u8E66\u51FA\u4E00\u53EA\u5C0F\u732A \u2014\u2014 \u4E0D\u7528\u6572\u547D\u4EE4"));
         return;
       }
       if (ctx.tab === "status") renderStatusTab(ctx);
@@ -2151,7 +2152,7 @@
           ctx.burst(["\u{1F9F3}", "\u{1F381}"], 3);
         }
       }
-      if (ctx.ownerEdit !== null && ctx.tab === "status") return;
+      if ((ctx.ownerEdit !== null || ctx.pigNameEdit !== null) && ctx.tab === "status") return;
       renderContent();
     }
     function showPigLine(event) {
@@ -2307,6 +2308,7 @@
         var souvenirPick = null;
         var picker = null;
         var ownerEdit = null;
+        var pigNameEdit = null;
         var workTrait = "strong";
         var jobDetail = null;
         var openSection = null;
@@ -2398,6 +2400,12 @@
           },
           set ownerEdit(next) {
             ownerEdit = next;
+          },
+          get pigNameEdit() {
+            return pigNameEdit;
+          },
+          set pigNameEdit(next) {
+            pigNameEdit = next;
           },
           get workTrait() {
             return workTrait;

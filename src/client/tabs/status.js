@@ -98,21 +98,29 @@ export function renderStatusTab(ui) {
  */
 function talkRow(ui) {
   var row = el('div', 'dp-row dp-talk')
-  if (ui.ownerEdit !== null) {
+  // 用户 2026-10-01：别把称呼印在面板上（「叫你『大爹』」那行删了），
+  // 只留两个改名按钮 —— 一个改主人称呼，一个改猪的名字。
+  if (ui.ownerEdit !== null || ui.pigNameEdit !== null) {
+    var forPig = ui.pigNameEdit !== null
     var input = /** @type {HTMLInputElement} */ (el('input', 'dp-input'))
-    input.value = ui.ownerEdit
-    input.maxLength = 12
-    input.setAttribute('data-owner-input', 'true')
-    input.addEventListener('input', function () { ui.ownerEdit = input.value })
-    var save = button('dp-mini', { 'data-owner-save': 'true' }, function () {
-      var name = (ui.ownerEdit || '').trim()
-      ui.ownerEdit = null
-      if (name !== '') ui.send('owner', { name: name })
+    input.value = forPig ? ui.pigNameEdit : ui.ownerEdit
+    input.maxLength = 16
+    input.setAttribute(forPig ? 'data-pig-input' : 'data-owner-input', 'true')
+    input.addEventListener('input', function () {
+      if (forPig) ui.pigNameEdit = input.value
+      else ui.ownerEdit = input.value
+    })
+    var save = button('dp-mini', { 'data-name-save': forPig ? 'pig' : 'owner' }, function () {
+      var name = ((forPig ? ui.pigNameEdit : ui.ownerEdit) || '').trim()
+      if (forPig) ui.pigNameEdit = null
+      else ui.ownerEdit = null
+      if (name !== '') ui.send(forPig ? 'name' : 'owner', { name: name })
       ui.renderContent()
     })
     save.textContent = '好'
-    var cancel = button('dp-mini dp-mini-plain', { 'data-owner-cancel': 'true' }, function () {
+    var cancel = button('dp-mini dp-mini-plain', { 'data-name-cancel': 'true' }, function () {
       ui.ownerEdit = null
+      ui.pigNameEdit = null
       ui.renderContent()
     })
     cancel.textContent = '算了'
@@ -121,18 +129,24 @@ function talkRow(ui) {
     row.appendChild(cancel)
     return row
   }
-  var who = el('span', null, '🙋 叫你「' + ui.view.dialogue.ownerName + '」')
-  var rename = button('dp-mini dp-mini-plain', { 'data-owner-edit': 'true' }, function () {
+  var renameOwner = button('dp-mini dp-mini-plain', { 'data-owner-edit': 'true' }, function () {
     ui.ownerEdit = ui.view.dialogue.ownerName
     ui.renderContent()
   })
-  rename.textContent = '改'
+  renameOwner.textContent = '✏️ 称呼'
+  renameOwner.title = '现在叫「' + ui.view.dialogue.ownerName + '」'
+  var renamePig = button('dp-mini dp-mini-plain', { 'data-pig-edit': 'true' }, function () {
+    ui.pigNameEdit = ui.view.pig === null ? '' : ui.view.pig.name
+    ui.renderContent()
+  })
+  renamePig.textContent = '✏️ 名字'
+  renamePig.title = ui.view.pig === null ? '猪还没来' : '现在叫「' + ui.view.pig.name + '」'
   var quiet = button('dp-mini dp-mini-plain', { 'data-quiet': ui.view.dialogue.quiet ? 'on' : 'off' }, function () {
     ui.send('quiet', { on: !ui.view.dialogue.quiet })
   })
   quiet.textContent = ui.view.dialogue.quiet ? '🔕 免打扰中' : '🔔 免打扰'
-  row.appendChild(who)
-  row.appendChild(rename)
+  row.appendChild(renameOwner)
+  row.appendChild(renamePig)
   row.appendChild(quiet)
   return row
 }

@@ -96,8 +96,8 @@ export function createPanel(ctx) {
           var dead = el('div', 'dp-alert dp-dead')
           dead.appendChild(el('b', null, '🪦 ' + ctx.view.pig.name + ' 走了' + (ctx.view.pig.soul ? '，灵魂还留在墓碑上 👻' : '')))
           dead.appendChild(el('div', null, ctx.view.pig.soul
-            ? '用还魂丹可以把它叫回来，或者领养一只新的小猪'
-            : '在「背包」里用还魂丹就能救回来（金币、收藏、上过的课都保留）'))
+            ? '用还魂丹可以把它叫回来，也可以领养新的'
+            : '背包里的还魂丹就能救回来'))
           ctx.content.appendChild(dead)
           // Adopting is available the moment the pig dies — not only once the
           // soul turns up a day later. Waiting a day to start over was a
@@ -129,12 +129,10 @@ export function createPanel(ctx) {
             if (shelf[n].label === illness.cure) needed = shelf[n]
           }
           if (ctx.view.canGoOut) {
-            sick.appendChild(el('div', 'dp-dim',
-              '带病也能出门，但报酬只有一半；在外面病情会走得更快，躺着养最省'))
+            sick.appendChild(el('div', 'dp-dim', '带病出门报酬减半、病情更快'))
           }
           if (needed !== null && ctx.view.canGoOut && ctx.view.pig.coins < needed.price) {
-            sick.appendChild(el('div', 'dp-dim',
-              '钱不够也没关系 —— 先去打工，赚够 ' + needed.price + ' 🪙 买「' + needed.label + '」'))
+            sick.appendChild(el('div', 'dp-dim', '还差 ' + needed.price + ' 🪙 买「' + needed.label + '」，先去打工'))
           }
           ctx.content.appendChild(sick)
           if (illness.doctorFee !== null) {
@@ -166,7 +164,6 @@ export function createPanel(ctx) {
           hatch.appendChild(el('span', null, '拆开纸盒'))
           grid.appendChild(hatch)
           ctx.content.appendChild(grid)
-          ctx.content.appendChild(el('div', 'dp-empty', '拆开就会蹦出一只小猪 —— 不用敲命令'))
           return
         }
 
@@ -338,7 +335,7 @@ export function createPanel(ctx) {
         }
 
         // Typing a new name: a repaint would drop the input and its focus.
-        if (ctx.ownerEdit !== null && ctx.tab === 'status') return
+        if ((ctx.ownerEdit !== null || ctx.pigNameEdit !== null) && ctx.tab === 'status') return
         renderContent()
       }
 

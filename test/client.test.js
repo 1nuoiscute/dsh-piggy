@@ -742,6 +742,50 @@ test('a stage the user picked survives the next poll', async () => {
   }
 })
 
+test('the pig can be renamed from the panel, and so can the owner', async () => {
+  // User report #4: the nickname row was a line of text with one 改 button.
+  // Now there are two buttons, and the pig itself can be renamed too.
+  const { registration, dom, net } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+
+  assert.equal(findByAttr(contentOf(dom), 'data-owner-edit', 'true').allText().includes('称呼'), true)
+  assert.equal(findByAttr(contentOf(dom), 'data-pig-edit', 'true').allText().includes('名字'), true)
+
+  findByAttr(contentOf(dom), 'data-pig-edit', 'true').fire('click')
+  const input = /** @type {any} */ (findByAttr(contentOf(dom), 'data-pig-input', 'true'))
+  assert.notEqual(input, undefined, 'the pig-name input is open')
+  assert.equal(input.value, PIG.name, 'prefilled with the current name')
+  input.value = ' 大爹的猪 '
+  input.fire('input')
+  findByAttr(contentOf(dom), 'data-name-save', 'pig').fire('click')
+  await settle()
+  const post = JSON.parse(String(net.calls.filter(call => call.method === 'POST').at(-1).body))
+  assert.deepEqual(post, { action: 'name', name: '大爹的猪' })
+
+  // 称呼 still goes through the owner action.
+  findByAttr(contentOf(dom), 'data-owner-edit', 'true').fire('click')
+  const ownerInput = /** @type {any} */ (findByAttr(contentOf(dom), 'data-owner-input', 'true'))
+  ownerInput.value = '大爹'
+  ownerInput.fire('input')
+  findByAttr(contentOf(dom), 'data-name-save', 'owner').fire('click')
+  await settle()
+  const owner = JSON.parse(String(net.calls.filter(call => call.method === 'POST').at(-1).body))
+  assert.deepEqual(owner, { action: 'owner', name: '大爹' })
+})
+
+test('the panel explains less and shows more', async () => {
+  // 用户 #4：能靠界面说清的就别堆字。
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, hatched: false, pig: null } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  const text = contentOf(dom).allText()
+  assert.ok(!text.includes('不用敲命令'), `the tutorial line is gone: ${text}`)
+  assert.ok(text.includes('拆开纸盒'), 'the button is the explanation')
+})
+
 // ===========================================================================
 // B5 日常
 // ===========================================================================
@@ -1387,7 +1431,7 @@ test('a sick pig with no money is told it can still go out and earn', async () =
   await settle()
   openPanel(broke.dom)
   const text = contentOf(broke.dom).allText()
-  assert.ok(text.includes('带病也能出门'), `the way out must be spelled out: ${text}`)
+  assert.ok(text.includes('带病出门'), `the way out must be spelled out: ${text}`)
   assert.ok(text.includes('12'), `and how much it needs: ${text}`)
 
   // With enough money there is no need for the hint.
@@ -1828,9 +1872,10 @@ test('免打扰 keeps routine news quiet but lets illness through; the status ta
   openPanel(dom)
   pickTab(dom, 'status')
   const text = contentOf(dom).allText()
-  assert.ok(text.includes('叫你「小明」'), text)
+  assert.ok(!text.includes('叫你「'), 'the panel no longer prints the nickname (user report #4)')
   assert.ok(text.includes('🔕 免打扰中'), text)
-  assert.notEqual(findByAttr(contentOf(dom), 'data-owner-edit', 'true'), undefined)
+  assert.notEqual(findByAttr(contentOf(dom), 'data-owner-edit', 'true'), undefined, '改称呼 stays available')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-pig-edit', 'true'), undefined, 'and the pig can be renamed too')
 })
 
 test('装扮 cells in the shop are clickable: they must not wear the pig overlay class', async () => {

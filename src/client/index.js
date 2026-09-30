@@ -109,6 +109,8 @@ import { arr, num, obj, str } from './values.js'
       var picker = null
       // The owner-name draft while it is being edited on the status tab (null = not editing).
       var ownerEdit = null
+      // 猪的名字草稿（同上：编辑期间轮询不许重绘，否则输入框会丢焦点）。
+      var pigNameEdit = null
       // Work tab: which skill's jobs are shown, and whose 详情 is open.
       var workTrait = 'strong'
       var jobDetail = null
@@ -167,6 +169,7 @@ import { arr, num, obj, str } from './values.js'
         get picker() { return picker }, set picker(next) { picker = next },
         get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
         get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
+        get pigNameEdit() { return pigNameEdit }, set pigNameEdit(next) { pigNameEdit = next },
         get workTrait() { return workTrait }, set workTrait(next) { workTrait = next },
         get jobDetail() { return jobDetail }, set jobDetail(next) { jobDetail = next },
         get openSection() { return openSection }, set openSection(next) { openSection = next },

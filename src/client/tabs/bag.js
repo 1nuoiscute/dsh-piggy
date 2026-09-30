@@ -55,7 +55,7 @@ export function renderBagTab(ui) {
       })
     })(kinds[s])
   }
-  if (owned.length === 0) ui.content.appendChild(el('div', 'dp-empty', '背包空空的 —— 去「商店」买点东西。'))
+  if (owned.length === 0) ui.content.appendChild(el('div', 'dp-empty', '背包空空的。'))
 
   // ---- 家当 ----
   var wornCount = 0
@@ -64,7 +64,7 @@ export function renderBagTab(ui) {
   if (ui.view.dress.length > 0) {
     section(ui, 'bag:dress', '👕 家当 ' + wornCount + '/' + ui.view.dress.length + ' 穿着中', function (body) {
       if (ownedDress.length === 0) {
-        body.appendChild(el('div', 'dp-empty', '还没有装扮 —— 商店「装扮」那一栏，等级够了就能买。'))
+        body.appendChild(el('div', 'dp-empty', '还没有装扮。'))
         return
       }
       var list = el('div', 'dp-list')

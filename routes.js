@@ -61,6 +61,8 @@ const OPERATIONS = {
   chat: (store, body) => store.chat(str(body.reason)),
   quiet: (store, body) => store.setQuiet(body.on === true),
   owner: (store, body) => store.setOwnerName(str(body.name)),
+  // 改猪的名字（和斜杠命令 /pig name 同一条路）。
+  name: (store, body) => ({ ok: Boolean(store.rename(str(body.name))), name: true }),
   work: (store, body) => store.startWork(str(body.job)),
   study: (store, body) => store.startStudy(str(body.subject), str(body.stage)),
   interest: (store, body) => store.startInterest(str(body.interest)),
