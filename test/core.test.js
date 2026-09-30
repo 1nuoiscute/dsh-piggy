@@ -51,6 +51,7 @@ import {
   adopt,
   daysToNextStage,
   lifeStageFor,
+  levelFor,
   rename,
   sellSouvenir,
   skillBonus,
@@ -61,9 +62,10 @@ import {
   startWork,
   traitView,
   useItem,
+  wear,
   workSecondsLeft,
 } from '../core.js'
-import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, medicineForStage, rarityByKey, subjectByKey } from '../data.js'
+import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, medicineForStage, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
 
 const T0 = 1_700_000_000_000
 const MIN = 60_000
@@ -1299,18 +1301,63 @@ test('trait and course views always list everything', () => {
 // Shop
 // ===========================================================================
 
-test('the shop is well formed and every illness stage has a cure on sale', () => {
-  assert.ok(SHOP.length >= 8)
+test('the shop is well formed: 45 items across six shelves, every cure stocked', () => {
+  assert.equal(SHOP.length, 45, '21 → 45')
+  const counts = {}
   for (const item of SHOP) {
     assert.equal(typeof item.key, 'string')
     assert.ok(item.price > 0)
-    assert.ok(['food', 'bath', 'toy', 'medicine', 'revive'].includes(item.kind))
+    assert.ok(['food', 'bath', 'toy', 'dress', 'medicine', 'revive'].includes(item.kind))
+    counts[item.kind] = (counts[item.kind] ?? 0) + 1
+  }
+  assert.deepEqual(counts, { food: 10, bath: 8, toy: 10, dress: 12, medicine: 4, revive: 1 })
+  // 装扮 is a different economy: level-gated, owned once, never counted.
+  for (const item of SHOP.filter(entry => entry.kind === 'dress')) {
+    assert.ok(Number.isInteger(item.level) && item.level >= 1, `${item.label} needs a level`)
+    assert.ok(item.blurb.length > 0, `${item.label} needs a line`)
   }
   for (let stage = 1; stage <= 4; stage += 1) {
     const med = medicineForStage(stage)
     assert.notEqual(med, null, `stage ${stage} needs a medicine`)
   }
   assert.ok(SHOP.some(i => i.key === REVIVE_ITEM.key), 'the revive item is stocked')
+})
+
+test('装扮 is bought once behind a level, then worn', () => {
+  const pig = hatchEgg(T0)
+  pig.coins = 200_000
+  assert.equal(levelFor(pig.xp), 1, 'a fresh pig is level 1')
+
+  assert.equal(buy(pig, 'scarf').ok, true)
+  assert.deepEqual(pig.dress, ['scarf'])
+  assert.equal(pig.inventory.scarf ?? 0, 0, '家当 is not a consumable')
+  assert.equal(buy(pig, 'scarf').reason, 'owned', 'buying it twice is refused')
+
+  const gate = buy(pig, 'crown')
+  assert.equal(gate.reason, 'low-level')
+  assert.equal(gate.need, 13)
+  assert.equal(gate.have, 1)
+  assert.equal(pig.coins, 200_000 - 80, 'a refused purchase spends nothing')
+
+  assert.equal(wear(pig, 'crown', true).reason, 'not-owned')
+  assert.equal(wear(pig, 'apple', true).reason, 'unknown', 'only 装扮 can be worn')
+  assert.equal(wear(pig, 'scarf', true).ok, true)
+  assert.deepEqual(pig.worn, ['scarf'])
+  assert.equal(wear(pig, 'scarf', false).ok, true)
+  assert.deepEqual(pig.worn, [])
+  assert.equal(useItem(pig, 'scarf', T0).reason, 'not-consumable', 'a scarf is worn, not eaten')
+
+  // The level gate is real: xp for Lv.13 opens the crown.
+  pig.xp = xpForLevel(13)
+  assert.equal(levelFor(pig.xp), 13)
+  assert.equal(buy(pig, 'crown').ok, true)
+  assert.deepEqual(pig.dress, ['scarf', 'crown'])
+})
+
+test('a save cannot dress the pig in medicine, or wear what it does not own', () => {
+  const upgraded = migrate({ ...layEgg(T0), dress: ['scarf', 'scarf', 'apple', 'nope'], worn: ['scarf', 'crown'] })
+  assert.deepEqual(upgraded.dress, ['scarf'], 'duplicates and non-dress items are dropped')
+  assert.deepEqual(upgraded.worn, ['scarf'], 'only owned 装扮 can be worn')
 })
 
 test('buying deducts coins and fills the backpack', () => {
@@ -1334,13 +1381,16 @@ test('buying is refused when broke, and for unknown goods', () => {
   assert.equal(buy(pig, 'yacht').reason, 'unknown')
 })
 
-test('snapshot-independent inventory view always lists every item', () => {
+test('inventoryView lists the consumables and leaves 家当 out of the counts', () => {
   const pig = hatchEgg(T0)
   const view = inventoryView(pig)
-  // Every shop item, plus the free default toy the pig always owns.
-  assert.equal(Object.keys(view).length, SHOP.length + 1)
+  const consumables = SHOP.filter(item => item.kind !== 'dress')
+  assert.equal(Object.keys(view).length, consumables.length + 1)
   assert.equal(view[DEFAULT_TOY.key], Infinity, 'the default toy never runs out')
-  for (const item of SHOP) assert.equal(view[item.key], 0)
+  for (const item of consumables) assert.equal(view[item.key], 0)
+  for (const item of SHOP.filter(entry => entry.kind === 'dress')) {
+    assert.equal(item.key in view, false, `${item.label} is owned, not counted`)
+  }
 })
 
 // ===========================================================================

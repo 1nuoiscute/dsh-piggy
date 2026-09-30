@@ -605,6 +605,56 @@ test('the study tab lists the host stages and only the selected stage courses', 
   assert.deepEqual(JSON.parse(post.body), { action: 'study', subject: 'philosophy', stage: 'college' })
 })
 
+test('the shop marks 家当 as 已拥有 or level-locked, and the bag can wear it', async () => {
+  const { registration, dom, net } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      dress: [
+        { key: 'scarf', label: '红围巾', emoji: '🧣', price: 80, level: 1, blurb: '脖子上暖乎乎的', owned: true, worn: false, unlocked: true },
+        { key: 'crown', label: '王冠', emoji: '👑', price: 5200, level: 13, blurb: '自己给自己加冕', owned: false, worn: false, unlocked: false },
+      ],
+      shop: [
+        { key: 'apple', label: '苹果', emoji: '🍎', price: 6, kind: 'food', affordable: true, needed: false },
+        { key: 'scarf', label: '红围巾', emoji: '🧣', price: 80, kind: 'dress', level: 1, owned: true, worn: false, unlocked: true },
+        { key: 'crown', label: '王冠', emoji: '👑', price: 5200, kind: 'dress', level: 13, owned: false, worn: false, unlocked: false },
+      ],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+
+  const shopText = contentOf(dom).allText()
+  assert.ok(shopText.includes('装扮'), shopText)
+  assert.ok(shopText.includes('已拥有'), shopText)
+  assert.ok(shopText.includes('🔒 Lv.13'), shopText)
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'scarf').disabled, true, 'owned 家当 is not for sale again')
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'crown').disabled, false, 'a locked item still explains itself when tapped')
+
+  pickTab(dom, 'bag')
+  const bagText = contentOf(dom).allText()
+  assert.ok(bagText.includes('👕 家当'), bagText)
+  assert.ok(bagText.includes('脖子上暖乎乎的'), bagText)
+  findByAttr(contentOf(dom), 'data-wear', 'scarf').fire('click')
+  await settle()
+  await settle()
+  const post = net.calls.find(call => call.method === 'POST')
+  assert.deepEqual(JSON.parse(post.body), { action: 'wear', item: 'scarf', on: true })
+})
+
+test('a worn 装扮 shows on the name plate', async () => {
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      dress: [{ key: 'scarf', label: '红围巾', emoji: '🧣', price: 80, level: 1, blurb: '', owned: true, worn: true, unlocked: true }],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  assert.ok(hostOf(dom).allText().includes('🧣'), hostOf(dom).allText())
+})
+
 test('the work tab lists jobs and sending the pig out POSTs the job', async () => {
   const { registration, dom, net } = await loadClient()
   registration.factory(() => {}).apply({})

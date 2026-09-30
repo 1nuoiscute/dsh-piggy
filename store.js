@@ -40,6 +40,7 @@ import {
   startTrip as coreStartTrip,
   startWork as coreStartWork,
   useItem as coreUseItem,
+  wear as coreWear,
 } from './core.js'
 
 /** The harness home, matching the launcher's own resolution. */
@@ -173,6 +174,7 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
     /** Use one item from the backpack. */
     useItem: itemKey => mutate(live => coreUseItem(live, itemKey, now())),
     sellSouvenir: souvenirKey => mutate(live => coreSellSouvenir(live, souvenirKey, now())),
+    wear: (itemKey, on) => mutate(live => coreWear(live, itemKey, on)),
 
     /** Open the box. Only works when there is no pig at all. */
     hatch() {

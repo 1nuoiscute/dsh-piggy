@@ -77,8 +77,8 @@ window.__ModuleLoader__.load({
       bath: '没有洗浴用品了，去买点吧 🧼',
       toy: '没有玩具了，去商店看看 🪀',
     }
-    var KIND_TITLE = { food: '🍎 食物', bath: '🧼 洗浴', toy: '🪀 玩具', medicine: '💊 药品', revive: '✨ 复活' }
-    var KIND_ORDER = ['food', 'bath', 'toy', 'medicine', 'revive']
+    var KIND_TITLE = { food: '🍎 食物', bath: '🧼 洗浴', toy: '🪀 玩具', dress: '👕 装扮', medicine: '💊 药品', revive: '✨ 复活' }
+    var KIND_ORDER = ['food', 'bath', 'toy', 'dress', 'medicine', 'revive']
     var STAGES = [
       { key: 'preschool', label: '幼儿园' },
       { key: 'extracurricular', label: '课外' },
@@ -270,6 +270,18 @@ window.__ModuleLoader__.load({
           affordable: obj(trip).affordable === true,
           available: obj(trip).available === true,
         })).filter(trip => trip.key !== ''),
+        // 家当: owned and worn, never counted. An old host sends none.
+        dress: arr(d.dress).map(entry => ({
+          key: str(obj(entry).key, ''),
+          label: str(obj(entry).label, '装扮'),
+          emoji: str(obj(entry).emoji, '👕'),
+          price: num(obj(entry).price, 0),
+          level: num(obj(entry).level, 1),
+          blurb: str(obj(entry).blurb, ''),
+          owned: obj(entry).owned === true,
+          worn: obj(entry).worn === true,
+          unlocked: obj(entry).unlocked !== false,
+        })).filter(entry => entry.key !== ''),
         shop: arr(d.shop).map(item => ({
           key: str(obj(item).key, ''),
           label: str(obj(item).label, '物品'),
@@ -277,6 +289,11 @@ window.__ModuleLoader__.load({
           price: num(obj(item).price, 0),
           kind: str(obj(item).kind, 'food'),
           tier: typeof obj(item).tier === 'number' ? obj(item).tier : null,
+          // 家当 fields: a dress item is owned (not counted) or waits for a level.
+          level: typeof obj(item).level === 'number' ? obj(item).level : null,
+          owned: obj(item).owned === true,
+          unlocked: obj(item).unlocked !== false,
+          blurb: str(obj(item).blurb, ''),
           affordable: obj(item).affordable === true,
           needed: obj(item).needed === true,
         })).filter(item => item.key !== ''),
@@ -555,6 +572,8 @@ window.__ModuleLoader__.load({
       // Affordable is colour; unaffordable is faded but still clickable, so a
       // tap can explain how much is missing instead of doing nothing.
       '.dp-cell.dp-poor{opacity:.45}',
+      // 家当 already owned: not for sale, but not "unaffordable" either.
+      '.dp-cell.dp-owned{opacity:.6;border-style:dashed}',
       '.dp-cell.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}',
 
       /* ---------- developer tab ---------- */
@@ -1537,13 +1556,26 @@ window.__ModuleLoader__.load({
             }
             // A grid cell, not a list row: 45 items in a 292px column meant
             // endless scrolling and you could never see a shelf at a glance.
-            var cell = button('dp-cell' + (item.needed ? ' dp-wanted' : '') + (item.affordable ? '' : ' dp-poor'),
+            var cell = button('dp-cell'
+              + (item.needed ? ' dp-wanted' : '')
+              + (item.kind === 'dress' ? ' dp-dress' : (item.affordable ? '' : ' dp-poor'))
+              + (item.owned ? ' dp-owned' : ''),
               { 'data-buy': item.key }, function () { send('buy', { item: item.key }) })
             cell.appendChild(el('span', 'dp-cell-e', item.emoji))
             cell.appendChild(el('span', 'dp-cell-n', item.label))
-            cell.appendChild(el('span', 'dp-cell-p', item.price + ' 🪙'))
+            // 家当 has no count and no repeat purchase: it says "已拥有", or the
+            // level it is waiting for — never a price the pig cannot use.
+            if (item.owned) {
+              cell.appendChild(el('span', 'dp-cell-p', '已拥有'))
+              cell.disabled = true
+            } else if (item.kind === 'dress' && item.unlocked === false) {
+              cell.appendChild(el('span', 'dp-cell-p', '🔒 Lv.' + item.level))
+            } else {
+              cell.appendChild(el('span', 'dp-cell-p', item.price + ' 🪙'))
+            }
             if (item.count > 0) cell.appendChild(el('b', 'dp-cell-c', '×' + item.count))
             if (item.needed) cell.appendChild(el('b', 'dp-cell-tag', '需要'))
+            if (item.owned && item.worn) cell.appendChild(el('b', 'dp-cell-tag', '穿着'))
             list.appendChild(cell)
           })(ordered[i])
         }
@@ -1654,12 +1686,49 @@ window.__ModuleLoader__.load({
           content.appendChild(list)
         }
 
+        // 家当: owned dress, with wear/take-off. Hidden entirely on an old host
+        // that never sent the shelf, so the panel does not show a dead section.
+        if (view.dress.length > 0) {
+          var dhead = el('div', 'dp-title')
+          dhead.style.marginTop = '10px'
+          var wornCount = 0
+          for (var w = 0; w < view.dress.length; w += 1) if (view.dress[w].worn) wornCount += 1
+          dhead.appendChild(el('b', null, '👕 家当 ' + wornCount + '/' + view.dress.length + ' 穿着中'))
+          content.appendChild(dhead)
+          var ownedDress = []
+          for (var m = 0; m < view.dress.length; m += 1) if (view.dress[m].owned) ownedDress.push(view.dress[m])
+          if (ownedDress.length === 0) {
+            content.appendChild(el('div', 'dp-empty', '还没有装扮 —— 商店「装扮」那一栏，等级够了就能买。'))
+          } else {
+            var dlist = el('div', 'dp-list')
+            for (var n = 0; n < ownedDress.length; n += 1) {
+              (function (item) {
+                var row = el('div', 'dp-item')
+                row.appendChild(el('span', null, item.emoji))
+                var grow = el('div', 'dp-grow')
+                grow.appendChild(el('div', null, item.label + (item.worn ? ' · 穿着' : '')))
+                grow.appendChild(el('div', 'dp-dim', item.blurb === '' ? 'Lv.' + item.level + ' 解锁' : item.blurb))
+                row.appendChild(grow)
+                var toggle = button('dp-mini', { 'data-wear': item.key }, function () {
+                  send('wear', { item: item.key, on: !item.worn })
+                })
+                toggle.textContent = item.worn ? '脱下' : '穿上'
+                row.appendChild(toggle)
+                dlist.appendChild(row)
+              })(ownedDress[n])
+            }
+            content.appendChild(dlist)
+          }
+        }
+
         var souvenirs = view.pig.souvenirs
         var head = el('div', 'dp-title')
         head.style.marginTop = '10px'
         head.appendChild(el('b', null, '🎁 纪念品 ' + souvenirs.length))
         content.appendChild(head)
-        content.appendChild(el('div', 'dp-empty', souvenirs.length === 0 ? '收藏册还空着。' : souvenirs.join(' · ')))
+        content.appendChild(el('div', 'dp-empty', souvenirs.length === 0
+          ? '收藏册还空着。'
+          : souvenirs.map(entry => entry.emoji + entry.label).join(' · ')))
       }
 
       /** "3 天" / "12 小时" / "40 分钟" for an upcoming stage. */
@@ -1842,9 +1911,16 @@ window.__ModuleLoader__.load({
           pokeHint.hidden = true
           soul.hidden = view.pig.soul !== true
           pig.setAttribute('data-stage', stage.key)
+          // Worn 装扮 shows on the name plate: it is the only "on the pig" spot
+          // that does not need new art.
+          var wornBadge = ''
+          for (var wd = 0; wd < view.dress.length; wd += 1) {
+            if (view.dress[wd].worn) wornBadge += view.dress[wd].emoji
+          }
           hudName.textContent = view.pig.name
             + ' Lv.' + view.pig.level.level
             + ' · ' + stage.label
+            + (wornBadge === '' ? '' : ' · ' + wornBadge)
             + (view.pig.ageLabel ? ' · ' + view.pig.ageLabel : '')
             + (view.pig.ageForced ? ' 🔧' : '')
           hudCoins.textContent = '🪙 ' + view.pig.coins
@@ -1928,6 +2004,12 @@ window.__ModuleLoader__.load({
               'not-sick': '它没生病',
               dead: '它已经走了…',
               idle: '它没在外面',
+              owned: '这件已经有了',
+              'low-level': '等级不够（要 Lv.' + num(next.need, 0) + '，现在 Lv.' + num(next.have, 0) + '）',
+              'not-owned': '还没有这件东西',
+              'not-consumable': '这个是穿的，不是用的',
+              'wrong-stage': '这个学段没有这门课',
+              underqualified: '它还没这个本事，先去上课',
             }
             showBubble(reasons[next.reason] ?? '这个操作没成', 2400)
           }

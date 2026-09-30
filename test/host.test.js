@@ -219,9 +219,10 @@ test('the snapshot exposes everything the panel draws', async () => {
     assert.equal(snap.pig.healthPercent, 100)
     assert.deepEqual(
       Object.keys(snap.inventory).sort(),
-      [...SHOP.map(i => i.key), DEFAULT_TOY.key].sort(),
-      'every shop item plus the free default toy',
+      [...SHOP.filter(item => item.kind !== 'dress').map(item => item.key), DEFAULT_TOY.key].sort(),
+      'every consumable plus the free default toy',
     )
+    assert.equal(snap.dress.length, 12, 'and the 装扮 shelf is its own list')
     assert.equal(snap.maxHealth, 5)
   } finally {
     app.cleanup()
@@ -389,6 +390,46 @@ test('the sell route pays the rarity price and is honest about what is not owned
     assert.equal(again.pig.coins, 320, 'a refusal pays nothing')
 
     assert.equal((await app.post({ action: 'sell', souvenir: 'nope' })).reason, 'not-owned')
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('the wear route dresses and undresses, and the shop is honest about 家当', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs)
+    pig.dress = ['scarf']
+    return pig
+  })
+  try {
+    const board = await app.get()
+    assert.equal(board.shop.length, 45)
+    assert.equal(board.dress.length, 12)
+    assert.equal(board.shop.find(item => item.key === 'scarf').owned, true)
+    const crown = board.shop.find(item => item.key === 'crown')
+    assert.equal(crown.unlocked, false)
+    assert.equal(crown.level, 13)
+
+    const on = await app.post({ action: 'wear', item: 'scarf' })
+    assert.equal(on.ok, true)
+    assert.equal(on.dress.find(item => item.key === 'scarf').worn, true)
+    assert.equal(on.shop.find(item => item.key === 'scarf').worn, true)
+
+    const off = await app.post({ action: 'wear', item: 'scarf', on: false })
+    assert.equal(off.ok, true)
+    assert.equal(off.dress.find(item => item.key === 'scarf').worn, false)
+
+    const notOwned = await app.post({ action: 'wear', item: 'crown' })
+    assert.equal(notOwned.ok, false)
+    assert.equal(notOwned.reason, 'not-owned')
+
+    const locked = await app.post({ action: 'buy', item: 'crown' })
+    assert.equal(locked.ok, false)
+    assert.equal(locked.reason, 'low-level')
+    assert.equal(locked.need, 13)
+
+    // A dress is worn, never eaten.
+    assert.equal((await app.post({ action: 'use', item: 'scarf' })).reason, 'not-consumable')
   } finally {
     app.cleanup()
   }

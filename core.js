@@ -443,6 +443,9 @@ export function layEgg(nowMs) {
     // cheapest cure and had nothing left to earn it with.
     coins: 500,
     inventory: {},
+    // 家当: dress items are bought once, owned forever, and worn.
+    dress: [],
+    worn: [],
     traits: { intel: 0, charm: 0, strong: 0 },
     courses: {},
     // Lessons finished per stage **and per subject**. Seven stages share subject
@@ -512,6 +515,9 @@ export function migrate(raw) {
   state.stats = { ...egg.stats, ...(asObject(raw.stats) ?? {}) }
   state.cooldowns = { ...(asObject(raw.cooldowns) ?? {}) }
   state.inventory = sanitizeInventory(raw.inventory)
+  state.dress = sanitizeDressList(raw.dress)
+  // Only owned items can be worn, and unknown keys are dropped.
+  state.worn = sanitizeDressList(raw.worn).filter(key => state.dress.includes(key))
   state.traits = sanitizeTraits(raw.traits)
   state.courses = sanitizeCourses(raw.courses)
   state.lessonsByStage = sanitizeLessonsByStage(raw.lessonsByStage, raw.courses)
@@ -685,6 +691,22 @@ function sanitizeSouvenirs(raw) {
   return out
 }
 
+/**
+ * Owned / worn 装扮 keys. Unknown and duplicate keys are dropped, and only real
+ * dress items survive, so a hand-edited save cannot dress the pig in a 药品.
+ */
+function sanitizeDressList(raw) {
+  if (!Array.isArray(raw)) return []
+  const out = []
+  for (const key of raw) {
+    if (typeof key !== 'string') continue
+    const item = itemByKey(key)
+    if (item === null || item.kind !== 'dress' || out.includes(key)) continue
+    out.push(key)
+  }
+  return out
+}
+
 function sanitizeIllness(raw) {
   const source = asObject(raw)
   if (source === null) return null
@@ -759,11 +781,34 @@ export function drainPending(state) {
 /** Inventory counts, always including zeroes so the UI can render a grid. */
 export function inventoryView(state) {
   const out = {}
-  for (const item of SHOP) out[item.key] = state.inventory?.[item.key] ?? 0
+  for (const item of SHOP) {
+    // 家当 is not carried in counts — it is owned and worn.
+    if (item.kind === 'dress') continue
+    out[item.key] = state.inventory?.[item.key] ?? 0
+  }
   // The free default toy is always in the bag and never runs out, so `玩耍` is
   // never blocked by an empty one.
   out[DEFAULT_TOY.key] = Infinity
   return out
+}
+
+/**
+ * Owned / worn state for the 装扮 shelf, plus the level each one needs.
+ *
+ * The panel shows all twelve even when locked: an item you cannot see is an
+ * item you will never save up for.
+ */
+export function dressView(state) {
+  const owned = new Set(state.dress ?? [])
+  const worn = new Set(state.worn ?? [])
+  const have = levelProgress(state.xp).level
+  return SHOP.filter(item => item.kind === 'dress').map(item => ({
+    key: item.key, label: item.label, emoji: item.emoji, price: item.price,
+    level: item.level ?? 1, blurb: item.blurb ?? '',
+    owned: owned.has(item.key),
+    worn: worn.has(item.key),
+    unlocked: have >= (item.level ?? 1),
+  }))
 }
 
 /** Which shelves the pig can actually use right now, for the panel's picker. */
@@ -1382,6 +1427,21 @@ export function buy(state, itemKey) {
   const item = itemByKey(itemKey)
   if (item === null) return { ok: false, reason: 'unknown' }
   if (state.dead && item.key !== REVIVE_ITEM.key) return { ok: false, reason: 'dead' }
+
+  // 家当 is a different transaction: own it once, then wear it. No counts.
+  if (item.kind === 'dress') {
+    if ((state.dress ?? []).includes(item.key)) return { ok: false, reason: 'owned', item }
+    const have = levelProgress(state.xp).level
+    const need = item.level ?? 1
+    if (have < need) return { ok: false, reason: 'low-level', need, have, item }
+    if (state.coins < item.price) return { ok: false, reason: 'poor', price: item.price }
+    state.coins -= item.price
+    state.dress = [...(state.dress ?? []), item.key]
+    state.stats.purchases += 1
+    remember(state, `买下了 ${item.emoji} ${item.label}（-${item.price} 金币）`, Date.now())
+    return { ok: true, item }
+  }
+
   if (state.coins < item.price) return { ok: false, reason: 'poor', price: item.price }
 
   state.coins -= item.price
@@ -1392,6 +1452,24 @@ export function buy(state, itemKey) {
   return { ok: true, item }
 }
 
+/**
+ * Put a dress item on (or take it off). Only owned items, only dress items.
+ * @param {object} state
+ * @param {string} itemKey
+ * @param {boolean} on - true to wear, false to take off.
+ */
+export function wear(state, itemKey, on = true) {
+  const item = itemByKey(itemKey)
+  if (item === null || item.kind !== 'dress') return { ok: false, reason: 'unknown' }
+  if (!(state.dress ?? []).includes(item.key)) return { ok: false, reason: 'not-owned' }
+  const worn = new Set(state.worn ?? [])
+  if (on) worn.add(item.key)
+  else worn.delete(item.key)
+  state.worn = [...worn]
+  remember(state, on ? `戴上了 ${item.emoji} ${item.label}` : `摘下了 ${item.emoji} ${item.label}`, Date.now())
+  return { ok: true, item, worn: state.worn.slice() }
+}
+
 export const canAfford = (state, itemKey) => {
   const item = itemByKey(itemKey)
   return item !== null && state.coins >= item.price
@@ -1400,6 +1478,8 @@ export const canAfford = (state, itemKey) => {
 export function useItem(state, itemKey, nowMs) {
   const item = itemByKey(itemKey)
   if (item === null) return { ok: false, reason: 'unknown' }
+  // 家当 is worn, not consumed — 穿上 is a different action.
+  if (item.kind === 'dress') return { ok: false, reason: 'not-consumable' }
   const have = state.inventory?.[itemKey] ?? 0
   if (have <= 0) return { ok: false, reason: 'empty' }
   decay(state, nowMs)

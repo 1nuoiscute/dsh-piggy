@@ -33,6 +33,7 @@ import {
   careView,
   courseView,
   currentIllness,
+  dressView,
   formatWeight,
   healthPercent,
   inventoryView,
@@ -129,6 +130,8 @@ const OPERATIONS = {
   use: (store, body) => store.useItem(str(body.item)),
   // Souvenirs are the only thing the pig can sell back.
   sell: (store, body) => store.sellSouvenir(str(body.souvenir)),
+  // 家当: put a dress item on / take it off.
+  wear: (store, body) => store.wear(str(body.item), body.on !== false),
 }
 
 const str = value => (typeof value === 'string' ? value : '')
@@ -221,6 +224,8 @@ export function apply(ctx, config = {}) {
             price: result.price,
             missing: result.missing,
             sold: result.sold,
+            need: result.need,
+            have: result.have,
           }, { 'cache-control': 'no-store' })
         },
       }))
@@ -303,6 +308,7 @@ export function snapshot(store, options = {}) {
       stages: SCHOOL_STAGES.map(stage => ({ ...stage })),
       trips: tripsFor(null),
       shop: shopFor(null),
+      dress: [],
       inventory: inventoryView({ inventory: {} }),
       activity: null, canGoOut: false, awayBlocked: 'absent',
       // The box has a size of its own; the client must not hard-code it.
@@ -363,6 +369,7 @@ export function snapshot(store, options = {}) {
     stages: studyView(state),
     trips: tripsFor(state),
     shop: shopFor(state),
+    dress: dressView(state),
     inventory: inventoryView(state),
     care: careView(state),
     activity: activity === null ? null : {
@@ -533,12 +540,24 @@ function souvenirsFor(state) {
 }
 
 function shopFor(state) {
-  return SHOP.map(item => ({
-    key: item.key, label: item.label, emoji: item.emoji,
-    price: item.price, kind: item.kind, tier: item.tier ?? null,
-    affordable: state === null ? false : state.coins >= item.price,
-    needed: state?.illness != null && item.kind === 'medicine' && item.tier === state.illness.stage,
-  }))
+  const dress = new Map((state === null ? [] : dressView(state)).map(item => [item.key, item]))
+  return SHOP.map(item => {
+    // 家当 shows "already yours" or the level it waits for; the consumables
+    // keep their price-and-count treatment.
+    const owned = dress.get(item.key)?.owned === true
+    const unlocked = item.kind === 'dress' ? dress.get(item.key)?.unlocked !== false : true
+    return {
+      key: item.key, label: item.label, emoji: item.emoji,
+      price: item.price, kind: item.kind, tier: item.tier ?? null,
+      level: item.level ?? null,
+      owned,
+      worn: dress.get(item.key)?.worn === true,
+      unlocked,
+      blurb: item.blurb ?? '',
+      affordable: state === null ? false : state.coins >= item.price,
+      needed: state?.illness != null && item.kind === 'medicine' && item.tier === state.illness.stage,
+    }
+  })
 }
 
 // ---------------------------------------------------------------------------
