@@ -8,7 +8,7 @@ import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, wr
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
-import { migrate } from '../core.js'
+import { STATE_VERSION, migrate } from '../core.js'
 
 /** The harness home, matching the launcher's own resolution. */
 export function dshHome() {
@@ -33,6 +33,22 @@ function preserveUnusableSave(filePath, raw, reason, nowMs) {
     return
   }
   console.warn(`[dsh-pig] save unusable (${reason}); kept a copy at "${backup}" and left the original untouched`)
+}
+
+/**
+ * Keep a copy of a save before it is upgraded to a newer version.
+ *
+ * An upgrade rewrites the file on the next save; if a step turns out to be
+ * wrong, this copy is the only way back to the pig as it was.
+ */
+function keepPreUpgradeCopy(filePath, raw, fromVersion, nowMs) {
+  const backup = `${filePath}.v${fromVersion}-backup-${new Date(nowMs).toISOString().replace(/[:.]/g, '-')}`
+  try {
+    writeFileSync(backup, raw)
+    console.warn(`[dsh-pig] upgrading save v${fromVersion} -> v${STATE_VERSION}; kept a copy at "${backup}"`)
+  } catch (error) {
+    console.warn(`[dsh-pig] upgrading save v${fromVersion} -> v${STATE_VERSION} without a backup: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+  }
 }
 
 /**
@@ -71,6 +87,8 @@ export function readStateFile(filePath, nowMs) {
     preserveUnusableSave(filePath, raw, 'migrate() rejected the shape', nowMs)
     return { state: null, needsSave: false }
   }
+  const onDisk = parsed?.version
+  if (typeof onDisk === 'number' && onDisk < STATE_VERSION) keepPreUpgradeCopy(filePath, raw, onDisk, nowMs)
   return { state: upgraded, needsSave: parsed?.version !== upgraded.version }
 }
 

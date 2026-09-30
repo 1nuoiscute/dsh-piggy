@@ -10,10 +10,15 @@ import { ILLNESS_CHAINS, INTERESTS, MAX, SCHOOL_STAGES, SHOP, SOUVENIR_RARITY, T
 import { MEMORY_LIMIT, STATE_VERSION } from './constants.js'
 import { clamp, clamp100 } from './effects.js'
 import { layEgg } from './egg.js'
+import { isSeed, seedFor } from './random.js'
+import { applyUpgrades } from './upgrades.js'
 
 /** Fill in anything a hand-edited or older save is missing. */
-export function migrate(raw, nowMs) {
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null
+export function migrate(input, nowMs) {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) return null
+  const onDiskVersion = typeof input.version === 'number' ? input.version : 0
+  // Untrusted save data: every field below is checked before it is used.
+  const raw = /** @type {any} */ (applyUpgrades(input, nowMs))
   const egg = layEgg(typeof raw.bornAt === 'number' ? raw.bornAt : nowMs)
   const state = { ...egg, ...raw }
   state.version = STATE_VERSION
@@ -43,7 +48,7 @@ export function migrate(raw, nowMs) {
   // Starting money went 60 -> 500. A pig that hatched under the old number is
   // broke through no fault of its owner, so top it up once — and only once, by
   // keying off the version that was on disk when it was loaded.
-  if ((typeof raw.version !== 'number' || raw.version < 5) && state.coins >= 0 && state.coins < egg.coins) {
+  if (onDiskVersion < 5 && state.coins >= 0 && state.coins < egg.coins) {
     state.coins = egg.coins
   }
   if (typeof raw.diedAt !== 'number') state.diedAt = state.dead === true ? (raw.lastSeenAt ?? egg.bornAt) : null
@@ -58,7 +63,8 @@ export function migrate(raw, nowMs) {
   state.illness = sanitizeIllness(raw.illness, nowMs)
   state.activity = sanitizeActivity(raw.activity ?? raw.work)
   state.dead = state.dead === true || state.health <= 0
-  state.hatched = state.hatched === true || state.xp > 0
+  state.hatched = state.hatched === true
+  if (!isSeed(state.seed)) state.seed = seedFor(state)
   return state
 }
 
