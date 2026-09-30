@@ -21,6 +21,8 @@ import { renderStudyTab } from './tabs/study.js'
 import { renderTravelTab } from './tabs/travel.js'
 import { renderWorkTab } from './tabs/work.js'
 import { createEffects } from './effects.js'
+import { createLayout } from './layout.js'
+import { createPanel } from './panel.js'
 import { createScene } from './scene.js'
 import { CSS } from './styles.js'
 import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_KEY, DEV_TAB, KIND_ORDER, KIND_TITLE, MOUNTED, MODES, NO_ITEM_LINE, OPEN_KEY, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PET_LINES, PIG_PADDING_X, POLL_MS, POSITION_KEY, SCENE_RESERVE, STAGES, STATE_URL, TABS } from './constants.js'
@@ -81,105 +83,18 @@ window.__ModuleLoader__.load({
       // it existed because the wrapper swallowed clicks aimed at the send button.
       // `pointer-events:none` solves that properly now, so the clamp only ever
       // stopped the user from parking their pet where they wanted it.
-      function clampPig() {
-        var vw = window.innerWidth || 0
-        var vh = window.innerHeight || 0
-        if (vw <= 0 || vh <= 0) return
-        // Bound by the pig, not by the scene. The scene widens to the panel when
-        // open, and clamping against that would shove the pig sideways on any
-        // window resize; the panel's own overflow is `fitPanel`'s problem.
-        var pigRect = pig.getBoundingClientRect ? pig.getBoundingClientRect() : null
-        var w = (pigRect ? pigRect.width || 0 : 0) + 2 * PIG_PADDING_X
-        // Vertically reserve the OPEN scene, or a pig parked high up pushes its
-        // own hud off the top of the window the moment the panel opens.
-        var sceneRect = scene.getBoundingClientRect ? scene.getBoundingClientRect() : null
-        var h = Math.max(sceneRect ? sceneRect.height || 0 : 0, SCENE_RESERVE)
-        var right = Math.min(Math.max(4, userRight), Math.max(4, vw - w - 4))
-        // Only the pig anchors vertically. Clamping by the open panel would move
-        // the pig when the panel appears, which is the one thing the layout
-        // exists to prevent — `fitPanel` shrinks the panel instead.
-        var bottom = Math.min(Math.max(4, userBottom), Math.max(4, vh - h - 4))
-        host.style.right = Math.round(right) + 'px'
-        host.style.bottom = Math.round(bottom) + 'px'
-      }
 
       /**
        * Place the panel so it is fully on screen, wherever the pig has been
        * parked. The pig itself is never moved by this: the panel is absolutely
        * positioned, so it takes no space in the wrapper's box.
        */
-      function fitPanel() {
-        if (!isOpen) return
-        var vw = window.innerWidth || 0
-        var vh = window.innerHeight || 0
-        if (vw <= 0 || vh <= 0) return
-
-        var rect = scene.getBoundingClientRect()
-        var roomAbove = rect.top - PANEL_GAP - PANEL_MARGIN
-        var roomBelow = vh - rect.bottom - PANEL_GAP - PANEL_MARGIN
-
-        // Open on whichever side has space. Ties go above, which is where a
-        // bottom-docked pig expects its menu — but a pig parked near the top
-        // must flip, otherwise its own menu opens off the screen.
-        // Exactly one of top/bottom may apply. Clearing with '' would fall back
-        // to the stylesheet's `bottom`, leaving both set — and an absolutely
-        // positioned box with both edges pinned collapses to zero height.
-        if (roomAbove >= roomBelow) {
-          card.style.top = 'auto'
-          card.style.bottom = 'calc(100% + ' + PANEL_GAP + 'px)'
-          card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomAbove)) + 'px'
-        } else {
-          card.style.bottom = 'auto'
-          card.style.top = 'calc(100% + ' + PANEL_GAP + 'px)'
-          card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomBelow)) + 'px'
-        }
-
-        // Horizontal: the panel is wider than the pig, so anchoring its right
-        // edge to the pig can push it off the left of the window. A negative
-        // `right` moves the panel without touching the wrapper's width, so the
-        // pig stays exactly where it was put.
-        var width = Math.min(PANEL_WIDTH, vw - 2 * PANEL_MARGIN)
-        card.style.maxWidth = Math.round(width) + 'px'
-        var shift = PANEL_MARGIN - (rect.right - width)
-        card.style.right = shift > 0 ? -Math.round(shift) + 'px' : '0px'
-
-        // The hud lives inside the scene, which runs past the left edge whenever
-        // the panel above had to be shifted back into view. Line it up with the
-        // panel's left edge so it stays visible too.
-        var cardLeft = Math.max(rect.right - width, PANEL_MARGIN)
-        hud.style.left = Math.max(9, Math.round(cardLeft - rect.left)) + 'px'
-      }
 
       var icons = {}
 
       /** The tabs on show right now: the normal six, plus 调试 when dev mode is on. */
-      function visibleTabs() {
-        return devMode ? TABS.concat([DEV_TAB]) : TABS
-      }
 
       /** Rebuild the icon bar. Called whenever dev mode flips. */
-      function paintBar() {
-        while (bar.firstChild) bar.removeChild(bar.firstChild)
-        var list = visibleTabs()
-        for (var t = 0; t < list.length; t += 1) buildIcon(list[t])
-        if (icons[tab] === undefined) tab = 'status'
-        for (var k in icons) icons[k].setAttribute('data-active', k === tab ? 'true' : 'false')
-      }
-
-      function buildIcon(tab) {
-        (function (tab) {
-          var btn = button('dp-ico', { 'data-tab': tab.key }, function () {
-            if (host.getAttribute('data-open') !== 'true') setOpen(true)
-            select(tab.key)
-          })
-          btn.appendChild(el('span', 'dp-ico-e', tab.emoji))
-          btn.appendChild(el('span', null, tab.label))
-          icons[tab.key] = btn
-          bar.appendChild(btn)
-        })(tab)
-      }
-
-      for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t])
 
       // ---- state ----
       var view = normalize(null)
@@ -216,41 +131,65 @@ window.__ModuleLoader__.load({
       var stopped = false
       var busy = false
 
-      // ---- open / close ----
-      function setOpen(next) {
-        isOpen = next
-        host.setAttribute('data-open', next ? 'true' : 'false')
-        // Collapsed must be the pig and *nothing else*. One switch hides the
-        // whole panel now that the pig is not inside it — and driving visibility
-        // from the DOM rather than only from CSS makes it something a test can
-        // actually assert.
-        card.hidden = !next
-        // The hud rides with the panel: a bare pig in the corner should not have
-        // a name and a coin count floating beside it.
-        hud.hidden = !next
-        if (!next) bubble.hidden = true
-        writeStore(OPEN_KEY, next ? 'true' : 'false')
-        if (next) {
-          renderContent()
-          fitPanel()
-        } else {
-          // Back to the default anchor so the next open starts from a clean
-          // slate. `auto` (not '') keeps the stylesheet's bottom from re-applying
-          // alongside a stale top.
-          card.style.right = ''
-          card.style.top = 'auto'
-          card.style.bottom = ''
-          card.style.maxHeight = ''
-          card.style.maxWidth = ''
-        }
+      /** The shell hands the modules an explicit context instead of sharing a scope. */
+      var ctx = {
+        host: host,
+        card: card,
+        content: content,
+        scene: scene,
+        hud: hud,
+        hudName: hudName,
+        hudCoins: hudCoins,
+        hudHealth: hudHealth,
+        bubble: bubble,
+        work: work,
+        prop: prop,
+        progressWrap: progressWrap,
+        progressFill: progressFill,
+        pokeHint: pokeHint,
+        soul: soul,
+        pigArt: pigArt,
+        pigEmoji: pigEmoji,
+        pig: pig,
+        dressSlots: dressSlots,
+        bar: bar,
+        icons: icons,
+        send: send,
+        ui: ui,
+        react: react,
+        burst: burst,
+        showBubble: showBubble,
+        toast: toast,
+        get view() { return view }, set view(next) { view = next },
+        get tab() { return tab }, set tab(next) { tab = next },
+        get stage() { return stage }, set stage(next) { stage = next },
+        get picker() { return picker }, set picker(next) { picker = next },
+        get isOpen() { return isOpen }, set isOpen(next) { isOpen = next },
+        get lastStage() { return lastStage }, set lastStage(next) { lastStage = next },
+        get lastPendingAt() { return lastPendingAt }, set lastPendingAt(next) { lastPendingAt = next },
+        get userRight() { return userRight }, set userRight(next) { userRight = next },
+        get userBottom() { return userBottom }, set userBottom(next) { userBottom = next },
+        get devMode() { return devMode },
       }
+      var layout = createLayout(ctx)
+      var panel = createPanel(ctx)
+      ctx.select = panel.select
+      ctx.setOpen = panel.setOpen
+      ctx.fitPanel = layout.fitPanel
+      ctx.paintBar = layout.paintBar
+      ctx.buildIcon = layout.buildIcon
+      ctx.clampPig = layout.clampPig
+      var render = panel.render, renderContent = panel.renderContent
+      var setOpen = panel.setOpen, select = panel.select
+      var fitPanel = layout.fitPanel, clampPig = layout.clampPig
+      var paintBar = layout.paintBar, buildIcon = layout.buildIcon
+      for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t])
+      // `ui` was built before these existed; point it at the real ones now.
+      ui.renderContent = renderContent
+      ui.setOpen = setOpen
+      ui.fitPanel = fitPanel
 
-      function select(next) {
-        tab = next
-        picker = null
-        renderContent()
-        for (var k in icons) icons[k].setAttribute('data-active', k === tab ? 'true' : 'false')
-      }
+      // ---- open / close ----
 
       /**
        * Developer tab. Drives the pig into any state so a change can be looked at
@@ -272,205 +211,10 @@ window.__ModuleLoader__.load({
        * "720 分钟" is three characters of noise that push the rarity hint off.
        */
 
-      function renderContent() {
-        content.textContent = ''
-        for (var k = 0; k < TABS.length; k += 1) {
-          icons[TABS[k].key].setAttribute('data-active', TABS[k].key === tab ? 'true' : 'false')
-        }
-        if (host.getAttribute('data-open') !== 'true') return
-
-        // Alerts sit above the tab body so they are visible from any tab.
-        // Each one is guarded on `pig` because an unhatched pig is null — the
-        // hatch affordance below is the only thing that may render then.
-        if (view.legacy) {
-          var legacy = el('div', 'dp-alert dp-legacy')
-          legacy.appendChild(el('b', null, '⚠️ 宿主是旧版本'))
-          legacy.appendChild(el('div', null, '金币、健康、打工、商店这些是新增的，重启 dsh（不是刷新页面）之后才会出现。'))
-          content.appendChild(legacy)
-        }
-        if (view.pig !== null && view.dead) {
-          var dead = el('div', 'dp-alert dp-dead')
-          dead.appendChild(el('b', null, '🪦 ' + view.pig.name + ' 走了' + (view.pig.soul ? '，灵魂还留在墓碑上 👻' : '')))
-          dead.appendChild(el('div', null, view.pig.soul
-            ? '用还魂丹可以把它叫回来，或者领养一只新的小猪'
-            : '在「背包」里用还魂丹就能救回来（金币、收藏、上过的课都保留）'))
-          content.appendChild(dead)
-          // Adopting is available the moment the pig dies — not only once the
-          // soul turns up a day later. Waiting a day to start over was a
-          // mistake: the grave is already a dead end with nothing to do.
-          var adoptWrap = el('div', 'dp-actions')
-          var adopt = button('dp-btn dp-btn-wide', { 'data-action': 'adopt' }, function () { send('adopt') })
-          adopt.appendChild(el('span', null, '📦'))
-          adopt.appendChild(el('span', null, '领养新猪'))
-          adoptWrap.appendChild(adopt)
-          content.appendChild(adoptWrap)
-        } else if (view.pig !== null && view.pig.illness !== null) {
-          var sick = el('div', 'dp-alert dp-sick')
-          sick.appendChild(el('b', null, '🤒 ' + view.pig.illness.name + '（第 ' + view.pig.illness.stage + '/4 期）'))
-          sick.appendChild(el('div', null, '需要「' + view.pig.illness.cure + '」—— 去商店买对应的药'))
-          // If it cannot afford the cure, say the way out plainly: being ill is
-          // not a reason to stay home, so it can go out and earn the medicine.
-          // careView only carries the consumable shelves (feed/bathe/play), so
-          // the price has to come from the shop listing.
-          var cures = (view.shop || []).filter(function (i) { return i.kind === 'medicine' })
-          var cheapest = cures.length === 0 ? null : cures.reduce(function (a, b) { return a.price <= b.price ? a : b })
-          if (view.canGoOut) {
-            sick.appendChild(el('div', 'dp-dim',
-              '带病也能出门，但报酬只有一半；在外面病情会走得更快，躺着养最省'))
-          }
-          if (cheapest !== null && view.canGoOut && view.pig.coins < cheapest.price) {
-            sick.appendChild(el('div', 'dp-dim',
-              '钱不够也没关系 —— 先去打工，赚够 ' + cheapest.price + ' 🪙 买「' + cheapest.label + '」'))
-          }
-          content.appendChild(sick)
-        } else if (view.pig !== null && view.activity !== null) {
-          var away = el('div', 'dp-alert dp-work')
-          away.appendChild(el('b', null, view.activity.emoji + ' 在外面：' + view.activity.label))
-          away.appendChild(el('div', null, '还有 ' + view.activity.secondsLeft + ' 秒'))
-          content.appendChild(away)
-          var wrap = el('div', 'dp-actions')
-          var call = button('dp-btn dp-btn-wide', { 'data-action': 'calloff' }, function () { send('calloff') })
-          call.appendChild(el('span', null, '↩️'))
-          call.appendChild(el('span', null, '叫它回来'))
-          wrap.appendChild(call)
-          content.appendChild(wrap)
-        }
-
-        if (view.pig === null) {
-          content.appendChild(el('div', 'dp-empty', '门口放着一个纸盒，里面窸窸窣窣 📦'))
-          var grid = el('div', 'dp-actions')
-          var hatch = button('dp-btn dp-btn-wide', { 'data-action': 'hatch' }, function () { send('hatch') })
-          hatch.appendChild(el('span', null, '🥚'))
-          hatch.appendChild(el('span', null, '拆开纸盒'))
-          grid.appendChild(hatch)
-          content.appendChild(grid)
-          content.appendChild(el('div', 'dp-empty', '拆开就会蹦出一只小猪 —— 不用敲命令'))
-          return
-        }
-
-        if (tab === 'status') renderStatusTab(ui)
-        else if (tab === 'study') renderStudyTab(ui)
-        else if (tab === 'work') renderWorkTab(ui)
-        else if (tab === 'shop') renderShopTab(ui)
-        else if (tab === 'travel') renderTravelTab(ui)
-        else if (tab === 'dev') renderDevTab(ui)
-        else renderBagTab(ui)
-
-        // Every tab is a different height, so the fit is recomputed after each
-        // render rather than only on open.
-        fitPanel()
-      }
-
       var AWAY_LINE = {
         work: '在忙',
         study: '在念书',
         trip: '在路上',
-      }
-
-      function render(next) {
-        view = normalize(next)
-        host.setAttribute('data-dead', view.dead ? 'true' : 'false')
-        host.setAttribute('data-open', isOpen ? 'true' : 'false')
-      host.setAttribute('data-dev', 'false')
-        // Drives both the prop and the pig's own activity animation.
-        host.setAttribute('data-away', view.activity === null ? 'false' : view.activity.kind)
-        if (view.activity === null) {
-          work.hidden = true
-        } else {
-          work.hidden = false
-          prop.textContent = view.activity.emoji
-          progressFill.style.width = view.activity.progress + '%'
-          work.setAttribute('data-kind', view.activity.kind)
-          work.title = (AWAY_LINE[view.activity.kind] ?? '在外面') + '：' + view.activity.label
-        }
-
-        if (view.hatched !== true) {
-          pigArt.hidden = true
-          pigArt.removeAttribute('src')
-          pigEmoji.hidden = false
-          pigEmoji.textContent = view.boxStage.emoji
-          pig.removeAttribute('data-art')
-          pig.setAttribute('data-mood', 'box')
-          // Size comes from the host so the box and the pig can never drift.
-          host.style.setProperty('--pig-size', view.boxStage.size + 'px')
-          soul.hidden = true
-          host.setAttribute('data-soul', 'false')
-          host.setAttribute('data-faded', 'false')
-          host.setAttribute('data-unhatched', 'true')
-          pokeHint.hidden = false
-          hudName.textContent = '一个' + view.boxStage.label
-          hudCoins.textContent = '点开拆开它'
-          hudHealth.textContent = ''
-          lastStage = null
-        } else {
-          const stage = view.pig.stage
-          // A drawn stage shows its sprite; everything else is the emoji.
-          if (stage.art !== null) {
-            pigArt.src = ART_URL + stage.art + '.svg'
-            pigArt.hidden = false
-            pigEmoji.hidden = true
-            pig.setAttribute('data-art', stage.art)
-          } else {
-            pigArt.hidden = true
-            pigArt.removeAttribute('src')
-            pigEmoji.hidden = false
-            pigEmoji.textContent = stage.emoji
-            pig.removeAttribute('data-art')
-          }
-          // Literally grows up: the stage carries its own size.
-          host.style.setProperty('--pig-size', stage.size + 'px')
-          pig.setAttribute('data-mood', view.pig.mood)
-          host.setAttribute('data-soul', view.pig.soul ? 'true' : 'false')
-          // Old age reads as a faded coat, since every stage is the same pig.
-          host.setAttribute('data-faded', stage.faded ? 'true' : 'false')
-          host.setAttribute('data-unhatched', 'false')
-          pokeHint.hidden = true
-          soul.hidden = view.pig.soul !== true
-          pig.setAttribute('data-stage', stage.key)
-          // 装扮挂在猪身上（见 .dp-slot），名字牌上不再重复一遍。
-          dressSlots.textContent = ''
-          for (var wd = 0; wd < view.dress.length; wd += 1) {
-            var piece = view.dress[wd]
-            if (!piece.worn || piece.slot === '') continue
-            var node = el('span', 'dp-slot', piece.emoji)
-            node.setAttribute('data-slot', piece.slot)
-            dressSlots.appendChild(node)
-          }
-          hudName.textContent = view.pig.name
-            + ' Lv.' + view.pig.level.level
-            + ' · ' + stage.label
-            + (view.pig.ageLabel ? ' · ' + view.pig.ageLabel : '')
-            + (view.pig.ageForced ? ' 🔧' : '')
-          hudCoins.textContent = '🪙 ' + view.pig.coins
-          hudHealth.textContent = '💚 ' + view.pig.health + '/' + view.maxHealth
-          // Growing up is announced with the same flourish a level-up used to get.
-          if (lastStage !== null && stage.key !== lastStage) {
-            react('levelup', 950)
-            burst(['✨', '🎉', '⭐'], 4)
-            showBubble('我长大啦！' + stage.emoji, 2600)
-          }
-          lastStage = stage.key
-        }
-
-        // Alerts on the icon bar itself, so a collapsed pig still warns.
-        icons.study.setAttribute('data-alert', view.pig !== null && view.pig.illness === null && view.activity === null && view.pig.satiety < 25 ? 'false' : 'false')
-        icons.shop.setAttribute('data-alert', view.pig !== null && view.pig.illness !== null ? 'true' : 'false')
-        icons.travel.setAttribute('data-alert', view.pig !== null && view.pig.coins >= 400 ? 'true' : 'false')
-
-        for (var i = 0; i < view.pending.length; i += 1) {
-          var event = view.pending[i]
-          if (event.at <= lastPendingAt) continue
-          lastPendingAt = event.at
-          toast(str(event.text, '猪有新消息'))
-          if (event.kind === 'levelup') { react('levelup', 950); burst(['✨', '🎉'], 3) }
-          else if (event.kind === 'cured') { react('cure', 900); burst(['💚', '✨'], 3) }
-          else if (event.kind === 'death') react('refuse', 700)
-          else if (event.kind === 'work') { react('away', 900); burst(['🪙', '💰'], 3) }
-          else if (event.kind === 'study') { react('away', 900); burst(['📚', '✨'], 3) }
-          else if (event.kind === 'trip') { react('away', 900); burst(['🧳', '🎁'], 3) }
-        }
-
-        renderContent()
       }
 
       // ---- talking to the host ----

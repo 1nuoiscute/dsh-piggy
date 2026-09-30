@@ -1169,76 +1169,68 @@
     return { react, burst, flash, showBubble, toast, dispose };
   }
 
-  // src/client/scene.js
-  function createScene() {
-    var font = document.createElement("link");
-    font.rel = "stylesheet";
-    font.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700&display=swap";
-    document.head.appendChild(font);
-    var style = document.createElement("style");
-    style.textContent = CSS;
-    document.head.appendChild(style);
-    var host = document.createElement("div");
-    host.setAttribute(MOUNTED, "");
-    var card = el("div", "dp-card");
-    var scene = el("div", "dp-scene");
-    var hud = el("div", "dp-hud");
-    var hudName = el("div", null, "\u732A\u732A");
-    var hudCoins = el("div", null, "\u{1FA99} 0");
-    var hudHealth = el("div", null, "\u{1F49A} 5/5");
-    hud.appendChild(hudName);
-    hud.appendChild(hudCoins);
-    hud.appendChild(hudHealth);
-    scene.appendChild(hud);
-    var bubble = el("div", "dp-bubble", "");
-    bubble.hidden = true;
-    scene.appendChild(bubble);
-    var work = el("div", "dp-work");
-    var prop = el("span", "dp-prop", "\u{1F4BC}");
-    var progressWrap = el("div", "dp-progress");
-    var progressFill = document.createElement("i");
-    progressWrap.appendChild(progressFill);
-    work.appendChild(prop);
-    work.appendChild(progressWrap);
-    work.hidden = true;
-    scene.appendChild(work);
-    var pokeHint = el("div", "dp-poke-hint");
-    pokeHint.appendChild(el("span", null, "\u{1F446}"));
-    pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
-    pokeHint.hidden = true;
-    scene.appendChild(pokeHint);
-    var soul = el("span", "dp-soul", "\u{1F47B}");
-    soul.hidden = true;
-    scene.appendChild(soul);
-    var pigArt = document.createElement("img");
-    pigArt.className = "dp-pig-img";
-    pigArt.alt = "";
-    pigArt.hidden = true;
-    var pigEmoji = el("span", "dp-pig-emoji", "\u{1F416}");
-    var pig = el("div", "dp-pig");
-    pig.appendChild(pigArt);
-    pig.appendChild(pigEmoji);
-    var dressSlots = el("div", "dp-dress");
-    pig.appendChild(dressSlots);
-    scene.appendChild(pig);
-    scene.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
-    var bar = el("div", "dp-bar");
-    var content = el("div", "dp-content");
-    card.appendChild(content);
-    card.appendChild(bar);
-    host.appendChild(card);
-    host.appendChild(scene);
-    if (document.body !== null && document.body !== void 0) {
-      document.body.appendChild(host);
-    } else {
-      document.addEventListener("DOMContentLoaded", function() {
-        try {
-          document.body.appendChild(host);
-        } catch (error) {
-        }
-      }, { once: true });
+  // src/client/layout.js
+  function createLayout(ctx) {
+    function clampPig() {
+      var vw = window.innerWidth || 0;
+      var vh = window.innerHeight || 0;
+      if (vw <= 0 || vh <= 0) return;
+      var pigRect = ctx.pig.getBoundingClientRect ? ctx.pig.getBoundingClientRect() : null;
+      var w = (pigRect ? pigRect.width || 0 : 0) + 2 * PIG_PADDING_X;
+      var sceneRect = ctx.scene.getBoundingClientRect ? ctx.scene.getBoundingClientRect() : null;
+      var h = Math.max(sceneRect ? sceneRect.height || 0 : 0, SCENE_RESERVE);
+      var right = Math.min(Math.max(4, ctx.userRight), Math.max(4, vw - w - 4));
+      var bottom = Math.min(Math.max(4, ctx.userBottom), Math.max(4, vh - h - 4));
+      ctx.host.style.right = Math.round(right) + "px";
+      ctx.host.style.bottom = Math.round(bottom) + "px";
     }
-    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
+    function fitPanel() {
+      if (!ctx.isOpen) return;
+      var vw = window.innerWidth || 0;
+      var vh = window.innerHeight || 0;
+      if (vw <= 0 || vh <= 0) return;
+      var rect = ctx.scene.getBoundingClientRect();
+      var roomAbove = rect.top - PANEL_GAP - PANEL_MARGIN;
+      var roomBelow = vh - rect.bottom - PANEL_GAP - PANEL_MARGIN;
+      if (roomAbove >= roomBelow) {
+        ctx.card.style.top = "auto";
+        ctx.card.style.bottom = "calc(100% + " + PANEL_GAP + "px)";
+        ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomAbove)) + "px";
+      } else {
+        ctx.card.style.bottom = "auto";
+        ctx.card.style.top = "calc(100% + " + PANEL_GAP + "px)";
+        ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomBelow)) + "px";
+      }
+      var width = Math.min(PANEL_WIDTH, vw - 2 * PANEL_MARGIN);
+      ctx.card.style.maxWidth = Math.round(width) + "px";
+      var shift = PANEL_MARGIN - (rect.right - width);
+      ctx.card.style.right = shift > 0 ? -Math.round(shift) + "px" : "0px";
+      var cardLeft = Math.max(rect.right - width, PANEL_MARGIN);
+      ctx.hud.style.left = Math.max(9, Math.round(cardLeft - rect.left)) + "px";
+    }
+    function visibleTabs() {
+      return ctx.devMode ? TABS.concat([DEV_TAB]) : TABS;
+    }
+    function paintBar() {
+      while (ctx.bar.firstChild) ctx.bar.removeChild(ctx.bar.firstChild);
+      var list = visibleTabs();
+      for (var t = 0; t < list.length; t += 1) ctx.buildIcon(list[t]);
+      if (ctx.icons[ctx.tab] === void 0) ctx.tab = "status";
+      for (var k in ctx.icons) ctx.icons[k].setAttribute("data-active", k === ctx.tab ? "true" : "false");
+    }
+    function buildIcon(entry) {
+      (function(entry2) {
+        var btn = button("dp-ico", { "data-tab": entry2.key }, function() {
+          if (ctx.host.getAttribute("data-open") !== "true") ctx.setOpen(true);
+          ctx.select(entry2.key);
+        });
+        btn.appendChild(el("span", "dp-ico-e", entry2.emoji));
+        btn.appendChild(el("span", null, entry2.label));
+        ctx.icons[entry2.key] = btn;
+        ctx.bar.appendChild(btn);
+      })(entry);
+    }
+    return { clampPig, fitPanel, visibleTabs, paintBar, buildIcon };
   }
 
   // src/client/normalize.js
@@ -1507,6 +1499,298 @@
     }
   }
 
+  // src/client/panel.js
+  function createPanel(ctx) {
+    var AWAY_LINE = {
+      work: "\u5728\u5FD9",
+      study: "\u5728\u5FF5\u4E66",
+      trip: "\u5728\u8DEF\u4E0A"
+    };
+    function setOpen(next) {
+      ctx.isOpen = next;
+      ctx.host.setAttribute("data-open", next ? "true" : "false");
+      ctx.card.hidden = !next;
+      ctx.hud.hidden = !next;
+      if (!next) ctx.bubble.hidden = true;
+      writeStore(OPEN_KEY, next ? "true" : "false");
+      if (next) {
+        renderContent();
+        ctx.fitPanel();
+      } else {
+        ctx.card.style.right = "";
+        ctx.card.style.top = "auto";
+        ctx.card.style.bottom = "";
+        ctx.card.style.maxHeight = "";
+        ctx.card.style.maxWidth = "";
+      }
+    }
+    function select(next) {
+      ctx.tab = next;
+      ctx.picker = null;
+      renderContent();
+      for (var k in ctx.icons) ctx.icons[k].setAttribute("data-active", k === ctx.tab ? "true" : "false");
+    }
+    function renderContent() {
+      ctx.content.textContent = "";
+      for (var k = 0; k < TABS.length; k += 1) {
+        ctx.icons[TABS[k].key].setAttribute("data-active", TABS[k].key === ctx.tab ? "true" : "false");
+      }
+      if (ctx.host.getAttribute("data-open") !== "true") return;
+      if (ctx.view.legacy) {
+        var legacy = el("div", "dp-alert dp-legacy");
+        legacy.appendChild(el("b", null, "\u26A0\uFE0F \u5BBF\u4E3B\u662F\u65E7\u7248\u672C"));
+        legacy.appendChild(el("div", null, "\u91D1\u5E01\u3001\u5065\u5EB7\u3001\u6253\u5DE5\u3001\u5546\u5E97\u8FD9\u4E9B\u662F\u65B0\u589E\u7684\uFF0C\u91CD\u542F dsh\uFF08\u4E0D\u662F\u5237\u65B0\u9875\u9762\uFF09\u4E4B\u540E\u624D\u4F1A\u51FA\u73B0\u3002"));
+        ctx.content.appendChild(legacy);
+      }
+      if (ctx.view.pig !== null && ctx.view.dead) {
+        var dead = el("div", "dp-alert dp-dead");
+        dead.appendChild(el("b", null, "\u{1FAA6} " + ctx.view.pig.name + " \u8D70\u4E86" + (ctx.view.pig.soul ? "\uFF0C\u7075\u9B42\u8FD8\u7559\u5728\u5893\u7891\u4E0A \u{1F47B}" : "")));
+        dead.appendChild(el("div", null, ctx.view.pig.soul ? "\u7528\u8FD8\u9B42\u4E39\u53EF\u4EE5\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u6216\u8005\u9886\u517B\u4E00\u53EA\u65B0\u7684\u5C0F\u732A" : "\u5728\u300C\u80CC\u5305\u300D\u91CC\u7528\u8FD8\u9B42\u4E39\u5C31\u80FD\u6551\u56DE\u6765\uFF08\u91D1\u5E01\u3001\u6536\u85CF\u3001\u4E0A\u8FC7\u7684\u8BFE\u90FD\u4FDD\u7559\uFF09"));
+        ctx.content.appendChild(dead);
+        var adoptWrap = el("div", "dp-actions");
+        var adopt = button("dp-btn dp-btn-wide", { "data-action": "adopt" }, function() {
+          ctx.send("adopt");
+        });
+        adopt.appendChild(el("span", null, "\u{1F4E6}"));
+        adopt.appendChild(el("span", null, "\u9886\u517B\u65B0\u732A"));
+        adoptWrap.appendChild(adopt);
+        ctx.content.appendChild(adoptWrap);
+      } else if (ctx.view.pig !== null && ctx.view.pig.illness !== null) {
+        var sick = el("div", "dp-alert dp-sick");
+        sick.appendChild(el("b", null, "\u{1F912} " + ctx.view.pig.illness.name + "\uFF08\u7B2C " + ctx.view.pig.illness.stage + "/4 \u671F\uFF09"));
+        sick.appendChild(el("div", null, "\u9700\u8981\u300C" + ctx.view.pig.illness.cure + "\u300D\u2014\u2014 \u53BB\u5546\u5E97\u4E70\u5BF9\u5E94\u7684\u836F"));
+        var cures = (ctx.view.shop || []).filter(function(i) {
+          return i.kind === "medicine";
+        });
+        var cheapest = cures.length === 0 ? null : cures.reduce(function(a, b) {
+          return a.price <= b.price ? a : b;
+        });
+        if (ctx.view.canGoOut) {
+          sick.appendChild(el(
+            "div",
+            "dp-dim",
+            "\u5E26\u75C5\u4E5F\u80FD\u51FA\u95E8\uFF0C\u4F46\u62A5\u916C\u53EA\u6709\u4E00\u534A\uFF1B\u5728\u5916\u9762\u75C5\u60C5\u4F1A\u8D70\u5F97\u66F4\u5FEB\uFF0C\u8EBA\u7740\u517B\u6700\u7701"
+          ));
+        }
+        if (cheapest !== null && ctx.view.canGoOut && ctx.view.pig.coins < cheapest.price) {
+          sick.appendChild(el(
+            "div",
+            "dp-dim",
+            "\u94B1\u4E0D\u591F\u4E5F\u6CA1\u5173\u7CFB \u2014\u2014 \u5148\u53BB\u6253\u5DE5\uFF0C\u8D5A\u591F " + cheapest.price + " \u{1FA99} \u4E70\u300C" + cheapest.label + "\u300D"
+          ));
+        }
+        ctx.content.appendChild(sick);
+      } else if (ctx.view.pig !== null && ctx.view.activity !== null) {
+        var away = el("div", "dp-alert dp-work");
+        away.appendChild(el("b", null, ctx.view.activity.emoji + " \u5728\u5916\u9762\uFF1A" + ctx.view.activity.label));
+        away.appendChild(el("div", null, "\u8FD8\u6709 " + ctx.view.activity.secondsLeft + " \u79D2"));
+        ctx.content.appendChild(away);
+        var wrap = el("div", "dp-actions");
+        var call = button("dp-btn dp-btn-wide", { "data-action": "calloff" }, function() {
+          ctx.send("calloff");
+        });
+        call.appendChild(el("span", null, "\u21A9\uFE0F"));
+        call.appendChild(el("span", null, "\u53EB\u5B83\u56DE\u6765"));
+        wrap.appendChild(call);
+        ctx.content.appendChild(wrap);
+      }
+      if (ctx.view.pig === null) {
+        ctx.content.appendChild(el("div", "dp-empty", "\u95E8\u53E3\u653E\u7740\u4E00\u4E2A\u7EB8\u76D2\uFF0C\u91CC\u9762\u7AB8\u7AB8\u7AA3\u7AA3 \u{1F4E6}"));
+        var grid = el("div", "dp-actions");
+        var hatch = button("dp-btn dp-btn-wide", { "data-action": "hatch" }, function() {
+          ctx.send("hatch");
+        });
+        hatch.appendChild(el("span", null, "\u{1F95A}"));
+        hatch.appendChild(el("span", null, "\u62C6\u5F00\u7EB8\u76D2"));
+        grid.appendChild(hatch);
+        ctx.content.appendChild(grid);
+        ctx.content.appendChild(el("div", "dp-empty", "\u62C6\u5F00\u5C31\u4F1A\u8E66\u51FA\u4E00\u53EA\u5C0F\u732A \u2014\u2014 \u4E0D\u7528\u6572\u547D\u4EE4"));
+        return;
+      }
+      if (ctx.tab === "status") renderStatusTab(ctx.ui);
+      else if (ctx.tab === "study") renderStudyTab(ctx.ui);
+      else if (ctx.tab === "work") renderWorkTab(ctx.ui);
+      else if (ctx.tab === "shop") renderShopTab(ctx.ui);
+      else if (ctx.tab === "travel") renderTravelTab(ctx.ui);
+      else if (ctx.tab === "dev") renderDevTab(ctx.ui);
+      else renderBagTab(ctx.ui);
+      ctx.fitPanel();
+    }
+    function render(next) {
+      ctx.view = normalize(next);
+      ctx.host.setAttribute("data-dead", ctx.view.dead ? "true" : "false");
+      ctx.host.setAttribute("data-open", ctx.isOpen ? "true" : "false");
+      ctx.host.setAttribute("data-dev", "false");
+      ctx.host.setAttribute("data-away", ctx.view.activity === null ? "false" : ctx.view.activity.kind);
+      if (ctx.view.activity === null) {
+        ctx.work.hidden = true;
+      } else {
+        ctx.work.hidden = false;
+        ctx.prop.textContent = ctx.view.activity.emoji;
+        ctx.progressFill.style.width = ctx.view.activity.progress + "%";
+        ctx.work.setAttribute("data-kind", ctx.view.activity.kind);
+        ctx.work.title = (AWAY_LINE[ctx.view.activity.kind] ?? "\u5728\u5916\u9762") + "\uFF1A" + ctx.view.activity.label;
+      }
+      if (ctx.view.hatched !== true) {
+        ctx.pigArt.hidden = true;
+        ctx.pigArt.removeAttribute("src");
+        ctx.pigEmoji.hidden = false;
+        ctx.pigEmoji.textContent = ctx.view.boxStage.emoji;
+        ctx.pig.removeAttribute("data-art");
+        ctx.pig.setAttribute("data-mood", "box");
+        ctx.host.style.setProperty("--pig-size", ctx.view.boxStage.size + "px");
+        ctx.soul.hidden = true;
+        ctx.host.setAttribute("data-soul", "false");
+        ctx.host.setAttribute("data-faded", "false");
+        ctx.host.setAttribute("data-unhatched", "true");
+        ctx.pokeHint.hidden = false;
+        ctx.hudName.textContent = "\u4E00\u4E2A" + ctx.view.boxStage.label;
+        ctx.hudCoins.textContent = "\u70B9\u5F00\u62C6\u5F00\u5B83";
+        ctx.hudHealth.textContent = "";
+        ctx.lastStage = null;
+      } else {
+        const pigStage = ctx.view.pig.stage;
+        if (pigStage.art !== null) {
+          ctx.pigArt.src = ART_URL + pigStage.art + ".svg";
+          ctx.pigArt.hidden = false;
+          ctx.pigEmoji.hidden = true;
+          ctx.pig.setAttribute("data-art", pigStage.art);
+        } else {
+          ctx.pigArt.hidden = true;
+          ctx.pigArt.removeAttribute("src");
+          ctx.pigEmoji.hidden = false;
+          ctx.pigEmoji.textContent = pigStage.emoji;
+          ctx.pig.removeAttribute("data-art");
+        }
+        ctx.host.style.setProperty("--pig-size", pigStage.size + "px");
+        ctx.pig.setAttribute("data-mood", ctx.view.pig.mood);
+        ctx.host.setAttribute("data-soul", ctx.view.pig.soul ? "true" : "false");
+        ctx.host.setAttribute("data-faded", pigStage.faded ? "true" : "false");
+        ctx.host.setAttribute("data-unhatched", "false");
+        ctx.pokeHint.hidden = true;
+        ctx.soul.hidden = ctx.view.pig.soul !== true;
+        ctx.pig.setAttribute("data-stage", pigStage.key);
+        ctx.dressSlots.textContent = "";
+        for (var wd = 0; wd < ctx.view.dress.length; wd += 1) {
+          var piece = ctx.view.dress[wd];
+          if (!piece.worn || piece.slot === "") continue;
+          var node = el("span", "dp-slot", piece.emoji);
+          node.setAttribute("data-slot", piece.slot);
+          ctx.dressSlots.appendChild(node);
+        }
+        ctx.hudName.textContent = ctx.view.pig.name + " Lv." + ctx.view.pig.level.level + " \xB7 " + pigStage.label + (ctx.view.pig.ageLabel ? " \xB7 " + ctx.view.pig.ageLabel : "") + (ctx.view.pig.ageForced ? " \u{1F527}" : "");
+        ctx.hudCoins.textContent = "\u{1FA99} " + ctx.view.pig.coins;
+        ctx.hudHealth.textContent = "\u{1F49A} " + ctx.view.pig.health + "/" + ctx.view.maxHealth;
+        if (ctx.lastStage !== null && pigStage.key !== ctx.lastStage) {
+          ctx.react("levelup", 950);
+          ctx.burst(["\u2728", "\u{1F389}", "\u2B50"], 4);
+          ctx.showBubble("\u6211\u957F\u5927\u5566\uFF01" + pigStage.emoji, 2600);
+        }
+        ctx.lastStage = pigStage.key;
+      }
+      ctx.icons.study.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.illness === null && ctx.view.activity === null && ctx.view.pig.satiety < 25 ? "false" : "false");
+      ctx.icons.shop.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.illness !== null ? "true" : "false");
+      ctx.icons.travel.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? "true" : "false");
+      for (var i = 0; i < ctx.view.pending.length; i += 1) {
+        var event = ctx.view.pending[i];
+        if (event.at <= ctx.lastPendingAt) continue;
+        ctx.lastPendingAt = event.at;
+        ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
+        if (event.kind === "levelup") {
+          ctx.react("levelup", 950);
+          ctx.burst(["\u2728", "\u{1F389}"], 3);
+        } else if (event.kind === "cured") {
+          ctx.react("cure", 900);
+          ctx.burst(["\u{1F49A}", "\u2728"], 3);
+        } else if (event.kind === "death") ctx.react("refuse", 700);
+        else if (event.kind === "work") {
+          ctx.react("away", 900);
+          ctx.burst(["\u{1FA99}", "\u{1F4B0}"], 3);
+        } else if (event.kind === "study") {
+          ctx.react("away", 900);
+          ctx.burst(["\u{1F4DA}", "\u2728"], 3);
+        } else if (event.kind === "trip") {
+          ctx.react("away", 900);
+          ctx.burst(["\u{1F9F3}", "\u{1F381}"], 3);
+        }
+      }
+      renderContent();
+    }
+    return { setOpen, select, renderContent, render };
+  }
+
+  // src/client/scene.js
+  function createScene() {
+    var font = document.createElement("link");
+    font.rel = "stylesheet";
+    font.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700&display=swap";
+    document.head.appendChild(font);
+    var style = document.createElement("style");
+    style.textContent = CSS;
+    document.head.appendChild(style);
+    var host = document.createElement("div");
+    host.setAttribute(MOUNTED, "");
+    var card = el("div", "dp-card");
+    var scene = el("div", "dp-scene");
+    var hud = el("div", "dp-hud");
+    var hudName = el("div", null, "\u732A\u732A");
+    var hudCoins = el("div", null, "\u{1FA99} 0");
+    var hudHealth = el("div", null, "\u{1F49A} 5/5");
+    hud.appendChild(hudName);
+    hud.appendChild(hudCoins);
+    hud.appendChild(hudHealth);
+    scene.appendChild(hud);
+    var bubble = el("div", "dp-bubble", "");
+    bubble.hidden = true;
+    scene.appendChild(bubble);
+    var work = el("div", "dp-work");
+    var prop = el("span", "dp-prop", "\u{1F4BC}");
+    var progressWrap = el("div", "dp-progress");
+    var progressFill = document.createElement("i");
+    progressWrap.appendChild(progressFill);
+    work.appendChild(prop);
+    work.appendChild(progressWrap);
+    work.hidden = true;
+    scene.appendChild(work);
+    var pokeHint = el("div", "dp-poke-hint");
+    pokeHint.appendChild(el("span", null, "\u{1F446}"));
+    pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
+    pokeHint.hidden = true;
+    scene.appendChild(pokeHint);
+    var soul = el("span", "dp-soul", "\u{1F47B}");
+    soul.hidden = true;
+    scene.appendChild(soul);
+    var pigArt = document.createElement("img");
+    pigArt.className = "dp-pig-img";
+    pigArt.alt = "";
+    pigArt.hidden = true;
+    var pigEmoji = el("span", "dp-pig-emoji", "\u{1F416}");
+    var pig = el("div", "dp-pig");
+    pig.appendChild(pigArt);
+    pig.appendChild(pigEmoji);
+    var dressSlots = el("div", "dp-dress");
+    pig.appendChild(dressSlots);
+    scene.appendChild(pig);
+    scene.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
+    var bar = el("div", "dp-bar");
+    var content = el("div", "dp-content");
+    card.appendChild(content);
+    card.appendChild(bar);
+    host.appendChild(card);
+    host.appendChild(scene);
+    if (document.body !== null && document.body !== void 0) {
+      document.body.appendChild(host);
+    } else {
+      document.addEventListener("DOMContentLoaded", function() {
+        try {
+          document.body.appendChild(host);
+        } catch (error) {
+        }
+      }, { once: true });
+    }
+    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
+  }
+
   // src/client/index.js
   window.__ModuleLoader__.load({
     id: "dsh-piggy",
@@ -1567,67 +1851,7 @@
         }
         host.style.right = userRight + "px";
         host.style.bottom = userBottom + "px";
-        function clampPig() {
-          var vw = window.innerWidth || 0;
-          var vh = window.innerHeight || 0;
-          if (vw <= 0 || vh <= 0) return;
-          var pigRect = pig.getBoundingClientRect ? pig.getBoundingClientRect() : null;
-          var w = (pigRect ? pigRect.width || 0 : 0) + 2 * PIG_PADDING_X;
-          var sceneRect = scene.getBoundingClientRect ? scene.getBoundingClientRect() : null;
-          var h = Math.max(sceneRect ? sceneRect.height || 0 : 0, SCENE_RESERVE);
-          var right = Math.min(Math.max(4, userRight), Math.max(4, vw - w - 4));
-          var bottom = Math.min(Math.max(4, userBottom), Math.max(4, vh - h - 4));
-          host.style.right = Math.round(right) + "px";
-          host.style.bottom = Math.round(bottom) + "px";
-        }
-        function fitPanel() {
-          if (!isOpen) return;
-          var vw = window.innerWidth || 0;
-          var vh = window.innerHeight || 0;
-          if (vw <= 0 || vh <= 0) return;
-          var rect = scene.getBoundingClientRect();
-          var roomAbove = rect.top - PANEL_GAP - PANEL_MARGIN;
-          var roomBelow = vh - rect.bottom - PANEL_GAP - PANEL_MARGIN;
-          if (roomAbove >= roomBelow) {
-            card.style.top = "auto";
-            card.style.bottom = "calc(100% + " + PANEL_GAP + "px)";
-            card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomAbove)) + "px";
-          } else {
-            card.style.bottom = "auto";
-            card.style.top = "calc(100% + " + PANEL_GAP + "px)";
-            card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomBelow)) + "px";
-          }
-          var width = Math.min(PANEL_WIDTH, vw - 2 * PANEL_MARGIN);
-          card.style.maxWidth = Math.round(width) + "px";
-          var shift = PANEL_MARGIN - (rect.right - width);
-          card.style.right = shift > 0 ? -Math.round(shift) + "px" : "0px";
-          var cardLeft = Math.max(rect.right - width, PANEL_MARGIN);
-          hud.style.left = Math.max(9, Math.round(cardLeft - rect.left)) + "px";
-        }
         var icons = {};
-        function visibleTabs() {
-          return devMode ? TABS.concat([DEV_TAB]) : TABS;
-        }
-        function paintBar() {
-          while (bar.firstChild) bar.removeChild(bar.firstChild);
-          var list = visibleTabs();
-          for (var t2 = 0; t2 < list.length; t2 += 1) buildIcon(list[t2]);
-          if (icons[tab] === void 0) tab = "status";
-          for (var k in icons) icons[k].setAttribute("data-active", k === tab ? "true" : "false");
-        }
-        function buildIcon(tab2) {
-          (function(tab3) {
-            var btn = button("dp-ico", { "data-tab": tab3.key }, function() {
-              if (host.getAttribute("data-open") !== "true") setOpen(true);
-              select(tab3.key);
-            });
-            btn.appendChild(el("span", "dp-ico-e", tab3.emoji));
-            btn.appendChild(el("span", null, tab3.label));
-            icons[tab3.key] = btn;
-            bar.appendChild(btn);
-          })(tab2);
-        }
-        for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t]);
         var view = normalize(null);
         var tab = "status";
         var stage = "primary";
@@ -1692,221 +1916,113 @@
         var showBubble = fx.showBubble, toast = fx.toast;
         var stopped = false;
         var busy = false;
-        function setOpen(next) {
-          isOpen = next;
-          host.setAttribute("data-open", next ? "true" : "false");
-          card.hidden = !next;
-          hud.hidden = !next;
-          if (!next) bubble.hidden = true;
-          writeStore(OPEN_KEY, next ? "true" : "false");
-          if (next) {
-            renderContent();
-            fitPanel();
-          } else {
-            card.style.right = "";
-            card.style.top = "auto";
-            card.style.bottom = "";
-            card.style.maxHeight = "";
-            card.style.maxWidth = "";
+        var ctx = {
+          host,
+          card,
+          content,
+          scene,
+          hud,
+          hudName,
+          hudCoins,
+          hudHealth,
+          bubble,
+          work,
+          prop,
+          progressWrap,
+          progressFill,
+          pokeHint,
+          soul,
+          pigArt,
+          pigEmoji,
+          pig,
+          dressSlots,
+          bar,
+          icons,
+          send,
+          ui,
+          react,
+          burst,
+          showBubble,
+          toast,
+          get view() {
+            return view;
+          },
+          set view(next) {
+            view = next;
+          },
+          get tab() {
+            return tab;
+          },
+          set tab(next) {
+            tab = next;
+          },
+          get stage() {
+            return stage;
+          },
+          set stage(next) {
+            stage = next;
+          },
+          get picker() {
+            return picker;
+          },
+          set picker(next) {
+            picker = next;
+          },
+          get isOpen() {
+            return isOpen;
+          },
+          set isOpen(next) {
+            isOpen = next;
+          },
+          get lastStage() {
+            return lastStage;
+          },
+          set lastStage(next) {
+            lastStage = next;
+          },
+          get lastPendingAt() {
+            return lastPendingAt;
+          },
+          set lastPendingAt(next) {
+            lastPendingAt = next;
+          },
+          get userRight() {
+            return userRight;
+          },
+          set userRight(next) {
+            userRight = next;
+          },
+          get userBottom() {
+            return userBottom;
+          },
+          set userBottom(next) {
+            userBottom = next;
+          },
+          get devMode() {
+            return devMode;
           }
-        }
-        function select(next) {
-          tab = next;
-          picker = null;
-          renderContent();
-          for (var k in icons) icons[k].setAttribute("data-active", k === tab ? "true" : "false");
-        }
-        function renderContent() {
-          content.textContent = "";
-          for (var k = 0; k < TABS.length; k += 1) {
-            icons[TABS[k].key].setAttribute("data-active", TABS[k].key === tab ? "true" : "false");
-          }
-          if (host.getAttribute("data-open") !== "true") return;
-          if (view.legacy) {
-            var legacy = el("div", "dp-alert dp-legacy");
-            legacy.appendChild(el("b", null, "\u26A0\uFE0F \u5BBF\u4E3B\u662F\u65E7\u7248\u672C"));
-            legacy.appendChild(el("div", null, "\u91D1\u5E01\u3001\u5065\u5EB7\u3001\u6253\u5DE5\u3001\u5546\u5E97\u8FD9\u4E9B\u662F\u65B0\u589E\u7684\uFF0C\u91CD\u542F dsh\uFF08\u4E0D\u662F\u5237\u65B0\u9875\u9762\uFF09\u4E4B\u540E\u624D\u4F1A\u51FA\u73B0\u3002"));
-            content.appendChild(legacy);
-          }
-          if (view.pig !== null && view.dead) {
-            var dead = el("div", "dp-alert dp-dead");
-            dead.appendChild(el("b", null, "\u{1FAA6} " + view.pig.name + " \u8D70\u4E86" + (view.pig.soul ? "\uFF0C\u7075\u9B42\u8FD8\u7559\u5728\u5893\u7891\u4E0A \u{1F47B}" : "")));
-            dead.appendChild(el("div", null, view.pig.soul ? "\u7528\u8FD8\u9B42\u4E39\u53EF\u4EE5\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u6216\u8005\u9886\u517B\u4E00\u53EA\u65B0\u7684\u5C0F\u732A" : "\u5728\u300C\u80CC\u5305\u300D\u91CC\u7528\u8FD8\u9B42\u4E39\u5C31\u80FD\u6551\u56DE\u6765\uFF08\u91D1\u5E01\u3001\u6536\u85CF\u3001\u4E0A\u8FC7\u7684\u8BFE\u90FD\u4FDD\u7559\uFF09"));
-            content.appendChild(dead);
-            var adoptWrap = el("div", "dp-actions");
-            var adopt = button("dp-btn dp-btn-wide", { "data-action": "adopt" }, function() {
-              send("adopt");
-            });
-            adopt.appendChild(el("span", null, "\u{1F4E6}"));
-            adopt.appendChild(el("span", null, "\u9886\u517B\u65B0\u732A"));
-            adoptWrap.appendChild(adopt);
-            content.appendChild(adoptWrap);
-          } else if (view.pig !== null && view.pig.illness !== null) {
-            var sick = el("div", "dp-alert dp-sick");
-            sick.appendChild(el("b", null, "\u{1F912} " + view.pig.illness.name + "\uFF08\u7B2C " + view.pig.illness.stage + "/4 \u671F\uFF09"));
-            sick.appendChild(el("div", null, "\u9700\u8981\u300C" + view.pig.illness.cure + "\u300D\u2014\u2014 \u53BB\u5546\u5E97\u4E70\u5BF9\u5E94\u7684\u836F"));
-            var cures = (view.shop || []).filter(function(i) {
-              return i.kind === "medicine";
-            });
-            var cheapest = cures.length === 0 ? null : cures.reduce(function(a, b) {
-              return a.price <= b.price ? a : b;
-            });
-            if (view.canGoOut) {
-              sick.appendChild(el(
-                "div",
-                "dp-dim",
-                "\u5E26\u75C5\u4E5F\u80FD\u51FA\u95E8\uFF0C\u4F46\u62A5\u916C\u53EA\u6709\u4E00\u534A\uFF1B\u5728\u5916\u9762\u75C5\u60C5\u4F1A\u8D70\u5F97\u66F4\u5FEB\uFF0C\u8EBA\u7740\u517B\u6700\u7701"
-              ));
-            }
-            if (cheapest !== null && view.canGoOut && view.pig.coins < cheapest.price) {
-              sick.appendChild(el(
-                "div",
-                "dp-dim",
-                "\u94B1\u4E0D\u591F\u4E5F\u6CA1\u5173\u7CFB \u2014\u2014 \u5148\u53BB\u6253\u5DE5\uFF0C\u8D5A\u591F " + cheapest.price + " \u{1FA99} \u4E70\u300C" + cheapest.label + "\u300D"
-              ));
-            }
-            content.appendChild(sick);
-          } else if (view.pig !== null && view.activity !== null) {
-            var away = el("div", "dp-alert dp-work");
-            away.appendChild(el("b", null, view.activity.emoji + " \u5728\u5916\u9762\uFF1A" + view.activity.label));
-            away.appendChild(el("div", null, "\u8FD8\u6709 " + view.activity.secondsLeft + " \u79D2"));
-            content.appendChild(away);
-            var wrap = el("div", "dp-actions");
-            var call = button("dp-btn dp-btn-wide", { "data-action": "calloff" }, function() {
-              send("calloff");
-            });
-            call.appendChild(el("span", null, "\u21A9\uFE0F"));
-            call.appendChild(el("span", null, "\u53EB\u5B83\u56DE\u6765"));
-            wrap.appendChild(call);
-            content.appendChild(wrap);
-          }
-          if (view.pig === null) {
-            content.appendChild(el("div", "dp-empty", "\u95E8\u53E3\u653E\u7740\u4E00\u4E2A\u7EB8\u76D2\uFF0C\u91CC\u9762\u7AB8\u7AB8\u7AA3\u7AA3 \u{1F4E6}"));
-            var grid = el("div", "dp-actions");
-            var hatch = button("dp-btn dp-btn-wide", { "data-action": "hatch" }, function() {
-              send("hatch");
-            });
-            hatch.appendChild(el("span", null, "\u{1F95A}"));
-            hatch.appendChild(el("span", null, "\u62C6\u5F00\u7EB8\u76D2"));
-            grid.appendChild(hatch);
-            content.appendChild(grid);
-            content.appendChild(el("div", "dp-empty", "\u62C6\u5F00\u5C31\u4F1A\u8E66\u51FA\u4E00\u53EA\u5C0F\u732A \u2014\u2014 \u4E0D\u7528\u6572\u547D\u4EE4"));
-            return;
-          }
-          if (tab === "status") renderStatusTab(ui);
-          else if (tab === "study") renderStudyTab(ui);
-          else if (tab === "work") renderWorkTab(ui);
-          else if (tab === "shop") renderShopTab(ui);
-          else if (tab === "travel") renderTravelTab(ui);
-          else if (tab === "dev") renderDevTab(ui);
-          else renderBagTab(ui);
-          fitPanel();
-        }
+        };
+        var layout = createLayout(ctx);
+        var panel = createPanel(ctx);
+        ctx.select = panel.select;
+        ctx.setOpen = panel.setOpen;
+        ctx.fitPanel = layout.fitPanel;
+        ctx.paintBar = layout.paintBar;
+        ctx.buildIcon = layout.buildIcon;
+        ctx.clampPig = layout.clampPig;
+        var render = panel.render, renderContent = panel.renderContent;
+        var setOpen = panel.setOpen, select = panel.select;
+        var fitPanel = layout.fitPanel, clampPig = layout.clampPig;
+        var paintBar = layout.paintBar, buildIcon = layout.buildIcon;
+        for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t]);
+        ui.renderContent = renderContent;
+        ui.setOpen = setOpen;
+        ui.fitPanel = fitPanel;
         var AWAY_LINE = {
           work: "\u5728\u5FD9",
           study: "\u5728\u5FF5\u4E66",
           trip: "\u5728\u8DEF\u4E0A"
         };
-        function render(next) {
-          view = normalize(next);
-          host.setAttribute("data-dead", view.dead ? "true" : "false");
-          host.setAttribute("data-open", isOpen ? "true" : "false");
-          host.setAttribute("data-dev", "false");
-          host.setAttribute("data-away", view.activity === null ? "false" : view.activity.kind);
-          if (view.activity === null) {
-            work.hidden = true;
-          } else {
-            work.hidden = false;
-            prop.textContent = view.activity.emoji;
-            progressFill.style.width = view.activity.progress + "%";
-            work.setAttribute("data-kind", view.activity.kind);
-            work.title = (AWAY_LINE[view.activity.kind] ?? "\u5728\u5916\u9762") + "\uFF1A" + view.activity.label;
-          }
-          if (view.hatched !== true) {
-            pigArt.hidden = true;
-            pigArt.removeAttribute("src");
-            pigEmoji.hidden = false;
-            pigEmoji.textContent = view.boxStage.emoji;
-            pig.removeAttribute("data-art");
-            pig.setAttribute("data-mood", "box");
-            host.style.setProperty("--pig-size", view.boxStage.size + "px");
-            soul.hidden = true;
-            host.setAttribute("data-soul", "false");
-            host.setAttribute("data-faded", "false");
-            host.setAttribute("data-unhatched", "true");
-            pokeHint.hidden = false;
-            hudName.textContent = "\u4E00\u4E2A" + view.boxStage.label;
-            hudCoins.textContent = "\u70B9\u5F00\u62C6\u5F00\u5B83";
-            hudHealth.textContent = "";
-            lastStage = null;
-          } else {
-            const stage2 = view.pig.stage;
-            if (stage2.art !== null) {
-              pigArt.src = ART_URL + stage2.art + ".svg";
-              pigArt.hidden = false;
-              pigEmoji.hidden = true;
-              pig.setAttribute("data-art", stage2.art);
-            } else {
-              pigArt.hidden = true;
-              pigArt.removeAttribute("src");
-              pigEmoji.hidden = false;
-              pigEmoji.textContent = stage2.emoji;
-              pig.removeAttribute("data-art");
-            }
-            host.style.setProperty("--pig-size", stage2.size + "px");
-            pig.setAttribute("data-mood", view.pig.mood);
-            host.setAttribute("data-soul", view.pig.soul ? "true" : "false");
-            host.setAttribute("data-faded", stage2.faded ? "true" : "false");
-            host.setAttribute("data-unhatched", "false");
-            pokeHint.hidden = true;
-            soul.hidden = view.pig.soul !== true;
-            pig.setAttribute("data-stage", stage2.key);
-            dressSlots.textContent = "";
-            for (var wd = 0; wd < view.dress.length; wd += 1) {
-              var piece = view.dress[wd];
-              if (!piece.worn || piece.slot === "") continue;
-              var node = el("span", "dp-slot", piece.emoji);
-              node.setAttribute("data-slot", piece.slot);
-              dressSlots.appendChild(node);
-            }
-            hudName.textContent = view.pig.name + " Lv." + view.pig.level.level + " \xB7 " + stage2.label + (view.pig.ageLabel ? " \xB7 " + view.pig.ageLabel : "") + (view.pig.ageForced ? " \u{1F527}" : "");
-            hudCoins.textContent = "\u{1FA99} " + view.pig.coins;
-            hudHealth.textContent = "\u{1F49A} " + view.pig.health + "/" + view.maxHealth;
-            if (lastStage !== null && stage2.key !== lastStage) {
-              react("levelup", 950);
-              burst(["\u2728", "\u{1F389}", "\u2B50"], 4);
-              showBubble("\u6211\u957F\u5927\u5566\uFF01" + stage2.emoji, 2600);
-            }
-            lastStage = stage2.key;
-          }
-          icons.study.setAttribute("data-alert", view.pig !== null && view.pig.illness === null && view.activity === null && view.pig.satiety < 25 ? "false" : "false");
-          icons.shop.setAttribute("data-alert", view.pig !== null && view.pig.illness !== null ? "true" : "false");
-          icons.travel.setAttribute("data-alert", view.pig !== null && view.pig.coins >= 400 ? "true" : "false");
-          for (var i = 0; i < view.pending.length; i += 1) {
-            var event = view.pending[i];
-            if (event.at <= lastPendingAt) continue;
-            lastPendingAt = event.at;
-            toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
-            if (event.kind === "levelup") {
-              react("levelup", 950);
-              burst(["\u2728", "\u{1F389}"], 3);
-            } else if (event.kind === "cured") {
-              react("cure", 900);
-              burst(["\u{1F49A}", "\u2728"], 3);
-            } else if (event.kind === "death") react("refuse", 700);
-            else if (event.kind === "work") {
-              react("away", 900);
-              burst(["\u{1FA99}", "\u{1F4B0}"], 3);
-            } else if (event.kind === "study") {
-              react("away", 900);
-              burst(["\u{1F4DA}", "\u2728"], 3);
-            } else if (event.kind === "trip") {
-              react("away", 900);
-              burst(["\u{1F9F3}", "\u{1F381}"], 3);
-            }
-          }
-          renderContent();
-        }
         async function refresh() {
           if (stopped) return;
           fitPanel();
