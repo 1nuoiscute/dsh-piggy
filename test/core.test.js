@@ -52,6 +52,8 @@ import {
   daysToNextStage,
   lifeStageFor,
   rename,
+  skillBonus,
+  skillLevels,
   startStudy,
   studyView,
   startTrip,
@@ -992,6 +994,123 @@ test('study is refused when broke, away, sick or dead', () => {
 
   assert.equal(startStudy(hatchEgg(T0), 'underwater-basket-weaving', 'preschool', T0).reason, 'unknown')
   assert.equal(startStudy(hatchEgg(T0), 'sing', 'nursery', T0).reason, 'unknown')
+})
+
+// ===========================================================================
+// Interest skills — the 课外 courses, worn as passives
+// ===========================================================================
+
+test('a skill level is the 课外 course count, not a field of its own', () => {
+  const pig = hatchEgg(T0)
+  pig.coins = 5000
+  assert.deepEqual(skillLevels(pig), { stamina: 0, talent: 0, taste: 0, wits: 0 })
+  creditStage(pig, 'preschool')
+  let clock = T0
+  for (let i = 0; i < 2; i += 1) {
+    pig.satiety = 100
+    assert.equal(startStudy(pig, 'football', 'extracurricular', clock).ok, true)
+    clock += (SCHOOL_STAGES[1].minutes + 1) * MIN
+    decay(pig, clock)
+  }
+  assert.equal(skillLevels(pig).stamina, 2, 'two 足球 lessons = 体力 Lv.2')
+  assert.equal(skillBonus(pig, 'stamina'), 0.1)
+  // The effect is capped, the level is not.
+  pig.coursesByStage.extracurricular.football = 40
+  assert.equal(skillLevels(pig).stamina, 40)
+  assert.equal(skillBonus(pig, 'stamina'), 0.25, 'capped at +25%')
+})
+
+test('体力 shortens the physical jobs and leaves the others alone', () => {
+  const site = JOBS.find(job => job.key === 'site')
+  const build = (football) => {
+    const pig = hatchEgg(T0)
+    pig.traits = { intel: 0, charm: 0, strong: 8 }
+    pig.coursesByStage = football > 0 ? { extracurricular: { football } } : {}
+    assert.equal(startWork(pig, 'site', T0).ok, true)
+    return pig.activity.minutes
+  }
+  const plain = build(0)
+  const skilled = build(3)
+  // 强 8 already shortens the shift; 体力 Lv.3 takes another 15% off on top.
+  assert.equal(plain, Math.round(site.minutes * (1 - 0.32)))
+  assert.equal(skilled, Math.round(site.minutes * (1 - 0.32) * 0.85))
+  assert.ok(skilled < plain)
+
+  // 打零工 is not physical work, so 体力 must not touch it.
+  const odd = (football) => {
+    const pig = hatchEgg(T0)
+    pig.coursesByStage = football > 0 ? { extracurricular: { football } } : {}
+    startWork(pig, 'odd', T0)
+    return pig.activity.minutes
+  }
+  assert.equal(odd(4), odd(0))
+})
+
+test('才艺 raises pay on the performing jobs only', () => {
+  const run = (jobKey, piano) => {
+    const pig = hatchEgg(T0)
+    pig.coins = 0
+    pig.traits = { intel: 0, charm: 0, strong: 8 }
+    pig.coursesByStage = piano > 0 ? { extracurricular: { piano } } : {}
+    assert.equal(startWork(pig, jobKey, T0).ok, true)
+    decay(pig, pig.activity.endsAt)
+    return pig.coins
+  }
+  const plain = run('odd', 0)
+  const skilled = run('odd', 4)
+  assert.equal(plain, JOBS.find(job => job.key === 'odd').coins)
+  assert.equal(skilled, Math.round(plain * 1.2), '才艺 Lv.4 = +20%')
+  // 搬砖 pays for muscle, so a piano player earns exactly the same.
+  assert.equal(run('site', 4), run('site', 0))
+})
+
+test('头脑 shortens every lesson', () => {
+  const build = (go) => {
+    const pig = hatchEgg(T0)
+    pig.coins = 5000
+    pig.coursesByStage = go > 0 ? { extracurricular: { go } } : {}
+    assert.equal(startStudy(pig, 'sing', 'preschool', T0).ok, true)
+    return pig.activity.minutes
+  }
+  const preschool = SCHOOL_STAGES[0]
+  assert.equal(build(0), preschool.minutes)
+  assert.equal(build(4), Math.round(preschool.minutes * 0.8), '头脑 Lv.4 = −20%')
+})
+
+test('审美 makes a trip lift the mood more', () => {
+  const run = (painting) => {
+    const pig = hatchEgg(T0)
+    pig.coins = 5000
+    pig.happiness = 50
+    pig.coursesByStage = painting > 0 ? { extracurricular: { painting } } : {}
+    assert.equal(startTrip(pig, 'suburb', T0).ok, true)
+    decay(pig, pig.activity.endsAt)
+    return pig.happiness
+  }
+  const plain = run(0)
+  const tasty = run(5)
+  assert.equal(tasty - plain, Math.round(TRIPS[0].happiness * 1.5) - TRIPS[0].happiness, '审美 Lv.5 = +50%')
+})
+
+test('才艺 pays part of the 街头卖艺 gate, 头脑 part of the 家教 gate', () => {
+  const fresh = hatchEgg(T0)
+  assert.equal(startWork(fresh, 'street', T0).reason, 'underqualified')
+
+  const performer = hatchEgg(T0)
+  // 才艺 Lv.4 = 8 points of relief, which covers 街头卖艺's charm 8 exactly.
+  performer.coursesByStage = { extracurricular: { piano: 4 } }
+  assert.equal(startWork(performer, 'street', T0).ok, true)
+
+  const scholar = hatchEgg(T0)
+  scholar.coursesByStage = { extracurricular: { go: 5 } }
+  assert.equal(startWork(scholar, 'tutor', T0).ok, true, '头脑 Lv.5 covers 家教\'s 智力 10')
+
+  // One level short, and the refusal reports the *reduced* threshold.
+  const nearly = hatchEgg(T0)
+  nearly.coursesByStage = { extracurricular: { go: 4 } }
+  const refusal = startWork(nearly, 'tutor', T0)
+  assert.equal(refusal.reason, 'underqualified')
+  assert.equal(refusal.missing[0].need, 2, '10 minus 8 of relief')
 })
 
 // ===========================================================================

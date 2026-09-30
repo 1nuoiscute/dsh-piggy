@@ -47,20 +47,20 @@
       play: { label: '玩耍', emoji: '🎾', ready: false, waitSeconds: 37, blocked: null },
       pet: { label: '摸摸', emoji: '❤️', ready: true, waitSeconds: 0, blocked: null },
     },
-    // Ten jobs with the 0.17.0 three-axis gates. `minutes`/`coins` are the
-    // post-bonus numbers the host sends, so the preview shows what the pig
-    // would actually earn — and five of the ten are locked for this pig.
+    // Ten jobs with the three-axis gates, `minutes`/`coins` are the post-bonus
+    // numbers the host sends (trait + 兴趣技能), so the preview shows what the
+    // pig would actually earn — and four of the ten are locked for this pig.
     jobs: [
-      { key: 'odd', label: '打零工', emoji: '🧹', minutes: 11, coins: 42, available: true, qualified: true, lockText: '', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 6, baseMinutes: 15, baseCoins: 30, payPercent: 40, speedPercent: 24 },
-      { key: 'dish', label: '端盘子', emoji: '🍽', minutes: 23, coins: 98, available: true, qualified: true, lockText: '', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 6, baseMinutes: 30, baseCoins: 70, payPercent: 40, speedPercent: 24 },
-      { key: 'courier', label: '送快递', emoji: '🚚', minutes: 38, coins: 240, available: true, qualified: true, lockText: '', traitLabel: '武力', traitEmoji: '💪', traitPoints: 9, baseMinutes: 60, baseCoins: 150, payPercent: 60, speedPercent: 36 },
-      { key: 'site', label: '搬砖', emoji: '🧱', minutes: 58, coins: 416, available: true, qualified: true, lockText: '', traitLabel: '武力', traitEmoji: '💪', traitPoints: 9, baseMinutes: 90, baseCoins: 260, payPercent: 60, speedPercent: 36 },
-      { key: 'foreman', label: '工地领班', emoji: '🏗', minutes: 115, coins: 1120, available: true, qualified: false, lockText: '💪 武力 16（你现在 9）', traitLabel: '武力', traitEmoji: '💪', traitPoints: 9, baseMinutes: 180, baseCoins: 700, payPercent: 60, speedPercent: 36 },
-      { key: 'street', label: '街头卖艺', emoji: '🎤', minutes: 46, coins: 280, available: true, qualified: false, lockText: '✨ 魅力 8（你现在 6）', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 6, baseMinutes: 60, baseCoins: 200, payPercent: 40, speedPercent: 24 },
-      { key: 'tutor', label: '家教', emoji: '📚', minutes: 62, coins: 864, available: true, qualified: true, lockText: '', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 12, baseMinutes: 120, baseCoins: 480, payPercent: 80, speedPercent: 48 },
-      { key: 'office', label: '上班', emoji: '💼', minutes: 125, coins: 1620, available: true, qualified: false, lockText: '🧠 智力 14（你现在 12）', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 12, baseMinutes: 240, baseCoins: 900, payPercent: 80, speedPercent: 48 },
-      { key: 'manager', label: '部门主管', emoji: '🏢', minutes: 187, coins: 3960, available: true, qualified: false, lockText: '🧠 智力 22（你现在 12）、✨ 魅力 10（你现在 6）', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 12, baseMinutes: 360, baseCoins: 2200, payPercent: 80, speedPercent: 48 },
-      { key: 'researcher', label: '研究员', emoji: '🔬', minutes: 250, coins: 7200, available: true, qualified: false, lockText: '🧠 智力 32（你现在 12）', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 12, baseMinutes: 480, baseCoins: 4000, payPercent: 80, speedPercent: 48 },
+      { key: 'odd', label: '打零工', emoji: '🧹', minutes: 11, coins: 44, available: true, qualified: true, lockText: '', reliefNote: '', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 6, baseMinutes: 15, baseCoins: 30, payPercent: 47, speedPercent: 24 },
+      { key: 'dish', label: '端盘子', emoji: '🍽', minutes: 23, coins: 103, available: true, qualified: true, lockText: '', reliefNote: '', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 6, baseMinutes: 30, baseCoins: 70, payPercent: 47, speedPercent: 24 },
+      { key: 'courier', label: '送快递', emoji: '🚚', minutes: 36, coins: 240, available: true, qualified: true, lockText: '', reliefNote: '', traitLabel: '武力', traitEmoji: '💪', traitPoints: 9, baseMinutes: 60, baseCoins: 150, payPercent: 60, speedPercent: 39 },
+      { key: 'site', label: '搬砖', emoji: '🧱', minutes: 55, coins: 416, available: true, qualified: true, lockText: '', reliefNote: '', traitLabel: '武力', traitEmoji: '💪', traitPoints: 9, baseMinutes: 90, baseCoins: 260, payPercent: 60, speedPercent: 39 },
+      { key: 'foreman', label: '工地领班', emoji: '🏗', minutes: 109, coins: 1120, available: true, qualified: false, lockText: '💪 武力 16（你现在 9）', reliefNote: '', traitLabel: '武力', traitEmoji: '💪', traitPoints: 9, baseMinutes: 180, baseCoins: 700, payPercent: 60, speedPercent: 39 },
+      { key: 'street', label: '街头卖艺', emoji: '🎤', minutes: 46, coins: 294, available: true, qualified: true, lockText: '', reliefNote: '🎤 才艺 抵扣了 2 点门槛', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 6, baseMinutes: 60, baseCoins: 200, payPercent: 47, speedPercent: 24 },
+      { key: 'tutor', label: '家教', emoji: '📚', minutes: 62, coins: 864, available: true, qualified: true, lockText: '', reliefNote: '♟ 头脑 抵扣了 2 点门槛', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 12, baseMinutes: 120, baseCoins: 480, payPercent: 80, speedPercent: 48 },
+      { key: 'office', label: '上班', emoji: '💼', minutes: 125, coins: 1620, available: true, qualified: false, lockText: '🧠 智力 14（你现在 12）', reliefNote: '', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 12, baseMinutes: 240, baseCoins: 900, payPercent: 80, speedPercent: 48 },
+      { key: 'manager', label: '部门主管', emoji: '🏢', minutes: 187, coins: 3960, available: true, qualified: false, lockText: '🧠 智力 22（你现在 12）、✨ 魅力 10（你现在 6）', reliefNote: '', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 12, baseMinutes: 360, baseCoins: 2200, payPercent: 80, speedPercent: 48 },
+      { key: 'researcher', label: '研究员', emoji: '🔬', minutes: 250, coins: 7200, available: true, qualified: false, lockText: '🧠 智力 32（你现在 12）', reliefNote: '', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 12, baseMinutes: 480, baseCoins: 4000, payPercent: 80, speedPercent: 48 },
     ],
     // Seven stages, and each subject carries its per-stage lesson counts: the
     // panel filters the grid by the selected stage, so a subject that is taught
@@ -133,6 +133,13 @@
       { key: 'med3', label: '进口药', emoji: '💉', price: 52, kind: 'medicine', tier: 3, affordable: true, needed: false },
       { key: 'med4', label: '秘方药', emoji: '🧪', price: 95, kind: 'medicine', tier: 4, affordable: false, needed: false },
       { key: 'soul', label: '还魂丹', emoji: '✨', price: 150, kind: 'revive', tier: null, affordable: false, needed: false },
+    ],
+    // 兴趣技能：等级 = 对应的课外课上过几次。
+    skills: [
+      { key: 'stamina', label: '体力', emoji: '💪', source: '足球', level: 1, percent: 5, perLevelPercent: 5, capPercent: 25, blurb: '体力活（快递/搬砖/领班）时长 −5%/级', active: true },
+      { key: 'talent', label: '才艺', emoji: '🎤', source: '钢琴', level: 1, percent: 5, perLevelPercent: 5, capPercent: 25, blurb: '魅力类工作报酬 +5%/级，并抵扣街头卖艺的门槛', active: true },
+      { key: 'taste', label: '审美', emoji: '🖼', source: '画画', level: 0, percent: 0, perLevelPercent: 10, capPercent: 50, blurb: '旅行心情 +10%/级', active: false },
+      { key: 'wits', label: '头脑', emoji: '♟', source: '围棋', level: 1, percent: 5, perLevelPercent: 5, capPercent: 25, blurb: '上课时长 −5%/级，并抵扣家教的门槛', active: true },
     ],
     inventory: { apple: 2, soap: 1, bubble: 1, yoyo: 3, ball: null },
     care: {

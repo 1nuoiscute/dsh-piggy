@@ -45,6 +45,7 @@ import {
   SCHOOL_STAGES,
   SHOP,
   SICK_RISK_MINUTES,
+  SKILLS,
   SLEEPY_AFTER_MINUTES,
   STAGE_HEALTH,
   SUBJECTS,
@@ -64,6 +65,7 @@ import {
   stageSubjectKeys,
   stageUnlocked,
   subjectByKey,
+  skillByKey,
   tripByKey,
 } from './data.js'
 
@@ -773,6 +775,33 @@ export function courseView(state) {
   return out
 }
 
+/**
+ * The pig's four 兴趣技能 levels.
+ *
+ * A skill is not stored: its level is how many times the pig has taken the
+ * matching 课外 course, so the whole feature rides on the lesson table — and
+ * repeating a course is exactly how you level the skill up.
+ *
+ * @param {{coursesByStage?: Record<string, Record<string, number>>}|null} state
+ * @returns {Record<string, number>} level per skill key, always all four.
+ */
+export function skillLevels(state) {
+  const extracurricular = state?.coursesByStage?.extracurricular ?? {}
+  const out = {}
+  for (const skill of SKILLS) out[skill.key] = extracurricular[skill.from] ?? 0
+  return out
+}
+
+/** The capped bonus one skill currently gives, as a fraction (0.15 = +15%). */
+export function skillBonusFrom(levels, skillKey) {
+  const skill = skillByKey(skillKey)
+  if (skill === null) return 0
+  return Math.min(skill.per * (levels?.[skillKey] ?? 0), skill.cap)
+}
+
+/** Convenience: the current bonus straight from a state. */
+export const skillBonus = (state, skillKey) => skillBonusFrom(skillLevels(state), skillKey)
+
 export function currentIllness(state) {
   if (state.illness === null || state.illness === undefined) return null
   return illnessAt(state.illness.chain, state.illness.stage)
@@ -894,7 +923,9 @@ function finishWork(state, activity, nowMs) {
   // Trait bonus first, then the sick penalty: going to school should still be
   // worth it while the pig is under the weather.
   const points = state.traits?.[job.trait] ?? 0
-  const withTrait = job.coins * traitBonus(job.trait, points).pay
+  // 才艺 pays on top of the trait bonus, but only for the jobs that perform.
+  const talent = job.trait === 'charm' ? 1 + skillBonus(state, 'talent') : 1
+  const withTrait = job.coins * traitBonus(job.trait, points).pay * talent
   const coins = sick ? Math.max(1, Math.round(withTrait * SICK_PAY_MULTIPLIER)) : Math.round(withTrait)
   state.coins += coins
   state.satiety = clamp100(state.satiety + job.satiety)
@@ -940,7 +971,9 @@ function finishTrip(state, activity, nowMs) {
   // Deterministic souvenir rotation keeps the mechanic testable without RNG.
   const souvenir = trip.souvenirs[state.stats.trips % trip.souvenirs.length]
   state.souvenirs = [...(state.souvenirs ?? []), souvenir]
-  state.happiness = clamp100(state.happiness + trip.happiness)
+  // 审美（画画练出来的）makes the pig enjoy the trip more, not just look at it.
+  const taste = 1 + skillBonus(state, 'taste')
+  state.happiness = clamp100(state.happiness + Math.round(trip.happiness * taste))
   state.satiety = clamp100(state.satiety + trip.satiety)
   state.stats.trips += 1
   applyEffects(state, { xp: trip.xp }, nowMs)
@@ -1173,8 +1206,10 @@ export function startWork(state, jobKey, nowMs) {
   if (state.activity !== null) return { ok: false, reason: 'away' }
   if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
   // The gate is checked before the pig walks out: an unqualified job is refused
-  // with the exact axes it is short on, so the panel can point at 学习.
-  const gate = jobRequirement(job, state.traits)
+  // with the exact axes it is short on, so the panel can point at 学习. Interest
+  // skills can pay part of a threshold (才艺 → 街头卖艺, 头脑 → 家教).
+  const skills = skillLevels(state)
+  const gate = jobRequirement(job, state.traits, skills)
   if (gate !== null && !gate.ok) {
     return { ok: false, reason: 'underqualified', missing: gate.missing, job: job.key }
   }
@@ -1182,7 +1217,9 @@ export function startWork(state, jobKey, nowMs) {
   // The pig's trait shortens the shift; the pay bonus is applied on the way out.
   const points = state.traits?.[job.trait] ?? 0
   const bonus = traitBonus(job.trait, points)
-  const minutes = Math.max(1, Math.round(job.minutes * bonus.minutes))
+  // 体力 only helps the jobs that are actually physical.
+  const stamina = job.heavy === true ? 1 - skillBonusFrom(skills, 'stamina') : 1
+  const minutes = Math.max(1, Math.round(job.minutes * bonus.minutes * stamina))
   const result = begin(state, {
     kind: 'work', key: job.key, label: job.label, emoji: job.emoji, minutes, cost: 0,
     trait: job.trait ?? null,
@@ -1214,10 +1251,12 @@ export function startStudy(state, subjectKey, stageKey, nowMs) {
   if (state.satiety < 15) return { ok: false, reason: 'hungry' }
 
   state.coins -= stage.tuition
+  // 头脑（围棋练出来的）makes every lesson shorter, whichever stage it is.
+  const minutes = Math.max(1, Math.round(stage.minutes * (1 - skillBonus(state, 'wits'))))
   const result = begin(state, {
     kind: 'study', key: subject.key, stage: stage.key,
     label: `${stage.label}${subject.label}`, emoji: subject.emoji,
-    minutes: stage.minutes, cost: stage.tuition,
+    minutes, cost: stage.tuition,
   }, nowMs)
   if (!result.ok) {
     state.coins += stage.tuition // refund if the pig turned out to be unavailable

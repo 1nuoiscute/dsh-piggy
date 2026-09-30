@@ -630,6 +630,7 @@ test('a job behind a trait gate says what it needs instead of just greying out',
       jobs: [
         { key: 'odd', label: '打零工', emoji: '🧹', minutes: 15, coins: 30, available: true, qualified: true, lockText: '', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 0, baseMinutes: 15, baseCoins: 30, payPercent: 0, speedPercent: 0 },
         { key: 'tutor', label: '家教', emoji: '📚', minutes: 120, coins: 480, available: true, qualified: false, lockText: '🧠 智力 10（你现在 0）', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 0, baseMinutes: 120, baseCoins: 480, payPercent: 0, speedPercent: 0 },
+        { key: 'street', label: '街头卖艺', emoji: '🎤', minutes: 48, coins: 240, available: true, qualified: true, lockText: '', reliefNote: '🎤 才艺 抵扣了 8 点门槛', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 0, baseMinutes: 60, baseCoins: 200, payPercent: 20, speedPercent: 20 },
       ],
     },
   })
@@ -641,9 +642,37 @@ test('a job behind a trait gate says what it needs instead of just greying out',
   const text = contentOf(dom).allText()
   assert.ok(text.includes('🔒 需要 🧠 智力 10（你现在 0）'), text)
   assert.ok(text.includes('去「学习」上课就能涨这些属性'), text)
+  assert.ok(text.includes('🎤 才艺 抵扣了 8 点门槛'), 'a discounted gate must say why the number is smaller')
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'tutor').disabled, true)
   assert.ok(findByAttr(contentOf(dom), 'data-job', 'tutor').allText().includes('没资格'))
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
+  assert.equal(findByAttr(contentOf(dom), 'data-job', 'street').disabled, false, 'the discount opened it')
+})
+
+test('the status tab lists the four interest skills', async () => {
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      skills: [
+        { key: 'stamina', label: '体力', emoji: '💪', source: '足球', level: 2, percent: 10, perLevelPercent: 5, capPercent: 25, blurb: '体力活时长 −5%/级', active: true },
+        { key: 'talent', label: '才艺', emoji: '🎤', source: '钢琴', level: 4, percent: 20, perLevelPercent: 5, capPercent: 25, blurb: '魅力类报酬 +5%/级', active: true },
+        { key: 'taste', label: '审美', emoji: '🖼', source: '画画', level: 0, percent: 0, perLevelPercent: 10, capPercent: 50, blurb: '旅行心情 +10%/级', active: false },
+        { key: 'wits', label: '头脑', emoji: '♟', source: '围棋', level: 0, percent: 0, perLevelPercent: 5, capPercent: 25, blurb: '上课时长 −5%/级', active: false },
+      ],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'status')
+
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('🎯 本事'), text)
+  assert.ok(text.includes('才艺 Lv.4'), text)
+  assert.ok(text.includes('+20%'), text)
+  assert.ok(text.includes('还没练'), 'a skill at level 0 says so instead of showing +0%')
+  assert.ok(text.includes('上足球课升级'), text)
+  assert.ok(!text.includes('undefined'), text)
 })
 
 test('an older host with no job gates does not lock the whole board', async () => {

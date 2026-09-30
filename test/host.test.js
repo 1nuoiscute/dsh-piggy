@@ -332,6 +332,33 @@ test('the route refuses an unqualified job and hands back the missing axes', asy
   }
 })
 
+test('the snapshot carries the four interest skills and the relief they give', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs)
+    pig.coursesByStage = { extracurricular: { piano: 4, football: 2, go: 1 } }
+    return pig
+  })
+  try {
+    const snap = await app.get()
+    assert.deepEqual(snap.skills.map(s => s.key), ['stamina', 'talent', 'taste', 'wits'])
+    assert.equal(snap.skills.find(s => s.key === 'talent').level, 4)
+    assert.equal(snap.skills.find(s => s.key === 'talent').percent, 20)
+    assert.equal(snap.skills.find(s => s.key === 'wits').percent, 5)
+
+    // 才艺 Lv.4 pays the whole charm gate of 街头卖艺, and the board says so.
+    const street = snap.jobs.find(job => job.key === 'street')
+    assert.equal(street.qualified, true)
+    assert.match(street.reliefNote, /才艺 抵扣了 8 点/)
+    assert.equal(street.coins, Math.round(200 * 1.2), 'and the pay carries the skill too')
+    // 搬砖 is physical: 体力 Lv.2 trims it, 才艺 does not touch it.
+    const site = snap.jobs.find(job => job.key === 'site')
+    assert.equal(site.heavy, true)
+    assert.equal(site.minutes, Math.round(90 * 0.9))
+  } finally {
+    app.cleanup()
+  }
+})
+
 test('buying is refused when broke, and the refusal is honest', async () => {
   const app = boot(nowMs => { const pig = hatchEgg(nowMs); pig.coins = 2; return pig })
   try {
