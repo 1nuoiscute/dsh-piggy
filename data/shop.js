@@ -6,11 +6,34 @@
 
 import { REVIVE_ITEM } from './illness.js'
 
+/** @type {ShopItem} */
 export const DEFAULT_TOY = Object.freeze({
   key: 'ball', label: '小皮球', emoji: '🎾', price: 0, kind: 'toy',
   happiness: 12, satiety: -3, default: true,
 })
 
+/**
+ * One shelf entry. Everything past `kind` is optional: food carries satiety,
+ * medicine carries a tier, 装扮 carries a slot and a level gate.
+ *
+ * @typedef {object} ShopItem
+ * @property {string} key
+ * @property {string} label
+ * @property {string} emoji
+ * @property {number} price
+ * @property {string} kind
+ * @property {number} [satiety]
+ * @property {number} [happiness]
+ * @property {number} [cleanliness]
+ * @property {number} [health]
+ * @property {number} [level]
+ * @property {boolean} [default]
+ * @property {boolean} [needed]
+ * @property {string} [slot]
+ * @property {number} [tier]
+ * @property {string} [blurb]
+ */
+/** @type {ReadonlyArray<ShopItem>} */
 export const SHOP = Object.freeze([
   // --- food ---------------------------------------------------------------
   Object.freeze({ key: 'apple', label: '苹果', emoji: '🍎', price: 6, kind: 'food', satiety: 22, happiness: 3 }),

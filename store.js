@@ -17,9 +17,11 @@ const SAVE_THROTTLE_MS = 1500
 
 /**
  * Open (or lazily create on first hatch) the save file.
- * @param filePath - where the save lives.
- * @param options.now - injectable clock for tests.
- * @param options.setTimer / options.clearTimer - injectable scheduler for tests.
+ * @param {string} [filePath] - where the save lives.
+ * @param {object} [options] - test seams.
+ * @param {() => number} [options.now] - injectable clock.
+ * @param {Function} [options.setTimer] - injectable scheduler.
+ * @param {Function} [options.clearTimer] - injectable canceller.
  */
 export function createStore(filePath = defaultStatePath(), options = {}) {
   const now = options.now ?? (() => Date.now())

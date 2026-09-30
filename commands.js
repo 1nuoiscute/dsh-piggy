@@ -177,7 +177,8 @@ export function registerSlashCommand(ctx, store, commandName) {
         try {
           return dispatch(store, commandName, String(invocation.rawInput ?? ''))
         } catch (error) {
-          return { kind: 'error', text: `🐖 猪摔了一跤：${error?.message ?? error}` }
+          const detail = error instanceof Error ? error.message : String(error)
+          return { kind: 'error', text: `🐖 猪摔了一跤：${detail}` }
         }
       },
     })

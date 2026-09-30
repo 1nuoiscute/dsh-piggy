@@ -45,7 +45,8 @@
 - Node 侧与客户端源码**每个文件开头 `// @ts-check`**，导出函数写 JSDoc（参数 + 返回）。
 - 核心数据结构用 `@typedef` 统一定义，优先放 `core/types.js`。
 - 外部输入（`state.json`、请求体、DOM 快照）先当 `unknown`，校验后再用。
-- **不引入 TypeScript 编译**；用 `node scripts/typecheck.mjs`（`tsc --noEmit --allowJs --checkJs`）检查。
+- **不引入 TypeScript 编译**；用 `npm run typecheck`（`tsc --noEmit --allowJs --checkJs`）检查，源码首行写 `// @ts-check`。
+- 当前 `noImplicitAny` 关着：先抓"属性不存在、参数类型不对"这类真错误，等 JSDoc 补齐再逐级收紧（脚本里有注释说明）。
 
 ## 错误处理
 

@@ -31,6 +31,8 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
   `store.js` → `store/{api,state-file}`。公开导出面逐项比对无变化。
 - 领域层不再读系统时间（`nowMs` 一律作参数）；代码注释去掉 emoji；
   新增静态守卫（领域层时间、注释 emoji、文件 400 行上限、发布 files 覆盖）。
+- 新增 `npm run typecheck`（`tsc --noEmit --checkJs`，不进构建、不加依赖）与
+  静态守卫；源码全部带 `// @ts-check`，当前**零类型错误**。
 - 客户端源码按职责拆成 `styles/constants/values/normalize/storage/dom/scene/
   effects/layout/panel/io` 与 `tabs/*`，由 esbuild 打包；界面渲染结果与拆分前
   逐页签、逐交互（拖拽、开关、装扮）比对一致。

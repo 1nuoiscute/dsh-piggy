@@ -51,7 +51,8 @@ export function readStateFile(filePath, nowMs) {
     raw = readFileSync(filePath, 'utf8')
   } catch (error) {
     // A missing save is the normal first run; anything else is worth saying.
-    if (error?.code !== 'ENOENT') {
+    const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+    if (code !== 'ENOENT') {
       console.warn(`[dsh-pig] could not read save: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
     }
     return { state: null, needsSave: false }

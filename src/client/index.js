@@ -32,7 +32,7 @@ import { normalize } from './normalize.js'
 import { readStore, writeStore } from './storage.js'
 import { arr, num, obj, str } from './values.js'
 
-window.__ModuleLoader__.load({
+/** @type {any} */ (window).__ModuleLoader__.load({
   id: 'dsh-piggy',
   factory: (require) => {
     var module = { exports: {} }
@@ -110,11 +110,7 @@ window.__ModuleLoader__.load({
       var ui = {
         get view() { return view }, set view(next) { view = next },
         get content() { return content }, set content(next) { content = next },
-        flash: flash,
-        renderContent: renderContent,
         get host() { return host }, set host(next) { host = next },
-        setOpen: setOpen,
-        fitPanel: fitPanel,
         get picker() { return picker }, set picker(next) { picker = next },
         get stage() { return stage }, set stage(next) { stage = next },
         get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
@@ -197,6 +193,7 @@ window.__ModuleLoader__.load({
       ui.renderContent = renderContent
       ui.setOpen = setOpen
       ui.fitPanel = fitPanel
+      ui.flash = flash
 
       // ---- open / close ----
 
@@ -326,7 +323,7 @@ window.__ModuleLoader__.load({
 
       // Also reachable from the console, for when the panel is off screen.
       try {
-        window.dshPigDev = {
+        /** @type {any} */ (window).dshPigDev = {
           on: function () { setDevMode(true) },
           off: function () { setDevMode(false) },
           toggle: function () { setDevMode(!devMode) },

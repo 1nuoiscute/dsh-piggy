@@ -10,6 +10,19 @@ export const MAX = Object.freeze({ satiety: 100, happiness: 100, cleanliness: 10
 /** One "pig month" — what the stage table below counts in. */
 export const DAYS_PER_MONTH = 30
 
+/**
+ * @typedef {object} LifeStage
+ * @property {string} key
+ * @property {string} label
+ * @property {string} emoji
+ * @property {number} size
+ * @property {number} [from]
+ * @property {string} line
+ * @property {boolean} [box]
+ * @property {string} [art]
+ * @property {boolean} [faded]
+ */
+/** @type {ReadonlyArray<LifeStage>} */
 export const LIFE_STAGES = Object.freeze([
   Object.freeze({
     key: 'box', label: '纸盒', emoji: '📦', size: 58, from: 0, box: true,
@@ -55,6 +68,7 @@ export const DEFAULT_TIME_SCALE = 1
 export const TIME_SCALES = Object.freeze([1, 12, 30, 60])
 
 /** The tombstone and the soul that settles on an unclaimed one. */
+/** @type {LifeStage} */
 export const GRAVE = Object.freeze({ key: 'grave', label: '墓碑', emoji: '🪦', size: 56, line: '这里躺着一只猪' })
 
 export const SOUL = Object.freeze({ emoji: '👻', label: '灵魂' })

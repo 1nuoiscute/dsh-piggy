@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * dsh-pig — a pig that lives in your DeepSeek Harness.
  *

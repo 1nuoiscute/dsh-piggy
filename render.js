@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * dsh-pig · render — every word the pig says.
  *

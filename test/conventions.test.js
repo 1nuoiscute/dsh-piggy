@@ -96,3 +96,11 @@ test('package.json ships every module the runtime imports', () => {
   const absent = [...listed].filter(entry => !existsSync(new URL(entry, packageRoot)))
   assert.deepEqual(absent, [], 'files lists something that is not in the package:')
 })
+
+test('the typecheck command the conventions promise actually exists', () => {
+  // docs/CONVENTIONS.md tells contributors to run `npm run typecheck`; it was
+  // documented for a while before the script existed.
+  const manifest = JSON.parse(read(new URL('package.json', packageRoot)))
+  assert.equal(manifest.scripts.typecheck, 'node scripts/typecheck.mjs')
+  assert.ok(existsSync(new URL('scripts/typecheck.mjs', packageRoot)), 'scripts/typecheck.mjs must exist')
+})

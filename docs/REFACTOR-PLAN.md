@@ -20,7 +20,9 @@
 | 1 文件行数守卫 | 完成 | `test(pig)` 提交 |
 | 2 客户端抽出 styles/constants/values/normalize/storage/dom | 完成（index.js 2192→1397） | `6f7ea8e` |
 | 2 客户端页签与外壳拆分 | 完成（index.js 2192→354） | `129f81b` `993666d` `3c01c27` |
-| 3 类型收尾 | 未开始 | |
+| 3 类型收尾（typecheck + @ts-check + JSDoc） | 完成（0 错误） | 本轮 |
+
+**阶段 3 已完成**：`npm run typecheck` 零错误，源码全部带 `// @ts-check`。
 
 **阶段 2 已完成**：客户端与 Node 侧都没有超过 400 行的文件，全部模块化。
 

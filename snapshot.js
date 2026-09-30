@@ -97,6 +97,8 @@ export function snapshot(store, options = {}) {
   const pending = Array.isArray(state.pending) ? state.pending.slice() : []
   if (drain && pending.length > 0) store.drainPending()
 
+  const daysLeft = daysToNextStage(state, nowMs)
+
   return {
     ok: true,
     // The REAL flag, not "a save exists". A box produced by reset/adopt has a
@@ -113,7 +115,7 @@ export function snapshot(store, options = {}) {
       ageLabel: formatAge(ageDays(state, nowMs), state, nowMs),
       // Marked beside the age so a forced age is never mistaken for real growth.
       ageForced: state.ageForced === true,
-      daysToNextStage: daysToNextStage(state, nowMs) === null ? null : Number(daysToNextStage(state, nowMs).toFixed(2)),
+      daysToNextStage: daysLeft === null ? null : Number(daysLeft.toFixed(2)),
       soul: hasSoul(state, nowMs),
       mood: current.key,
       moodEmoji: current.emoji,

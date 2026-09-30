@@ -1936,16 +1936,12 @@
           set content(next) {
             content = next;
           },
-          flash,
-          renderContent,
           get host() {
             return host;
           },
           set host(next) {
             host = next;
           },
-          setOpen,
-          fitPanel,
           get picker() {
             return picker;
           },
@@ -2102,6 +2098,7 @@
         ui.renderContent = renderContent;
         ui.setOpen = setOpen;
         ui.fitPanel = fitPanel;
+        ui.flash = flash;
         var drag = null;
         scene.addEventListener("pointerdown", function(event) {
           if (event.button !== 0) return;

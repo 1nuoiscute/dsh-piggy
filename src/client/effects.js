@@ -11,7 +11,7 @@ import { el } from './dom.js'
 
 /**
  * @param {{ scene: object, pig: object, card: object, bubble: object, isStopped: () => boolean }} deps
- * @returns {{ react: Function, burst: Function, flash: Function, showBubble: Function, toast: Function }}
+ * @returns {{ react: Function, burst: Function, flash: Function, showBubble: Function, toast: Function, dispose: Function }}
  */
 export function createEffects(deps) {
   var scene = deps.scene

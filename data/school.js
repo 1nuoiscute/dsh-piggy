@@ -121,11 +121,13 @@ export const stageSubjectList = stage =>
 
 /**
  * Which subjects of `stage` the pig has already sat through at least once.
- * @param {{subjects?: readonly string[]}|null|undefined} stage
+ * @param {{key: string, subjects?: readonly string[]}|null|undefined} stage
  * @param {Record<string, Record<string, number>>|null|undefined} coursesByStage
  */
-const stageSubjectsDone = (stage, coursesByStage) =>
-  stageSubjectKeys(stage).filter(key => (coursesByStage?.[stage.key]?.[key] ?? 0) >= 1).length
+const stageSubjectsDone = (stage, coursesByStage) => {
+  if (stage === null || stage === undefined) return 0
+  return stageSubjectKeys(stage).filter(key => (coursesByStage?.[stage.key]?.[key] ?? 0) >= 1).length
+}
 
 /**
  * Whether `stage` is open yet: every subject of the stage below it must have

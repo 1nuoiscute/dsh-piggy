@@ -39,7 +39,7 @@ export function lifeStageFor(state, nowMs) {
   let stage = LIFE_STAGES[1]
   for (const candidate of LIFE_STAGES) {
     if (candidate.box === true) continue
-    if (days >= candidate.from) stage = candidate
+    if (days >= (candidate.from ?? 0)) stage = candidate
   }
   return stage
 }
@@ -48,13 +48,13 @@ export function lifeStageFor(state, nowMs) {
 export function nextLifeStage(state, nowMs) {
   if (state === null || state.dead === true || state.hatched !== true) return null
   const days = ageDays(state, nowMs)
-  return LIFE_STAGES.find(stage => stage.box !== true && stage.from > days) ?? null
+  return LIFE_STAGES.find(stage => stage.box !== true && (stage.from ?? 0) > days) ?? null
 }
 
 /** Days remaining until that next rung, or null at the end of the line. */
 export function daysToNextStage(state, nowMs) {
   const next = nextLifeStage(state, nowMs)
-  return next === null ? null : Math.max(0, next.from - ageDays(state, nowMs))
+  return next === null ? null : Math.max(0, (next.from ?? 0) - ageDays(state, nowMs))
 }
 
 // ---------------------------------------------------------------------------
