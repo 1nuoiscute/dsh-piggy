@@ -720,6 +720,7 @@
     "animation:dp-prop-bob 2.4s ease-in-out infinite}",
     '[data-dsh-pig][data-away="study"] .dp-prop{animation-duration:3.4s}',
     '[data-dsh-pig][data-away="trip"] .dp-prop{animation-name:dp-prop-swing;animation-duration:1.6s}',
+    '[data-dsh-pig][data-away="interest"] .dp-prop{animation-duration:3.4s}',
     "@keyframes dp-prop-bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3px) rotate(3deg)}}",
     "@keyframes dp-prop-swing{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-4px) rotate(8deg)}}",
     ".dp-progress{width:42px;height:7px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
@@ -728,6 +729,7 @@
     "background:var(--ac-primary);transition:width .5s var(--ac-ease)}",
     // The scene needs room for the prop; it grows leftward, so the pig stays put.
     '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
+    '[data-dsh-pig][data-away="interest"] .dp-scene,',
     '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
     /* ---------- hud: a cream tag beside the pig ---------- */
     ".dp-hud{position:absolute;left:9px;top:7px;display:flex;flex-direction:column;gap:1px;",

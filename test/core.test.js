@@ -1018,6 +1018,24 @@ test('an interest lesson pays straight into one of the three traits', () => {
   }
 })
 
+test('an interest course survives a restart instead of vanishing with the fee', () => {
+  // #4: sanitizeActivity only knew work/study/trip, so a saved interest course
+  // was dropped on load — the pig came back idle with the fee already spent.
+  const pig = hatchEgg(T0)
+  pig.coins = 5000
+  assert.equal(startInterest(pig, 'coding', T0).ok, true)
+  const fee = 5000 - pig.coins
+
+  const reloaded = migrate(JSON.parse(JSON.stringify(pig)), T0 + 60_000)
+  assert.notEqual(reloaded.activity, null, 'the course must still be running after a reload')
+  assert.equal(reloaded.activity.kind, 'interest')
+  assert.equal(reloaded.activity.key, 'coding')
+  assert.equal(reloaded.coins, 5000 - fee, 'and the fee must not be charged twice')
+
+  decay(reloaded, reloaded.activity.endsAt)
+  assert.equal(reloaded.traits.intel, 2, 'the lesson still pays out when it ends')
+})
+
 test('interests are repeatable and outside the school ladder', () => {
   const pig = hatchEgg(T0)
   pig.coins = 5000

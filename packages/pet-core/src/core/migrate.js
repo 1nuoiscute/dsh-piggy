@@ -6,7 +6,7 @@
  * @module dsh-pig/core/migrate
  */
 
-import { ILLNESS_CHAINS, INTERESTS, MAX, SCHOOL_STAGES, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, itemByKey, jobByKey, schoolStageByKey, stageSubjectKeys, subjectByKey, tripByKey } from '../data.js'
+import { ILLNESS_CHAINS, INTERESTS, MAX, SCHOOL_STAGES, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, interestByKey, itemByKey, jobByKey, schoolStageByKey, stageSubjectKeys, subjectByKey, tripByKey } from '../data.js'
 import { MEMORY_LIMIT, STATE_VERSION } from './constants.js'
 import { clamp, clamp100 } from './effects.js'
 import { layEgg } from './egg.js'
@@ -255,12 +255,14 @@ export function sanitizeActivity(raw) {
   if (source === null) return null
   if (!Number.isFinite(source.endsAt)) return null
   const kind = source.kind ?? 'work'
-  if (!['work', 'study', 'trip'].includes(kind)) return null
+  if (!['work', 'study', 'trip', 'interest'].includes(kind)) return null
   const known = kind === 'work'
     ? jobByKey(source.key ?? source.job) !== null
     : kind === 'study'
       ? subjectByKey(source.key) !== null
-      : tripByKey(source.key) !== null
+      : kind === 'interest'
+        ? interestByKey(source.key) !== null
+        : tripByKey(source.key) !== null
   if (!known) return null
   return {
     kind,

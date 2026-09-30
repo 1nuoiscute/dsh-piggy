@@ -102,4 +102,5 @@ export const AWAY_MOODS = Object.freeze({
   work: { key: 'working', emoji: '💼', label: '在打工' },
   study: { key: 'studying', emoji: '📚', label: '在上课' },
   trip: { key: 'traveling', emoji: '🧳', label: '在旅行' },
+  interest: { key: 'studying', emoji: '💻', label: '在兴趣课' },
 })
