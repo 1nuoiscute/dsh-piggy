@@ -551,25 +551,97 @@ test('being well cared for keeps the pig healthy', () => {
   assert.equal(pig.health, MAX.health)
 })
 
-test('an untreated illness gets worse on its own schedule', () => {
-  const pig = hatchEgg(T0)
-  pig.illness = { chain: 0, stage: 1, since: T0 }
-  pig.health = 4
-  pig.satiety = 80
-  pig.cleanliness = 80
+test('a sick pig earns half, but still earns', () => {
+  const run = (sick) => {
+    const pig = hatchEgg(T0)
+    pig.coins = 0
+    if (sick) {
+      pig.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
+      pig.health = 4
+    }
+    startWork(pig, 'site', T0)
+    decay(pig, pig.activity.endsAt)
+    return pig.coins
+  }
+  const healthy = run(false)
+  const ill = run(true)
+  assert.equal(healthy, JOBS[1].coins)
+  assert.equal(ill, Math.round(JOBS[1].coins / 2), 'half pay')
+  assert.ok(ill > 0, 'but never nothing — working while ill is the way out of being broke')
+})
 
-  advance(pig, ILLNESS_STAGE_MINUTES - 1)
-  assert.equal(pig.illness.stage, 1, 'not yet')
+test('an untreated illness runs its stages in days, and can shake itself off', () => {
+  const real = Math.random
+  try {
+    // --- it gets worse, one stage a day ---------------------------------
+    Math.random = () => 0.99 // never self-heal
+    const pig = hatchEgg(T0)
+    pig.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
+    pig.health = 4
+    pig.satiety = 80
+    pig.cleanliness = 80
 
-  advance(pig, 2)
-  assert.equal(pig.illness.stage, 2)
-  assert.equal(pig.health, 3)
-  assert.equal(currentIllness(pig).name, '发烧')
+    advance(pig, ILLNESS_STAGE_MINUTES - 1)
+    assert.equal(pig.illness.stage, 1, 'not yet')
 
-  worsen(pig, 2)
-  assert.equal(pig.illness.stage, 4)
-  assert.equal(pig.health, 1)
-  assert.equal(currentIllness(pig).name, '肺炎')
+    advance(pig, 2)
+    assert.equal(pig.illness.stage, 2)
+    assert.equal(pig.health, 3)
+    assert.equal(currentIllness(pig).name, '发烧')
+
+    // --- a day really is the unit ---------------------------------------
+    const day = hatchEgg(T0)
+    day.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
+    decay(day, T0 + 23 * 60 * 60000)
+    assert.equal(day.illness.stage, 1, '23 hours is not a day')
+
+    // --- an untreated cold really can just go away ----------------------
+    Math.random = () => 0.01 // always self-heal
+    const lucky = hatchEgg(T0)
+    lucky.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
+    lucky.health = 4
+    decay(lucky, T0 + ILLNESS_STAGE_MINUTES * 60000 + 1000)
+    assert.equal(lucky.illness, null, 'it shrugged the cold off')
+    assert.equal(lucky.health, 5, 'and got a little health back')
+
+    // --- the last stage never heals on its own --------------------------
+    Math.random = () => 0.0001
+    const terminal = hatchEgg(T0)
+    terminal.illness = { chain: 0, stage: 4, since: T0, progressMs: 0 }
+    terminal.health = 1
+    decay(terminal, T0 + ILLNESS_STAGE_MINUTES * 60000 + 1000)
+    assert.equal(terminal.dead, true, 'the last stage is fatal without medicine')
+  } finally {
+    Math.random = real
+  }
+})
+
+test('being out while ill runs the illness clock faster than resting', () => {
+  const real = Math.random
+  try {
+    Math.random = () => 0.99 // never self-heal, so only the rate differs
+    const build = () => {
+      const pig = hatchEgg(T0)
+      pig.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
+      pig.health = 4
+      pig.satiety = 100
+      pig.cleanliness = 100
+      return pig
+    }
+
+    // Half a day at home: still stage 1.
+    const home = build()
+    decay(home, T0 + 12 * 60 * 60000)
+    assert.equal(home.illness.stage, 1, 'resting is slow')
+
+    // Half a day out, which counts double: a full stage.
+    const out = build()
+    out.activity = { kind: 'work', key: 'office', label: '上班', emoji: '💼', startedAt: T0, endsAt: T0 + 12 * 60 * 60000 }
+    decay(out, T0 + 12 * 60 * 60000)
+    assert.equal(out.illness.stage, 2, 'a half day out is a whole day of illness')
+  } finally {
+    Math.random = real
+  }
 })
 
 test('the fourth stage progressing means death, and 还魂丹 brings it back', () => {

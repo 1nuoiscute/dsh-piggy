@@ -46,7 +46,35 @@ export const THRESHOLDS = Object.freeze({
 })
 
 export const SICK_RISK_MINUTES = 12
-export const ILLNESS_STAGE_MINUTES = 25
+
+// ---------------------------------------------------------------------------
+// Illness is measured in DAYS, not in minutes.
+//
+// Twenty-five minutes a stage meant a cold killed the pig inside two hours
+// unless you were watching the whole time. A stage is now a day, so an
+// untreated illness runs its four stages over four days — slow enough to notice,
+// react and go shopping, fast enough to matter.
+// ---------------------------------------------------------------------------
+
+/** How long one illness stage lasts. */
+export const ILLNESS_STAGE_HOURS = 24
+export const ILLNESS_STAGE_MINUTES = ILLNESS_STAGE_HOURS * 60
+
+/**
+ * Chance an untreated illness shakes itself off when a stage would otherwise
+ * pass, by stage (index 0 = the first stage). A cold really can just go away;
+ * the last stage never does — by then it needs medicine or it is fatal.
+ */
+export const SELF_HEAL_CHANCE = Object.freeze([0.25, 0.12, 0.05, 0])
+
+/** A sick pig works at half speed, so being ill has a cost without being a wall. */
+export const SICK_PAY_MULTIPLIER = 0.5
+
+/**
+ * Being out and about while ill runs the clock faster: a day of work counts as
+ * two days of illness. Resting at home is the cheap option.
+ */
+export const SICK_AWAY_MULTIPLIER = 2
 export const SLEEPY_AFTER_MINUTES = 30
 
 /** Away from home the pig burns through its bars faster. */

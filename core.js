@@ -30,6 +30,9 @@ import {
   SOUL_AFTER_DAYS,
   ILLNESS_CHAINS,
   ILLNESS_STAGE_MINUTES,
+  SELF_HEAL_CHANCE,
+  SICK_AWAY_MULTIPLIER,
+  SICK_PAY_MULTIPLIER,
   JOBS,
   KIND_ORDER,
   MAX,
@@ -386,7 +389,12 @@ function sanitizeIllness(raw) {
   const stage = Number.isInteger(source.stage) ? source.stage : 0
   if (chain < 0 || chain >= ILLNESS_CHAINS.length) return null
   if (stage < 1 || stage > ILLNESS_CHAINS[chain].stages.length) return null
-  return { chain, stage, since: Number.isFinite(source.since) ? source.since : Date.now() }
+  return {
+    chain,
+    stage,
+    since: Number.isFinite(source.since) ? source.since : Date.now(),
+    progressMs: Number.isFinite(source.progressMs) ? Math.max(0, source.progressMs) : 0,
+  }
 }
 
 /** Accepts both the v4 `activity` record and the v3 `work` record. */
@@ -544,10 +552,18 @@ export function decay(state, nowMs) {
     }
   }
 
+  // Illness advances on accumulated *effective* time, not wall clock: being out
+  // and about while ill runs it at SICK_AWAY_MULTIPLIER, so a day of work costs
+  // two days of illness and staying home is the cheap way to wait it out.
   if (state.illness !== null) {
     const stageMs = ILLNESS_STAGE_MINUTES * 60000
-    while (state.illness !== null && nowMs - state.illness.since >= stageMs) {
+    const rate = away ? SICK_AWAY_MULTIPLIER : 1
+    state.illness.progressMs = (state.illness.progressMs ?? 0) + elapsedMs * rate
+    let guard = 0
+    while (state.illness !== null && state.illness.progressMs >= stageMs && guard < 16) {
+      state.illness.progressMs -= stageMs
       advanceIllness(state, nowMs)
+      guard += 1
     }
   }
 
@@ -579,14 +595,21 @@ function finishActivity(state, nowMs) {
 function finishWork(state, activity, nowMs) {
   const job = jobByKey(activity.key)
   if (job === null) return
-  state.coins += job.coins
+  // A sick pig still goes to work — that is the way out of the sick-and-broke
+  // deadlock — but it works at half speed, so being ill costs money rather than
+  // being an outright wall.
+  const sick = state.illness !== null
+  const coins = sick ? Math.max(1, Math.round(job.coins * SICK_PAY_MULTIPLIER)) : job.coins
+  state.coins += coins
   state.satiety = clamp100(state.satiety + job.satiety)
   state.cleanliness = clamp100(state.cleanliness + job.cleanliness)
   state.stats.jobs += 1
-  state.stats.coinsEarned += job.coins
+  state.stats.coinsEarned += coins
   applyEffects(state, { xp: job.xp }, nowMs)
-  remember(state, `${job.emoji} ${job.label}回来，赚了 ${job.coins} 金币`, nowMs)
-  announce(state, 'work', `${state.name} 打工回来了！赚到 ${job.coins} 金币 💰`)
+  remember(state, `${job.emoji} ${job.label}回来，赚了 ${coins} 金币${sick ? '（带病上工，只有一半）' : ''}`, nowMs)
+  announce(state, 'work', sick
+    ? `${state.name} 带病打工回来了，只赚到 ${coins} 金币 🤒`
+    : `${state.name} 打工回来了！赚到 ${coins} 金币 💰`)
 }
 
 function finishStudy(state, activity, nowMs) {
@@ -625,7 +648,7 @@ function finishTrip(state, activity, nowMs) {
 
 function catchIllness(state, nowMs) {
   const chain = (state.stats.illnesses ?? 0) % ILLNESS_CHAINS.length
-  state.illness = { chain, stage: 1, since: nowMs }
+  state.illness = { chain, stage: 1, since: nowMs, progressMs: 0 }
   state.health = STAGE_HEALTH[0]
   state.stats.illnesses = (state.stats.illnesses ?? 0) + 1
   const ill = illnessAt(chain, 1)
@@ -640,12 +663,23 @@ function advanceIllness(state, nowMs) {
   const stage = state.illness.stage
   const worse = nextIllness(chain, stage)
 
+  // Before it gets worse, it might just get better. An untreated cold shakes
+  // itself off fairly often; the last stage never does.
+  const healChance = SELF_HEAL_CHANCE[stage - 1] ?? 0
+  if (healChance > 0 && Math.random() < healChance) {
+    state.illness = null
+    state.health = Math.min(MAX.health, state.health + 1)
+    remember(state, `自己好了，扛过去了 💚`, nowMs)
+    announce(state, 'cured', `${state.name} 的${ILLNESS_CHAINS[chain].name}自己好了 💚`)
+    return
+  }
+
   if (worse === null) {
     die(state, nowMs, '没能撑过去')
     return
   }
 
-  state.illness = { chain, stage: stage + 1, since: nowMs }
+  state.illness = { chain, stage: stage + 1, since: nowMs, progressMs: 0 }
   state.health = STAGE_HEALTH[stage]
   remember(state, `病情加重：${worse.name}`, nowMs)
   announce(state, 'worse', `${state.name} 的病情加重了：${worse.name}，需要${worse.cure}`)
