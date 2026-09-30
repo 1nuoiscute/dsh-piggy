@@ -30,7 +30,7 @@ test('each kind of neglect points at its own chain', () => {
   assert.ok(chainsAtRisk({ ...wellPig(), outingStreak: 3 }).includes(CHAIN_INDEX.dizzy), 'overworked → 头晕')
 })
 
-test('hungry and dirty: about half a day to fall ill (was: 12 minutes, always)', () => {
+test('hungry and dirty: about eleven hours to fall ill (was: 12 minutes, always)', () => {
   // Monte Carlo over a fixed sequence: the median time to fall ill.
   let seed = 7
   const next = () => {
@@ -49,9 +49,9 @@ test('hungry and dirty: about half a day to fall ill (was: 12 minutes, always)',
   }
   hours.sort((a, b) => a - b)
   const median = hours[hours.length / 2]
-  // 16.2%/h → median ln(2)/-ln(1-0.162) ≈ 3.9 h; "half a day" is the 90th-ish.
-  assert.ok(median > 2 && median < 6, `median ${median} h`)
-  assert.ok(hours[Math.floor(hours.length * 0.9)] < 16, 'nine in ten are ill within ~half a day')
+  // 6.2%/h (slowed on 2026-10-01) → median ln(2)/-ln(1-0.062) ≈ 10.8 h.
+  assert.ok(median > 8 && median < 14, `median ${median} h`)
+  assert.ok(hours[Math.floor(hours.length * 0.9)] < 48, 'nine in ten within two days')
 })
 
 test('the pig does not fall ill while it is out', () => {

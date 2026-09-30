@@ -105,11 +105,11 @@ test('公务员 wants every subject at 40; 大学教授 any three at 95', () => 
 test('traits no longer gate a job, they only scale its pay', () => {
   const plain = schooled(1)
   const strong = schooled(1)
-  strong.traits = { intel: 0, charm: 0, strong: 15 }
+  strong.traits = { intel: 0, charm: 0, strong: 150 }
   finishWork(plain, { kind: 'work', key: 'bricks' }, T0, never)
   finishWork(strong, { kind: 'work', key: 'bricks' }, T0, never)
   assert.equal(plain.coins - 100_000, 40)
-  assert.equal(strong.coins - 100_000, 80, '15 points doubles the wage (unchanged formula)')
+  assert.equal(strong.coins - 100_000, 80, '150 points doubles the wage (cut to a tenth on 2026-10-01)')
 })
 
 test('a shift brings things home now and then, each worth at most 30% of the pay', () => {
@@ -156,4 +156,11 @@ test('the v11 upgrade folds the old 23 subjects into the nine, and pays a shift 
   decay(pig, T0 + 240 * 60_000, { roll: never })
   assert.equal(pig.activity, null)
   assert.equal(pig.coins, 900, 'paid what it promised when it started')
+})
+
+test('traits no longer shorten a shift', () => {
+  const pig = schooled(1)
+  pig.traits = { intel: 0, charm: 0, strong: 500 }
+  assert.equal(startWork(pig, 'bricks', T0).ok, true)
+  assert.equal(pig.activity.endsAt - pig.activity.startedAt, 30 * 60_000)
 })

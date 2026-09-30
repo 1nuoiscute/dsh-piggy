@@ -138,13 +138,17 @@ export const DOCTOR_MARKUP = 1.5
 // Falling ill: a chance each hour at home, not a certainty.
 // ---------------------------------------------------------------------------
 
+/**
+ * 2026-10-01 用户要求病得慢一点：饿、脏各从 8%/h 降到 3%/h
+ * （又饿又脏时中位数约 4 小时 → 约 11 小时）。
+ */
 export const ILLNESS_ONSET = Object.freeze({
   /** Even a well-kept pig: about one small illness every three weeks. */
   basePerHour: 0.002,
   /** Hungry (satiety < THRESHOLDS.hungry) → 感冒. */
-  hungryPerHour: 0.08,
+  hungryPerHour: 0.03,
   /** Dirty (cleanliness < THRESHOLDS.dirty) → 咳嗽; below veryDirty → 皮肤. */
-  dirtyPerHour: 0.08,
+  dirtyPerHour: 0.03,
   veryDirty: 15,
   /** Mood below sadBelow → 头晕. */
   sadBelow: 30,
