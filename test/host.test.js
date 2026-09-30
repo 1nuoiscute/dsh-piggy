@@ -9,7 +9,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
@@ -224,6 +224,18 @@ test('the snapshot exposes everything the panel draws', async () => {
     )
     assert.equal(snap.dress.length, 12, 'and the 装扮 shelf is its own list')
     assert.equal(snap.maxHealth, 5)
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('the snapshot reports the package version', async () => {
+  const app = boot(nowMs => hatchEgg(nowMs))
+  try {
+    const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+    // The debug tab prints this, so "am I looking at the build I just made?"
+    // is answerable without guessing.
+    assert.equal((await app.get()).version, manifest.version)
   } finally {
     app.cleanup()
   }

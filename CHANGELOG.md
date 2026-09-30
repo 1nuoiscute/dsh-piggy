@@ -5,6 +5,21 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [0.24.0] — 2026-09-30
+
+### Added
+- **调试页显示构建版本**：「🔧 开发者模式 · 构建 v0.24.0 · Ctrl+Shift+D 关闭」。
+  DSH 是在**启动时**组装客户端 bundle 的，改完代码不重启就还是旧界面 ——
+  以后"我现在看的是哪一版"直接读这一行，不用猜。
+
+### Changed（内部，界面无变化）
+- 客户端源码移到 `src/client/`，`client.js` 改为 esbuild 产物；`npm run build` 生成，
+  `test/bundle.test.js` 守住产物新鲜度。详见 [docs/REFACTOR-PLAN.md](docs/REFACTOR-PLAN.md)。
+- 新增 [docs/CONVENTIONS.md](docs/CONVENTIONS.md)（项目版编码规范）。
+
+### Verification
+- `node --test`：**167 / 167 通过**（新增：产物新鲜度、单文件契约、版本字段）。
+
 ## [0.23.0] — 2026-09-30
 
 按你的四条反馈改。

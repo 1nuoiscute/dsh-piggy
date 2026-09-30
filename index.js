@@ -76,6 +76,25 @@ export const name = 'dsh-piggy'
  */
 export const inject = []
 
+/**
+ * The package version, surfaced in the debug tab.
+ *
+ * DSH composes client bundles when it starts, so a stale page and a stale
+ * process look identical; without a version on screen "did my change land?"
+ * can only be answered by guessing. This makes it readable in one glance.
+ */
+function readPackageVersion() {
+  try {
+    const parsed = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+    return typeof parsed.version === 'string' ? parsed.version : 'unknown'
+  } catch (error) {
+    console.warn(`[dsh-pig] package version unavailable: ${error instanceof Error ? error.message : String(error)}`)
+    return 'unknown'
+  }
+}
+
+const PACKAGE_VERSION = readPackageVersion()
+
 const STATE_ROUTE = '/dsh-pig/state'
 const ACT_ROUTE = '/dsh-pig/act'
 const ART_ROUTE = '/dsh-pig/art'
@@ -317,6 +336,7 @@ export function snapshot(store, options = {}) {
       boxStage: boxStageView(),
       pending: [],
       reviveItem: REVIVE_ITEM.key, maxHealth: MAX.health,
+      version: PACKAGE_VERSION,
     }
   }
 
@@ -389,6 +409,7 @@ export function snapshot(store, options = {}) {
     pending,
     reviveItem: REVIVE_ITEM.key,
     maxHealth: MAX.health,
+    version: PACKAGE_VERSION,
   }
 }
 
