@@ -659,6 +659,25 @@ test('a repaint keeps the reader where they were', async () => {
   assert.equal(contentOf(dom).scrollTop, 140, 'the scroll offset survived the repaint')
 })
 
+test('the sign-in bubble floats above the pig instead of on top of it', async () => {
+  // `top:-6px` anchors to the scene's top edge; collapsed, the scene *is* the
+  // pig, so the bubble sat 24px inside the pig's head (user report #6).
+  const css = await readCss()
+  const rule = /\.dp-daily\{([^}]*)\}/.exec(css)
+  assert.notEqual(rule, null)
+  assert.ok(!/(^|;)top:/.test(rule[1]), 'anchor it above the scene, not to its top edge')
+  const gap = /bottom:calc\(100% \+ (\d+)px\)/.exec(rule[1])
+  assert.notEqual(gap, null, 'it must float above the scene')
+  assert.ok(Number(gap[1]) >= 4, `the gap must be visible, got ${gap[1]}px`)
+
+  // Collapsed, the scene is just the pig (and it bobs ±7px), so it needs more.
+  const collapsed = /\[data-dsh-pig\]\[data-open="false"\] \.dp-daily\{([^}]*)\}/.exec(css)
+  assert.notEqual(collapsed, null, 'the collapsed bubble needs its own offset')
+  const collapsedGap = /bottom:calc\(100% \+ (\d+)px\)/.exec(collapsed[1])
+  assert.notEqual(collapsedGap, null)
+  assert.ok(Number(collapsedGap[1]) >= 12, `collapsed gap too tight: ${collapsedGap[1]}px`)
+})
+
 test('the panel pins its own base font size instead of inheriting the page', async () => {
   // The job detail box left font-size to inheritance and picked up the host
   // page's 16px: one block of text twice the size of everything around it.

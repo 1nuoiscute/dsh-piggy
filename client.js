@@ -950,10 +950,14 @@
     // without the 3D base, which the spec keeps for real primary buttons.
     ".dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
     // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
-    ".dp-daily{position:absolute;top:-6px;left:50%;transform:translateX(-50%);",
+    // 挂在场景**上方**（不是 top 边缘）：折叠时场景就是猪本身，用 top:-6px
+    // 会让气泡叠在猪头上（用户反馈 #6）。
+    ".dp-daily{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);",
     "font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;",
     "border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);",
     "box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-daily-bob 2.4s var(--ac-ease) infinite}",
+    // 折叠时场景就剩猪本身（而且它还在上下浮动 ±7px），再多让开一点。
+    '[data-dsh-pig][data-open="false"] .dp-daily{bottom:calc(100% + 16px)}',
     ".dp-daily:hover{border-color:var(--ac-border-hover)}",
     ".dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
     // 名字必须独占：叫 dp-bob 会覆盖猪的待机动画（css-base.js），
