@@ -336,6 +336,10 @@ import { arr, num, obj, str } from './values.js'
       function dispose() {
         stopped = true
         window.removeEventListener?.('resize', onResize)
+        // #11: the dev shortcut and the console handle outlived the pig, so a
+        // reload could toggle a panel that had already been disposed.
+        window.removeEventListener?.('keydown', onKeyDown)
+        try { delete (/** @type {any} */ (window)).dshPigDev } catch (error) { /* frozen window */ }
         if (pollTimer !== null) window.clearInterval(pollTimer)
         fx.dispose()
         pollTimer = null

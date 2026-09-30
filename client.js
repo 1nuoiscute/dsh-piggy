@@ -2294,6 +2294,12 @@
         function dispose() {
           stopped = true;
           window.removeEventListener?.("resize", onResize);
+          window.removeEventListener?.("keydown", onKeyDown);
+          try {
+            delete /** @type {any} */
+            window.dshPigDev;
+          } catch (error) {
+          }
           if (pollTimer !== null) window.clearInterval(pollTimer);
           fx.dispose();
           pollTimer = null;

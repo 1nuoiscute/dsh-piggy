@@ -576,6 +576,20 @@ test('the shop icon flags itself when the pig is sick', async () => {
   assert.equal(findByAttr(barOf(dom), 'data-tab', 'shop').attributes['data-alert'], 'true')
 })
 
+test('disposing also unhooks the dev shortcut and window.dshPigDev', async () => {
+  // #11: dispose() removed the pig but left the Ctrl+Shift+D listener and the
+  // console handle behind, so a reload could toggle a pig that no longer exists.
+  const { registration, dom, windowListeners } = await loadClient()
+  const dispose = registration.factory(() => {}).apply({})
+  await settle()
+  assert.ok((windowListeners.keydown ?? []).length > 0, 'the shortcut starts hooked')
+  assert.notEqual(window.dshPigDev, undefined)
+
+  dispose()
+  assert.deepEqual(windowListeners.keydown ?? [], [], 'the shortcut must be unhooked')
+  assert.equal(window.dshPigDev, undefined, 'and the console handle must go')
+})
+
 // ===========================================================================
 // #10 — fields the panel silently dropped
 // ===========================================================================
