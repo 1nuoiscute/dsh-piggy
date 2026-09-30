@@ -5,7 +5,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
-## [Unreleased] — 批次 0 框架（`b0-framework` 分支）
+## [Unreleased] — 批次 0 框架
 
 ### Changed（内部）
 - 领域层抽成 `packages/pet-core`（`@dsh-piggy/core`，零依赖），DSH 插件和以后的独立版共用；根目录 `core.js` / `data.js` 改为再导出，导入路径不变。
