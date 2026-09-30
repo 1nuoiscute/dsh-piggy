@@ -4,8 +4,7 @@
  *
  * 场景照 QQ 宠物的台词分类来（enter / eat / clean / toHeartTolk / levUp /
  * 生病 tolk / errTolk / successTolk ……）。`[主人]` 会换成主人的称呼。
- *
- * 这里只是框架自带的样例台词，全部文案在 B6 批次由用户审定后替换。
+ * 文案来自 docs/tasks/numbers/B6-lines.md（用户 2026-10-01：按稿直接上）。
  *
  * @module dsh-pig/data/lines
  */
@@ -16,8 +15,17 @@ export const OWNER_TOKEN = '[主人]'
 /** 没设置称呼时用的默认称呼。 */
 export const DEFAULT_OWNER_NAME = '主人'
 
+/** 称呼最多几个字。 */
+export const OWNER_NAME_MAX = 12
+
 /** 点一次回复按钮加的心情；每句台词只算一次。 */
 export const REPLY_HAPPINESS = 3
+
+/** 闲着时隔多久冒一句（分钟，区间内随机）。 */
+export const IDLE_CHAT_MINUTES = Object.freeze({ min: 20, max: 40 })
+
+/** 离开多久再打开算「你回来了」（分钟）。 */
+export const WELCOME_BACK_AFTER_MINUTES = 30
 
 /**
  * @typedef {object} LineReply
@@ -31,62 +39,159 @@ export const REPLY_HAPPINESS = 3
  * @property {ReadonlyArray<LineReply>} [replies]
  */
 
-const praise = Object.freeze([Object.freeze({ label: '真乖' }), Object.freeze({ label: '摸摸头' })])
-const comfort = Object.freeze([Object.freeze({ label: '会好的' }), Object.freeze({ label: '乖，吃药' })])
+/**
+ * One line, with an optional reply button.
+ * @param {string} text
+ * @param {string} [reply]
+ * @returns {Line}
+ */
+const line = (text, reply) => Object.freeze(reply === undefined
+  ? { text }
+  : { text, replies: Object.freeze([Object.freeze({ label: reply })]) })
+
+const scene = (...lines) => Object.freeze(lines)
 
 /** @type {Readonly<Record<string, ReadonlyArray<Line>>>} */
 export const LINES = Object.freeze({
-  enter: Object.freeze([
-    Object.freeze({ text: '[主人]你回来啦！', replies: Object.freeze([Object.freeze({ label: '回来了' })]) }),
-    Object.freeze({ text: '等你好久了～' }),
-  ]),
-  eat: Object.freeze([
-    Object.freeze({ text: '好吃！还有吗？', replies: praise }),
-    Object.freeze({ text: '吧唧吧唧…' }),
-    Object.freeze({ text: '[主人]最好了～' }),
-  ]),
-  bathe: Object.freeze([
-    Object.freeze({ text: '香喷喷的！' }),
-    Object.freeze({ text: '水有点凉…', replies: Object.freeze([Object.freeze({ label: '马上擦干' })]) }),
-  ]),
-  play: Object.freeze([
-    Object.freeze({ text: '再来一次！' }),
-    Object.freeze({ text: '接住啦！', replies: praise }),
-  ]),
-  pet: Object.freeze([
-    Object.freeze({ text: '好舒服…' }),
-    Object.freeze({ text: '再摸摸～', replies: Object.freeze([Object.freeze({ label: '好' })]) }),
-    Object.freeze({ text: '呼噜呼噜…' }),
-    Object.freeze({ text: '（眯起眼睛）' }),
-  ]),
-  levelup: Object.freeze([
-    Object.freeze({ text: '我又长大了一点！', replies: praise }),
-  ]),
-  sick: Object.freeze([
-    Object.freeze({ text: '阿——嚏！[主人]，我好像病了…', replies: comfort }),
-  ]),
-  wrongMedicine: Object.freeze([
-    Object.freeze({ text: '这药好苦…好像不是这个', replies: Object.freeze([Object.freeze({ label: '对不起' })]) }),
-  ]),
-  cured: Object.freeze([
-    Object.freeze({ text: '我好啦！谢谢[主人]～', replies: praise }),
-  ]),
-  tired: Object.freeze([
-    Object.freeze({ text: '好累啊…', replies: Object.freeze([Object.freeze({ label: '辛苦了' })]) }),
-  ]),
-  study: Object.freeze([
-    Object.freeze({ text: '今天学到好多！', replies: praise }),
-  ]),
-  graduate: Object.freeze([
-    Object.freeze({ text: '我毕业啦！我没有留级！', replies: praise }),
-  ]),
-  idle: Object.freeze([
-    Object.freeze({ text: '[主人]在忙什么呀？' }),
-    Object.freeze({ text: '（打了个哈欠）' }),
-  ]),
-  death: Object.freeze([
-    Object.freeze({ text: '[主人]保重，我走了，不带走一片云彩～' }),
-  ]),
+  // --- 照顾 -----------------------------------------------------------------
+  eat: scene(
+    line('好吃！还有吗？', '真乖'),
+    line('吧唧吧唧……'),
+    line('[主人]最好了～'),
+    line('这个味道我记住了'),
+    line('吃饱饱才有力气陪你加班'),
+    line('嗝——（不好意思）'),
+  ),
+  overfull: scene(
+    line('撑……撑住了……'),
+    line('真的吃不下了，你看我肚子'),
+    line('再喂我就要变成球了', '最后一口'),
+  ),
+  bathe: scene(
+    line('香喷喷的！'),
+    line('水有点凉……', '马上擦干'),
+    line('搓搓背，舒服～'),
+    line('泡泡！是泡泡！'),
+    line('洗干净了，可以抱了'),
+  ),
+  play: scene(
+    line('再来一次！'),
+    line('接住啦！', '真棒'),
+    line('哈哈哈好好玩'),
+    line('我跑得比球快'),
+    line('玩累了……再玩五分钟'),
+  ),
+  pet: scene(
+    line('好舒服……'),
+    line('再摸摸～', '好'),
+    line('呼噜呼噜……'),
+    line('（眯起眼睛）'),
+    line('这里这里！左边一点！'),
+    line('唔……好痒'),
+    line('[主人]的手暖暖的'),
+  ),
+  // --- 状态提醒（闲着时优先说这些）-------------------------------------------
+  hungry: scene(
+    line('肚子咕咕叫了……'),
+    line('[主人]，饭饭！', '马上来'),
+    line('我可以吃一整个苹果树'),
+  ),
+  dirty: scene(
+    line('身上有点痒痒的'),
+    line('我是不是有点味道了……'),
+    line('想洗泡泡浴', '好，这就洗'),
+  ),
+  lonely: scene(
+    line('[主人]在忙什么呀？'),
+    line('你好久没理我了……', '陪你一会儿'),
+    line('我一个人在这儿数像素'),
+  ),
+  idle: scene(
+    line('（打了个哈欠）'),
+    line('今天天气好像不错'),
+    line('你写的代码我看懂了一行！'),
+    line('要不要休息一下眼睛？', '好'),
+    line('我在想晚饭吃什么'),
+    line('（在角落里滚了一圈）'),
+    line('[主人]加油，我在旁边看着'),
+    line('刚才那个报错我也看见了……'),
+  ),
+  // --- 出门 -----------------------------------------------------------------
+  workDone: scene(
+    line('我回来啦！赚到钱了！', '辛苦了'),
+    line('今天老板夸我了'),
+    line('累是累了点，但是有钱了'),
+  ),
+  tired: scene(
+    line('好累啊……', '歇会儿吧'),
+    line('能不能先让我躺一下'),
+    line('再干下去我要头晕了'),
+  ),
+  study: scene(
+    line('今天学到好多！', '真乖'),
+    line('老师讲的我都听懂了（大概）'),
+    line('作业……明天再说'),
+  ),
+  graduate: scene(
+    line('我毕业啦！我没有留级！', '真棒'),
+    line('看，我的毕业照！'),
+    line('下一段我也能念完'),
+  ),
+  tripBack: scene(
+    line('我给你带了东西！', '是什么？'),
+    line('外面好大啊'),
+    line('下次带你一起去'),
+  ),
+  // --- 生病 -----------------------------------------------------------------
+  sick: scene(
+    line('阿——嚏！[主人]，我好像病了……', '乖，吃药'),
+    line('头有点晕晕的'),
+    line('我不想动……'),
+  ),
+  wrongMedicine: scene(
+    line('这药好苦……好像不是这个', '对不起'),
+    line('呜，更难受了'),
+    line('[主人]你是不是看错说明书了'),
+  ),
+  cured: scene(
+    line('我好啦！谢谢[主人]～', '真乖'),
+    line('又能跑能跳了！'),
+    line('以后我会乖乖吃饭的'),
+  ),
+  // --- 成长与生死 -------------------------------------------------------------
+  levelup: scene(
+    line('我又长大了一点！', '真乖'),
+    line('感觉自己变厉害了'),
+    line('你看我是不是高了一点'),
+  ),
+  growUp: scene(
+    line('我长大啦！'),
+    line('以前的衣服好像穿不下了'),
+    line('[主人]，我现在是大猪了'),
+  ),
+  enter: scene(
+    line('[主人]你回来啦！', '回来了'),
+    line('等你好久了～'),
+    line('今天也要一起加油哦'),
+  ),
+  death: scene(
+    line('[主人]保重，我走了，不带走一片云彩～'),
+    line('下辈子还给你当猪'),
+  ),
+  revive: scene(
+    line('我……我回来了？'),
+    line('那边好冷，还是这里好'),
+    line('谢谢你没放弃我', '欢迎回来'),
+  ),
+  // --- B5 用 ------------------------------------------------------------------
+  signIn: scene(
+    line('签到啦！今天也要好好的'),
+    line('这是今天的礼物，给你～'),
+  ),
+  gift: scene(
+    line('我在地上捡到一个盒子！'),
+    line('陪你这么久，这是奖励'),
+  ),
 })
 
 /** Every scene a line can be asked for. */

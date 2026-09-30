@@ -6,7 +6,7 @@
  * @module dsh-pig/core/settlement
  */
 
-import { CERTIFICATE_AFTER, DEFAULT_TIME_SCALE, GRADUATION_GROWTH, GRADUATION_LESSONS, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, STUDY_GROWTH_PER_LESSON, TRAITS, illnessStageMs, interestByKey, jobByKey, rarityByKey, schoolStageByKey, stageForNextLesson, subjectByKey, traitBonus, tripByKey } from '../data.js'
+import { CERTIFICATE_AFTER, DEFAULT_TIME_SCALE, ILLNESS_ONSET, GRADUATION_GROWTH, GRADUATION_LESSONS, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, STUDY_GROWTH_PER_LESSON, TRAITS, illnessStageMs, interestByKey, jobByKey, rarityByKey, schoolStageByKey, stageForNextLesson, subjectByKey, traitBonus, tripByKey } from '../data.js'
 import { AWAY_DECAY_MULTIPLIER, AWAY_FLOOR, CLEANLINESS_DECAY_PER_MIN, HAPPINESS_DECAY_PER_MIN, SATIETY_DECAY_PER_MIN, SETTLE_STEP_MS } from './constants.js'
 import { announce, clamp100, remember } from './effects.js'
 import { growWithTime, grow, outingGrowth } from './growth.js'
@@ -227,6 +227,7 @@ export function finishWork(state, activity, nowMs, next = rollerFor(state)) {
   announce(state, 'work', sick
     ? `${state.name} 带病打工回来了，只赚到 ${coins} 金币 🤒${extra}`
     : `${state.name} 打工回来了！赚到 ${coins} 金币 💰${extra}`, nowMs)
+  say(state, (state.outingStreak ?? 0) >= ILLNESS_ONSET.overworkStreak ? 'tired' : 'workDone', nowMs)
 }
 
 /**
@@ -267,6 +268,7 @@ export function finishStudy(state, activity, nowMs, next = rollerFor(state)) {
   const extra = brought.length > 0 ? `，还带回了${describeDrops(brought)}` : ''
   remember(state, `${subject.emoji} 上完${subject.label}第 ${taken + 1} 节，${gains}`, nowMs)
   announce(state, 'study', `${state.name} 上完${subject.label}第 ${taken + 1} 节，${gains} 📚${extra}`, nowMs)
+  say(state, (state.outingStreak ?? 0) >= ILLNESS_ONSET.overworkStreak ? 'tired' : 'study', nowMs)
 }
 
 export function finishTrip(state, activity, nowMs) {
@@ -288,6 +290,7 @@ export function finishTrip(state, activity, nowMs) {
   grow(state, outingGrowth(trip.minutes), nowMs)
   remember(state, `${trip.emoji} ${trip.label}回来，带回「${pick.label}」${tier.emoji}`, nowMs)
   announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${pick.label}」${tier.emoji}🧳`, nowMs)
+  say(state, 'tripBack', nowMs)
 }
 
 export { advanceIllness, catchIllness } from './illness.js'

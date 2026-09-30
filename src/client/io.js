@@ -38,6 +38,8 @@ export function createIo(ctx) {
             // Answering a line that has already moved on is normal (a second
             // window, a slow poll): say nothing rather than scold the user.
             if (next.reason === 'stale-line') return
+            // The pig chose not to speak up (away, ill, 免打扰): nothing to say.
+            if (next.reason === 'silent') return
             ctx.react('refuse', 520)
             if (next.reason === 'no-item') {
               var emptyKind = str(next.kind, '')

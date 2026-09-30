@@ -6,13 +6,13 @@
  * @module dsh-pig/core/lines
  */
 
-import { DEFAULT_OWNER_NAME, LINES, OWNER_TOKEN, REPLY_HAPPINESS } from '../data.js'
+import { DEFAULT_OWNER_NAME, LINES, OWNER_NAME_MAX, OWNER_TOKEN, REPLY_HAPPINESS, THRESHOLDS, WELCOME_BACK_AFTER_MINUTES } from '../data.js'
 import { announce, clamp100 } from './effects.js'
 import { rollerFor } from './random.js'
 
 /** The dialogue record every pig carries; older saves get it filled in. */
 export function emptyDialogue() {
-  return { ownerName: DEFAULT_OWNER_NAME, lastByScene: {}, open: null }
+  return { ownerName: DEFAULT_OWNER_NAME, lastByScene: {}, open: null, quiet: false, greetedAt: 0 }
 }
 
 /**
@@ -72,6 +72,50 @@ export function replyToLine(state, lineId, replyIndex) {
   return { ok: true, reply: reply.label }
 }
 
+/**
+ * The pig speaks up on its own: `enter` when the owner opens DSH after being
+ * away a while, `idle` every so often (the panel decides when). An idle line
+ * says what the pig needs first — hungry, dirty, lonely — and only chats when
+ * it needs nothing. Never while away, ill, dead, a box, or on 免打扰.
+ * @param {object} state
+ * @param {'enter'|'idle'} reason
+ * @param {number} nowMs
+ */
+export function chat(state, reason, nowMs) {
+  if (state === null || state.hatched !== true || state.dead === true) return { ok: false, reason: 'silent' }
+  const dialogue = ensureDialogue(state)
+  if (dialogue.quiet) return { ok: false, reason: 'silent' }
+  if (state.activity !== null || state.illness !== null) return { ok: false, reason: 'silent' }
+  if (reason === 'enter') {
+    if (nowMs - dialogue.greetedAt < WELCOME_BACK_AFTER_MINUTES * 60_000) return { ok: false, reason: 'silent' }
+    dialogue.greetedAt = nowMs
+    say(state, 'enter', nowMs)
+    return { ok: true, scene: 'enter' }
+  }
+  const scene = state.satiety < THRESHOLDS.hungry ? 'hungry'
+    : state.cleanliness < THRESHOLDS.dirty ? 'dirty'
+      : state.happiness < THRESHOLDS.lonely ? 'lonely'
+        : 'idle'
+  say(state, scene, nowMs)
+  return { ok: true, scene }
+}
+
+/** 免打扰: no chatter and no routine toasts; illness and death still speak. */
+export function setQuiet(state, on) {
+  if (state === null) return { ok: false, reason: 'absent' }
+  ensureDialogue(state).quiet = on === true
+  return { ok: true, quiet: on === true }
+}
+
+/** What the pig calls its owner (the `[主人]` in its lines). */
+export function setOwnerName(state, rawName) {
+  if (state === null) return { ok: false, reason: 'absent' }
+  const name = typeof rawName === 'string' ? rawName.trim().slice(0, OWNER_NAME_MAX) : ''
+  if (name === '') return { ok: false, reason: 'empty' }
+  ensureDialogue(state).ownerName = name
+  return { ok: true, ownerName: name }
+}
+
 /** Make sure `state.dialogue` has every field, whatever the save held. */
 export function ensureDialogue(state) {
   const raw = state.dialogue
@@ -80,10 +124,12 @@ export function ensureDialogue(state) {
     state.dialogue = base
     return base
   }
-  const ownerName = typeof raw.ownerName === 'string' && raw.ownerName.trim() !== '' ? raw.ownerName.trim().slice(0, 12) : base.ownerName
+  const ownerName = typeof raw.ownerName === 'string' && raw.ownerName.trim() !== '' ? raw.ownerName.trim().slice(0, OWNER_NAME_MAX) : base.ownerName
   const lastByScene = raw.lastByScene !== null && typeof raw.lastByScene === 'object' && !Array.isArray(raw.lastByScene) ? raw.lastByScene : {}
   const open = sanitizeOpenLine(raw.open)
-  state.dialogue = { ownerName, lastByScene, open }
+  const quiet = raw.quiet === true
+  const greetedAt = Number.isFinite(raw.greetedAt) ? raw.greetedAt : 0
+  state.dialogue = { ownerName, lastByScene, open, quiet, greetedAt }
   return state.dialogue
 }
 

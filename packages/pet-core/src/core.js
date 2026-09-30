@@ -74,7 +74,7 @@ export { careFactor, grow, growFromRealWork, outingGrowth } from './core/growth.
 export { hatch, hatchEgg, layEgg } from './core/egg.js'
 export { adopt, ageFromNow, applyDevPatch, inherit, rename, reset, revive, setTimeScale } from './core/state.js'
 export { migrate } from './core/migrate.js'
-export { pickLine, replyToLine, say } from './core/lines.js'
+export { chat, pickLine, replyToLine, say, setOwnerName, setQuiet } from './core/lines.js'
 export { currentIllness, decay } from './core/settlement.js'
 export { doctorFee, onsetRisks, seeDoctor } from './core/illness.js'
 export { activitySecondsLeft, awayBlockedReason, callOffActivity, callOffWork, canStartActivity, canWork, workSecondsLeft } from './core/activity.js'

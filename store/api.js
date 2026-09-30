@@ -20,10 +20,13 @@ import {
   grantAll as coreGrantAll,
   hatch as coreHatch,
   hatchEgg,
+  chat as coreChat,
   rename as coreRename,
   replyToLine as coreReplyToLine,
   reset as coreReset,
   seeDoctor as coreSeeDoctor,
+  setOwnerName as coreSetOwnerName,
+  setQuiet as coreSetQuiet,
   sellSouvenir as coreSellSouvenir,
   setTimeScale as coreSetTimeScale,
   startInterest as coreStartInterest,
@@ -122,6 +125,15 @@ export function createApi(control) {
     /** 看医生: pay to be cured without buying the medicine. */
     seeDoctor: () => mutate(live => coreSeeDoctor(live, now())),
     sellSouvenir: souvenirKey => mutate(live => coreSellSouvenir(live, souvenirKey, now())),
+
+    /** The pig speaks up on its own: 'enter' after a while away, or 'idle'. */
+    chat: reason => mutate(live => coreChat(live, reason === 'enter' ? 'enter' : 'idle', now())),
+
+    /** 免打扰 on or off. */
+    setQuiet: on => mutate(live => coreSetQuiet(live, on)),
+
+    /** What the pig calls its owner. */
+    setOwnerName: name => mutate(live => coreSetOwnerName(live, name)),
 
     /** The owner answers the pig's latest line. */
     reply: (lineId, replyIndex) => mutate(live => coreReplyToLine(live, lineId, replyIndex)),

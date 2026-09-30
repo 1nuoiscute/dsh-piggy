@@ -265,6 +265,11 @@ export function normalize(raw) {
       size: num(d.boxStage.size, 58),
     } : { key: 'box', label: '纸盒', emoji: '📦', size: 58 },
     awayBlocked: typeof d.awayBlocked === 'string' ? d.awayBlocked : null,
+    // B6: what the pig calls its owner, and 免打扰. Older hosts send neither.
+    dialogue: {
+      ownerName: str(obj(d.dialogue).ownerName, '主人'),
+      quiet: obj(d.dialogue).quiet === true,
+    },
     pending: arr(d.pending).filter(e => isObj(e) && typeof e.at === 'number').map(e => ({
       id: num(e.id, 0),
       kind: str(e.kind, ''),

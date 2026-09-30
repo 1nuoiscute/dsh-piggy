@@ -60,6 +60,7 @@ export function grow(state, amount, nowMs) {
     state.stage = stage.key
     remember(state, `长成了${stage.label} ${stage.emoji}`, nowMs)
     announce(state, 'stage', `${state.name} 长成了${stage.label} ${stage.emoji}`, nowMs)
+    say(state, 'growUp', nowMs)
   }
 }
 

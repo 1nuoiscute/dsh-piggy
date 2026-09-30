@@ -273,6 +273,8 @@
   var ART_URL = "/dsh-pig/art/";
   var ACT_URL = "/dsh-pig/act";
   var POLL_MS = 4e3;
+  var IDLE_CHAT_MINUTES = { min: 20, max: 40 };
+  var GREET_DELAY_MS = 1500;
   var MOUNTED = "data-dsh-pig";
   var OPEN_KEY = "dsh-pig:open";
   var POSITION_KEY = "dsh-pig:position";
@@ -485,9 +487,55 @@
     }
     ui.content.appendChild(grid);
     if (ui.picker !== null && (ui.view.care[ui.picker] ?? []).length > 0) ui.content.appendChild(pickerPanel(ui, ui.picker));
+    ui.content.appendChild(talkRow(ui));
     if (p.memories.length > 0) {
       ui.content.appendChild(el("div", "dp-memo", p.memories.slice(-3).join("\n")));
     }
+  }
+  function talkRow(ui) {
+    var row = el("div", "dp-row dp-talk");
+    if (ui.ownerEdit !== null) {
+      var input = (
+        /** @type {HTMLInputElement} */
+        el("input", "dp-input")
+      );
+      input.value = ui.ownerEdit;
+      input.maxLength = 12;
+      input.setAttribute("data-owner-input", "true");
+      input.addEventListener("input", function() {
+        ui.ownerEdit = input.value;
+      });
+      var save = button("dp-mini", { "data-owner-save": "true" }, function() {
+        var name = (ui.ownerEdit || "").trim();
+        ui.ownerEdit = null;
+        if (name !== "") ui.send("owner", { name });
+        ui.renderContent();
+      });
+      save.textContent = "\u597D";
+      var cancel = button("dp-mini dp-mini-plain", { "data-owner-cancel": "true" }, function() {
+        ui.ownerEdit = null;
+        ui.renderContent();
+      });
+      cancel.textContent = "\u7B97\u4E86";
+      row.appendChild(input);
+      row.appendChild(save);
+      row.appendChild(cancel);
+      return row;
+    }
+    var who = el("span", null, "\u{1F64B} \u53EB\u4F60\u300C" + ui.view.dialogue.ownerName + "\u300D");
+    var rename = button("dp-mini dp-mini-plain", { "data-owner-edit": "true" }, function() {
+      ui.ownerEdit = ui.view.dialogue.ownerName;
+      ui.renderContent();
+    });
+    rename.textContent = "\u6539";
+    var quiet = button("dp-mini dp-mini-plain", { "data-quiet": ui.view.dialogue.quiet ? "on" : "off" }, function() {
+      ui.send("quiet", { on: !ui.view.dialogue.quiet });
+    });
+    quiet.textContent = ui.view.dialogue.quiet ? "\u{1F515} \u514D\u6253\u6270\u4E2D" : "\u{1F514} \u514D\u6253\u6270";
+    row.appendChild(who);
+    row.appendChild(rename);
+    row.appendChild(quiet);
+    return row;
   }
 
   // src/client/tabs/study.js
@@ -959,6 +1007,14 @@
     ".dp-item .dp-dim{color:var(--ac-text-2);font-size:10px;font-weight:500;overflow:hidden;",
     "text-overflow:ellipsis;white-space:nowrap}",
     ".dp-item.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
+    // B6 talk row: name + 改 + 免打扰, and the inline name input.
+    ".dp-talk{gap:6px;margin-top:8px}",
+    ".dp-talk>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}",
+    ".dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}",
+    ".dp-input{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 8px;border-radius:var(--ac-pill);",
+    "border:2px solid var(--ac-border);background:var(--ac-bg-input);color:var(--ac-text)}",
+    ".dp-input:focus{outline:2px solid var(--ac-primary);outline-offset:1px}",
     /* ---------- primary buttons: teal pill with the game 3D bottom edge --- */
     ".dp-mini{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#fff;",
     "cursor:pointer;padding:6px 13px;border-radius:var(--ac-pill);",
@@ -1272,6 +1328,7 @@
         ctx.render(next);
         if (next && next.ok === false) {
           if (next.reason === "stale-line") return;
+          if (next.reason === "silent") return;
           ctx.react("refuse", 520);
           if (next.reason === "no-item") {
             var emptyKind = str(next.kind, "");
@@ -1640,6 +1697,11 @@
         size: num(d.boxStage.size, 58)
       } : { key: "box", label: "\u7EB8\u76D2", emoji: "\u{1F4E6}", size: 58 },
       awayBlocked: typeof d.awayBlocked === "string" ? d.awayBlocked : null,
+      // B6: what the pig calls its owner, and 免打扰. Older hosts send neither.
+      dialogue: {
+        ownerName: str(obj(d.dialogue).ownerName, "\u4E3B\u4EBA"),
+        quiet: obj(d.dialogue).quiet === true
+      },
       pending: arr(d.pending).filter((e) => isObj(e) && typeof e.at === "number").map((e) => ({
         id: num(e.id, 0),
         kind: str(e.kind, ""),
@@ -1681,6 +1743,7 @@
   }
 
   // src/client/panel.js
+  var URGENT_KINDS = ["sick", "worse", "death", "cured", "revived"];
   function createPanel(ctx) {
     var AWAY_LINE = {
       work: "\u5728\u5FD9",
@@ -1919,6 +1982,7 @@
           showPigLine(event);
           continue;
         }
+        if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue;
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
         if (event.kind === "levelup") {
           ctx.react("levelup", 950);
@@ -1938,6 +2002,7 @@
           ctx.burst(["\u{1F9F3}", "\u{1F381}"], 3);
         }
       }
+      if (ctx.ownerEdit !== null && ctx.tab === "status") return;
       renderContent();
     }
     function showPigLine(event) {
@@ -2087,6 +2152,7 @@
         var stage = "primary";
         var souvenirPick = null;
         var picker = null;
+        var ownerEdit = null;
         var ui = {
           get view() {
             return view;
@@ -2123,6 +2189,12 @@
           },
           set souvenirPick(next) {
             souvenirPick = next;
+          },
+          get ownerEdit() {
+            return ownerEdit;
+          },
+          set ownerEdit(next) {
+            ownerEdit = next;
           }
         };
         var isOpen = readStore(OPEN_KEY) === "true";
@@ -2195,6 +2267,12 @@
           },
           set picker(next) {
             picker = next;
+          },
+          get ownerEdit() {
+            return ownerEdit;
+          },
+          set ownerEdit(next) {
+            ownerEdit = next;
           },
           get isOpen() {
             return isOpen;
@@ -2341,6 +2419,18 @@
         render(view);
         refresh();
         pollTimer = window.setInterval(refresh, POLL_MS);
+        var chatTimer = null;
+        function scheduleChat() {
+          var minutes = IDLE_CHAT_MINUTES.min + Math.random() * (IDLE_CHAT_MINUTES.max - IDLE_CHAT_MINUTES.min);
+          chatTimer = window.setTimeout(function() {
+            if (!stopped && !busy && view.pig !== null) send("chat", { reason: "idle" });
+            scheduleChat();
+          }, minutes * 6e4);
+        }
+        var greetTimer = window.setTimeout(function() {
+          if (!stopped && view.pig !== null) send("chat", { reason: "enter" });
+        }, GREET_DELAY_MS);
+        scheduleChat();
         function onResize() {
           clampPig();
           fitPanel();
@@ -2394,6 +2484,8 @@
           } catch (error) {
           }
           if (pollTimer !== null) window.clearInterval(pollTimer);
+          if (chatTimer !== null) window.clearTimeout(chatTimer);
+          window.clearTimeout(greetTimer);
           fx.dispose();
           pollTimer = null;
           host.remove();

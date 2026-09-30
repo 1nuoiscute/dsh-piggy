@@ -1612,3 +1612,29 @@ test('the study tab keeps its stage tabs; each subject shows where it stands in 
   assert.equal(post.action, 'study')
   assert.equal(post.subject, 'chinese')
 })
+
+test('免打扰 keeps routine news quiet but lets illness through; the status tab has the controls', async () => {
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      dialogue: { ownerName: '小明', quiet: true },
+      pending: [
+        { id: 1, kind: 'work', text: '猪猪 打工回来了！赚到 40 金币 💰', at: 111 },
+        { id: 2, kind: 'sick', text: '猪猪 得了感冒，需要🌿板蓝根 🤒', at: 112 },
+      ],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  const toasts = []
+  hostOf(dom).walk(node => { if (typeof node.className === 'string' && node.className.split(/\s+/).includes('dp-toast')) toasts.push(node.allText()) })
+  assert.equal(toasts.some(text => text.includes('打工回来')), false, 'routine news is held back')
+  assert.equal(toasts.some(text => text.includes('感冒')), true, 'illness still gets through')
+
+  openPanel(dom)
+  pickTab(dom, 'status')
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('叫你「小明」'), text)
+  assert.ok(text.includes('🔕 免打扰中'), text)
+  assert.notEqual(findByAttr(contentOf(dom), 'data-owner-edit', 'true'), undefined)
+})

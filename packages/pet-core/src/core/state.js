@@ -11,6 +11,7 @@ import { lifeStageFor } from './clock.js'
 import { MEMORY_LIMIT } from './constants.js'
 import { announce, clamp, remember } from './effects.js'
 import { layEgg } from './egg.js'
+import { say } from './lines.js'
 import { sanitizeIllness, sanitizeInventory, sanitizeTraits } from './migrate.js'
 import { decay, die } from './settlement.js'
 
@@ -193,6 +194,7 @@ export function revive(state, nowMs) {
   state.stats.revives = (state.stats.revives ?? 0) + 1
   remember(state, `被 ${REVIVE_ITEM.label} 救了回来 ✨`, nowMs)
   announce(state, 'revived', `${state.name} 回来了 ✨`, nowMs)
+  say(state, 'revive', nowMs)
 }
 
 // ---------------------------------------------------------------------------

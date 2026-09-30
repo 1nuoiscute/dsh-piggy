@@ -173,6 +173,14 @@ export const CSS_TABS = [
   '.dp-item .dp-dim{color:var(--ac-text-2);font-size:10px;font-weight:500;overflow:hidden;',
   'text-overflow:ellipsis;white-space:nowrap}',
   '.dp-item.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}',
+  // B6 talk row: name + 改 + 免打扰, and the inline name input.
+  '.dp-talk{gap:6px;margin-top:8px}',
+  '.dp-talk>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '.dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}',
+  '.dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}',
+  '.dp-input{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 8px;border-radius:var(--ac-pill);',
+  'border:2px solid var(--ac-border);background:var(--ac-bg-input);color:var(--ac-text)}',
+  '.dp-input:focus{outline:2px solid var(--ac-primary);outline-offset:1px}',
 
   /* ---------- primary buttons: teal pill with the game 3D bottom edge --- */
   '.dp-mini{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#fff;',

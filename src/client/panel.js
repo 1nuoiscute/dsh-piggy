@@ -19,6 +19,9 @@ import { renderTravelTab } from './tabs/travel.js'
 import { renderWorkTab } from './tabs/work.js'
 import { str } from './values.js'
 
+/** News that gets through 免打扰. */
+var URGENT_KINDS = ['sick', 'worse', 'death', 'cured', 'revived']
+
 export function createPanel(ctx) {
       var AWAY_LINE = {
         work: '在忙',
@@ -306,6 +309,8 @@ export function createPanel(ctx) {
             showPigLine(event)
             continue
           }
+          // 免打扰: routine news stays quiet; illness and death still speak.
+          if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue
           ctx.toast(str(event.text, '猪有新消息'))
           if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
           else if (event.kind === 'cured') { ctx.react('cure', 900); ctx.burst(['💚', '✨'], 3) }
@@ -315,6 +320,8 @@ export function createPanel(ctx) {
           else if (event.kind === 'trip') { ctx.react('away', 900); ctx.burst(['🧳', '🎁'], 3) }
         }
 
+        // Typing a new name: a repaint would drop the input and its focus.
+        if (ctx.ownerEdit !== null && ctx.tab === 'status') return
         renderContent()
       }
 

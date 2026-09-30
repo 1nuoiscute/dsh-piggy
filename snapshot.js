@@ -9,7 +9,7 @@
 import { readFileSync } from 'node:fs'
 
 import { ACTIONS, ACTION_ORDER, doctorFee, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, awayBlockedReason, careView, courseView, currentIllness, daysToNextStage, dressView, formatWeight, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
-import { CERTIFICATE_AFTER, INTERESTS, SEXES, jobRequirement, rarityByKey, traitBonus } from './data.js'
+import { CERTIFICATE_AFTER, DEFAULT_OWNER_NAME, INTERESTS, SEXES, jobRequirement, rarityByKey, traitBonus } from './data.js'
 
 /** The stage the panel shows before there is a pig: the cardboard box. */
 /**
@@ -34,6 +34,15 @@ const PACKAGE_VERSION = readPackageVersion()
 function boxStageView() {
   const box = LIFE_STAGES.find(stage => stage.key === 'box') ?? LIFE_STAGES[0]
   return { key: box.key, label: box.label, emoji: box.emoji, size: box.size, line: box.line }
+}
+
+/** 称呼与免打扰，给状态页的开关用。 */
+function dialogueView(state) {
+  const dialogue = state?.dialogue
+  return {
+    ownerName: typeof dialogue?.ownerName === 'string' ? dialogue.ownerName : DEFAULT_OWNER_NAME,
+    quiet: dialogue?.quiet === true,
+  }
 }
 
 /** 性别：男孩 ♂ / 女孩 ♀；还没拆开的纸盒没有。 */
@@ -112,6 +121,7 @@ export function snapshot(store, options = {}) {
     hatched: state.hatched === true,
     dead: state.dead === true,
     boxStage: boxStageView(),
+    dialogue: dialogueView(state),
     timeScale: Number.isFinite(state.timeScale) ? state.timeScale : 1,
     pig: {
       name: state.name,

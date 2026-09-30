@@ -54,6 +54,10 @@ const OPERATIONS = {
   pet: store => store.act('pet'),
   // Answer the pig's latest line: `line` is the message id, `index` the button.
   reply: (store, body) => store.reply(Number(body.line), Number(body.index)),
+  // The panel's timers ask the pig to speak up; the pig decides whether to.
+  chat: (store, body) => store.chat(str(body.reason)),
+  quiet: (store, body) => store.setQuiet(body.on === true),
+  owner: (store, body) => store.setOwnerName(str(body.name)),
   work: (store, body) => store.startWork(str(body.job)),
   study: (store, body) => store.startStudy(str(body.subject), str(body.stage)),
   interest: (store, body) => store.startInterest(str(body.interest)),
