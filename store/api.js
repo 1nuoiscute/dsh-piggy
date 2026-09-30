@@ -23,6 +23,7 @@ import {
   chat as coreChat,
   rename as coreRename,
   replyToLine as coreReplyToLine,
+  signIn as coreSignIn,
   reset as coreReset,
   seeDoctor as coreSeeDoctor,
   setOwnerName as coreSetOwnerName,
@@ -137,6 +138,9 @@ export function createApi(control) {
 
     /** The owner answers the pig's latest line. */
     reply: (lineId, replyIndex) => mutate(live => coreReplyToLine(live, lineId, replyIndex)),
+
+    /** 领今天的签到礼包。 */
+    signIn: () => mutate(live => coreSignIn(live, now())),
     wear: (itemKey, on) => mutate(live => (on ? coreWearItem(live, itemKey, now()) : coreTakeOff(live, itemKey, now()))),
 
     /** Open the box. Only works when there is no living pig yet. */
