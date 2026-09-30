@@ -29,7 +29,11 @@ import {
   SOUL,
   SOUL_AFTER_DAYS,
   ILLNESS_CHAINS,
+  DAYS_PER_MONTH,
+  DEFAULT_TIME_SCALE,
+  LEVEL_TITLES,
   illnessStageMs,
+  xpForLevel,
   traitBonus,
   SELF_HEAL_CHANCE,
   SICK_AWAY_MULTIPLIER,
@@ -144,11 +148,26 @@ const clamp100 = value => clamp(value, 0, 100)
 
 const DAY_MS = 86_400_000
 
-/** The pig's age in fractional days since it was born. */
+/**
+ * The pig's age in days.
+ *
+ * This is accumulated *pig time*, not wall clock: `decay()` adds elapsed real
+ * time times the time scale. Storing it this way means changing the scale only
+ * affects the future — the pig does not suddenly jump from a piglet to elderly
+ * because you raised the multiplier.
+ */
 export function ageDays(state, nowMs) {
-  if (state === null || typeof state.bornAt !== 'number') return 0
+  if (state === null) return 0
+  if (typeof state.ageMs === 'number' && Number.isFinite(state.ageMs)) {
+    return Math.max(0, state.ageMs / DAY_MS)
+  }
+  // Saves from before pig time existed only have a birthday.
+  if (typeof state.bornAt !== 'number') return 0
   return Math.max(0, (nowMs - state.bornAt) / DAY_MS)
 }
+
+/** The pig's age in whole months, for display. */
+export const ageMonths = (state, nowMs) => ageDays(state, nowMs) / DAYS_PER_MONTH
 
 /** Which stage the pig is at right now: a box, a pig of some age, or a grave. */
 export function lifeStageFor(state, nowMs) {
@@ -175,6 +194,43 @@ export function nextLifeStage(state, nowMs) {
 export function daysToNextStage(state, nowMs) {
   const next = nextLifeStage(state, nowMs)
   return next === null ? null : Math.max(0, next.from - ageDays(state, nowMs))
+}
+
+// ---------------------------------------------------------------------------
+// Level
+// ---------------------------------------------------------------------------
+
+/** The pig's level for a given XP total. Unbounded. */
+export function levelFor(xp) {
+  const value = Number.isFinite(xp) ? Math.max(0, xp) : 0
+  let level = 1
+  while (level < 999 && value >= xpForLevel(level + 1)) level += 1
+  return level
+}
+
+/** The title earned at this level. */
+export function levelTitle(level) {
+  let found = LEVEL_TITLES[0]
+  for (const entry of LEVEL_TITLES) if (level >= entry.level) found = entry
+  return found
+}
+
+/** How far into the current level, 0-1, plus the numbers behind it. */
+export function levelProgress(xp) {
+  const value = Number.isFinite(xp) ? Math.max(0, xp) : 0
+  const level = levelFor(value)
+  const floor = xpForLevel(level)
+  const ceiling = xpForLevel(level + 1)
+  const span = Math.max(1, ceiling - floor)
+  return {
+    level,
+    xp: value,
+    floor,
+    ceiling,
+    toNext: Math.max(0, ceiling - value),
+    percent: Math.max(0, Math.min(100, Math.round(((value - floor) / span) * 100))),
+    title: levelTitle(level),
+  }
 }
 
 /** Has the pig outlived its span? */
@@ -212,10 +268,44 @@ export function reset(nowMs) {
   return layEgg(nowMs)
 }
 
+/**
+ * What a new pig inherits from the old one.
+ *
+ * This is the whole point of the two-axis design: the body dies, the history
+ * does not. Level, schooling, traits and souvenirs carry over, so losing a pig
+ * to old age is a chapter break rather than a wipe.
+ */
+const INHERITED = ['xp', 'traits', 'courses', 'lessonsByStage', 'souvenirs']
+
+export function inherit(oldState, fresh, nowMs) {
+  if (oldState === null) return fresh
+  for (const key of INHERITED) {
+    if (oldState[key] !== undefined) fresh[key] = structuredCloneish(oldState[key])
+  }
+  if (Array.isArray(oldState.memories)) fresh.memories = oldState.memories.slice(-MEMORY_LIMIT)
+  remember(fresh, '🐖 新的小猪来了，本事和收藏都留下了', nowMs)
+  return fresh
+}
+
+/** JSON round-trip; every inherited field is plain data. */
+function structuredCloneish(value) {
+  try { return JSON.parse(JSON.stringify(value)) } catch (error) { return value }
+}
+
+/** Change how fast pig time runs. Only affects the future, never the past. */
+export function setTimeScale(state, scale, nowMs) {
+  if (state === null) return state
+  const value = Number.isFinite(scale) && scale > 0 ? Math.min(365, scale) : DEFAULT_TIME_SCALE
+  state.timeScale = value
+  remember(state, `⏱ 时间倍率改成 ×${value}`, nowMs)
+  return state
+}
+
 /** Put the pig's clock back to now, so its age counts real time again. */
 export function ageFromNow(state, nowMs) {
   if (state === null) return state
   state.bornAt = nowMs
+  state.ageMs = 0
   state.ageForced = false
   state.stage = lifeStageFor(state, nowMs).key
   state.lastSeenAt = nowMs
@@ -278,7 +368,10 @@ export function applyDevPatch(state, patch, nowMs) {
 
   // Age is the one thing worth jumping: it is what takes days to see.
   if (typeof patch.ageDays === 'number' && Number.isFinite(patch.ageDays)) {
-    state.bornAt = nowMs - Math.max(0, patch.ageDays) * 86_400_000
+    // Age is accumulated pig time, so both have to move or the stage will not.
+    const days = Math.max(0, patch.ageDays)
+    state.bornAt = nowMs - days * 86_400_000
+    state.ageMs = days * 86_400_000
     // Mark it, so a forced age is never mistaken for the pig simply growing up.
     state.ageForced = true
   }
@@ -308,11 +401,8 @@ export function applyDevPatch(state, patch, nowMs) {
 
 /** Start over with a fresh box. The old pig's story stays in `memories`. */
 export function adopt(state, nowMs) {
-  const fresh = layEgg(nowMs)
-  if (state !== null && Array.isArray(state.memories)) {
-    fresh.memories = state.memories.slice(-MEMORY_LIMIT)
-    remember(fresh, '又领养了一只，纸盒里传来窸窸窣窣的声音 📦', nowMs)
-  }
+  const fresh = inherit(state, layEgg(nowMs), nowMs)
+  remember(fresh, '又领养了一只，纸盒里传来窸窸窣窣的声音 📦', nowMs)
   return Object.assign(state ?? {}, fresh)
 }
 
@@ -331,6 +421,10 @@ export function layEgg(nowMs) {
     diedAt: null,
     /** Last stage the panel announced; drives the "grew up" message. */
     stage: 'box',
+    /** Accumulated pig time in ms — age is this, not wall clock. */
+    ageMs: 0,
+    /** 1 = the stage table is real months. See DEFAULT_TIME_SCALE. */
+    timeScale: DEFAULT_TIME_SCALE,
     /** True when developer mode forced the age; the panel says so. */
     ageForced: false,
     xp: 0,
@@ -658,6 +752,18 @@ export function decay(state, nowMs) {
    * meal and bath — not sitting at zero before you can even react to it.
    * Going away never *raises* a bar either.
    */
+  // Pig time: elapsed real time times the scale. The birthday is kept only so
+  // the panel can say when the pig arrived.
+  const scale = Number.isFinite(state.timeScale) && state.timeScale > 0
+    ? state.timeScale
+    : DEFAULT_TIME_SCALE
+  if (typeof state.ageMs !== 'number' || !Number.isFinite(state.ageMs)) {
+    // First tick after loading an old save: seed pig time from the birthday.
+    state.ageMs = typeof state.bornAt === 'number' ? Math.max(0, nowMs - state.bornAt) : 0
+  } else {
+    state.ageMs += elapsedMs * scale
+  }
+
   const drain = (value, perMinute) => {
     const next = value - minutes * perMinute * speed
     return away ? Math.max(next, Math.min(value, AWAY_FLOOR)) : next

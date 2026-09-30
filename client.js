@@ -139,6 +139,18 @@ window.__ModuleLoader__.load({
           coins: num(pig.coins, 0),
           weight: str(pig.weight, '—'),
           xp: num(pig.xp, 0),
+          // The other axis: level never resets, not even when the pig dies.
+          level: (function (info) {
+            var i = obj(info)
+            var t = obj(i.title)
+            return {
+              level: num(i.level, 1),
+              percent: num(i.percent, 0),
+              toNext: num(i.toNext, 0),
+              titleLabel: str(t.label, '新来的'),
+              titleEmoji: str(t.emoji, '🌱'),
+            }
+          })(pig.levelInfo),
           stageLine: str(pig.stageLine, ''),
           illness: isObj(pig.illness) ? {
             name: str(pig.illness.name, '生病'),
@@ -241,6 +253,7 @@ window.__ModuleLoader__.load({
           progress: num(d.activity.progress, 0),
         } : null,
         canGoOut: d.canGoOut === true,
+        timeScale: num(d.timeScale, 1),
         boxStage: isObj(d.boxStage) ? {
           key: str(d.boxStage.key, 'box'),
           label: str(d.boxStage.label, '纸盒'),
@@ -493,6 +506,7 @@ window.__ModuleLoader__.load({
       '.dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}',
       '.dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}',
       '.dp-dev-btn{flex:0 0 auto;font-size:10px;padding:3px 8px}',
+      '.dp-on{background:var(--ac-primary);color:#fff;border-color:var(--ac-primary)}',
       '[data-dsh-pig][data-dev="true"] .dp-ico[data-tab="dev"]{color:var(--ac-primary)}',
 
       /* ---------- the soul that settles on an unclaimed grave ---------- */
@@ -1197,6 +1211,14 @@ window.__ModuleLoader__.load({
         info.appendChild(el('b', null, '🪙 ' + p.coins))
         content.appendChild(info)
 
+        var lvl = el('div', 'dp-row')
+        lvl.appendChild(el('span', null, '⭐ 等级'))
+        lvl.appendChild(el('b', null, 'Lv.' + p.level.level + ' ' + p.level.titleEmoji + p.level.titleLabel
+          + (p.level.toNext > 0 ? ' · 还差 ' + p.level.toNext + ' xp' : '')))
+        content.appendChild(lvl)
+        content.appendChild(el('div', 'dp-empty',
+          '等级不会因为猪走了而清零 —— 领养新猪时会继承'))
+
         var age = el('div', 'dp-row')
         age.appendChild(el('span', null, '🎂 年龄'))
         age.appendChild(el('b', null, p.ageLabel + (p.ageForced ? ' 🔧' : '') + (p.daysToNextStage === null ? ' · 已长成' : '')))
@@ -1205,6 +1227,16 @@ window.__ModuleLoader__.load({
           content.appendChild(el('div', 'dp-empty',
             '再过 ' + formatDays(p.daysToNextStage) + ' 就长成下一阶段了'))
         }
+        // Time scale: ×1 is real months, which is a long wait for the ending.
+        var scaleWrap = el('div', 'dp-dev-row')
+        scaleWrap.appendChild(el('span', 'dp-dim', '时间倍率 ×' + view.timeScale))
+        ;[1, 12, 30, 60].forEach(function (m) {
+          var b = button('dp-mini dp-dev-btn' + (view.timeScale === m ? ' dp-on' : ''), { 'data-scale': String(m) },
+            function () { send('timeScale', { scale: m }) })
+          b.textContent = '×' + m
+          scaleWrap.appendChild(b)
+        })
+        content.appendChild(scaleWrap)
 
         var grid = el('div', 'dp-actions')
         for (var i = 0; i < MODES.length; i += 1) {
@@ -1659,7 +1691,9 @@ window.__ModuleLoader__.load({
           pokeHint.hidden = true
           soul.hidden = view.pig.soul !== true
           pig.setAttribute('data-stage', stage.key)
-          hudName.textContent = view.pig.name + ' · ' + stage.label
+          hudName.textContent = view.pig.name
+            + ' Lv.' + view.pig.level.level
+            + ' · ' + stage.label
             + (view.pig.ageLabel ? ' · ' + view.pig.ageLabel : '')
             + (view.pig.ageForced ? ' 🔧' : '')
           hudCoins.textContent = '🪙 ' + view.pig.coins

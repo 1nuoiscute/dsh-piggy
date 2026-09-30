@@ -28,6 +28,7 @@ import {
   feed as coreFeed,
   adopt as coreAdopt,
   ageFromNow as coreAgeFromNow,
+  setTimeScale as coreSetTimeScale,
   hatch as coreHatch,
   applyDevPatch as coreDevPatch,
   reset as coreReset,
@@ -177,6 +178,14 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
       // produce one. Refusing because `state !== null` left the box unopenable.
       if (state !== null && state.hatched === true) return false
       state = state === null ? hatchEgg(now()) : coreHatch(state, now())
+      scheduleSave()
+      return true
+    },
+
+    /** Change how fast the pig ages. */
+    setTimeScale(scale) {
+      if (state === null) return false
+      state = coreSetTimeScale(state, scale, now())
       scheduleSave()
       return true
     },

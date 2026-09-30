@@ -40,6 +40,7 @@ import {
   daysToNextStage,
   hasSoul,
   LIFE_STAGES,
+  levelProgress,
   lifeStageFor,
   mood,
   studyView,
@@ -112,6 +113,7 @@ const OPERATIONS = {
   reset: store => ({ ok: store.reset(), reset: true }),
   dev: (store, body) => ({ ok: store.dev(body.patch ?? {}), dev: true }),
   ageFromNow: store => ({ ok: store.ageFromNow(), ageFromNow: true }),
+  timeScale: (store, body) => ({ ok: store.setTimeScale(body.scale), timeScale: true }),
   // The three care actions spend an item; `item` says which one.
   feed: (store, body) => store.act('feed', str(body.item)),
   bathe: (store, body) => store.act('bathe', str(body.item)),
@@ -317,6 +319,7 @@ export function snapshot(store, options = {}) {
     hatched: state.hatched === true,
     dead: state.dead === true,
     boxStage: boxStageView(),
+    timeScale: Number.isFinite(state.timeScale) ? state.timeScale : 1,
     pig: {
       name: state.name,
       // Age is the progression now, not a level.
@@ -337,6 +340,7 @@ export function snapshot(store, options = {}) {
       healthPercent: healthPercent(state),
       weight: formatWeight(state.weightG),
       xp: state.xp,
+      levelInfo: levelProgress(state.xp),
       coins: state.coins,
       traits: traitView(state),
       courses: courseView(state),
