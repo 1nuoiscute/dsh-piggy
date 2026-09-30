@@ -1209,9 +1209,11 @@
 
   // src/client/io.js
   function createIo(ctx) {
+    var actionSeq = 0;
     async function send(action, extra) {
       if (ctx.busy || ctx.stopped) return;
       if (ctx.view.pig === null && action !== "hatch") return;
+      actionSeq += 1;
       ctx.busy = true;
       ctx.flash(action);
       try {
@@ -1262,10 +1264,13 @@
     async function refresh() {
       if (ctx.stopped) return;
       ctx.fitPanel();
+      var startedAt = actionSeq;
       try {
         var res = await fetch(STATE_URL, { cache: "no-store" });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        ctx.render(await res.json());
+        var next = await res.json();
+        if (startedAt !== actionSeq) return;
+        ctx.render(next);
       } catch (error) {
         if (ctx.stopped) return;
         ctx.showBubble("\u8FDE\u63A5\u4E0D\u4E0A\u5BBF\u4E3B", 4e3);

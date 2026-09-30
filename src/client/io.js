@@ -13,9 +13,15 @@ import { num, str } from './values.js'
  * @param {object} ctx - the shell context
  */
 export function createIo(ctx) {
+      /** Bumped by every action, so a stale poll can tell it has been overtaken. */
+      var actionSeq = 0
+
       async function send(action, extra) {
         if (ctx.busy || ctx.stopped) return
         if (ctx.view.pig === null && action !== 'hatch') return
+        // Every action bumps the sequence: a poll that started before this
+        // action is stale by the time it lands and must be dropped.
+        actionSeq += 1
         ctx.busy = true
         ctx.flash(action)
         try {
@@ -69,10 +75,15 @@ export function createIo(ctx) {
         // A poll can change the live content (a job finishing, an illness
         // starting), so re-check the panel still fits.
         ctx.fitPanel()
+        var startedAt = actionSeq
         try {
           var res = await fetch(STATE_URL, { cache: 'no-store' })
           if (!res.ok) throw new Error('HTTP ' + res.status)
-          ctx.render(await res.json())
+          var next = await res.json()
+          // An action landed while this poll was in flight: its result is newer
+          // than ours, so painting ours would undo what the user just did.
+          if (startedAt !== actionSeq) return
+          ctx.render(next)
         } catch (error) {
           if (ctx.stopped) return
           ctx.showBubble('连接不上宿主', 4000)

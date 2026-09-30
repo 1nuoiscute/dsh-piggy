@@ -590,6 +590,44 @@ test('disposing also unhooks the dev shortcut and window.dshPigDev', async () =>
   assert.equal(window.dshPigDev, undefined, 'and the console handle must go')
 })
 
+test('a slow poll cannot overwrite the result of an action', async () => {
+  // The panel polls every 4s. A poll that left before an action but landed
+  // after it used to paint stale state back over the action's result.
+  const acted = { ...SNAPSHOT, pig: { ...PIG, name: '动作后' } }
+  const { registration, dom } = await loadClient({ actResult: acted })
+
+  let poll = null
+  const realSetInterval = globalThis.window.setInterval
+  globalThis.window.setInterval = fn => { poll = fn; return 1 }
+  try {
+    registration.factory(() => {}).apply({})
+    await settle()
+    openPanel(dom)
+    assert.ok(hostOf(dom).allText().includes('大花'), 'the first render is the polled state')
+
+    // A poll starts and hangs; an action lands meanwhile.
+    let release
+    const gate = new Promise(resolve => { release = resolve })
+    const realFetch = globalThis.fetch
+    globalThis.fetch = async (url, options) => {
+      if ((options?.method ?? 'GET') === 'GET') { await gate; return realFetch(url, { method: 'GET' }) }
+      return realFetch(url, options)
+    }
+    const stale = poll()
+    findByAttr(contentOf(dom), 'data-action', 'pet').fire('click')
+    await settle()
+    assert.ok(hostOf(dom).allText().includes('动作后'), 'the action repainted the panel')
+
+    release()
+    await stale
+    await settle()
+    assert.ok(hostOf(dom).allText().includes('动作后'), 'the stale poll must be dropped')
+    assert.ok(!hostOf(dom).allText().includes('大花'), 'and must not paint the old name back')
+  } finally {
+    globalThis.window.setInterval = realSetInterval
+  }
+})
+
 // ===========================================================================
 // #10 — fields the panel silently dropped
 // ===========================================================================
