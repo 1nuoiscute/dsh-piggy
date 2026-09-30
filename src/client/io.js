@@ -13,9 +13,15 @@ import { num, str } from './values.js'
  * @param {object} ctx - the shell context
  */
 export function createIo(ctx) {
+      /** Bumped by every action, so a stale poll can tell it has been overtaken. */
+      var actionSeq = 0
+
       async function send(action, extra) {
         if (ctx.busy || ctx.stopped) return
         if (ctx.view.pig === null && action !== 'hatch') return
+        // Every action bumps the sequence: a poll that started before this
+        // action is stale by the time it lands and must be dropped.
+        actionSeq += 1
         ctx.busy = true
         ctx.flash(action)
         try {
@@ -29,6 +35,9 @@ export function createIo(ctx) {
           var next = await res.json()
           ctx.render(next)
           if (next && next.ok === false) {
+            // Answering a line that has already moved on is normal (a second
+            // window, a slow poll): say nothing rather than scold the user.
+            if (next.reason === 'stale-line') return
             ctx.react('refuse', 520)
             if (next.reason === 'no-item') {
               var emptyKind = str(next.kind, '')
@@ -36,12 +45,13 @@ export function createIo(ctx) {
               return
             }
             var reasons = {
+              box: '先把纸盒拆开',
               cooldown: '还要等 ' + num(next.wait, 0) + ' 秒',
               poor: '钱不够',
               away: '它在外面',
               weak: '太虚弱了，先养好再出门',
               hungry: '太饿了',
-              'wrong-medicine': '药不对症',
+              'wrong-medicine': '药不对症，病情加重了…',
               empty: '背包里没有',
               'not-sick': '它没生病',
               dead: '它已经走了…',
@@ -68,10 +78,15 @@ export function createIo(ctx) {
         // A poll can change the live content (a job finishing, an illness
         // starting), so re-check the panel still fits.
         ctx.fitPanel()
+        var startedAt = actionSeq
         try {
           var res = await fetch(STATE_URL, { cache: 'no-store' })
           if (!res.ok) throw new Error('HTTP ' + res.status)
-          ctx.render(await res.json())
+          var next = await res.json()
+          // An action landed while this poll was in flight: its result is newer
+          // than ours, so painting ours would undo what the user just did.
+          if (startedAt !== actionSeq) return
+          ctx.render(next)
         } catch (error) {
           if (ctx.stopped) return
           ctx.showBubble('连接不上宿主', 4000)

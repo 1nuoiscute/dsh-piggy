@@ -21,7 +21,9 @@ import {
   hatch as coreHatch,
   hatchEgg,
   rename as coreRename,
+  replyToLine as coreReplyToLine,
   reset as coreReset,
+  seeDoctor as coreSeeDoctor,
   sellSouvenir as coreSellSouvenir,
   setTimeScale as coreSetTimeScale,
   startInterest as coreStartInterest,
@@ -116,7 +118,13 @@ export function createApi(control) {
 
     /** Use one item from the backpack. */
     useItem: itemKey => mutate(live => coreUseItem(live, itemKey, now())),
+
+    /** 看医生: pay to be cured without buying the medicine. */
+    seeDoctor: () => mutate(live => coreSeeDoctor(live, now())),
     sellSouvenir: souvenirKey => mutate(live => coreSellSouvenir(live, souvenirKey, now())),
+
+    /** The owner answers the pig's latest line. */
+    reply: (lineId, replyIndex) => mutate(live => coreReplyToLine(live, lineId, replyIndex)),
     wear: (itemKey, on) => mutate(live => (on ? coreWearItem(live, itemKey, now()) : coreTakeOff(live, itemKey, now()))),
 
     /** Open the box. Only works when there is no living pig yet. */
@@ -150,11 +158,8 @@ export function createApi(control) {
 
     /** Developer mode: force the pig into any state. */
     dev(patch) {
-      const state = getState()
-      if (state === null) return false
-      setState(coreDevPatch(state, patch, now()))
-      scheduleSave()
-      return true
+      // Through mutate(): a patch that blows up halfway must not be written.
+      return mutate(live => { coreDevPatch(live, patch, now()); return true }) === true
     },
 
     /** Start from a brand new box, living pig or not. */

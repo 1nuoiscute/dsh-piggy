@@ -61,7 +61,19 @@ export function createPanel(ctx) {
         for (var k in ctx.icons) ctx.icons[k].setAttribute('data-active', k === ctx.tab ? 'true' : 'false')
       }
 
+      /**
+       * Repaint the panel body, keeping the reader's place.
+       *
+       * The body is rebuilt from scratch on every poll; without saving the
+       * offset, a long shelf jumped back to the top every four seconds.
+       */
       function renderContent() {
+        var scrollTop = ctx.content.scrollTop
+        paintContent()
+        ctx.content.scrollTop = scrollTop
+      }
+
+      function paintContent() {
         ctx.content.textContent = ''
         for (var k = 0; k < TABS.length; k += 1) {
           ctx.icons[TABS[k].key].setAttribute('data-active', TABS[k].key === ctx.tab ? 'true' : 'false')
@@ -94,24 +106,42 @@ export function createPanel(ctx) {
           adoptWrap.appendChild(adopt)
           ctx.content.appendChild(adoptWrap)
         } else if (ctx.view.pig !== null && ctx.view.pig.illness !== null) {
+          var illness = ctx.view.pig.illness
           var sick = el('div', 'dp-alert dp-sick')
-          sick.appendChild(el('b', null, '🤒 ' + ctx.view.pig.illness.name + '（第 ' + ctx.view.pig.illness.stage + '/4 期）'))
-          sick.appendChild(el('div', null, '需要「' + ctx.view.pig.illness.cure + '」—— 去商店买对应的药'))
-          // If it cannot afford the cure, say the way out plainly: being ill is
-          // not a reason to stay home, so it can go out and earn the medicine.
-          // careView only carries the consumable shelves (feed/bathe/play), so
-          // the price has to come from the shop listing.
-          var cures = (ctx.view.shop || []).filter(function (i) { return i.kind === 'medicine' })
-          var cheapest = cures.length === 0 ? null : cures.reduce(function (a, b) { return a.price <= b.price ? a : b })
+          sick.appendChild(el('b', null, '🤒 ' + illness.name + '（第 ' + illness.stage + '/4 期）'))
+          // B3: every stage has its own cure, and the wrong one makes it worse,
+          // so the alert always names the exact medicine.
+          sick.appendChild(el('div', null, '需要「' + illness.cureEmoji + illness.cure + '」—— 吃错药会加重'))
+          var needed = null
+          var shelf = ctx.view.shop || []
+          for (var c = 0; c < shelf.length; c += 1) {
+            if (shelf[c].needed) needed = shelf[c]
+          }
+          // Hosts from before B3 do not flag the cure: match it by stage tier,
+          // then by name.
+          for (var t = 0; needed === null && t < shelf.length; t += 1) {
+            if (shelf[t].kind === 'medicine' && shelf[t].tier === illness.stage) needed = shelf[t]
+          }
+          for (var n = 0; needed === null && n < shelf.length; n += 1) {
+            if (shelf[n].label === illness.cure) needed = shelf[n]
+          }
           if (ctx.view.canGoOut) {
             sick.appendChild(el('div', 'dp-dim',
               '带病也能出门，但报酬只有一半；在外面病情会走得更快，躺着养最省'))
           }
-          if (cheapest !== null && ctx.view.canGoOut && ctx.view.pig.coins < cheapest.price) {
+          if (needed !== null && ctx.view.canGoOut && ctx.view.pig.coins < needed.price) {
             sick.appendChild(el('div', 'dp-dim',
-              '钱不够也没关系 —— 先去打工，赚够 ' + cheapest.price + ' 🪙 买「' + cheapest.label + '」'))
+              '钱不够也没关系 —— 先去打工，赚够 ' + needed.price + ' 🪙 买「' + needed.label + '」'))
           }
           ctx.content.appendChild(sick)
+          if (illness.doctorFee !== null) {
+            var clinic = el('div', 'dp-actions')
+            var doctor = button('dp-btn dp-btn-wide', { 'data-action': 'doctor' }, function () { ctx.send('doctor') })
+            doctor.appendChild(el('span', null, '🏥'))
+            doctor.appendChild(el('span', null, '看医生（' + illness.doctorFee + ' 🪙）'))
+            clinic.appendChild(doctor)
+            ctx.content.appendChild(clinic)
+          }
         } else if (ctx.view.pig !== null && ctx.view.activity !== null) {
           var away = el('div', 'dp-alert dp-work')
           away.appendChild(el('b', null, ctx.view.activity.emoji + ' 在外面：' + ctx.view.activity.label))
@@ -152,9 +182,19 @@ export function createPanel(ctx) {
 
       function render(next) {
         ctx.view = normalize(next)
+        // Never leave the study tab parked on a stage the pig cannot attend.
+        var stageEntry = null
+        var firstOpen = null
+        for (var s = 0; s < ctx.view.stages.length; s += 1) {
+          var entry = ctx.view.stages[s]
+          if (entry.unlocked !== false && firstOpen === null) firstOpen = entry.key
+          if (entry.key === ctx.stage) stageEntry = entry
+        }
+        // The 兴趣 button is not a stage; leave it selected.
+        if (ctx.stage !== 'interest' && firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen
         ctx.host.setAttribute('data-dead', ctx.view.dead ? 'true' : 'false')
         ctx.host.setAttribute('data-open', ctx.isOpen ? 'true' : 'false')
-      ctx.host.setAttribute('data-dev', 'false')
+        ctx.host.setAttribute('data-dev', ctx.devMode ? 'true' : 'false')
         // Drives both the prop and the pig's own activity animation.
         ctx.host.setAttribute('data-away', ctx.view.activity === null ? 'false' : ctx.view.activity.kind)
         if (ctx.view.activity === null) {
@@ -220,6 +260,7 @@ export function createPanel(ctx) {
             ctx.dressSlots.appendChild(node)
           }
           ctx.hudName.textContent = ctx.view.pig.name
+            + (ctx.view.pig.sex !== null ? ' ' + ctx.view.pig.sex.symbol : '')
             + ' Lv.' + ctx.view.pig.level.level
             + ' · ' + pigStage.label
             + (ctx.view.pig.ageLabel ? ' · ' + ctx.view.pig.ageLabel : '')
@@ -236,14 +277,35 @@ export function createPanel(ctx) {
         }
 
         // Alerts on the icon bar itself, so a collapsed pig still warns.
-        ctx.icons.study.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.illness === null && ctx.view.activity === null && ctx.view.pig.satiety < 25 ? 'false' : 'false')
+        // The study icon lights when there is a course to take right now:
+        // idle, the stage on screen is unlocked, and it still has a subject.
+        var studyStage = null
+        for (var st = 0; st < ctx.view.stages.length; st += 1) {
+          if (ctx.view.stages[st].key === ctx.stage) studyStage = ctx.view.stages[st]
+        }
+        var studyOpen = ctx.view.canGoOut && (studyStage === null || studyStage.unlocked !== false)
+        // B4: no stage ladder any more, so "a course to take" is simply one the
+        // pig can afford (older hosts still send stages, handled above).
+        var hasCourse = studyOpen && ctx.view.subjects.some(function (subject) {
+          var onStage = studyStage === null || studyStage.subjects.length === 0 || studyStage.subjects.indexOf(subject.key) >= 0
+          return onStage && subject.affordable
+        })
+        ctx.icons.study.setAttribute('data-alert', hasCourse ? 'true' : 'false')
         ctx.icons.shop.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.illness !== null ? 'true' : 'false')
         ctx.icons.travel.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? 'true' : 'false')
 
         for (var i = 0; i < ctx.view.pending.length; i += 1) {
           var event = ctx.view.pending[i]
-          if (event.at <= ctx.lastPendingAt) continue
-          ctx.lastPendingAt = event.at
+          // Messages carry an id that only goes up; two from the same instant
+          // ("病情加重" then "走了") used to collapse into the first one.
+          // Hosts older than the id still dedupe on the timestamp.
+          if (event.id > 0 ? event.id <= ctx.lastPendingId : event.at <= ctx.lastPendingAt) continue
+          if (event.id > 0) ctx.lastPendingId = event.id
+          ctx.lastPendingAt = Math.max(ctx.lastPendingAt, event.at)
+          if (event.kind === 'line') {
+            showPigLine(event)
+            continue
+          }
           ctx.toast(str(event.text, '猪有新消息'))
           if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
           else if (event.kind === 'cured') { ctx.react('cure', 900); ctx.burst(['💚', '✨'], 3) }
@@ -255,6 +317,14 @@ export function createPanel(ctx) {
 
         renderContent()
       }
+
+  /** A line from the pig goes in its bubble, with the owner's reply buttons under it. */
+  function showPigLine(event) {
+    var lineId = event.id
+    ctx.showLine(event.text, event.replies, function (index) {
+      ctx.send('reply', { line: lineId, index: index })
+    })
+  }
 
   return { setOpen, select, renderContent, render }
 }

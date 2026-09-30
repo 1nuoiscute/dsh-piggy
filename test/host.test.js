@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 
 import { apply, dispatch, snapshot } from '../index.js'
+import { registerRoutes } from '../routes.js'
 import { JOBS, SHOP, hatchEgg, layEgg } from '../core.js'
 import { DEFAULT_TOY } from '../data.js'
 
@@ -96,6 +97,38 @@ async function call(route, method, body) {
 // ===========================================================================
 // Registration
 // ===========================================================================
+
+test('an operation that throws answers 500 and names the action, instead of losing the route', async () => {
+  const routes = {}
+  const ctx = {
+    inject: (deps, fn) => {
+      if (deps.includes('webServer')) {
+        fn({ webServer: { register: route => { routes[route.path] = route; return () => {} } } })
+      }
+    },
+  }
+  const store = {
+    dev: () => { throw new Error('boom') },
+    freshen: () => null,
+    drainPending: () => [],
+  }
+  registerRoutes(ctx, store)
+
+  const warnings = []
+  const original = console.warn
+  console.warn = (...args) => warnings.push(args.map(String).join(' '))
+  let result
+  try {
+    result = await call(routes['/dsh-pig/act'], 'POST', { action: 'dev' })
+  } finally {
+    console.warn = original
+  }
+  const body = JSON.parse(result.text)
+  assert.equal(result.status, 500)
+  assert.equal(body.ok, false)
+  assert.equal(body.reason, 'error')
+  assert.ok(warnings.some(line => line.includes('dev')), `the log must name the action: ${warnings.join(' | ')}`)
+})
 
 test('the host registers both routes, the four diet events and the command', () => {
   const app = boot()
@@ -274,7 +307,7 @@ test('an away pig reports how far through its activity it is', async () => {
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs - 30 * MIN)
     pig.activity = {
-      kind: 'work', key: 'office', label: '上班', emoji: '💼',
+      kind: 'work', key: 'editor', label: '编辑', emoji: '📰',
       startedAt: nowMs - 2 * 60 * MIN, endsAt: nowMs + 2 * 60 * MIN,
     }
     pig.lastSeenAt = nowMs - 2 * 60 * MIN
@@ -295,23 +328,21 @@ test('care is refused while working, and the refusal is honest', async () => {
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs)
     pig.satiety = 80
-    // 上班 needs 智力 14 + 魅力 6 since 0.17.0; the pig earns those by studying.
-    pig.traits = { intel: 14, charm: 6, strong: 0 }
     return pig
   })
   try {
-    const started = await app.post({ action: 'work', job: 'office' })
+    const started = await app.post({ action: 'work', job: 'bricks' })
     assert.equal(started.ok, true)
     assert.equal(started.canGoOut, false)
     assert.equal(started.activity.kind, 'work')
-    assert.equal(started.activity.key, 'office')
+    assert.equal(started.activity.key, 'bricks')
     assert.ok(started.activity.secondsLeft > 0)
 
     const feed = await app.post({ action: 'feed' })
     assert.equal(feed.ok, false)
     assert.equal(feed.reason, 'away')
 
-    const second = await app.post({ action: 'work', job: 'odd' })
+    const second = await app.post({ action: 'work', job: 'bricks' })
     assert.equal(second.ok, false)
     assert.equal(second.reason, 'away')
 
@@ -325,21 +356,22 @@ test('care is refused while working, and the refusal is honest', async () => {
   }
 })
 
-test('the route refuses an unqualified job and hands back the missing axes', async () => {
+test('the route refuses an unqualified job and hands back what it is missing', async () => {
   const app = boot(nowMs => hatchEgg(nowMs))
   try {
-    const refused = await app.post({ action: 'work', job: 'tutor' })
+    // 收银员: Lv5 and 数学 9 lessons (B4). A fresh pig has neither.
+    const refused = await app.post({ action: 'work', job: 'cashier' })
     assert.equal(refused.ok, false)
     assert.equal(refused.reason, 'underqualified')
-    assert.deepEqual(refused.missing.map(m => m.key), ['intel'])
-    assert.equal(refused.missing[0].need, 10)
+    assert.deepEqual(refused.missing.map(m => m.kind), ['level', 'lesson'])
+    assert.equal(refused.missing[1].need, 9)
     // The refusal must not leave the pig mid-shift, and the panel needs the
     // gate on the board itself, not only in the POST result.
     assert.equal(refused.activity, null)
-    const board = refused.jobs.find(job => job.key === 'tutor')
+    const board = refused.jobs.find(job => job.key === 'cashier')
     assert.equal(board.qualified, false)
-    assert.match(board.lockText, /智力 10/)
-    assert.equal(refused.jobs.find(job => job.key === 'odd').qualified, true)
+    assert.match(board.lockText, /Lv\.5、🔢数学 9 节/)
+    assert.equal(refused.jobs.find(job => job.key === 'bricks').qualified, true)
   } finally {
     app.cleanup()
   }
@@ -416,7 +448,7 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
   })
   try {
     const board = await app.get()
-    assert.equal(board.shop.length, 45)
+    assert.equal(board.shop.length, 62)
     assert.equal(board.dress.length, 12)
     assert.equal(board.shop.find(item => item.key === 'scarf').owned, true)
     const crown = board.shop.find(item => item.key === 'crown')
@@ -482,7 +514,7 @@ test('a finished shift pays out on the next read and is announced once', async (
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs - 10 * MIN)
     pig.coins = 0
-    pig.activity = { kind: 'work', key: 'site', label: '搬砖', emoji: '🧱', startedAt: nowMs - 4 * MIN, endsAt: nowMs - MIN }
+    pig.activity = { kind: 'work', key: 'bricks', label: '搬砖', emoji: '🧱', startedAt: nowMs - 4 * MIN, endsAt: nowMs - MIN }
     pig.lastSeenAt = nowMs - 4 * MIN
     return pig
   })
@@ -490,7 +522,8 @@ test('a finished shift pays out on the next read and is announced once', async (
     const first = await app.get()
     // The seeded shift is 搬砖; look its pay up by key — the board's order is
     // content, not API.
-    assert.equal(first.pig.coins, JOBS.find(job => job.key === 'site').coins)
+    // Coins may include nothing else: drops go to the bag, not the purse.
+    assert.equal(first.pig.coins, JOBS.find(job => job.key === 'bricks').coins)
     assert.equal(first.activity, null)
     // A shift is worth enough XP to cross a level too, so there may be more
     // than one announcement — the payday is the one that must be there.
@@ -508,7 +541,7 @@ test('a finished shift pays out on the next read and is announced once', async (
 test('snapshot() can be asked not to drain the queue', async () => {
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs - 10 * MIN)
-    pig.activity = { kind: 'work', key: 'odd', label: '打零工', emoji: '🧹', startedAt: nowMs - 2 * MIN, endsAt: nowMs - MIN }
+    pig.activity = { kind: 'work', key: 'bricks', label: '打零工', emoji: '🧹', startedAt: nowMs - 2 * MIN, endsAt: nowMs - MIN }
     pig.lastSeenAt = nowMs - 2 * MIN
     return pig
   })
@@ -527,22 +560,24 @@ test('snapshot() can be asked not to drain the queue', async () => {
 // ===========================================================================
 
 test('a neglected pig falls ill, and the shop marks the right medicine', async () => {
+  // B3: neglect is a chance per hour (~16%/h hungry and dirty), not a sure
+  // thing after 40 minutes; two days of it is ~99.98%.
   const app = boot(nowMs => {
-    const pig = hatchEgg(nowMs - 40 * MIN)
+    const pig = hatchEgg(nowMs - 48 * 60 * MIN)
     pig.satiety = 10
     pig.cleanliness = 10
-    pig.lastSeenAt = nowMs - 40 * MIN
+    pig.lastSeenAt = nowMs - 48 * 60 * MIN
     return pig
   })
   try {
     const snap = await app.get()
     assert.equal(snap.dead, false)
     assert.notEqual(snap.pig.illness, null, 'neglect should have made it sick')
-    assert.equal(snap.pig.illness.stage, 1)
     assert.ok(snap.pig.health < 5)
     const wanted = snap.shop.filter(item => item.needed)
     assert.equal(wanted.length, 1, 'exactly one medicine is flagged as needed')
-    assert.equal(wanted[0].tier, 1)
+    assert.equal(wanted[0].key, snap.pig.illness.cureKey, 'and it is the cure for this very stage')
+    assert.equal(wanted[0].tier, snap.pig.illness.stage)
   } finally {
     app.cleanup()
   }
@@ -583,7 +618,7 @@ test('a dead pig only answers to the revive item', async () => {
     const pig = hatchEgg(nowMs - 5 * MIN)
     pig.dead = true
     pig.health = 0
-    pig.coins = 300
+    pig.coins = 1000 // 还魂丹 costs 800 since B3
     pig.inventory = { apple: 3 }
     return pig
   })
@@ -595,7 +630,7 @@ test('a dead pig only answers to the revive item', async () => {
       assert.equal(refused.ok, false, `${action} must be refused`)
       assert.equal(refused.reason, 'dead')
     }
-    assert.equal((await app.post({ action: 'work', job: 'odd' })).reason, 'dead')
+    assert.equal((await app.post({ action: 'work', job: 'bricks' })).reason, 'dead')
 
     const reviveKey = dead.shop.find(i => i.kind === 'revive').key
     assert.equal((await app.post({ action: 'buy', item: reviveKey })).ok, true)
@@ -638,8 +673,8 @@ test('the slash command line for work and the shop agree with the tables', () =>
     for (const item of SHOP) assert.ok(shop.includes(item.label), `${item.label} missing from /pig shop`)
     const bought = run('buy 苹果')
     assert.match(bought.text, /苹果/)
-    const work = run('work odd')
-    assert.match(work.text, /打零工/)
+    const work = run('work 搬砖')
+    assert.match(work.text, /搬砖/)
     assert.match(run('calloff').text, /提前回来/)
   } finally {
     app.cleanup()
@@ -656,6 +691,28 @@ test('the pure dispatch helper routes every documented subcommand', () => {
   assert.equal(dispatch(store, 'pig', 'bogus').kind, 'error')
 })
 
+test('the slash command covers what the panel covers', () => {
+  // The GUI is the primary path, but the command is the fallback and it was
+  // missing half the verbs: 兴趣课、卖纪念品、穿脱家当、领养、回话（B1 小缺口）。
+  const pig = hatchEgg(Date.now())
+  pig.dialogue = { open: { id: 7, text: '好舒服…', replies: [{ label: '真乖', happiness: 2 }] } }
+  pig.souvenirs = [{ key: 'shell', label: '贝壳', emoji: '🐚', rarity: 'common' }]
+  const store = makeFakeStore(pig)
+
+  assert.equal(dispatch(store, 'pig', 'interest coding').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'sell 贝壳').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'wear scarf').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'wear scarf off').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'adopt').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'reply 1').kind, 'success')
+  assert.equal(dispatch(store, 'pig', 'reply 9').kind, 'error', 'out-of-range reply')
+
+  const help = dispatch(store, 'pig', 'bogus')
+  for (const verb of ['interest', 'sell', 'wear', 'adopt', 'reply']) {
+    assert.ok(help.text.includes(verb), `the error text must list ${verb}: ${help.text}`)
+  }
+})
+
 /** A store stub good enough for the pure dispatcher. */
 function makeFakeStore(state) {
   let live = state
@@ -669,6 +726,11 @@ function makeFakeStore(state) {
     useItem: () => ({ ok: true, item: SHOP[0], crossed: [] }),
     hatch: () => false,
     rename: raw => String(raw).trim() || null,
+    startInterest: () => ({ ok: true }),
+    sellSouvenir: () => ({ ok: true, sold: { label: '贝壳', price: 60 } }),
+    wear: () => ({ ok: true, item: { label: '围巾' } }),
+    adopt: () => true,
+    reply: (lineId, index) => (index === 0 ? { ok: true, reply: '真乖' } : { ok: false, reason: 'unknown' }),
     drainPending: () => [],
     dispose: () => {},
     set live(next) { live = next },
@@ -694,6 +756,28 @@ test('the cordis patch names the package exactly as package.json does', async ()
   }
 })
 
+test('a box reports that it cannot go out, and says why', () => {
+  const now = Date.now()
+  const box = layEgg(now)
+  const store = { freshen: () => box, drainPending: () => {} }
+  const snap = snapshot(store, { drain: false })
+  assert.equal(snap.canGoOut, false)
+  assert.equal(snap.awayBlocked, 'box')
+})
+
+test('the souvenir shelf shows the whole collection, not just the last 40', () => {
+  const now = Date.now()
+  const pig = hatchEgg(now)
+  pig.souvenirs = Array.from({ length: 41 }, (_, index) => ({
+    key: 'shell-' + index, emoji: '🐚', label: '贝壳 ' + index, rarity: 'common',
+    story: '', from: null, fromLabel: '',
+  }))
+  const store = { freshen: () => pig, drainPending: () => {} }
+  const snap = snapshot(store, { drain: false })
+  assert.equal(snap.pig.souvenirs.length, 41)
+  assert.equal(snap.pig.souvenirs[0].key, 'shell-0', 'the oldest one must still be sellable')
+})
+
 test('a tombstone reports how long the pig lived, not when it hatched', () => {
   const now = Date.now()
   const HOUR = 3_600_000
@@ -713,5 +797,5 @@ test('a tombstone reports how long the pig lived, not when it hatched', () => {
 
   // And a living pig still counts up from birth.
   const alive = hatchEgg(now - 5 * HOUR)
-  assert.equal(snapshot(store(alive), { drain: false }).pig.ageLabel, '今天刚出生')
+  assert.equal(snapshot(store(alive), { drain: false }).pig.ageLabel, '今天刚到家')
 })

@@ -13,9 +13,25 @@ export function renderWorkTab(ui) {
     ui.content.appendChild(el('div', 'dp-empty', '宿主还没提供工作列表。'))
     return
   }
+  // Thirty-odd jobs read better in the ladder's own tiers (B4): the shift
+  // length is what marks a tier, so it doubles as the heading.
+  var TIERS = [[45, '🌱 起步'], [60, '📚 小学毕业'], [120, '🏫 中学毕业'], [240, '🏛 大学毕业'], [Infinity, '🔬 研究生']]
+  var tierOf = function (job) {
+    var minutes = job.baseMinutes || job.minutes
+    for (var t = 0; t < TIERS.length; t += 1) if (minutes <= TIERS[t][0]) return TIERS[t][1]
+    return ''
+  }
   var list = el('div', 'dp-list')
+  var lastTier = null
   for (var i = 0; i < ui.view.jobs.length; i += 1) {
     (function (job) {
+      var tier = tierOf(job)
+      if (tier !== lastTier && ui.view.jobs.length > 12) {
+        lastTier = tier
+        var head = el('div', 'dp-title')
+        head.appendChild(el('b', null, tier))
+        list.appendChild(head)
+      }
       var row = el('div', 'dp-item')
       row.appendChild(el('span', null, job.emoji))
       var grow = el('div', 'dp-grow')

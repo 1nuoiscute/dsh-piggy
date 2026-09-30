@@ -11,6 +11,9 @@
 会**饿会脏会生病**，病了得**对症下药**，撑不住会**死**——但用**还魂丹**能救回来。
 
 玩法参考经典电子宠物：喂食 / 洗澡 / 玩耍 / 打工 / 上课 / 旅行 / 生病。
+
+> 本页部分玩法数值和生命周期描述是早期记录，可能滞后于代码。当前规则以
+> [`packages/pet-core/src/data/`](packages/pet-core/src/data/) 与 [CHANGELOG](CHANGELOG.md) 为准。
 数值与命名参考了两份公开资料 ——
 [xuemian168/qqpet_automation](https://github.com/xuemian168/qqpet_automation)（逆向分析）
 与 [ice-cream-headache.github.io](https://github.com/ice-cream-headache/ice-cream-headache.github.io)（界面截图）。
@@ -331,8 +334,9 @@ POST /dsh-pig/act     执行操作
 dsh-piggy/
 ├── package.json          插件清单与 build / typecheck / test 脚本
 ├── cordis.patch.yml      profile 配置层
-├── data.js / data/       静态游戏表与常量；data.js 保留导出入口
-├── core.js / core/       纯领域函数；时间由 nowMs 参数传入
+├── core.js / data.js     根目录再导出入口，兼容既有导入
+├── packages/pet-core/   共享领域库 @dsh-piggy/core，纯 JavaScript、无 IO
+│   └── src/             core/ 领域规则与 data/ 静态游戏表
 ├── store.js / store/     存档读写、原子写与节流
 ├── index.js              宿主组装入口
 ├── snapshot.js           面板快照
@@ -362,7 +366,7 @@ dsh-piggy/
 ```sh
 git -c core.autocrlf=false clone https://github.com/CLICGGER-TYPES/dsh-piggy.git
 cd dsh-piggy
-npm install --no-save --package-lock=false esbuild@0.28.2 typescript@5.9.3 @types/node@20
+npm install --no-save --package-lock=false esbuild@0.28.2 typescript@5.9.3 @types/node@20.19.43
 npm run build
 npm run typecheck
 node --test
@@ -372,7 +376,7 @@ node --test
 `core.autocrlf=false` 让此次克隆保留仓库的 LF 换行；构建产物守卫逐字节比较
 `client.js`，Windows 自动转换成 CRLF 会影响这个检查。
 `--no-save --package-lock=false` 只安装本地工具，不修改依赖清单、不生成锁文件；
-`node_modules/` 已被 Git 忽略。
+`node_modules/` 已被 Git 忽略。安装 esbuild 时 npm 会运行它的安装脚本，以准备当前平台的构建工具。
 
 上面的版本组合已经验证可构建和检查。这里固定 TypeScript 5.9.3：
 当前检查脚本没有显式指定 `strict`，而 [TypeScript 6.0 起默认启用 strict](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html#strict-is-now-true-by-default)，
@@ -380,7 +384,8 @@ node --test
 
 - **客户端**：修改 `src/client/`，运行 `npm run build`，提交生成的 `client.js`。
   不要直接编辑 `client.js`；DSH 加载它，`test/bundle.test.js` 检查它与源码一致。
-- **游戏逻辑与数据**：修改 `core/` 或 `data/`；存档相关代码在 `store/`。
+- **游戏逻辑与数据**：修改 `packages/pet-core/src/core/` 或 `packages/pet-core/src/data/`；
+  存档相关代码在 `store/`，新增存档结构还需在共享库 `core/upgrades.js` 追加迁移。
   领域层保持无 IO，时间必须由参数传入。
 - **提交前**：运行 `npm run typecheck` 和 `node --test`。
   UI 改动还要在真实浏览器中确认；约定见 [docs/CONVENTIONS.md](docs/CONVENTIONS.md)。
@@ -414,7 +419,7 @@ window.dshPigDev.on()         // 开启开发者面板；off() 关闭
 ```
 
 `tools/art.html` 可查看立绘，`tools/stages.html` 可查看生命周期形态示意。
-这些预览页使用示例数据，当前阶段与数值以 `data/` 和实际宿主快照为准。
+这些预览页使用示例数据，当前阶段与数值以 `packages/pet-core/src/data/` 和实际宿主快照为准。
 
 > 假 DOM 没有 CSS 引擎。曾经出现过 JS 正确设置 `hidden = true`、测试通过，
 > 浏览器却仍显示图标栏的情况。**断言标志位证明不了元素不可见**，要在真实浏览器确认。
@@ -445,7 +450,7 @@ Start-Process -FilePath (Resolve-Path .\tools\art.html).Path
 准备改源码时，在仓库根目录安装开发工具并检查：
 
 ```powershell
-npm.cmd install --no-save --package-lock=false esbuild@0.28.2 typescript@5.9.3 @types/node@20
+npm.cmd install --no-save --package-lock=false esbuild@0.28.2 typescript@5.9.3 @types/node@20.19.43
 npm.cmd run build
 npm.cmd run typecheck
 node --test

@@ -65,6 +65,14 @@ export const CSS_TABS = [
   '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
   'background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);',
   'border-bottom:2px solid var(--ac-border-light);transform:rotate(45deg)}',
+  // Reply buttons under a line: small pills, the mint of the primary colour
+  // without the 3D base, which the spec keeps for real primary buttons.
+  '.dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}',
+  '.dp-reply{font:inherit;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;',
+  'border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);background:var(--ac-bg);',
+  'color:var(--ac-text);transition:border-color .15s var(--ac-ease)}',
+  '.dp-reply:hover{border-color:var(--ac-border-hover)}',
+  '.dp-reply:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',
   // Collapsed, the scene is exactly the pig, so a bubble drawn inside it
   // would sit on the pig's face. Float it above the head with the tail
   // pointing down, anchored to the right edge so it can never run off the
@@ -142,7 +150,7 @@ export const CSS_TABS = [
   '.dp-btn .dp-wait{color:var(--ac-text-2);font-size:10px;font-weight:600}',
 
   /* ---------- segmented control ---------- */
-  '.dp-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}',
+  '.dp-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:9px}',
   '.dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);',
   'cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);',
   'border:2px solid var(--ac-border-light);background:var(--ac-bg-input);',
@@ -152,7 +160,8 @@ export const CSS_TABS = [
   'color:var(--ac-text);font-weight:700}',
 
   /* ---------- list rows ---------- */
-  '.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}',
+  // minmax(0,1fr): a long nowrap line must ellipsize, not widen the panel.
+  '.dp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}',
   '.dp-list{display:flex;flex-direction:column;gap:7px}',
   '.dp-shelf{margin:9px 0 1px;font-size:10px;font-weight:700;color:var(--ac-text-2);',
   'letter-spacing:.04em}',

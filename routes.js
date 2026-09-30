@@ -52,6 +52,8 @@ const OPERATIONS = {
   bathe: (store, body) => store.act('bathe', str(body.item)),
   play: (store, body) => store.act('play', str(body.item)),
   pet: store => store.act('pet'),
+  // Answer the pig's latest line: `line` is the message id, `index` the button.
+  reply: (store, body) => store.reply(Number(body.line), Number(body.index)),
   work: (store, body) => store.startWork(str(body.job)),
   study: (store, body) => store.startStudy(str(body.subject), str(body.stage)),
   interest: (store, body) => store.startInterest(str(body.interest)),
@@ -59,6 +61,7 @@ const OPERATIONS = {
   calloff: store => store.callOffActivity(),
   buy: (store, body) => store.buy(str(body.item)),
   use: (store, body) => store.useItem(str(body.item)),
+  doctor: store => store.seeDoctor(),
   // Souvenirs are the only thing the pig can sell back.
   sell: (store, body) => store.sellSouvenir(str(body.souvenir)),
   // 家当: put a dress item on / take it off.
@@ -131,18 +134,25 @@ function registerActRoute(webServer, store) {
       if (run === null) {
         return sendJson(res, 400, { error: `unknown action "${operation}"`, allowed: Object.keys(OPERATIONS) })
       }
-      const result = run(store, body)
-      sendJson(res, 200, {
-        ...snapshot(store),
-        ok: result.ok !== false,
-        reason: result.reason,
-        wait: result.wait,
-        price: result.price,
-        missing: result.missing,
-        sold: result.sold,
-        need: result.need,
-        have: result.have,
-      }, { 'cache-control': 'no-store' })
+      // A throwing operation must answer, not take the route down with it: an
+      // unhandled error here would leave the panel polling a dead handler.
+      try {
+        const result = run(store, body)
+        sendJson(res, 200, {
+          ...snapshot(store),
+          ok: result.ok !== false,
+          reason: result.reason,
+          wait: result.wait,
+          price: result.price,
+          missing: result.missing,
+          sold: result.sold,
+          need: result.need,
+          have: result.have,
+        }, { 'cache-control': 'no-store' })
+      } catch (error) {
+        console.warn(`[dsh-pig] action failed: action="${operation}" reason="${error instanceof Error ? error.message : String(error)}"`)
+        sendJson(res, 500, { ok: false, reason: 'error' })
+      }
     },
   })
 }

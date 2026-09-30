@@ -57,11 +57,15 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
   /** Run a core mutator, saving when it reports success. */
   function mutate(fn) {
     if (state === null) return { ok: false, reason: 'absent' }
+    // A core call that throws halfway used to leave the half-applied state in
+    // memory — and the next save wrote it out. Snapshot first, restore on throw.
+    const before = structuredClone(state)
     try {
       const result = fn(state)
       scheduleSave()
       return result
     } catch (error) {
+      state = before
       return { ok: false, reason: 'error', message: error instanceof Error ? error.message : String(error) }
     }
   }

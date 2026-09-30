@@ -166,42 +166,45 @@
       } }
     ]);
     group("\u751F\u75C5", [
-      { key: "cold1", label: "\u{1F912} \u611F\u5192\u4E00\u671F", run: function() {
+      { key: "cold1", label: "\u{1F927} \u611F\u5192", run: function() {
         patch({ illness: { chain: 0, stage: 1 }, health: 4 });
+      } },
+      { key: "cough1", label: "\u{1F637} \u54B3\u55FD", run: function() {
+        patch({ illness: { chain: 1, stage: 1 }, health: 4 });
+      } },
+      { key: "belly1", label: "\u{1F922} \u809A\u5B50\u80C0", run: function() {
+        patch({ illness: { chain: 2, stage: 1 }, health: 4 });
+      } },
+      { key: "dizzy1", label: "\u{1F635} \u5934\u6655", run: function() {
+        patch({ illness: { chain: 3, stage: 1 }, health: 4 });
+      } },
+      { key: "skin1", label: "\u{1FA79} \u7619\u75D2", run: function() {
+        patch({ illness: { chain: 4, stage: 1 }, health: 4 });
       } },
       { key: "cold4", label: "\u2620\uFE0F \u80BA\u708E", run: function() {
         patch({ illness: { chain: 0, stage: 4 }, health: 1 });
-      } },
-      { key: "cough", label: "\u{1FAC1} \u80BA\u7ED3\u6838", run: function() {
-        patch({ illness: { chain: 1, stage: 4 }, health: 1 });
-      } },
-      { key: "belly", label: "\u{1F922} \u80C3\u764C", run: function() {
-        patch({ illness: { chain: 2, stage: 4 }, health: 1 });
       } },
       { key: "cure", label: "\u{1F49A} \u6CBB\u597D", run: function() {
         patch({ illness: null, health: 5 });
       } }
     ]);
-    group("\u5E74\u9F84", [
+    group("\u7B49\u7EA7", [
       { key: "box", label: "\u{1F4E6} \u7EB8\u76D2", run: function() {
         patch({ hatched: false });
       } },
-      { key: "piglet", label: "\u5C0F\u732A", run: function() {
-        patch({ hatched: true, ageDays: 0.2 });
+      { key: "lv1", label: "\u5E7C\u5E74 Lv1", run: function() {
+        patch({ hatched: true, level: 1 });
       } },
-      { key: "young", label: "\u9752\u5E74", run: function() {
-        patch({ ageDays: 2 });
+      { key: "lv10", label: "\u9752\u5E74 Lv10", run: function() {
+        patch({ level: 10 });
       } },
-      { key: "middle", label: "\u4E2D\u5E74", run: function() {
-        patch({ ageDays: 5 });
+      { key: "lv40", label: "\u6210\u5E74 Lv40", run: function() {
+        patch({ level: 40 });
       } },
-      { key: "elder", label: "\u8001\u5E74", run: function() {
-        patch({ ageDays: 9 });
+      { key: "lv60", label: "\u6EE1\u7EA7 Lv60", run: function() {
+        patch({ level: 60 });
       } },
-      { key: "gone", label: "\u{1FAA6} \u8001\u6B7B", run: function() {
-        patch({ ageDays: 20 });
-      } },
-      { key: "real", label: "\u23EA \u5E74\u9F84\u5F52\u96F6", run: function() {
+      { key: "real", label: "\u23EA \u5929\u6570\u5F52\u96F6", run: function() {
         ui.send("ageFromNow");
       } }
     ]);
@@ -363,7 +366,8 @@
         } else {
           cell.appendChild(el("span", "dp-cell-p", item.price + " \u{1FA99}"));
         }
-        if (item.count > 0) cell.appendChild(el("b", "dp-cell-c", "\xD7" + item.count));
+        var owned = num(ui.view.inventory[item.key], 0);
+        if (owned > 0) cell.appendChild(el("b", "dp-cell-c", "\xD7" + owned));
         if (item.needed) cell.appendChild(el("b", "dp-cell-tag", "\u9700\u8981"));
         if (item.owned && item.worn) cell.appendChild(el("b", "dp-cell-tag", "\u7A7F\u7740"));
         list.appendChild(cell);
@@ -446,10 +450,10 @@
     ui.content.appendChild(info);
     var lvl = el("div", "dp-row");
     lvl.appendChild(el("span", null, "\u2B50 \u7B49\u7EA7"));
-    lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.toNext > 0 ? " \xB7 \u8FD8\u5DEE " + p.level.toNext + " xp" : "")));
+    lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.maxed ? " \xB7 \u6EE1\u7EA7" : " \xB7 \u8FD8\u5DEE " + Math.ceil(p.level.toNext) + " \u6210\u957F")));
     ui.content.appendChild(lvl);
     var age = el("div", "dp-row");
-    age.appendChild(el("span", null, "\u{1F382} \u5E74\u9F84"));
+    age.appendChild(el("span", null, "\u{1F3E0} \u966A\u4F34"));
     age.appendChild(el("b", null, p.ageLabel + (p.ageForced ? " \u{1F527}" : "") + (p.daysToNextStage === null ? " \xB7 \u5DF2\u957F\u6210" : "")));
     ui.content.appendChild(age);
     var grid = el("div", "dp-actions");
@@ -487,6 +491,13 @@
   }
 
   // src/client/tabs/study.js
+  var INTEREST_TAB = "interest";
+  function standing(sub, stage) {
+    if (stage === null || sub.stageKey === "") return "current";
+    if (sub.stageKey === stage.key) return "current";
+    if (stage.upTo !== null && sub.lessons >= stage.upTo) return "done";
+    return "ahead";
+  }
   function renderStudyTab(ui) {
     if (ui.view.subjects.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8BFE\u7A0B\u8868\u3002"));
@@ -509,11 +520,26 @@
         seg.appendChild(btn);
       })(stageList[s]);
     }
+    if (ui.view.interests.length > 0) {
+      var interestBtn = button(null, { "data-stage": INTEREST_TAB }, function() {
+        ui.stage = INTEREST_TAB;
+        ui.renderContent();
+      });
+      interestBtn.textContent = "\u{1F3AF} \u5174\u8DA3";
+      interestBtn.setAttribute("data-active", ui.stage === INTEREST_TAB ? "true" : "false");
+      interestBtn.setAttribute("data-locked", "false");
+      seg.appendChild(interestBtn);
+    }
     ui.content.appendChild(seg);
+    if (ui.stage === INTEREST_TAB && ui.view.interests.length > 0) {
+      renderInterests(ui);
+      return;
+    }
     var detail = null;
     for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === ui.stage) detail = ui.view.stages[d];
     if (detail !== null) {
-      var note = el("div", "dp-empty", detail.minutes + " \u5206\u949F \xB7 \u5B66\u8D39 " + detail.tuition + " \u{1FA99} \xB7 \u5C5E\u6027 +" + detail.gain);
+      var span = detail.upTo !== null ? "\u7B2C " + (detail.from + 1) + "\u2013" + detail.upTo + " \u8282" : "\u7B2C " + (detail.from + 1) + " \u8282\u8D77";
+      var note = el("div", "dp-empty", span + " \xB7 " + detail.minutes + " \u5206\u949F \xB7 \u5B66\u8D39 " + detail.tuition + " \u{1FA99} \xB7 \u5C5E\u6027 +" + detail.gain);
       note.style.marginBottom = "7px";
       note.style.marginTop = "0";
       ui.content.appendChild(note);
@@ -521,57 +547,61 @@
         ui.content.appendChild(el(
           "div",
           "dp-locked",
-          "\u{1F512} \u8981\u5148\u5FF5\u5B8C" + detail.progress.label + "\uFF08" + detail.progress.done + "/" + detail.progress.need + "\uFF09"
+          "\u{1F512} \u8981\u5148" + detail.progress.label + "\uFF08\u73B0\u5728\u6700\u591A " + detail.progress.done + " \u8282\uFF09"
         ));
       }
     }
-    var wanted = detail !== null && detail.subjects.length > 0 ? detail.subjects : null;
     var grid = el("div", "dp-grid");
     for (var i = 0; i < ui.view.subjects.length; i += 1) {
       (function(sub) {
-        if (wanted !== null && wanted.indexOf(sub.key) < 0) return;
+        var where = standing(sub, detail);
         var btn = button("dp-item", { "data-subject": sub.key }, function() {
-          ui.send("study", { subject: sub.key, stage: ui.stage });
+          ui.send("study", { subject: sub.key });
         });
-        if (detail !== null && detail.unlocked === false) btn.disabled = true;
+        btn.disabled = where !== "current" || !ui.view.canGoOut || !sub.affordable;
         btn.style.cursor = "pointer";
         btn.style.textAlign = "left";
         btn.appendChild(el("span", null, sub.emoji));
         var grow = el("div", "dp-grow");
         grow.appendChild(el("div", null, sub.label));
-        var perStage = sub.levels[ui.stage];
-        var times = typeof perStage === "number" ? perStage : sub.level;
-        grow.appendChild(el("div", "dp-dim", sub.traitLabel + " \xB7 \u672C\u7EA7 " + times + " \u6B21"));
+        var line;
+        if (where === "done") line = "\u2713 \u5DF2\u6BD5\u4E1A";
+        else if (where === "ahead") line = "\u{1F512} \u8FD8\u5728" + (sub.stageLabel || "\u4E0B\u4E00\u6BB5");
+        else if (detail !== null && detail.upTo !== null) line = sub.traitLabel + " \xB7 " + (sub.lessons - detail.from) + "/" + (detail.upTo - detail.from) + " \u8282";
+        else line = sub.traitLabel + " \xB7 \u4E0A\u8FC7 " + sub.lessons + " \u8282";
+        grow.appendChild(el("div", "dp-dim", line));
         btn.appendChild(grow);
         grid.appendChild(btn);
       })(ui.view.subjects[i]);
     }
     ui.content.appendChild(grid);
-    if (ui.view.interests.length > 0) {
-      var ihead = el("div", "dp-title");
-      ihead.style.marginTop = "10px";
-      ihead.appendChild(el("b", null, "\u{1F3AF} \u5174\u8DA3"));
-      ui.content.appendChild(ihead);
-      var ilist = el("div", "dp-list");
-      for (var n = 0; n < ui.view.interests.length; n += 1) {
-        (function(entry) {
-          var row = el("div", "dp-item");
-          row.appendChild(el("span", null, entry.emoji));
-          var grow = el("div", "dp-grow");
-          grow.appendChild(el("div", null, entry.label));
-          grow.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain + (entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "")));
-          row.appendChild(grow);
-          var go = button("dp-mini", { "data-interest": entry.key }, function() {
-            ui.send("interest", { interest: entry.key });
-          });
-          go.textContent = entry.times > 0 ? "\u518D\u5B66" : "\u53BB\u5B66";
-          go.disabled = !ui.view.canGoOut || !entry.affordable;
-          row.appendChild(go);
-          ilist.appendChild(row);
-        })(ui.view.interests[n]);
-      }
-      ui.content.appendChild(ilist);
+  }
+  function renderInterests(ui) {
+    var after = ui.view.interests[0].certificateAfter;
+    var note = el("div", "dp-empty", after > 0 ? "\u968F\u65F6\u80FD\u5B66 \xB7 \u540C\u4E00\u95E8\u4E0A\u6EE1 " + after + " \u6B21\u62FF\u8BC1" : "\u968F\u65F6\u80FD\u5B66");
+    note.style.marginBottom = "7px";
+    note.style.marginTop = "0";
+    ui.content.appendChild(note);
+    var ilist = el("div", "dp-list");
+    for (var n = 0; n < ui.view.interests.length; n += 1) {
+      (function(entry) {
+        var row = el("div", "dp-item");
+        row.appendChild(el("span", null, entry.emoji));
+        var grow = el("div", "dp-grow");
+        grow.appendChild(el("div", null, entry.label));
+        var progress = entry.certificate === "" ? entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "" : entry.certified ? " \xB7 \u{1F4DC} \u6709\u8BC1" : " \xB7 \u{1F4DC} " + entry.times + "/" + entry.certificateAfter;
+        grow.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain + progress));
+        row.appendChild(grow);
+        var go = button("dp-mini", { "data-interest": entry.key }, function() {
+          ui.send("interest", { interest: entry.key });
+        });
+        go.textContent = entry.times > 0 ? "\u518D\u5B66" : "\u53BB\u5B66";
+        go.disabled = !ui.view.canGoOut || !entry.affordable;
+        row.appendChild(go);
+        ilist.appendChild(row);
+      })(ui.view.interests[n]);
     }
+    ui.content.appendChild(ilist);
   }
 
   // src/client/css-base.js
@@ -720,6 +750,7 @@
     "animation:dp-prop-bob 2.4s ease-in-out infinite}",
     '[data-dsh-pig][data-away="study"] .dp-prop{animation-duration:3.4s}',
     '[data-dsh-pig][data-away="trip"] .dp-prop{animation-name:dp-prop-swing;animation-duration:1.6s}',
+    '[data-dsh-pig][data-away="interest"] .dp-prop{animation-duration:3.4s}',
     "@keyframes dp-prop-bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3px) rotate(3deg)}}",
     "@keyframes dp-prop-swing{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-4px) rotate(8deg)}}",
     ".dp-progress{width:42px;height:7px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
@@ -728,6 +759,7 @@
     "background:var(--ac-primary);transition:width .5s var(--ac-ease)}",
     // The scene needs room for the prop; it grows leftward, so the pig stays put.
     '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
+    '[data-dsh-pig][data-away="interest"] .dp-scene,',
     '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
     /* ---------- hud: a cream tag beside the pig ---------- */
     ".dp-hud{position:absolute;left:9px;top:7px;display:flex;flex-direction:column;gap:1px;",
@@ -826,6 +858,14 @@
     '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
     "background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);",
     "border-bottom:2px solid var(--ac-border-light);transform:rotate(45deg)}",
+    // Reply buttons under a line: small pills, the mint of the primary colour
+    // without the 3D base, which the spec keeps for real primary buttons.
+    ".dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
+    ".dp-reply{font:inherit;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;",
+    "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);background:var(--ac-bg);",
+    "color:var(--ac-text);transition:border-color .15s var(--ac-ease)}",
+    ".dp-reply:hover{border-color:var(--ac-border-hover)}",
+    ".dp-reply:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
     // Collapsed, the scene is exactly the pig, so a bubble drawn inside it
     // would sit on the pig's face. Float it above the head with the tail
     // pointing down, anchored to the right edge so it can never run off the
@@ -897,7 +937,7 @@
     ".dp-btn-wide{grid-column:1/-1}",
     ".dp-btn .dp-wait{color:var(--ac-text-2);font-size:10px;font-weight:600}",
     /* ---------- segmented control ---------- */
-    ".dp-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}",
+    ".dp-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:9px}",
     ".dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);",
     "cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);",
     "border:2px solid var(--ac-border-light);background:var(--ac-bg-input);",
@@ -906,7 +946,8 @@
     '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
     "color:var(--ac-text);font-weight:700}",
     /* ---------- list rows ---------- */
-    ".dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}",
+    // minmax(0,1fr): a long nowrap line must ellipsize, not widen the panel.
+    ".dp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}",
     ".dp-list{display:flex;flex-direction:column;gap:7px}",
     ".dp-shelf{margin:9px 0 1px;font-size:10px;font-weight:700;color:var(--ac-text-2);",
     "letter-spacing:.04em}",
@@ -1048,9 +1089,23 @@
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u5DE5\u4F5C\u5217\u8868\u3002"));
       return;
     }
+    var TIERS = [[45, "\u{1F331} \u8D77\u6B65"], [60, "\u{1F4DA} \u5C0F\u5B66\u6BD5\u4E1A"], [120, "\u{1F3EB} \u4E2D\u5B66\u6BD5\u4E1A"], [240, "\u{1F3DB} \u5927\u5B66\u6BD5\u4E1A"], [Infinity, "\u{1F52C} \u7814\u7A76\u751F"]];
+    var tierOf = function(job) {
+      var minutes = job.baseMinutes || job.minutes;
+      for (var t = 0; t < TIERS.length; t += 1) if (minutes <= TIERS[t][0]) return TIERS[t][1];
+      return "";
+    };
     var list = el("div", "dp-list");
+    var lastTier = null;
     for (var i = 0; i < ui.view.jobs.length; i += 1) {
       (function(job) {
+        var tier = tierOf(job);
+        if (tier !== lastTier && ui.view.jobs.length > 12) {
+          lastTier = tier;
+          var head = el("div", "dp-title");
+          head.appendChild(el("b", null, tier));
+          list.appendChild(head);
+        }
         var row = el("div", "dp-item");
         row.appendChild(el("span", null, job.emoji));
         var grow = el("div", "dp-grow");
@@ -1153,6 +1208,33 @@
         bubbleTimer = null;
       }, ms || 2600);
     }
+    function showLine(text, replies, onReply) {
+      if (replies.length === 0) {
+        showBubble(text, 2600);
+        return;
+      }
+      if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
+      bubble.textContent = text;
+      var row = el("div", "dp-bubble-replies", "");
+      replies.forEach(function(label, index) {
+        var answer = el("button", "dp-reply", label);
+        answer.type = "button";
+        answer.addEventListener("click", function(event) {
+          event.stopPropagation();
+          bubble.hidden = true;
+          if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
+          bubbleTimer = null;
+          onReply(index);
+        });
+        row.appendChild(answer);
+      });
+      bubble.appendChild(row);
+      bubble.hidden = false;
+      bubbleTimer = window.setTimeout(function() {
+        bubble.hidden = true;
+        bubbleTimer = null;
+      }, 6e3);
+    }
     function toast(text) {
       var node = el("div", "dp-toast", text);
       card.insertBefore(node, card.firstChild);
@@ -1166,14 +1248,16 @@
       reactTimer = null;
       bubbleTimer = null;
     }
-    return { react, burst, flash, showBubble, toast, dispose };
+    return { react, burst, flash, showBubble, showLine, toast, dispose };
   }
 
   // src/client/io.js
   function createIo(ctx) {
+    var actionSeq = 0;
     async function send(action, extra) {
       if (ctx.busy || ctx.stopped) return;
       if (ctx.view.pig === null && action !== "hatch") return;
+      actionSeq += 1;
       ctx.busy = true;
       ctx.flash(action);
       try {
@@ -1187,6 +1271,7 @@
         var next = await res.json();
         ctx.render(next);
         if (next && next.ok === false) {
+          if (next.reason === "stale-line") return;
           ctx.react("refuse", 520);
           if (next.reason === "no-item") {
             var emptyKind = str(next.kind, "");
@@ -1194,12 +1279,13 @@
             return;
           }
           var reasons = {
+            box: "\u5148\u628A\u7EB8\u76D2\u62C6\u5F00",
             cooldown: "\u8FD8\u8981\u7B49 " + num(next.wait, 0) + " \u79D2",
             poor: "\u94B1\u4E0D\u591F",
             away: "\u5B83\u5728\u5916\u9762",
             weak: "\u592A\u865A\u5F31\u4E86\uFF0C\u5148\u517B\u597D\u518D\u51FA\u95E8",
             hungry: "\u592A\u997F\u4E86",
-            "wrong-medicine": "\u836F\u4E0D\u5BF9\u75C7",
+            "wrong-medicine": "\u836F\u4E0D\u5BF9\u75C7\uFF0C\u75C5\u60C5\u52A0\u91CD\u4E86\u2026",
             empty: "\u80CC\u5305\u91CC\u6CA1\u6709",
             "not-sick": "\u5B83\u6CA1\u751F\u75C5",
             dead: "\u5B83\u5DF2\u7ECF\u8D70\u4E86\u2026",
@@ -1223,10 +1309,13 @@
     async function refresh() {
       if (ctx.stopped) return;
       ctx.fitPanel();
+      var startedAt = actionSeq;
       try {
         var res = await fetch(STATE_URL, { cache: "no-store" });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        ctx.render(await res.json());
+        var next = await res.json();
+        if (startedAt !== actionSeq) return;
+        ctx.render(next);
       } catch (error) {
         if (ctx.stopped) return;
         ctx.showBubble("\u8FDE\u63A5\u4E0D\u4E0A\u5BBF\u4E3B", 4e3);
@@ -1326,6 +1415,8 @@
           art: typeof obj(pig.stage).art === "string" && obj(pig.stage).art !== "" ? obj(pig.stage).art : null,
           faded: obj(pig.stage).faded === true
         },
+        // Older hosts send no sex; the HUD then simply shows none.
+        sex: isObj(pig.sex) ? { key: str(pig.sex.key, ""), label: str(pig.sex.label, ""), symbol: str(pig.sex.symbol, "") } : null,
         ageLabel: str(pig.ageLabel, ""),
         ageForced: pig.ageForced === true,
         daysToNextStage: typeof pig.daysToNextStage === "number" ? pig.daysToNextStage : null,
@@ -1341,7 +1432,7 @@
         coins: num(pig.coins, 0),
         weight: str(pig.weight, "\u2014"),
         xp: num(pig.xp, 0),
-        // The other axis: level never resets, not even when the pig dies.
+        // Level is driven by growth and decides the body (B2).
         level: (function(info) {
           var i = obj(info);
           var t = obj(i.title);
@@ -1349,6 +1440,7 @@
             level: num(i.level, 1),
             percent: num(i.percent, 0),
             toNext: num(i.toNext, 0),
+            maxed: i.maxed === true,
             titleLabel: str(t.label, "\u65B0\u6765\u7684"),
             titleEmoji: str(t.emoji, "\u{1F331}")
           };
@@ -1357,7 +1449,9 @@
         illness: isObj(pig.illness) ? {
           name: str(pig.illness.name, "\u751F\u75C5"),
           cure: str(pig.illness.cure, "\u836F"),
-          stage: num(pig.illness.stage, 1)
+          cureEmoji: str(pig.illness.cureEmoji, "\u{1F48A}"),
+          stage: num(pig.illness.stage, 1),
+          doctorFee: typeof pig.illness.doctorFee === "number" ? pig.illness.doctorFee : null
         } : null,
         traits: {
           intel: num(obj(pig.traits).intel, 0),
@@ -1404,19 +1498,27 @@
         // An old host has no gate at all, so a missing flag must read as
         // "qualified" — the opposite default would lock every job on upgrade.
         qualified: obj(job).qualified !== false,
-        lockText: str(obj(job).lockText, "")
+        lockText: str(obj(job).lockText, ""),
+        level: num(obj(job).level, 1)
       })).filter((job) => job.key !== ""),
+      // B4: nine subjects, each with its own lesson count and stage.
       subjects: arr(d.subjects).map((sub) => ({
         key: str(obj(sub).key, ""),
         label: str(obj(sub).label, "\u8BFE"),
         emoji: str(obj(sub).emoji, "\u{1F4D8}"),
         traitLabel: str(obj(sub).traitLabel, ""),
-        level: num(obj(sub).level, 0),
-        // Seven stages share subject names, so the level that matters is the
-        // one for the stage on screen. `levels` is keyed by stage key.
-        levels: isObj(obj(sub).levels) ? obj(sub).levels : {},
-        stages: arr(obj(sub).stages).filter((key) => typeof key === "string"),
-        available: obj(sub).available === true
+        traitEmoji: str(obj(sub).traitEmoji, ""),
+        lessons: num(obj(sub).lessons, num(obj(sub).level, 0)),
+        stageKey: str(obj(obj(sub).stage).key, ""),
+        stageLabel: str(obj(obj(sub).stage).label, ""),
+        graduatedLabel: isObj(obj(sub).graduated) ? str(obj(sub).graduated.label, "") : "",
+        nextGraduation: typeof obj(sub).nextGraduation === "number" ? obj(sub).nextGraduation : null,
+        minutes: num(obj(sub).minutes, 0),
+        tuition: num(obj(sub).tuition, 0),
+        gain: num(obj(sub).gain, 0),
+        secondaryGain: num(obj(sub).secondaryGain, 0),
+        available: obj(sub).available === true,
+        affordable: obj(sub).affordable !== false
       })).filter((sub) => sub.key !== ""),
       // 兴趣课：学习页里随时能学的一栏，学完加的是既有的三条属性。
       interests: arr(d.interests).map((entry) => ({
@@ -1430,6 +1532,9 @@
         gain: num(obj(entry).gain, 0),
         blurb: str(obj(entry).blurb, ""),
         times: num(obj(entry).times, 0),
+        certificate: str(obj(entry).certificate, ""),
+        certificateAfter: num(obj(entry).certificateAfter, 0),
+        certified: obj(entry).certified === true,
         available: obj(entry).available === true,
         affordable: obj(entry).affordable === true
       })).filter((entry) => entry.key !== ""),
@@ -1440,6 +1545,9 @@
         minutes: num(obj(stage).minutes, 0),
         tuition: num(obj(stage).tuition, 0),
         gain: num(obj(stage).gain, 0),
+        // B4: the lesson numbers this stage covers (upTo null = no end).
+        from: num(obj(stage).from, 0),
+        upTo: typeof obj(stage).upTo === "number" ? obj(stage).upTo : null,
         // Which courses this stage teaches — empty on an old host, in which
         // case the panel shows every subject rather than none.
         subjects: arr(obj(stage).subjects).filter((key) => typeof key === "string"),
@@ -1490,6 +1598,7 @@
         // 家当 fields: a dress item is owned (not counted) or waits for a level.
         level: typeof obj(item).level === "number" ? obj(item).level : null,
         owned: obj(item).owned === true,
+        worn: obj(item).worn === true,
         unlocked: obj(item).unlocked !== false,
         blurb: str(obj(item).blurb, ""),
         affordable: obj(item).affordable === true,
@@ -1531,7 +1640,13 @@
         size: num(d.boxStage.size, 58)
       } : { key: "box", label: "\u7EB8\u76D2", emoji: "\u{1F4E6}", size: 58 },
       awayBlocked: typeof d.awayBlocked === "string" ? d.awayBlocked : null,
-      pending: arr(d.pending).filter((e) => isObj(e) && typeof e.at === "number"),
+      pending: arr(d.pending).filter((e) => isObj(e) && typeof e.at === "number").map((e) => ({
+        id: num(e.id, 0),
+        kind: str(e.kind, ""),
+        text: str(e.text, ""),
+        at: e.at,
+        replies: arr(e.replies).filter((label) => typeof label === "string")
+      })),
       maxHealth: num(d.maxHealth, 5)
     };
   }
@@ -1597,6 +1712,11 @@
       for (var k in ctx.icons) ctx.icons[k].setAttribute("data-active", k === ctx.tab ? "true" : "false");
     }
     function renderContent() {
+      var scrollTop = ctx.content.scrollTop;
+      paintContent();
+      ctx.content.scrollTop = scrollTop;
+    }
+    function paintContent() {
       ctx.content.textContent = "";
       for (var k = 0; k < TABS.length; k += 1) {
         ctx.icons[TABS[k].key].setAttribute("data-active", TABS[k].key === ctx.tab ? "true" : "false");
@@ -1622,15 +1742,21 @@
         adoptWrap.appendChild(adopt);
         ctx.content.appendChild(adoptWrap);
       } else if (ctx.view.pig !== null && ctx.view.pig.illness !== null) {
+        var illness = ctx.view.pig.illness;
         var sick = el("div", "dp-alert dp-sick");
-        sick.appendChild(el("b", null, "\u{1F912} " + ctx.view.pig.illness.name + "\uFF08\u7B2C " + ctx.view.pig.illness.stage + "/4 \u671F\uFF09"));
-        sick.appendChild(el("div", null, "\u9700\u8981\u300C" + ctx.view.pig.illness.cure + "\u300D\u2014\u2014 \u53BB\u5546\u5E97\u4E70\u5BF9\u5E94\u7684\u836F"));
-        var cures = (ctx.view.shop || []).filter(function(i) {
-          return i.kind === "medicine";
-        });
-        var cheapest = cures.length === 0 ? null : cures.reduce(function(a, b) {
-          return a.price <= b.price ? a : b;
-        });
+        sick.appendChild(el("b", null, "\u{1F912} " + illness.name + "\uFF08\u7B2C " + illness.stage + "/4 \u671F\uFF09"));
+        sick.appendChild(el("div", null, "\u9700\u8981\u300C" + illness.cureEmoji + illness.cure + "\u300D\u2014\u2014 \u5403\u9519\u836F\u4F1A\u52A0\u91CD"));
+        var needed = null;
+        var shelf = ctx.view.shop || [];
+        for (var c = 0; c < shelf.length; c += 1) {
+          if (shelf[c].needed) needed = shelf[c];
+        }
+        for (var t = 0; needed === null && t < shelf.length; t += 1) {
+          if (shelf[t].kind === "medicine" && shelf[t].tier === illness.stage) needed = shelf[t];
+        }
+        for (var n = 0; needed === null && n < shelf.length; n += 1) {
+          if (shelf[n].label === illness.cure) needed = shelf[n];
+        }
         if (ctx.view.canGoOut) {
           sick.appendChild(el(
             "div",
@@ -1638,14 +1764,24 @@
             "\u5E26\u75C5\u4E5F\u80FD\u51FA\u95E8\uFF0C\u4F46\u62A5\u916C\u53EA\u6709\u4E00\u534A\uFF1B\u5728\u5916\u9762\u75C5\u60C5\u4F1A\u8D70\u5F97\u66F4\u5FEB\uFF0C\u8EBA\u7740\u517B\u6700\u7701"
           ));
         }
-        if (cheapest !== null && ctx.view.canGoOut && ctx.view.pig.coins < cheapest.price) {
+        if (needed !== null && ctx.view.canGoOut && ctx.view.pig.coins < needed.price) {
           sick.appendChild(el(
             "div",
             "dp-dim",
-            "\u94B1\u4E0D\u591F\u4E5F\u6CA1\u5173\u7CFB \u2014\u2014 \u5148\u53BB\u6253\u5DE5\uFF0C\u8D5A\u591F " + cheapest.price + " \u{1FA99} \u4E70\u300C" + cheapest.label + "\u300D"
+            "\u94B1\u4E0D\u591F\u4E5F\u6CA1\u5173\u7CFB \u2014\u2014 \u5148\u53BB\u6253\u5DE5\uFF0C\u8D5A\u591F " + needed.price + " \u{1FA99} \u4E70\u300C" + needed.label + "\u300D"
           ));
         }
         ctx.content.appendChild(sick);
+        if (illness.doctorFee !== null) {
+          var clinic = el("div", "dp-actions");
+          var doctor = button("dp-btn dp-btn-wide", { "data-action": "doctor" }, function() {
+            ctx.send("doctor");
+          });
+          doctor.appendChild(el("span", null, "\u{1F3E5}"));
+          doctor.appendChild(el("span", null, "\u770B\u533B\u751F\uFF08" + illness.doctorFee + " \u{1FA99}\uFF09"));
+          clinic.appendChild(doctor);
+          ctx.content.appendChild(clinic);
+        }
       } else if (ctx.view.pig !== null && ctx.view.activity !== null) {
         var away = el("div", "dp-alert dp-work");
         away.appendChild(el("b", null, ctx.view.activity.emoji + " \u5728\u5916\u9762\uFF1A" + ctx.view.activity.label));
@@ -1684,9 +1820,17 @@
     }
     function render(next) {
       ctx.view = normalize(next);
+      var stageEntry = null;
+      var firstOpen = null;
+      for (var s = 0; s < ctx.view.stages.length; s += 1) {
+        var entry = ctx.view.stages[s];
+        if (entry.unlocked !== false && firstOpen === null) firstOpen = entry.key;
+        if (entry.key === ctx.stage) stageEntry = entry;
+      }
+      if (ctx.stage !== "interest" && firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen;
       ctx.host.setAttribute("data-dead", ctx.view.dead ? "true" : "false");
       ctx.host.setAttribute("data-open", ctx.isOpen ? "true" : "false");
-      ctx.host.setAttribute("data-dev", "false");
+      ctx.host.setAttribute("data-dev", ctx.devMode ? "true" : "false");
       ctx.host.setAttribute("data-away", ctx.view.activity === null ? "false" : ctx.view.activity.kind);
       if (ctx.view.activity === null) {
         ctx.work.hidden = true;
@@ -1744,7 +1888,7 @@
           node.setAttribute("data-slot", piece.slot);
           ctx.dressSlots.appendChild(node);
         }
-        ctx.hudName.textContent = ctx.view.pig.name + " Lv." + ctx.view.pig.level.level + " \xB7 " + pigStage.label + (ctx.view.pig.ageLabel ? " \xB7 " + ctx.view.pig.ageLabel : "") + (ctx.view.pig.ageForced ? " \u{1F527}" : "");
+        ctx.hudName.textContent = ctx.view.pig.name + (ctx.view.pig.sex !== null ? " " + ctx.view.pig.sex.symbol : "") + " Lv." + ctx.view.pig.level.level + " \xB7 " + pigStage.label + (ctx.view.pig.ageLabel ? " \xB7 " + ctx.view.pig.ageLabel : "") + (ctx.view.pig.ageForced ? " \u{1F527}" : "");
         ctx.hudCoins.textContent = "\u{1FA99} " + ctx.view.pig.coins;
         ctx.hudHealth.textContent = "\u{1F49A} " + ctx.view.pig.health + "/" + ctx.view.maxHealth;
         if (ctx.lastStage !== null && pigStage.key !== ctx.lastStage) {
@@ -1754,13 +1898,27 @@
         }
         ctx.lastStage = pigStage.key;
       }
-      ctx.icons.study.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.illness === null && ctx.view.activity === null && ctx.view.pig.satiety < 25 ? "false" : "false");
+      var studyStage = null;
+      for (var st = 0; st < ctx.view.stages.length; st += 1) {
+        if (ctx.view.stages[st].key === ctx.stage) studyStage = ctx.view.stages[st];
+      }
+      var studyOpen = ctx.view.canGoOut && (studyStage === null || studyStage.unlocked !== false);
+      var hasCourse = studyOpen && ctx.view.subjects.some(function(subject) {
+        var onStage = studyStage === null || studyStage.subjects.length === 0 || studyStage.subjects.indexOf(subject.key) >= 0;
+        return onStage && subject.affordable;
+      });
+      ctx.icons.study.setAttribute("data-alert", hasCourse ? "true" : "false");
       ctx.icons.shop.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.illness !== null ? "true" : "false");
       ctx.icons.travel.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? "true" : "false");
       for (var i = 0; i < ctx.view.pending.length; i += 1) {
         var event = ctx.view.pending[i];
-        if (event.at <= ctx.lastPendingAt) continue;
-        ctx.lastPendingAt = event.at;
+        if (event.id > 0 ? event.id <= ctx.lastPendingId : event.at <= ctx.lastPendingAt) continue;
+        if (event.id > 0) ctx.lastPendingId = event.id;
+        ctx.lastPendingAt = Math.max(ctx.lastPendingAt, event.at);
+        if (event.kind === "line") {
+          showPigLine(event);
+          continue;
+        }
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
         if (event.kind === "levelup") {
           ctx.react("levelup", 950);
@@ -1781,6 +1939,12 @@
         }
       }
       renderContent();
+    }
+    function showPigLine(event) {
+      var lineId = event.id;
+      ctx.showLine(event.text, event.replies, function(index) {
+        ctx.send("reply", { line: lineId, index });
+      });
     }
     return { setOpen, select, renderContent, render };
   }
@@ -1964,6 +2128,7 @@
         var isOpen = readStore(OPEN_KEY) === "true";
         var lastStage = null;
         var lastPendingAt = 0;
+        var lastPendingId = 0;
         var pollTimer = null;
         var fx = createEffects({
           scene,
@@ -1975,7 +2140,7 @@
           }
         });
         var react = fx.react, burst = fx.burst, flash = fx.flash;
-        var showBubble = fx.showBubble, toast = fx.toast;
+        var showBubble = fx.showBubble, showLine = fx.showLine, toast = fx.toast;
         var stopped = false;
         var busy = false;
         var ctx = {
@@ -2005,6 +2170,7 @@
           react,
           burst,
           showBubble,
+          showLine,
           toast,
           get view() {
             return view;
@@ -2047,6 +2213,12 @@
           },
           set lastPendingAt(next) {
             lastPendingAt = next;
+          },
+          get lastPendingId() {
+            return lastPendingId;
+          },
+          set lastPendingId(next) {
+            lastPendingId = next;
           },
           get userRight() {
             return userRight;
@@ -2215,6 +2387,12 @@
         function dispose() {
           stopped = true;
           window.removeEventListener?.("resize", onResize);
+          window.removeEventListener?.("keydown", onKeyDown);
+          try {
+            delete /** @type {any} */
+            window.dshPigDev;
+          } catch (error) {
+          }
           if (pollTimer !== null) window.clearInterval(pollTimer);
           fx.dispose();
           pollTimer = null;

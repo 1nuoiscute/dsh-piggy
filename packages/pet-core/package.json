@@ -1,0 +1,21 @@
+{
+  "name": "@dsh-piggy/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "dsh-piggy 的纯领域模型与数值表：零依赖、零 IO，时间与随机数由宿主传入",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./core": "./src/core.js",
+    "./data": "./src/data.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
