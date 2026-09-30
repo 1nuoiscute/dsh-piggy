@@ -9,6 +9,25 @@
 import { button, meter } from './dom.js'
 
 export const CSS_TABS = [
+  'background:var(--ac-bg);cursor:pointer;font-family:inherit;text-align:center;',
+  'transition:transform .12s var(--ac-ease),box-shadow .12s var(--ac-ease)}',
+  '.dp-cell:hover{transform:translateY(-1px);box-shadow:0 3px 0 rgba(61,52,40,.14)}',
+  '.dp-cell:active{transform:translateY(1px)}',
+  '.dp-cell-e{font-size:22px;line-height:1.15}',
+  '.dp-cell-n{font-size:10px;font-weight:700;color:var(--ac-text);line-height:1.2;',
+  'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}',
+  '.dp-cell-p{font-size:9.5px;font-weight:600;color:var(--ac-text-2)}',
+  // Owned count and the "needed" flag are badges so they cost no extra row.
+  '.dp-cell-c{position:absolute;top:3px;right:4px;font-size:9px;font-weight:800;',
+  'color:#fff;background:var(--ac-primary);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}',
+  '.dp-cell-tag{position:absolute;top:3px;left:4px;font-size:8px;font-weight:800;',
+  'color:#7a5a12;background:var(--ac-warning);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}',
+  // Affordable is colour; unaffordable is faded but still clickable, so a
+  // tap can explain how much is missing instead of doing nothing.
+  '.dp-cell.dp-poor{opacity:.45}',
+  // 家当 already owned: not for sale, but not "unaffordable" either.
+  '.dp-cell.dp-owned{opacity:.6;border-style:dashed}',
+  '.dp-cell.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}',
 
   /* ---------- developer tab ---------- */
   '.dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}',

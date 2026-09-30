@@ -212,4 +212,11 @@ export const CSS_BASE = [
   '@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}',
   '50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}',
 
+  /* ---------- shop: a grid of tiles, three to a row ---------- */
+  '.dp-shopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}',
+  // The shelf heading is a grid child too, so it has to span the whole row.
+  '.dp-shopgrid .dp-shelf{grid-column:1/-1;margin:5px 0 0}',
+  '.dp-shopgrid .dp-shelf:first-child{margin-top:0}',
+  '.dp-cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;',
+  'padding:7px 3px 6px;border:1.5px solid var(--ac-border-light);border-radius:12px;',
 ].join('')
