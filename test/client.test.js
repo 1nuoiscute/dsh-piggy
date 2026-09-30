@@ -235,15 +235,18 @@ const JOBS = [
 ]
 
 const SUBJECTS = [
-  { key: 'chinese', label: '语文', emoji: '📖', traitLabel: '智力', level: 2, available: true },
-  { key: 'art', label: '美术', emoji: '🎨', traitLabel: '魅力', level: 0, available: true },
-  { key: 'wushu', label: '武术', emoji: '🥋', traitLabel: '武力', level: 1, available: true },
+  { key: 'chinese', label: '语文', emoji: '📖', traitLabel: '智力', level: 3, levels: { primary: 2, college: 1, middle: 1 }, stages: ['primary', 'middle'], available: true },
+  { key: 'art', label: '美术', emoji: '🖌', traitLabel: '魅力', level: 1, levels: { primary: 1 }, stages: ['primary'], available: true },
+  { key: 'pe', label: '体育', emoji: '🏃', traitLabel: '武力', level: 1, levels: { primary: 1 }, stages: ['primary'], available: true },
+  { key: 'philosophy', label: '哲学', emoji: '📜', traitLabel: '智力', level: 0, levels: { college: 0 }, stages: ['college', 'graduate'], available: true },
 ]
 
 const STAGES = [
-  { key: 'primary', label: '小学', minutes: 2, tuition: 10, gain: 1 },
-  { key: 'college', label: '大学', minutes: 6, tuition: 45, gain: 2 },
-  { key: 'graduate', label: '研究生', minutes: 15, tuition: 130, gain: 4 },
+  { key: 'preschool', label: '幼儿园', emoji: '🧸', minutes: 15, tuition: 20, gain: 1, subjects: ['sing', 'doodle', 'literacy'], unlocked: true, progress: null },
+  { key: 'extracurricular', label: '课外', emoji: '🎨', minutes: 20, tuition: 30, gain: 1, subjects: ['football', 'piano', 'painting', 'go'], unlocked: false,
+    progress: { done: 1, need: 3, label: '幼儿园 3 门课各上一次' } },
+  { key: 'primary', label: '小学', emoji: '📚', minutes: 40, tuition: 60, gain: 1, subjects: ['chinese', 'mathematics', 'english', 'science', 'pe', 'art'], unlocked: true, progress: null },
+  { key: 'college', label: '大学', emoji: '🏛', minutes: 240, tuition: 700, gain: 4, subjects: ['english', 'philosophy', 'engineering'], unlocked: true, progress: null },
 ]
 
 const TRIPS = [
@@ -573,7 +576,7 @@ test('the status tab shows labelled bars, traits and the care buttons', async ()
   assert.ok(play.allText().includes('37'), play.allText())
 })
 
-test('the study tab lists stages and subjects, and studying POSTs both', async () => {
+test('the study tab lists the host stages and only the selected stage courses', async () => {
   const { registration, dom, net } = await loadClient()
   registration.factory(() => {}).apply({})
   await settle()
@@ -581,18 +584,25 @@ test('the study tab lists stages and subjects, and studying POSTs both', async (
   pickTab(dom, 'study')
 
   const text = contentOf(dom).allText()
+  assert.ok(text.includes('幼儿园'), text)
   assert.ok(text.includes('小学'), text)
   assert.ok(text.includes('语文'), text)
-  assert.ok(text.includes('美术'), text)
-  assert.ok(text.includes('已上 2 次'), text)
+  assert.ok(text.includes('本级 2 次'), text)
+  // 哲学 is a 大学 course, so it must not be offered while 小学 is selected.
+  assert.equal(findByAttr(contentOf(dom), 'data-subject', 'philosophy'), undefined)
+
+  // A locked stage stays selectable on purpose: selecting it is how the pig
+  // says what it is still missing.
+  findByAttr(contentOf(dom), 'data-stage', 'extracurricular').fire('click')
+  assert.ok(contentOf(dom).allText().includes('🔒 要先念完幼儿园 3 门课各上一次（1/3）'), contentOf(dom).allText())
 
   findByAttr(contentOf(dom), 'data-stage', 'college').fire('click')
-  findByAttr(contentOf(dom), 'data-subject', 'art').fire('click')
+  findByAttr(contentOf(dom), 'data-subject', 'philosophy').fire('click')
   await settle()
   await settle()
 
   const post = net.calls.find(call => call.method === 'POST')
-  assert.deepEqual(JSON.parse(post.body), { action: 'study', subject: 'art', stage: 'college' })
+  assert.deepEqual(JSON.parse(post.body), { action: 'study', subject: 'philosophy', stage: 'college' })
 })
 
 test('the work tab lists jobs and sending the pig out POSTs the job', async () => {

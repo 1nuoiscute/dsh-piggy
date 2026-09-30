@@ -80,7 +80,11 @@ window.__ModuleLoader__.load({
     var KIND_TITLE = { food: '🍎 食物', bath: '🧼 洗浴', toy: '🪀 玩具', medicine: '💊 药品', revive: '✨ 复活' }
     var KIND_ORDER = ['food', 'bath', 'toy', 'medicine', 'revive']
     var STAGES = [
+      { key: 'preschool', label: '幼儿园' },
+      { key: 'extracurricular', label: '课外' },
       { key: 'primary', label: '小学' },
+      { key: 'middle', label: '中学' },
+      { key: 'high', label: '高中' },
       { key: 'college', label: '大学' },
       { key: 'graduate', label: '研究生' },
     ]
@@ -193,14 +197,22 @@ window.__ModuleLoader__.load({
           emoji: str(obj(sub).emoji, '📘'),
           traitLabel: str(obj(sub).traitLabel, ''),
           level: num(obj(sub).level, 0),
+          // Seven stages share subject names, so the level that matters is the
+          // one for the stage on screen. `levels` is keyed by stage key.
+          levels: isObj(obj(sub).levels) ? obj(sub).levels : {},
+          stages: arr(obj(sub).stages).filter(key => typeof key === 'string'),
           available: obj(sub).available === true,
         })).filter(sub => sub.key !== ''),
         stages: arr(d.stages).map(stage => ({
           key: str(obj(stage).key, ''),
           label: str(obj(stage).label, '学段'),
+          emoji: str(obj(stage).emoji, '📚'),
           minutes: num(obj(stage).minutes, 0),
           tuition: num(obj(stage).tuition, 0),
           gain: num(obj(stage).gain, 0),
+          // Which courses this stage teaches — empty on an old host, in which
+          // case the panel shows every subject rather than none.
+          subjects: arr(obj(stage).subjects).filter(key => typeof key === 'string'),
           // The school ladder: a stage with `unlocked === false` is gated behind
           // finishing the previous one, and says by how much.
           unlocked: obj(stage).unlocked !== false,
@@ -619,7 +631,7 @@ window.__ModuleLoader__.load({
       '.dp-btn .dp-wait{color:var(--ac-text-2);font-size:10px;font-weight:600}',
 
       /* ---------- segmented control ---------- */
-      '.dp-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:9px}',
+      '.dp-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}',
       '.dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);',
       'cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);',
       'border:2px solid var(--ac-border-light);background:var(--ac-bg-input);',
@@ -1337,25 +1349,26 @@ window.__ModuleLoader__.load({
           content.appendChild(el('div', 'dp-empty', '宿主还没提供课程表。'))
           return
         }
+        // Prefer the host's own ladder: a client that hard-codes seven stages
+        // would keep offering a stage the host has never heard of.
+        var stageList = view.stages.length > 0 ? view.stages : STAGES
         var seg = el('div', 'dp-seg')
-        for (var s = 0; s < STAGES.length; s += 1) {
+        for (var s = 0; s < stageList.length; s += 1) {
           (function (entry) {
             var detail = null
             for (var k = 0; k < view.stages.length; k += 1) if (view.stages[k].key === entry.key) detail = view.stages[k]
             var locked = detail !== null && detail.unlocked === false
-            var label = entry.label + (detail ? ' · ' + detail.tuition + '🪙' : '') + (locked ? ' 🔒' : '')
-            // A locked stage stays clickable on purpose: selecting it is how the
-            // pig tells you what it is still missing. Only the courses inside it
-            // are inert.
+            // Tuition lives in the note below rather than in the button: seven
+            // stages do not fit in a 292px panel with a price glued to each.
             var btn = button(null, { 'data-stage': entry.key }, function () {
               stage = entry.key
               renderContent()
             })
-            btn.textContent = label
+            btn.textContent = entry.label + (locked ? ' 🔒' : '')
             btn.setAttribute('data-active', entry.key === stage ? 'true' : 'false')
             btn.setAttribute('data-locked', locked ? 'true' : 'false')
             seg.appendChild(btn)
-          })(STAGES[s])
+          })(stageList[s])
         }
         content.appendChild(seg)
 
@@ -1373,9 +1386,13 @@ window.__ModuleLoader__.load({
           }
         }
 
+        // Only this stage's own courses. An empty list (old host) means "show
+        // everything", never "show nothing".
+        var wanted = detail !== null && detail.subjects.length > 0 ? detail.subjects : null
         var grid = el('div', 'dp-grid')
         for (var i = 0; i < view.subjects.length; i += 1) {
           (function (sub) {
+            if (wanted !== null && wanted.indexOf(sub.key) < 0) return
             var btn = button('dp-item', { 'data-subject': sub.key }, function () {
               send('study', { subject: sub.key, stage: stage })
             })
@@ -1385,7 +1402,12 @@ window.__ModuleLoader__.load({
             btn.appendChild(el('span', null, sub.emoji))
             var grow = el('div', 'dp-grow')
             grow.appendChild(el('div', null, sub.label))
-            grow.appendChild(el('div', 'dp-dim', sub.traitLabel + ' · 已上 ' + sub.level + ' 次'))
+            // The stage on screen is the count that matters; a host without the
+            // per-stage table falls back to the lifetime total. Kept short —
+            // two columns of 292px do not fit "这一级上过 N 次".
+            var perStage = sub.levels[stage]
+            var times = typeof perStage === 'number' ? perStage : sub.level
+            grow.appendChild(el('div', 'dp-dim', sub.traitLabel + ' · 本级 ' + times + ' 次'))
             btn.appendChild(grow)
             grid.appendChild(btn)
           })(view.subjects[i])

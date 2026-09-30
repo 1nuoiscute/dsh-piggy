@@ -61,13 +61,14 @@ import {
   nextIllness,
   schoolStageByKey,
   stageProgress,
+  stageSubjectKeys,
   stageUnlocked,
   subjectByKey,
   tripByKey,
 } from './data.js'
 
 /** Bumped when the saved shape changes in a way migrate() must handle. */
-export const STATE_VERSION = 5
+export const STATE_VERSION = 6
 
 const BIRTH_WEIGHT_G = 1200
 const HATCH_WEIGHT_G = 160
@@ -276,7 +277,7 @@ export function reset(nowMs) {
  * does not. Level, schooling, traits and souvenirs carry over, so losing a pig
  * to old age is a chapter break rather than a wipe.
  */
-const INHERITED = ['xp', 'traits', 'courses', 'lessonsByStage', 'souvenirs']
+const INHERITED = ['xp', 'traits', 'courses', 'coursesByStage', 'lessonsByStage', 'souvenirs']
 
 export function inherit(oldState, fresh, nowMs) {
   if (oldState === null) return fresh
@@ -440,9 +441,13 @@ export function layEgg(nowMs) {
     inventory: {},
     traits: { intel: 0, charm: 0, strong: 0 },
     courses: {},
-    // Finished lessons per school stage. QQ Pet starts every pet at 小学 and
-    // `college` / `graduate` sit behind it; this is what opens them.
-    lessonsByStage: { primary: 0, college: 0, graduate: 0 },
+    // Lessons finished per stage **and per subject**. Seven stages share subject
+    // names (语文 is taught in 小学/中学/高中), so "how many lessons" cannot say
+    // whether this stage's course list is complete — this can.
+    coursesByStage: {},
+    // Finished lessons per school stage, kept as the running total for the
+    // panel and for saves written before the per-subject table existed.
+    lessonsByStage: { preschool: 0, extracurricular: 0, primary: 0, middle: 0, high: 0, college: 0, graduate: 0 },
     souvenirs: [],
     illness: null,
     activity: null,
@@ -506,6 +511,7 @@ export function migrate(raw) {
   state.traits = sanitizeTraits(raw.traits)
   state.courses = sanitizeCourses(raw.courses)
   state.lessonsByStage = sanitizeLessonsByStage(raw.lessonsByStage, raw.courses)
+  state.coursesByStage = sanitizeCoursesByStage(raw.coursesByStage, state.lessonsByStage)
   state.souvenirs = Array.isArray(raw.souvenirs) ? raw.souvenirs.filter(s => typeof s === 'string').slice(-40) : []
   state.pending = []
   state.memories = Array.isArray(raw.memories)
@@ -604,6 +610,49 @@ function sanitizeLessonsByStage(raw, rawCourses) {
   return out
 }
 
+/**
+ * Per-stage, per-subject lesson counts.
+ *
+ * New saves carry the real table. Saves written before 0.18.0 only counted
+ * lessons per stage, so the exact subjects are unknowable; credit that stage's
+ * course list from the top until the old count runs out. A pig that had
+ * finished 小学's nine lessons gets all six of the new 小学 courses — nobody
+ * loses a school they had already opened.
+ */
+function sanitizeCoursesByStage(raw, lessonsByStage) {
+  const source = asObject(raw)
+  const out = {}
+  if (source !== null) {
+    for (const stage of SCHOOL_STAGES) {
+      const entry = asObject(source[stage.key])
+      if (entry === null) continue
+      const counts = {}
+      for (const key of stageSubjectKeys(stage)) {
+        const value = entry[key]
+        if (Number.isFinite(value) && value > 0) counts[key] = Math.floor(value)
+      }
+      if (Object.keys(counts).length > 0) out[stage.key] = counts
+    }
+    if (Object.keys(out).length > 0) return out
+  }
+  // Legacy saves counted lessons per stage only. Rebuild the ladder from the
+  // bottom: having lessons in a stage means every stage below it was cleared,
+  // and the stage itself is credited from its own count.
+  let highest = -1
+  for (const [index, stage] of SCHOOL_STAGES.entries()) {
+    if (Math.floor(lessonsByStage?.[stage.key] ?? 0) > 0) highest = index
+  }
+  for (const [index, stage] of SCHOOL_STAGES.entries()) {
+    if (index > highest) break
+    const keys = stageSubjectKeys(stage)
+    const counts = {}
+    const done = index < highest ? keys.length : Math.floor(lessonsByStage?.[stage.key] ?? 0)
+    for (const key of keys.slice(0, Math.min(done, keys.length))) counts[key] = 1
+    if (Object.keys(counts).length > 0) out[stage.key] = counts
+  }
+  return out
+}
+
 function sanitizeIllness(raw) {
   const source = asObject(raw)
   if (source === null) return null
@@ -694,15 +743,19 @@ export function careView(state) {
 
 /** Per-stage lesson counts plus whether the next rung is open yet. */
 export function studyView(state) {
-  const lessons = state.lessonsByStage ?? {}
+  const byStage = state.coursesByStage ?? {}
   return SCHOOL_STAGES.map(stage => ({
     key: stage.key,
     label: stage.label,
+    emoji: stage.emoji ?? '📚',
     minutes: stage.minutes,
     tuition: stage.tuition,
     gain: stage.gain,
-    unlocked: stageUnlocked(stage, lessons),
-    progress: stageProgress(stage, lessons),
+    // The panel needs the course list per stage: seven stages share subjects.
+    subjects: stageSubjectKeys(stage).slice(),
+    lessons: state.lessonsByStage?.[stage.key] ?? 0,
+    unlocked: stageUnlocked(stage, byStage),
+    progress: stageProgress(stage, byStage),
   }))
 }
 
@@ -864,7 +917,12 @@ function finishStudy(state, activity, nowMs) {
   state.traits[subject.trait] = (state.traits[subject.trait] ?? 0) + stage.gain
   state.courses = { ...(state.courses ?? {}) }
   state.courses[subject.key] = (state.courses[subject.key] ?? 0) + 1
-  // Counted per stage, because that is what unlocks the next school.
+  // Counted per stage AND per subject: that pair is what opens the next school.
+  state.coursesByStage = { ...(state.coursesByStage ?? {}) }
+  const perStage = { ...(state.coursesByStage[stage.key] ?? {}) }
+  perStage[subject.key] = (perStage[subject.key] ?? 0) + 1
+  state.coursesByStage[stage.key] = perStage
+  // Running total per stage, kept for the panel and for older saves.
   state.lessonsByStage = { ...(state.lessonsByStage ?? {}) }
   state.lessonsByStage[stage.key] = (state.lessonsByStage[stage.key] ?? 0) + 1
   state.satiety = clamp100(state.satiety + stage.satiety)
@@ -1143,9 +1201,14 @@ export function startStudy(state, subjectKey, stageKey, nowMs) {
   if (state.dead) return { ok: false, reason: 'dead' }
   if (state.activity !== null) return { ok: false, reason: 'away' }
   if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
-  // The stage ladder: 小学 first, then every subject once before 大学 opens.
-  if (!stageUnlocked(stage, state.lessonsByStage)) {
-    return { ok: false, reason: 'locked', need: stageProgress(stage, state.lessonsByStage) }
+  // A subject only exists inside the stages that teach it: 幼儿园 has no 物理,
+  // and the route must refuse that rather than quietly charging tuition.
+  if (!stageSubjectKeys(stage).includes(subject.key)) {
+    return { ok: false, reason: 'wrong-stage', subject: subject.label, stage: stage.label }
+  }
+  // The stage ladder: every course of the stage below must have been attended.
+  if (!stageUnlocked(stage, state.coursesByStage)) {
+    return { ok: false, reason: 'locked', need: stageProgress(stage, state.coursesByStage) }
   }
   if (state.coins < stage.tuition) return { ok: false, reason: 'poor', price: stage.tuition }
   if (state.satiety < 15) return { ok: false, reason: 'hungry' }

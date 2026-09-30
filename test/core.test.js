@@ -60,7 +60,7 @@ import {
   useItem,
   workSecondsLeft,
 } from '../core.js'
-import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, medicineForStage } from '../data.js'
+import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, medicineForStage, subjectByKey } from '../data.js'
 
 const T0 = 1_700_000_000_000
 const MIN = 60_000
@@ -68,6 +68,31 @@ const MIN = 60_000
 /** Push the clock forward by `minutes`, resolving everything that happens. */
 function advance(state, minutes) {
   return decay(state, (state.lastSeenAt ?? T0) + minutes * MIN)
+}
+
+/**
+ * Mark every course of a stage as attended once — exactly the condition the
+ * next stage's gate checks. Tests must not poke `lessonsByStage` any more: a
+ * lesson count cannot open a school, a complete course list can.
+ */
+function creditStage(pig, stageKey) {
+  const stage = SCHOOL_STAGES.find(entry => entry.key === stageKey)
+  pig.coursesByStage = { ...(pig.coursesByStage ?? {}) }
+  const counts = {}
+  for (const key of stage.subjects) counts[key] = 1
+  pig.coursesByStage[stageKey] = counts
+  pig.lessonsByStage = { ...(pig.lessonsByStage ?? {}), [stageKey]: stage.subjects.length }
+  return pig
+}
+
+/** Credit every stage below `stageKey`, so a test can enrol there directly. */
+function creditUpTo(pig, stageKey) {
+  for (const stage of SCHOOL_STAGES) {
+    if (stage.key === stageKey) break
+    creditStage(pig, stage.key)
+  }
+  creditStage(pig, stageKey)
+  return pig
 }
 
 /** Stage length converted to the minutes `advance` wants. */
@@ -358,40 +383,69 @@ test('the toy shelf keeps the free default ball alongside bought toys', () => {
 // The school ladder
 // ===========================================================================
 
-test('school starts at primary and the higher stages are gated behind it', () => {
+test('school is a seven-rung ladder, each rung gated behind the one below', () => {
   const pig = hatchEgg(T0)
   pig.coins = 50_000
-  assert.equal(studyView(pig)[0].unlocked, true, '小学 is always open')
-  assert.equal(studyView(pig)[1].unlocked, false, '大学 is not')
-  assert.equal(studyView(pig)[2].unlocked, false, '研究生 is not')
+  const stages = studyView(pig)
+  assert.equal(stages.length, 7, '幼儿园 → 研究生')
+  assert.equal(stages[0].key, 'preschool')
+  assert.equal(stages[0].unlocked, true, '幼儿园 is always open')
+  for (const stage of stages.slice(1)) {
+    assert.equal(stage.unlocked, false, `${stage.label} is not open yet`)
+    assert.equal(stage.progress.need, stage.progress.need, 'and it knows what it waits for')
+  }
 
-  const refused = startStudy(pig, 'chinese', 'college', T0)
+  const refused = startStudy(pig, 'chinese', 'primary', T0)
   assert.equal(refused.ok, false)
   assert.equal(refused.reason, 'locked')
-  assert.equal(refused.need.need, 9)
+  assert.equal(refused.need.need, 4, '课外 has four courses')
+  assert.equal(refused.need.done, 0)
   assert.equal(pig.coins, 50_000, 'a locked stage costs nothing')
 
-  // Every subject once at primary opens college.
-  pig.lessonsByStage = { primary: 8, college: 0, graduate: 0 }
-  assert.equal(startStudy(pig, 'chinese', 'college', T0).reason, 'locked')
-  pig.lessonsByStage.primary = 9
+  // Every course of 幼儿园 once opens 课外 — a count of lessons would not.
+  creditStage(pig, 'preschool')
   assert.equal(studyView(pig)[1].unlocked, true)
-  assert.equal(startStudy(pig, 'chinese', 'college', T0).ok, true)
+  assert.equal(studyView(pig)[2].unlocked, false, '小学 still waits for 课外')
+  assert.equal(startStudy(pig, 'football', 'extracurricular', T0).ok, true)
 })
 
-test('finishing a lesson counts toward the stage, not just the subject', () => {
+test('a course the chosen stage does not teach is refused, not charged', () => {
   const pig = hatchEgg(T0)
   pig.coins = 5000
-  assert.deepEqual(pig.lessonsByStage, { primary: 0, college: 0, graduate: 0 })
-  startStudy(pig, 'music', 'primary', T0)
-  advance(pig, SCHOOL_STAGES[0].minutes + 1)
-  assert.equal(pig.lessonsByStage.primary, 1)
-  assert.equal(pig.courses.music, 1)
+  const refused = startStudy(pig, 'physics', 'preschool', T0)
+  assert.equal(refused.ok, false)
+  assert.equal(refused.reason, 'wrong-stage')
+  assert.equal(refused.subject, '物理')
+  assert.equal(refused.stage, '幼儿园')
+  assert.equal(pig.coins, 5000, 'nothing was spent')
+  assert.equal(pig.activity, null)
 })
 
-test('a save from before the ladder keeps its lessons as primary', () => {
-  const upgraded = migrate({ ...layEgg(T0), version: 4, courses: { chinese: 3, art: 2 } })
+test('finishing a lesson counts toward the stage and the subject', () => {
+  const pig = hatchEgg(T0)
+  pig.coins = 5000
+  assert.deepEqual(pig.coursesByStage, {})
+  startStudy(pig, 'sing', 'preschool', T0)
+  advance(pig, SCHOOL_STAGES[0].minutes + 1)
+  assert.equal(pig.lessonsByStage.preschool, 1)
+  assert.equal(pig.coursesByStage.preschool.sing, 1)
+  assert.equal(pig.courses.sing, 1)
+})
+
+test('a save from before the ladder keeps the schools it had already opened', () => {
+  // Legacy saves counted lessons per stage only, so the ladder is credited from
+  // the bottom up: having lessons in 小学 means 幼儿园 and 课外 were cleared.
+  const upgraded = migrate({ ...layEgg(T0), version: 5, courses: { chinese: 3, art: 2 }, lessonsByStage: { primary: 5, college: 0, graduate: 0 } })
   assert.equal(upgraded.lessonsByStage.primary, 5, 'existing lessons are not thrown away')
+  assert.equal(Object.keys(upgraded.coursesByStage.preschool).length, 3, 'the rungs below are credited')
+  assert.equal(Object.keys(upgraded.coursesByStage.extracurricular).length, 4)
+  assert.equal(Object.keys(upgraded.coursesByStage.primary).length, 5, 'the partial stage keeps its progress')
+  assert.equal(studyView(upgraded).find(stage => stage.key === 'primary').unlocked, true)
+
+  // A pig that had finished the old nine 小学 lessons has all six new ones.
+  const finished = migrate({ ...layEgg(T0), version: 5, lessonsByStage: { primary: 9 } })
+  assert.equal(Object.keys(finished.coursesByStage.primary).length, 6)
+  assert.equal(studyView(finished).find(stage => stage.key === 'middle').unlocked, true, '中学 opens')
 })
 
 test('long-haul activities really do take hours', () => {
@@ -820,50 +874,83 @@ test('using a care item applies its effects', () => {
 // Study — the nine QQ Pet subjects
 // ===========================================================================
 
-test('the course table mirrors the QQ Pet subjects and stages', () => {
-  assert.equal(SUBJECTS.length, 9)
-  assert.deepEqual(SUBJECTS.map(s => s.label),
-    ['语文', '数学', '政治', '美术', '音乐', '礼仪', '体育', '武术', '劳动'])
-  assert.deepEqual(SCHOOL_STAGES.map(s => s.label), ['小学', '大学', '研究生'])
+test('the course table covers seven stages and every subject feeds one trait', () => {
+  assert.equal(SCHOOL_STAGES.length, 7)
+  assert.deepEqual(SCHOOL_STAGES.map(s => s.label),
+    ['幼儿园', '课外', '小学', '中学', '高中', '大学', '研究生'])
+  assert.deepEqual(SCHOOL_STAGES.map(s => s.subjects.length), [3, 4, 6, 7, 8, 9, 9])
+  assert.equal(SCHOOL_STAGES.reduce((sum, s) => sum + s.subjects.length, 0), 46, '46 lessons to the top')
   // Every subject feeds exactly one of the three traits.
   for (const subject of SUBJECTS) assert.ok(['intel', 'charm', 'strong'].includes(subject.trait))
-  // The three groups the original art implies.
-  assert.deepEqual(SUBJECTS.filter(s => s.trait === 'intel').map(s => s.label), ['语文', '数学', '政治'])
-  assert.deepEqual(SUBJECTS.filter(s => s.trait === 'charm').map(s => s.label), ['美术', '音乐', '礼仪'])
-  assert.deepEqual(SUBJECTS.filter(s => s.trait === 'strong').map(s => s.label), ['体育', '武术', '劳动'])
-  // Stages get dearer and slower.
-  assert.ok(SCHOOL_STAGES[0].tuition < SCHOOL_STAGES[2].tuition)
-  assert.ok(SCHOOL_STAGES[0].minutes < SCHOOL_STAGES[2].minutes)
+  for (const stage of SCHOOL_STAGES) {
+    assert.equal(new Set(stage.subjects).size, stage.subjects.length, `${stage.label} has no duplicate course`)
+    for (const key of stage.subjects) {
+      assert.notEqual(subjectByKey(key), null, `${stage.label} teaches an unknown subject ${key}`)
+    }
+  }
+  // Each gate counts the course list of the stage below it.
+  for (const [index, stage] of SCHOOL_STAGES.entries()) {
+    if (index === 0) {
+      assert.equal(stage.requires, null, '幼儿园 has no gate')
+      continue
+    }
+    assert.equal(stage.requires.stage, SCHOOL_STAGES[index - 1].key)
+    assert.equal(stage.requires.subjects, SCHOOL_STAGES[index - 1].subjects.length)
+  }
+  // Stages get dearer and slower, all the way up.
+  const tuitions = SCHOOL_STAGES.map(s => s.tuition)
+  const minutes = SCHOOL_STAGES.map(s => s.minutes)
+  assert.deepEqual(tuitions, [...tuitions].sort((a, b) => a - b))
+  assert.deepEqual(minutes, [...minutes].sort((a, b) => a - b))
 })
 
 test('studying costs the tuition up front and pays a trait on completion', () => {
   const pig = hatchEgg(T0)
   pig.coins = 200
   const stage = SCHOOL_STAGES[0]
-  const result = startStudy(pig, 'chinese', 'primary', T0)
+  const result = startStudy(pig, 'literacy', 'preschool', T0)
   assert.equal(result.ok, true)
   assert.equal(pig.coins, 200 - stage.tuition, 'tuition is taken at the start')
   assert.equal(pig.activity.kind, 'study')
-  assert.equal(pig.activity.key, 'chinese')
-  assert.equal(pig.activity.stage, 'primary')
+  assert.equal(pig.activity.key, 'literacy')
+  assert.equal(pig.activity.stage, 'preschool')
 
   advance(pig, stage.minutes + 1)
   assert.equal(pig.activity, null)
-  assert.equal(pig.traits.intel, stage.gain, '语文 feeds 智力')
-  assert.equal(pig.courses.chinese, 1)
+  assert.equal(pig.traits.intel, stage.gain, '认字 feeds 智力')
+  assert.equal(pig.courses.literacy, 1)
+  assert.equal(pig.coursesByStage.preschool.literacy, 1)
   assert.equal(pig.stats.lessons, 1)
   assert.ok(pig.pending.some(e => e.kind === 'study'))
-  assert.ok(pig.memories.some(m => m.includes('语文')))
+  assert.ok(pig.memories.some(m => m.includes('认字')))
+})
+
+test('the same subject pays more at a higher stage', () => {
+  const small = hatchEgg(T0)
+  small.coins = 5000
+  creditUpTo(small, 'extracurricular')
+  startStudy(small, 'english', 'primary', T0)
+  advance(small, SCHOOL_STAGES[2].minutes + 1)
+  assert.equal(small.traits.intel, SCHOOL_STAGES[2].gain, '小学英语 is worth its stage gain')
+
+  const big = hatchEgg(T0)
+  big.coins = 5000
+  creditUpTo(big, 'high')
+  startStudy(big, 'english', 'college', T0)
+  advance(big, SCHOOL_STAGES[5].minutes + 1)
+  assert.equal(big.traits.intel, SCHOOL_STAGES[5].gain, '大学英语 is worth more')
+  assert.ok(big.traits.intel > small.traits.intel, 'the ladder is what makes the higher stage worth it')
 })
 
 test('each subject feeds its own trait', () => {
-  const cases = [['art', 'charm'], ['pe', 'strong'], ['politics', 'intel']]
+  const cases = [['art', 'charm'], ['pe', 'strong'], ['chinese', 'intel']]
   for (const [subject, trait] of cases) {
     const pig = hatchEgg(T0)
     pig.coins = 200
+    creditUpTo(pig, 'extracurricular')
     startStudy(pig, subject, 'primary', T0)
-    advance(pig, SCHOOL_STAGES[0].minutes + 1)
-    assert.equal(pig.traits[trait], SCHOOL_STAGES[0].gain, `${subject} should feed ${trait}`)
+    advance(pig, SCHOOL_STAGES[2].minutes + 1)
+    assert.equal(pig.traits[trait], SCHOOL_STAGES[2].gain, `${subject} should feed ${trait}`)
     for (const other of ['intel', 'charm', 'strong']) {
       if (other !== trait) assert.equal(pig.traits[other], 0, `${subject} must not feed ${other}`)
     }
@@ -873,37 +960,38 @@ test('each subject feeds its own trait', () => {
 test('a higher stage pays more of the same trait', () => {
   const pig = hatchEgg(T0)
   pig.coins = 5000
-  pig.lessonsByStage = { primary: 9, college: 9, graduate: 0 }
-  startStudy(pig, 'wushu', 'graduate', T0)
-  advance(pig, SCHOOL_STAGES[2].minutes + 1)
-  assert.equal(pig.traits.strong, SCHOOL_STAGES[2].gain)
-  assert.equal(pig.courses.wushu, 1)
+  creditUpTo(pig, 'college')
+  startStudy(pig, 'engineering', 'graduate', T0)
+  advance(pig, SCHOOL_STAGES[6].minutes + 1)
+  assert.equal(pig.traits.strong, SCHOOL_STAGES[6].gain)
+  assert.equal(pig.courses.engineering, 1)
+  assert.equal(pig.coursesByStage.graduate.engineering, 1)
 })
 
 test('study is refused when broke, away, sick or dead', () => {
   const poor = hatchEgg(T0)
   poor.coins = 1
-  assert.equal(startStudy(poor, 'chinese', 'primary', T0).reason, 'poor')
+  assert.equal(startStudy(poor, 'sing', 'preschool', T0).reason, 'poor')
   assert.equal(poor.coins, 1, 'nothing was spent')
   assert.equal(poor.activity, null)
 
   const away = hatchEgg(T0)
   away.coins = 500
-  startStudy(away, 'chinese', 'primary', T0)
-  assert.equal(startStudy(away, 'art', 'primary', T0).reason, 'away')
+  startStudy(away, 'sing', 'preschool', T0)
+  assert.equal(startStudy(away, 'doodle', 'preschool', T0).reason, 'away')
 
   const sick = hatchEgg(T0)
   sick.coins = 500
   sick.illness = { chain: 0, stage: 1, since: T0 }
-  assert.equal(startStudy(sick, 'chinese', 'primary', T0).ok, true, 'a sick pig can still go to school')
+  assert.equal(startStudy(sick, 'sing', 'preschool', T0).ok, true, 'a sick pig can still go to school')
 
   const dead = hatchEgg(T0)
   dead.dead = true
   dead.health = 0
-  assert.equal(startStudy(dead, 'chinese', 'primary', T0).reason, 'dead')
+  assert.equal(startStudy(dead, 'sing', 'preschool', T0).reason, 'dead')
 
-  assert.equal(startStudy(hatchEgg(T0), 'underwater-basket-weaving', 'primary', T0).reason, 'unknown')
-  assert.equal(startStudy(hatchEgg(T0), 'chinese', 'kindergarten', T0).reason, 'unknown')
+  assert.equal(startStudy(hatchEgg(T0), 'underwater-basket-weaving', 'preschool', T0).reason, 'unknown')
+  assert.equal(startStudy(hatchEgg(T0), 'sing', 'nursery', T0).reason, 'unknown')
 })
 
 // ===========================================================================
@@ -987,10 +1075,10 @@ test('care is blocked while travelling, and the pig can be recalled', () => {
 test('recalling a study session refunds the tuition; recalling work does not pay', () => {
   const student = hatchEgg(T0)
   student.coins = 5000
-  student.lessonsByStage = { primary: 9, college: 0, graduate: 0 }
-  startStudy(student, 'music', 'college', T0)
+  creditUpTo(student, 'high')
+  startStudy(student, 'philosophy', 'college', T0)
   const refund = callOffActivity(student, T0)
-  assert.equal(refund.refunded, SCHOOL_STAGES[1].tuition)
+  assert.equal(refund.refunded, SCHOOL_STAGES[5].tuition)
   assert.equal(student.coins, 5000, 'the tuition comes back whole')
 
   const worker = hatchEgg(T0)
@@ -1025,8 +1113,8 @@ test('anything away from home drains the pig faster', () => {
     if (kind === 'work') startWork(away, 'odd', T0)
     else if (kind === 'study') {
       away.coins = 5000
-      away.lessonsByStage = { primary: 9, college: 9, graduate: 0 }
-      startStudy(away, 'chinese', 'graduate', T0)
+      creditUpTo(away, 'college')
+      startStudy(away, 'philosophy', 'graduate', T0)
     }
     else startTrip(away, 'abroad', T0)
     advance(away, 2)

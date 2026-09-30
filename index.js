@@ -46,7 +46,7 @@ import {
   studyView,
   traitView,
 } from './core.js'
-import { jobByKey, jobRequirement, traitBonus } from './data.js'
+import { jobByKey, jobRequirement, stageSubjectKeys, traitBonus } from './data.js'
 import {
   renderAbout,
   renderAction,
@@ -429,12 +429,26 @@ function jobsFor(state) {
 function subjectsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
   const levels = state === null ? {} : courseView(state)
-  return SUBJECTS.map(subject => ({
-    key: subject.key, label: subject.label, emoji: subject.emoji,
-    trait: subject.trait, traitLabel: TRAITS[subject.trait].label,
-    level: levels[subject.key] ?? 0,
-    available: open,
-  }))
+  const byStage = state?.coursesByStage ?? {}
+  return SUBJECTS.map(subject => {
+    // Seven stages share subject names, so a subject carries which stages teach
+    // it and how many times it has been taken at each — the panel filters by
+    // the selected stage instead of guessing.
+    const perStage = {}
+    const stages = []
+    for (const stage of SCHOOL_STAGES) {
+      perStage[stage.key] = byStage?.[stage.key]?.[subject.key] ?? 0
+      if (stageSubjectKeys(stage).includes(subject.key)) stages.push(stage.key)
+    }
+    return {
+      key: subject.key, label: subject.label, emoji: subject.emoji,
+      trait: subject.trait, traitLabel: TRAITS[subject.trait].label,
+      level: levels[subject.key] ?? 0,
+      levels: perStage,
+      stages,
+      available: open,
+    }
+  })
 }
 
 function tripsFor(state) {
@@ -512,11 +526,11 @@ export function dispatch(store, commandName, rawInput) {
 
     case 'study': {
       if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
-      const [subjectArg = '', stageArg = 'primary'] = argument.trim().split(/\s+/)
+      const [subjectArg = '', stageArg = SCHOOL_STAGES[0].key] = argument.trim().split(/\s+/)
       const subject = SUBJECTS.find(s => s.key === subjectArg || s.label === subjectArg)
       const stage = SCHOOL_STAGES.find(s => s.key === stageArg || s.label === stageArg)
       if (subject === undefined || stage === undefined) {
-        return { kind: 'error', text: `用法：/${commandName} study <科目> <小学|大学|研究生>\n科目：${SUBJECTS.map(s => s.label).join(' · ')}` }
+        return { kind: 'error', text: `用法：/${commandName} study <科目> <学段>\n学段：${SCHOOL_STAGES.map(s => s.label).join(' · ')}\n科目：${SUBJECTS.map(s => s.label).join(' · ')}` }
       }
       const result = store.startStudy(subject.key, stage.key)
       if (!result.ok) return { kind: 'success', text: renderWorkRefusal(state, refusalText(result, state)) }
@@ -592,6 +606,14 @@ function refusalText(result, state) {
     case 'underqualified': {
       const want = (result.missing ?? []).map(entry => `${entry.emoji} ${entry.label} ${entry.need}（现在 ${entry.have}）`).join('、')
       return `这份工作还轮不到它 —— 需要 ${want}。去「学习」上课就能涨。`
+    }
+    case 'wrong-stage':
+      return `${result.stage}没有「${result.subject}」这门课 —— 换个学段，或者换一门课。`
+    case 'locked': {
+      const need = result.need
+      return need === null || need === undefined
+        ? '这一级还没解锁 —— 先把上一级的课念完。'
+        : `要先念完${need.label}（${need.done}/${need.need}）。`
     }
     case 'unknown': return '没有这个选项。'
     default: return '现在没法出门。'
