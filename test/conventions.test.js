@@ -93,6 +93,7 @@ test('package.json ships every module the runtime imports', () => {
   const required = [
     'index.js', 'snapshot.js', 'commands.js', 'routes.js', 'core.js', 'data.js',
     'store.js', 'render.js', 'client.js', 'core', 'data', 'store', 'src', 'scripts',
+    'THIRD-PARTY.md', 'LICENSE',
   ]
   const missing = required.filter(entry => !listed.has(entry))
   assert.deepEqual(missing, [], 'add these to package.json files:')

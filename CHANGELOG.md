@@ -12,6 +12,11 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
   DSH 是在**启动时**组装客户端 bundle 的，改完代码不重启就还是旧界面 ——
   以后"我现在看的是哪一版"直接读这一行，不用猜。
 
+### Changed（对外）
+- **插件描述不再宣称"复刻"**：只保留"玩法参考经典电子宠物"的说法，元数据里
+  也去掉了第三方的品牌词。新增 [THIRD-PARTY.md](THIRD-PARTY.md)，逐项列明参考
+  资料、运行时依赖、美术来源与许可，并保留商标声明。
+
 ### Fixed
 - **存档损坏不再让猪静默消失**：以前 `load()` 是裸 `catch`，文件一坏就当作"没有猪"，
   下一次写入还会把坏文件覆盖掉。现在会保留一份 `state.json.corrupt-<时间>`、
