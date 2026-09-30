@@ -230,6 +230,19 @@ export function normalize(raw) {
       needed: obj(item).needed === true,
     })).filter(item => item.key !== ''),
     inventory: obj(d.inventory),
+    daily: {
+      canSignIn: obj(d.daily).canSignIn === true,
+      signInDay: num(obj(d.daily).signInDay, 1),
+      signInTotal: num(obj(d.daily).signInTotal, 0),
+      cycle: num(obj(d.daily).cycle, 12),
+      unclaimed: num(obj(d.daily).unclaimed, 0),
+      onlineMinutes: num(obj(d.daily).onlineMinutes, 0),
+    },
+    // 新到旧；老宿主没有 diary 时是空数组，面板不显示这一栏。
+    diary: arr(d.diary).map(entry => ({
+      day: str(obj(entry).day, ''),
+      text: str(obj(entry).text, ''),
+    })).filter(entry => entry.day !== '' && entry.text !== ''),
     // Which items each care action could spend right now.
     care: (() => {
       const out = {}

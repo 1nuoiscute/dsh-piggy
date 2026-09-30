@@ -68,6 +68,18 @@ export const CSS_TABS = [
   // Reply buttons under a line: small pills, the mint of the primary colour
   // without the 3D base, which the spec keeps for real primary buttons.
   '.dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}',
+  // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
+  '.dp-daily{position:absolute;top:-6px;left:50%;transform:translateX(-50%);',
+  'font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;',
+  'border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-card);',
+  'box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-bob 2.4s var(--ac-ease) infinite}',
+  '.dp-daily:hover{border-color:var(--ac-border-hover)}',
+  '.dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',
+  '@keyframes dp-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}',
+  // 日记：折叠时只有首句，展开是全文。
+  '.dp-diary{cursor:pointer}',
+  '.dp-diary[data-open="true"] .dp-diary-full{display:block}',
+  '.dp-diary-full{margin-top:4px;line-height:1.5}',
   '.dp-reply{font:inherit;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;',
   'border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);background:var(--ac-bg);',
   'color:var(--ac-text);transition:border-color .15s var(--ac-ease)}',

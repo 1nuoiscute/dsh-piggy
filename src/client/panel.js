@@ -279,6 +279,21 @@ export function createPanel(ctx) {
           ctx.lastStage = pigStage.key
         }
 
+        // 猪头上的日常提示：能签到就先显示签到，否则显示礼包。
+        // 点一下直接领；点击不再冒泡到场景，免得同时被当成摸猪/拖动。
+        var daily = ctx.view.daily
+        var dailyAction = daily.canSignIn ? 'signIn' : (daily.unclaimed > 0 ? 'openGift' : null)
+        ctx.dailyHint.hidden = dailyAction === null || ctx.view.pig === null
+        if (dailyAction !== null) {
+          ctx.dailyHint.textContent = dailyAction === 'signIn' ? '📅' : '🎁'
+          ctx.dailyHint.title = dailyAction === 'signIn'
+            ? '签到第 ' + daily.signInDay + '/' + daily.cycle + ' 天'
+            : '有 ' + daily.unclaimed + ' 个在线礼包'
+          // 动作放在 data-action 上，监听只在外壳里注册一次（见 index.js），
+          // 免得每 4 秒重绘都往上挂一个 listener。
+          ctx.dailyHint.setAttribute('data-action', dailyAction)
+        }
+
         // Alerts on the icon bar itself, so a collapsed pig still warns.
         // The study icon lights when there is a course to take right now:
         // idle, the stage on screen is unlocked, and it still has a subject.

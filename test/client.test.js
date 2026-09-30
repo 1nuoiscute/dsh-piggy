@@ -312,6 +312,8 @@ const SNAPSHOT = {
   shop: SHOP, inventory: { apple: 2, med1: 0, soul: 0 },
   activity: null, canGoOut: true, awayBlocked: null, pending: [],
   reviveItem: 'soul', maxHealth: 5,
+  daily: { canSignIn: false, signInDay: 1, signInTotal: 0, cycle: 12, unclaimed: 0, onlineMinutes: 0 },
+  diary: [],
 }
 
 // ===========================================================================
@@ -650,6 +652,91 @@ test('a repaint keeps the reader where they were', async () => {
   content.scrollTop = 140
   pickTab(dom, 'shop')
   assert.equal(contentOf(dom).scrollTop, 140, 'the scroll offset survived the repaint')
+})
+
+// ===========================================================================
+// B5 日常
+// ===========================================================================
+
+test('the pig wears a 📅 when there is a sign-in waiting, and it pays', async () => {
+  const { registration, dom, net } = await loadClient({
+    status: { ...SNAPSHOT, daily: { ...SNAPSHOT.daily, canSignIn: true, signInDay: 5 } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  const hint = findByClass(hostOf(dom), 'dp-daily')
+  assert.notEqual(hint, undefined)
+  assert.equal(hint.hidden, false)
+  assert.equal(hint.allText(), '📅')
+
+  hint.fire('click')
+  await settle()
+  const posted = net.calls.filter(call => call.method === 'POST')
+  assert.equal(posted.length, 1)
+  assert.ok(posted[0].body.includes('signIn'), posted[0].body)
+})
+
+test('sign-in wins over the gift, and the gift shows when nobody can sign', async () => {
+  const both = await loadClient({
+    status: { ...SNAPSHOT, daily: { canSignIn: true, signInDay: 3, signInTotal: 2, cycle: 12, unclaimed: 2, onlineMinutes: 30 } },
+  })
+  both.registration.factory(() => {}).apply({})
+  await settle()
+  assert.equal(findByClass(hostOf(both.dom), 'dp-daily').allText(), '📅')
+
+  const gift = await loadClient({
+    status: { ...SNAPSHOT, daily: { canSignIn: false, signInDay: 3, signInTotal: 3, cycle: 12, unclaimed: 2, onlineMinutes: 30 } },
+  })
+  gift.registration.factory(() => {}).apply({})
+  await settle()
+  const hint = findByClass(hostOf(gift.dom), 'dp-daily')
+  assert.equal(hint.allText(), '🎁')
+  hint.fire('click')
+  await settle()
+  assert.ok(gift.net.calls.some(call => call.method === 'POST' && call.body.includes('openGift')))
+})
+
+test('the status tab shows the sign-in progress', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, daily: { canSignIn: true, signInDay: 5, signInTotal: 4, cycle: 12, unclaimed: 1, onlineMinutes: 0 } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('第 5/12 天'), text)
+  assert.ok(text.includes('今天还没签'), text)
+  assert.ok(text.includes('🎁 1'), text)
+})
+
+test('the bag tab lists the diary newest-first, folded until tapped', async () => {
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      diary: [
+        { day: '2026-10-02', text: '今天吃了 2 顿，主人喂的，好饱。洗完澡香香的。' },
+        { day: '2026-10-01', text: '今天主人没来，我睡了一整天。' },
+      ],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'bag')
+
+  const rows = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-diary'] !== undefined) rows.push(node) })
+  assert.equal(rows.length, 2)
+  assert.equal(rows[0].attributes['data-diary'], '2026-10-02', 'newest first')
+  const full = findByClass(rows[0], 'dp-diary-full')
+  assert.notEqual(full, undefined)
+  assert.ok(rows[0].allText().includes('今天吃了 2 顿'), 'the first sentence shows')
+  assert.equal(full.hidden, true, 'the rest starts folded')
+  assert.equal(rows[0].attributes['data-open'], 'false')
+
+  rows[0].fire('click')
+  assert.equal(rows[0].attributes['data-open'], 'true')
+  assert.equal(full.hidden, false, 'and unfolds on a tap')
 })
 
 // ===========================================================================

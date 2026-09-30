@@ -47,6 +47,10 @@
   }
 
   // src/client/tabs/bag.js
+  function firstSentence(text) {
+    var stop = text.indexOf("\u3002");
+    return stop < 0 ? text : text.slice(0, stop + 1);
+  }
   function renderBagTab(ui) {
     var owned = [];
     for (var i = 0; i < ui.view.shop.length; i += 1) {
@@ -105,6 +109,35 @@
         }
         ui.content.appendChild(dlist);
       }
+    }
+    var diary = ui.view.diary;
+    if (diary.length > 0) {
+      var dhead = el("div", "dp-title");
+      dhead.style.marginTop = "10px";
+      dhead.appendChild(el("b", null, "\u{1F4D4} \u65E5\u8BB0 " + diary.length));
+      ui.content.appendChild(dhead);
+      var dlist = el("div", "dp-list");
+      for (var d = 0; d < diary.length; d += 1) {
+        (function(entry) {
+          var row = el("div", "dp-item dp-diary");
+          row.setAttribute("data-diary", entry.day);
+          row.setAttribute("data-open", "false");
+          var grow = el("div", "dp-grow");
+          var head2 = el("div", null, entry.day + "\u3000" + firstSentence(entry.text));
+          var full = el("div", "dp-dim dp-diary-full", entry.text);
+          full.hidden = true;
+          grow.appendChild(head2);
+          grow.appendChild(full);
+          row.appendChild(grow);
+          row.addEventListener("click", function(event) {
+            if (event && typeof event.stopPropagation === "function") event.stopPropagation();
+            full.hidden = !full.hidden;
+            row.setAttribute("data-open", full.hidden ? "false" : "true");
+          });
+          dlist.appendChild(row);
+        })(diary[d]);
+      }
+      ui.content.appendChild(dlist);
     }
     var souvenirs = ui.view.pig.souvenirs;
     var head = el("div", "dp-title");
@@ -450,6 +483,11 @@
     info.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD " + p.weight));
     info.appendChild(el("b", null, "\u{1FA99} " + p.coins));
     ui.content.appendChild(info);
+    var daily = ui.view.daily;
+    var dailyLine = el("div", "dp-row");
+    dailyLine.appendChild(el("span", null, "\u{1F4C5} \u7B7E\u5230"));
+    dailyLine.appendChild(el("b", null, "\u7B2C " + daily.signInDay + "/" + daily.cycle + " \u5929" + (daily.canSignIn ? " \xB7 \u4ECA\u5929\u8FD8\u6CA1\u7B7E" : "") + (daily.unclaimed > 0 ? " \xB7 \u{1F381} " + daily.unclaimed : "")));
+    ui.content.appendChild(dailyLine);
     var lvl = el("div", "dp-row");
     lvl.appendChild(el("span", null, "\u2B50 \u7B49\u7EA7"));
     lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.maxed ? " \xB7 \u6EE1\u7EA7" : " \xB7 \u8FD8\u5DEE " + Math.ceil(p.level.toNext) + " \u6210\u957F")));
@@ -714,7 +752,7 @@
     "[data-dsh-pig] .dp-content[hidden],[data-dsh-pig] .dp-hud[hidden],",
     "[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],",
     "[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],",
-    "[data-dsh-pig] .dp-poke-hint[hidden],",
+    "[data-dsh-pig] .dp-poke-hint[hidden],[data-dsh-pig] .dp-daily[hidden],",
     "[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}",
     /* ---------- the panel: cream parchment, border not shadow ---------- */
     // Taken out of flow on purpose. In flow it would widen the wrapper, and a
@@ -909,6 +947,18 @@
     // Reply buttons under a line: small pills, the mint of the primary colour
     // without the 3D base, which the spec keeps for real primary buttons.
     ".dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
+    // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
+    ".dp-daily{position:absolute;top:-6px;left:50%;transform:translateX(-50%);",
+    "font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;",
+    "border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-card);",
+    "box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-bob 2.4s var(--ac-ease) infinite}",
+    ".dp-daily:hover{border-color:var(--ac-border-hover)}",
+    ".dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
+    "@keyframes dp-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}",
+    // 日记：折叠时只有首句，展开是全文。
+    ".dp-diary{cursor:pointer}",
+    '.dp-diary[data-open="true"] .dp-diary-full{display:block}',
+    ".dp-diary-full{margin-top:4px;line-height:1.5}",
     ".dp-reply{font:inherit;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;",
     "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);background:var(--ac-bg);",
     "color:var(--ac-text);transition:border-color .15s var(--ac-ease)}",
@@ -1662,6 +1712,19 @@
         needed: obj(item).needed === true
       })).filter((item) => item.key !== ""),
       inventory: obj(d.inventory),
+      daily: {
+        canSignIn: obj(d.daily).canSignIn === true,
+        signInDay: num(obj(d.daily).signInDay, 1),
+        signInTotal: num(obj(d.daily).signInTotal, 0),
+        cycle: num(obj(d.daily).cycle, 12),
+        unclaimed: num(obj(d.daily).unclaimed, 0),
+        onlineMinutes: num(obj(d.daily).onlineMinutes, 0)
+      },
+      // 新到旧；老宿主没有 diary 时是空数组，面板不显示这一栏。
+      diary: arr(d.diary).map((entry) => ({
+        day: str(obj(entry).day, ""),
+        text: str(obj(entry).text, "")
+      })).filter((entry) => entry.day !== "" && entry.text !== ""),
       // Which items each care action could spend right now.
       care: (() => {
         const out = {};
@@ -1961,6 +2024,14 @@
         }
         ctx.lastStage = pigStage.key;
       }
+      var daily = ctx.view.daily;
+      var dailyAction = daily.canSignIn ? "signIn" : daily.unclaimed > 0 ? "openGift" : null;
+      ctx.dailyHint.hidden = dailyAction === null || ctx.view.pig === null;
+      if (dailyAction !== null) {
+        ctx.dailyHint.textContent = dailyAction === "signIn" ? "\u{1F4C5}" : "\u{1F381}";
+        ctx.dailyHint.title = dailyAction === "signIn" ? "\u7B7E\u5230\u7B2C " + daily.signInDay + "/" + daily.cycle + " \u5929" : "\u6709 " + daily.unclaimed + " \u4E2A\u5728\u7EBF\u793C\u5305";
+        ctx.dailyHint.setAttribute("data-action", dailyAction);
+      }
       var studyStage = null;
       for (var st = 0; st < ctx.view.stages.length; st += 1) {
         if (ctx.view.stages[st].key === ctx.stage) studyStage = ctx.view.stages[st];
@@ -2052,6 +2123,9 @@
     pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
     pokeHint.hidden = true;
     scene.appendChild(pokeHint);
+    var dailyHint = el("button", "dp-daily");
+    dailyHint.hidden = true;
+    scene.appendChild(dailyHint);
     var soul = el("span", "dp-soul", "\u{1F47B}");
     soul.hidden = true;
     scene.appendChild(soul);
@@ -2083,7 +2157,7 @@
         }
       }, { once: true });
     }
-    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
+    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
   }
 
   // src/client/index.js
@@ -2125,6 +2199,7 @@
           progressWrap,
           progressFill,
           pokeHint,
+          dailyHint,
           soul,
           pigArt,
           pigEmoji,
@@ -2230,6 +2305,7 @@
           progressWrap,
           progressFill,
           pokeHint,
+          dailyHint,
           soul,
           pigArt,
           pigEmoji,
@@ -2349,6 +2425,14 @@
         ui.setOpen = setOpen;
         ui.fitPanel = fitPanel;
         ui.flash = flash;
+        dailyHint.addEventListener("pointerdown", function(event) {
+          event.stopPropagation();
+        });
+        dailyHint.addEventListener("click", function(event) {
+          event.stopPropagation();
+          var action = dailyHint.getAttribute("data-action");
+          if (action !== null && action !== "") send(action);
+        });
         var drag = null;
         scene.addEventListener("pointerdown", function(event) {
           if (event.button !== 0) return;

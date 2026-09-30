@@ -29,6 +29,15 @@ export function renderStatusTab(ui) {
   info.appendChild(el('b', null, '🪙 ' + p.coins))
   ui.content.appendChild(info)
 
+  // 签到进度：一行小字，不抢注意力（礼包攒着的时候顺带说一句）。
+  var daily = ui.view.daily
+  var dailyLine = el('div', 'dp-row')
+  dailyLine.appendChild(el('span', null, '📅 签到'))
+  dailyLine.appendChild(el('b', null, '第 ' + daily.signInDay + '/' + daily.cycle + ' 天'
+    + (daily.canSignIn ? ' · 今天还没签' : '')
+    + (daily.unclaimed > 0 ? ' · 🎁 ' + daily.unclaimed : '')))
+  ui.content.appendChild(dailyLine)
+
   var lvl = el('div', 'dp-row')
   lvl.appendChild(el('span', null, '⭐ 等级'))
   lvl.appendChild(el('b', null, 'Lv.' + p.level.level + ' ' + p.level.titleEmoji + p.level.titleLabel
