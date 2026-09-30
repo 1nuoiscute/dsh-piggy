@@ -14,6 +14,9 @@
 
 依赖只能从外向内：`data/` → `core/` → `store/` → 组装层 → `src/client/`。
 
+`data/` 和 `core/` 在 `packages/pet-core/src/` 下，是 DSH 插件和以后独立版共用的库（`@dsh-piggy/core`），
+根目录 `core.js` / `data.js` 只做再导出。库的边界由 `test/core-boundary.test.js` 守住。
+
 | 目录 | 职责 | 禁止 |
 |---|---|---|
 | `data/` | 静态数值表、常量 | 逻辑、IO、`Date.now()` |
@@ -22,7 +25,9 @@
 | `index.js` `snapshot.js` `commands.js` `routes.js` | 组装：注册路由/命令、把状态序列化成面板用的形状 | 堆积业务规则 |
 | `src/client/` | 渲染与交互 | 自己重算业务规则（只读快照字段） |
 
-- 时间是外部输入，**必须作为参数传进 `core/`**；随机数同理。
+- 时间是外部输入，**必须作为参数传进 `core/`**。
+- 随机数用 `core/random.js`（种子存在 `state.seed`），领域层禁止 `Math.random()`。
+- 改存档结构：`core/upgrades.js` 表尾加一级 + `STATE_VERSION` +1 + 迁移测试。
 - 数值集中在 `data/`，不许在逻辑里写裸数字。
 - 文件超过 400 行、或开始承担第二种职责，就拆。
 
