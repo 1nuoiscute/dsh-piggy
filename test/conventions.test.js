@@ -36,3 +36,27 @@ test('the domain layer never reads the system clock', () => {
     'pass nowMs in as a parameter instead of reading the clock inside core (CONVENTIONS §分层)',
   )
 })
+
+test('code identifiers, comments and logs carry no emoji', () => {
+  // Game data (data/) and user-facing copy (CHANGELOG, panel strings) are exempt
+  // by the project conventions; this checks the code layers.
+  const emoji = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u
+  const files = [
+    new URL('core.js', packageRoot),
+    new URL('index.js', packageRoot),
+    new URL('store.js', packageRoot),
+    new URL('render.js', packageRoot),
+    ...jsFiles(new URL('core/', packageRoot)),
+    ...jsFiles(new URL('store/', packageRoot)),
+    ...jsFiles(new URL('src/client/', packageRoot)),
+  ]
+  const offenders = []
+  for (const url of files) {
+    read(url).split('\n').forEach((line, index) => {
+      const stripped = line.trim()
+      const isComment = stripped.startsWith('//') || stripped.startsWith('/*') || stripped.startsWith('*')
+      if (isComment && emoji.test(line)) offenders.push(`${shortName(url)}:${index + 1}`)
+    })
+  }
+  assert.deepEqual(offenders, [], 'comments explain why in words; emoji belong in the game data and UI copy')
+})

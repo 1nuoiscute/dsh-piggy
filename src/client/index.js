@@ -1,5 +1,5 @@
 /**
- * dsh-pig · client — the floating pig. 🐖
+ * dsh-pig · client — the floating pig.
  *
  * Hand-written browser bundle: DSH loads it through `window.__ModuleLoader__`,
  * so no bundler is involved. Raw DOM and `fetch` only — no React, no imports.
@@ -537,7 +537,7 @@ window.__ModuleLoader__.load({
       '-webkit-user-drag:none;user-select:none}',
       '.dp-pig-emoji{font-size:var(--pig-size);line-height:1}',
 
-      // No drawings yet — every stage is the same 🐖, so age reads as size plus
+      // No drawings yet — every stage is the same pig, so age reads as size plus
       // a faded coat on the last one.
       '[data-dsh-pig][data-faded="true"] .dp-pig-emoji{filter:grayscale(.5) opacity(.72)}',
 
@@ -1924,7 +1924,7 @@ window.__ModuleLoader__.load({
           host.style.setProperty('--pig-size', stage.size + 'px')
           pig.setAttribute('data-mood', view.pig.mood)
           host.setAttribute('data-soul', view.pig.soul ? 'true' : 'false')
-          // Old age reads as a faded coat, since every stage is the same 🐖.
+          // Old age reads as a faded coat, since every stage is the same pig.
           host.setAttribute('data-faded', stage.faded ? 'true' : 'false')
           host.setAttribute('data-unhatched', 'false')
           pokeHint.hidden = true

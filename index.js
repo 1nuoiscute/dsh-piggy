@@ -1,5 +1,5 @@
 /**
- * dsh-pig — a pig that lives in your DeepSeek Harness. 🐖
+ * dsh-pig — a pig that lives in your DeepSeek Harness.
  *
  * The plugin registers no model-facing tool and injects no context, so the
  * model never learns the pig exists and the pig costs zero tokens per request.
@@ -361,7 +361,7 @@ export function snapshot(store, options = {}) {
       stage: { key: life.key, label: life.label, emoji: life.emoji, size: life.size, line: life.line, art: life.art ?? null, faded: life.faded === true },
       ageDays: Number(ageDays(state, nowMs).toFixed(2)),
       ageLabel: formatAge(ageDays(state, nowMs), state, nowMs),
-      // Shown as a 🔧 beside the age so a forced age is never mistaken for real growth.
+      // Marked beside the age so a forced age is never mistaken for real growth.
       ageForced: state.ageForced === true,
       daysToNextStage: daysToNextStage(state, nowMs) === null ? null : Number(daysToNextStage(state, nowMs).toFixed(2)),
       soul: hasSoul(state, nowMs),
@@ -458,7 +458,7 @@ function jobsFor(state) {
       // `available` is "the pig is home"; `qualified` is "the pig has the traits".
       qualified: gate === null ? true : gate.ok,
       missing,
-      // Short on purpose: the panel writes "🔒 需要 💪 武力 16" and nothing else.
+      // Short on purpose: the panel writes only the missing trait and its value.
       lockText: missing.map(entry => `${entry.emoji} ${entry.label} ${entry.need}`).join('、'),
     }
   })

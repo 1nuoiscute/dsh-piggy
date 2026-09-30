@@ -49,7 +49,7 @@ function face(currentMood) {
   }
 }
 
-/** 🐖 with a face that follows the mood. */
+/** The pig, with a face that follows the mood. */
 export function portrait(stage, currentMood) {
   if (stage.key === 'box') {
     return [

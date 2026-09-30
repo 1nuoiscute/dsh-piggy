@@ -484,7 +484,7 @@
         ".dp-pig-img{width:var(--pig-size);height:var(--pig-size);display:block;",
         "-webkit-user-drag:none;user-select:none}",
         ".dp-pig-emoji{font-size:var(--pig-size);line-height:1}",
-        // No drawings yet — every stage is the same 🐖, so age reads as size plus
+        // No drawings yet — every stage is the same pig, so age reads as size plus
         // a faded coat on the last one.
         '[data-dsh-pig][data-faded="true"] .dp-pig-emoji{filter:grayscale(.5) opacity(.72)}',
         // The box advertises itself: a slow breathing glow plus a label, so it
