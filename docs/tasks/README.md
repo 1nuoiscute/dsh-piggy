@@ -10,25 +10,29 @@
 
 ## 批次一览
 
-| 卡 | 内容 | 前置 | 状态 |
+| 卡 | 内容 | 谁做 | 状态 |
 |---|---|---|---|
-| B0 | 框架：pet-core 库、分段结算、随机数种子、存档逐级升级、台词框架 | — | ✅ Claude（已合入 main） |
-| [B1](B1-stability.md) | 稳定：修审查出的 bug | — | 可以开工 |
-| B2 | 成长：成长值 + 照顾系数、60 级、幼年/青年/成年、性别、去掉老年和老死 | [数值单](numbers/B2-growth.md)确认 | 等用户确认 |
-| B3 | 疾病：5 条链、吃错药加重、药分档、撑多了得肠胃病 | [数值单](numbers/B3-illness.md)确认 | 等用户确认 |
-| B4 | 学习→职业：9 门课课时、33 种职业、掉落 | [数值单](numbers/B4-study-jobs.md)确认 | 等用户确认 |
-| B5 | 日常：签到 12 天、在线礼包（每小时）、宠物日记 | [数值单](numbers/B5-daily.md)确认 | 等用户确认 |
-| B6 | 表现：台词全量、心情动画、右键菜单、免打扰/暂停成长 | 文案用户审 | 等文案 |
+| B0 | 框架：pet-core 库、分段结算、随机数种子、存档逐级升级、台词框架 | Claude | ✅ 已合入 main |
+| [B1](B1-stability.md) | 稳定：修审查出的 bug | **DSH agent** | 进行中 |
+| B2 | 成长：成长值 + 照顾系数、60 级、幼年/青年/成年、性别、去掉老年和老死（[数值单](numbers/B2-growth.md) ✅） | Claude | 进行中 |
+| B3 | 疾病：5 条链、20 种专用药、概率发病、吃错药加重（[数值单](numbers/B3-illness.md) ✅） | Claude | B2 之后 |
+| B4 | 学习→职业：九门课课时、33 种职业、证书、掉落（[数值单](numbers/B4-study-jobs.md) ✅） | Claude | B3 之后 |
+| [B5](B5-daily.md) | 日常：签到 12 天、在线礼包（每小时）、宠物日记（[数值单](numbers/B5-daily.md) ✅） | **DSH agent** | B1 之后 |
+| B6 | 表现：台词全量、心情动画、右键菜单、免打扰/暂停成长 | 待定 | 等 Claude 写文案、用户审 |
 
-**数值单没确认的批次不开工。** 数值单由 Claude 写在 `docs/tasks/numbers/`，用户确认后在卡里标 ✅。
+四张数值单用户已于 2026-10-01 确认（全部按建议值）。**不改确认过的数字**；觉得不合理就写在卡里，等用户定。
 
 ## 协作规则
 
-1. 开工前 `git log --oneline -10` 看对方最近在动什么；**不同时改同一个文件**。
-2. 一张卡一段连续提交，提交信息 `fix(pig)` / `feat(pig)` 开头，写清改了什么、为什么。
-3. 每修一个 bug 先写一条**会红的测试**，再改代码让它变绿。
-4. 每张卡完成时，在卡末尾「验证记录」写：`npm test` 结果、`npm run typecheck` 结果、截图路径。
-5. 不改用户确认过的数字；觉得不合理就在卡里写出来，等用户定。
+1. **两边在不同目录干活**，避免 `git add` 把对方做了一半的东西提交进去：
+   - DSH agent：原目录 `/zyx/DSH/workspaces/dsh-pig`，直接在 `main` 上提交（DSH 加载的就是这个目录）
+   - Claude：worktree `/zyx/DSH/workspaces/dsh-pig-claude`，分支 `claude/core`；每完成一块、测试全绿后由 Claude **rebase 到最新 main 再快进合入**，冲突由 Claude 解决
+   - DSH agent **不要**合并、rebase 或改动 `claude/*` 分支
+2. 开工前 `git log --oneline -10` 看最近有什么合进来了。
+3. 一张卡一段连续提交，提交信息 `fix(pig)` / `feat(pig)` 开头，写清改了什么、为什么。**只 `git add` 自己改的文件，不用 `git add -A`**。
+4. 每修一个 bug / 加一个功能，先写一条**会红的测试**，再改代码让它变绿。
+5. 每张卡完成时，在卡末尾「验证记录」写：`npm test` 结果、`npm run typecheck` 结果、截图路径。
+6. **存档版本号归 Claude 管**：`core/upgrades.js` 和 `STATE_VERSION` 只有 Claude 改。DSH agent 需要新存档字段时，用 `ensureXxx(state)` 补默认值（参考 `core/lines.js` 的 `ensureDialogue`）。
 
 ## 框架约定（B0 之后）
 
