@@ -1648,6 +1648,11 @@
       for (var k in ctx.icons) ctx.icons[k].setAttribute("data-active", k === ctx.tab ? "true" : "false");
     }
     function renderContent() {
+      var scrollTop = ctx.content.scrollTop;
+      paintContent();
+      ctx.content.scrollTop = scrollTop;
+    }
+    function paintContent() {
       ctx.content.textContent = "";
       for (var k = 0; k < TABS.length; k += 1) {
         ctx.icons[TABS[k].key].setAttribute("data-active", TABS[k].key === ctx.tab ? "true" : "false");

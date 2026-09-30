@@ -77,7 +77,11 @@ function fakeDom() {
       this.style = { setProperty() {}, removeProperty() {} }
       this.attributes = {}
       this.className = ''
-      this.textContent = ''
+      this._text = ''
+      // Browsers keep a scroll offset per element and drop it when the element
+      // is emptied. The fake DOM has to do the same, or "the panel scrolled back
+      // to the top" is invisible to these tests.
+      this.scrollTop = 0
       this.disabled = false
       this.hidden = false
       this.type = ''
@@ -89,6 +93,12 @@ function fakeDom() {
     // The bundle measures the scene to keep itself on screen, so a DOM without
     // geometry makes mount() throw — and apply() swallows that, which shows up
     // as "the pig is simply not there".
+    get textContent() { return this._text }
+    set textContent(value) {
+      this._text = String(value)
+      if (this._text === '') this.scrollTop = 0
+    }
+
     getBoundingClientRect() { return this.rect }
 
     appendChild(child) {
@@ -626,6 +636,20 @@ test('a slow poll cannot overwrite the result of an action', async () => {
   } finally {
     globalThis.window.setInterval = realSetInterval
   }
+})
+
+test('a repaint keeps the reader where they were', async () => {
+  // The panel rebuilds its body from scratch, so a 4s poll scrolled a long
+  // shelf back to the top while the user was reading it (B1).
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'shop')
+  const content = contentOf(dom)
+  content.scrollTop = 140
+  pickTab(dom, 'shop')
+  assert.equal(contentOf(dom).scrollTop, 140, 'the scroll offset survived the repaint')
 })
 
 // ===========================================================================

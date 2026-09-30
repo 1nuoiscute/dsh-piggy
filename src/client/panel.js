@@ -61,7 +61,19 @@ export function createPanel(ctx) {
         for (var k in ctx.icons) ctx.icons[k].setAttribute('data-active', k === ctx.tab ? 'true' : 'false')
       }
 
+      /**
+       * Repaint the panel body, keeping the reader's place.
+       *
+       * The body is rebuilt from scratch on every poll; without saving the
+       * offset, a long shelf jumped back to the top every four seconds.
+       */
       function renderContent() {
+        var scrollTop = ctx.content.scrollTop
+        paintContent()
+        ctx.content.scrollTop = scrollTop
+      }
+
+      function paintContent() {
         ctx.content.textContent = ''
         for (var k = 0; k < TABS.length; k += 1) {
           ctx.icons[TABS[k].key].setAttribute('data-active', TABS[k].key === ctx.tab ? 'true' : 'false')
