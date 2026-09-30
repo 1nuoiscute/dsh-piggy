@@ -45,6 +45,7 @@ import {
   migrate,
   mood,
   ageDays,
+  applyDevPatch,
   adopt,
   daysToNextStage,
   lifeStageFor,
@@ -1028,3 +1029,42 @@ test('display helpers', () => {
   assert.equal([...bar(50, 4)].length, 4)
   assert.equal(THRESHOLDS.hungry, 25)
 })
+
+test('developer mode can force any state, but only valid ones', () => {
+  const real = Math.random
+  try {
+    Math.random = () => 0.99 // keep illnesses from self-healing mid-test
+
+    const pig = hatchEgg(T0)
+    // Numbers are clamped, so dev mode cannot produce a corrupt pig.
+    applyDevPatch(pig, { satiety: 999, cleanliness: -50, health: 99, coins: -5 }, T0)
+    assert.equal(pig.satiety, 100)
+    assert.equal(pig.cleanliness, 0)
+    assert.equal(pig.health, MAX.health)
+    assert.equal(pig.coins, 0)
+
+    // Illness is set to a real stage.
+    applyDevPatch(pig, { illness: { chain: 0, stage: 4 }, health: 1 }, T0)
+    assert.equal(pig.illness.stage, 4)
+    assert.equal(currentIllness(pig).name, '肺炎')
+
+    // Dying and coming back.
+    applyDevPatch(pig, { dead: true }, T0)
+    assert.equal(pig.dead, true)
+    applyDevPatch(pig, { dead: false, health: 5 }, T0)
+    assert.equal(pig.dead, false)
+
+    // Age is jumpable — that is what takes days otherwise.
+    applyDevPatch(pig, { ageDays: 9 }, T0)
+    assert.equal(lifeStageFor(pig, T0).key, 'elder')
+
+    // And the clock can be fast-forwarded.
+    const before = hatchEgg(T0)
+    before.satiety = 100
+    applyDevPatch(before, { __advanceMs: 12 * 3600_000 }, T0)
+    assert.ok(before.satiety < 100, 'time moved')
+  } finally {
+    Math.random = real
+  }
+})
+

@@ -109,6 +109,8 @@ async function readJsonBody(req) {
 const OPERATIONS = {
   hatch: store => ({ ok: true, hatched: store.hatch() }),
   adopt: store => ({ ok: store.adopt(), adopted: true }),
+  reset: store => ({ ok: store.reset(), reset: true }),
+  dev: (store, body) => ({ ok: store.dev(body.patch ?? {}), dev: true }),
   // The three care actions spend an item; `item` says which one.
   feed: (store, body) => store.act('feed', str(body.item)),
   bathe: (store, body) => store.act('bathe', str(body.item)),

@@ -200,6 +200,99 @@ function die(state, nowMs, why) {
   announce(state, 'death', `${state.name} ${why}…用${REVIVE_ITEM.label}可以救回来，也可以领养一只新的`)
 }
 
+/**
+ * Wipe the pig and start from a fresh box, whatever state it was in.
+ *
+ * `adopt` only works once a pig has died, which meant there was no way to start
+ * over with a living one short of deleting the save file by hand — and the
+ * running host holds the state in memory, so editing the file does not even
+ * work while it is up.
+ */
+export function reset(nowMs) {
+  return layEgg(nowMs)
+}
+
+/**
+ * ---------------------------------------------------------------------------
+ * Developer mode
+ *
+ * Applies an arbitrary patch to the pig so the panel can be driven into any
+ * state without waiting days for it. Everything is clamped through the same
+ * bounds the game uses, so dev mode can produce a *valid* state but never a
+ * corrupt one — no negative coins, no health of 99, no dangling illness.
+ * ---------------------------------------------------------------------------
+ */
+
+/** Numeric fields dev mode may set, with their legal range. */
+const DEV_NUMBERS = Object.freeze({
+  satiety: [0, 100],
+  happiness: [0, 100],
+  cleanliness: [0, 100],
+  health: [0, MAX.health],
+  coins: [0, 1_000_000],
+  xp: [0, 10_000_000],
+  weightG: [400, 500_000],
+})
+
+export function applyDevPatch(state, patch, nowMs) {
+  if (state === null || typeof patch !== 'object' || patch === null) return state
+  const before = { dead: state.dead, hatched: state.hatched, stage: state.stage }
+
+  for (const [key, [lo, hi]] of Object.entries(DEV_NUMBERS)) {
+    const value = patch[key]
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      state[key] = clamp(Math.round(value), lo, hi)
+    }
+  }
+
+  if (patch.traits !== null && typeof patch.traits === 'object') {
+    state.traits = sanitizeTraits({ ...state.traits, ...patch.traits })
+  }
+
+  if (patch.illness === null) state.illness = null
+  else if (typeof patch.illness === 'object' && patch.illness !== null) {
+    state.illness = sanitizeIllness({ ...patch.illness, since: nowMs, progressMs: 0 })
+  }
+
+  if (patch.inventory !== null && typeof patch.inventory === 'object') {
+    state.inventory = sanitizeInventory({ ...state.inventory, ...patch.inventory })
+  }
+
+  // Fast-forward: decay the pig as if `__advanceMs` had really passed. This is
+  // the whole point of dev mode — the interesting states take days to reach.
+  if (typeof patch.__advanceMs === 'number' && Number.isFinite(patch.__advanceMs) && patch.__advanceMs > 0) {
+    state.lastSeenAt = nowMs - Math.min(patch.__advanceMs, 60 * 86_400_000)
+    decay(state, nowMs)
+  }
+
+  // Age is the one thing worth jumping: it is what takes days to see.
+  if (typeof patch.ageDays === 'number' && Number.isFinite(patch.ageDays)) {
+    state.bornAt = nowMs - Math.max(0, patch.ageDays) * 86_400_000
+  }
+
+  if (patch.dead === true) {
+    die(state, nowMs, '被开发者按死了')
+  } else if (patch.dead === false && state.dead === true) {
+    revive(state, nowMs)
+  }
+
+  if (patch.hatched === true && state.hatched !== true) state.hatched = true
+  if (patch.hatched === false) {
+    state.hatched = false
+    state.dead = false
+    state.diedAt = null
+    state.stage = 'box'
+  }
+
+  if (patch.activity === null) state.activity = null
+  if (patch.riskMinutes === 0) state.riskMinutes = 0
+
+  state.stage = lifeStageFor(state, nowMs).key
+  state.lastSeenAt = nowMs
+  remember(state, `🔧 开发者改了状态（${before.stage} → ${state.stage}）`, nowMs)
+  return state
+}
+
 /** Start over with a fresh box. The old pig's story stays in `memories`. */
 export function adopt(state, nowMs) {
   const fresh = layEgg(nowMs)

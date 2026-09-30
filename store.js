@@ -27,6 +27,8 @@ import {
   drainPending,
   feed as coreFeed,
   adopt as coreAdopt,
+  applyDevPatch as coreDevPatch,
+  reset as coreReset,
   hatchEgg,
   migrate,
   rename as coreRename,
@@ -171,6 +173,21 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
     hatch() {
       if (state !== null) return false
       state = hatchEgg(now())
+      scheduleSave()
+      return true
+    },
+
+    /** Developer mode: force the pig into any state. */
+    dev(patch) {
+      if (state === null) return false
+      state = coreDevPatch(state, patch, now())
+      scheduleSave()
+      return true
+    },
+
+    /** Start from a brand new box, living pig or not. */
+    reset() {
+      state = coreReset(now())
       scheduleSave()
       return true
     },

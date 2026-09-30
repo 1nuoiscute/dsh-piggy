@@ -27,6 +27,7 @@ window.__ModuleLoader__.load({
     var MOUNTED = 'data-dsh-pig'
     var OPEN_KEY = 'dsh-pig:open'
     var POSITION_KEY = 'dsh-pig:position'
+    var devMode = false
     // Must match `.dp-card{width}` — used to keep the panel inside the window.
     var PANEL_WIDTH = 292
     var PANEL_GAP = 8
@@ -49,6 +50,10 @@ window.__ModuleLoader__.load({
       { key: 'travel', label: '旅行', emoji: '🧳' },
       { key: 'bag', label: '背包', emoji: '🎒' },
     ]
+
+    /** Developer mode: off unless asked for, and remembered across reloads. */
+    var DEV_KEY = 'dsh-pig:dev'
+    var DEV_TAB = { key: 'dev', label: '调试', emoji: '🔧' }
 
     var MODES = ['feed', 'bathe', 'play', 'pet']
     var CARE_LABEL = { feed: ['喂食', '🍎'], bathe: ['洗澡', '🛁'], play: ['玩耍', '🎾'], pet: ['摸摸', '❤️'] }
@@ -450,6 +455,12 @@ window.__ModuleLoader__.load({
       '@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}',
       '50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}',
 
+      /* ---------- developer tab ---------- */
+      '.dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}',
+      '.dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}',
+      '.dp-dev-btn{flex:0 0 auto;font-size:10px;padding:3px 8px}',
+      '[data-dsh-pig][data-dev="true"] .dp-ico[data-tab="dev"]{color:var(--ac-primary)}',
+
       /* ---------- the soul that settles on an unclaimed grave ---------- */
       '.dp-soul{position:absolute;left:50%;transform:translateX(-50%);top:-4px;font-size:22px;',
       'line-height:1;opacity:.9;pointer-events:none;z-index:1;',
@@ -629,6 +640,10 @@ window.__ModuleLoader__.load({
     // ---------------------------------------------------------------------
     // Tiny DOM helpers
     // ---------------------------------------------------------------------
+
+    function readStore(key) {
+      try { return window.localStorage.getItem(key) } catch (error) { return null }
+    }
 
     function readStore(key) {
       try { return window.localStorage.getItem(key) } catch (error) { return null }
@@ -844,7 +859,22 @@ window.__ModuleLoader__.load({
 
       var bar = el('div', 'dp-bar')
       var icons = {}
-      for (var t = 0; t < TABS.length; t += 1) {
+
+      /** The tabs on show right now: the normal six, plus 调试 when dev mode is on. */
+      function visibleTabs() {
+        return devMode ? TABS.concat([DEV_TAB]) : TABS
+      }
+
+      /** Rebuild the icon bar. Called whenever dev mode flips. */
+      function paintBar() {
+        while (bar.firstChild) bar.removeChild(bar.firstChild)
+        var list = visibleTabs()
+        for (var t = 0; t < list.length; t += 1) buildIcon(list[t])
+        if (icons[tab] === undefined) tab = 'status'
+        for (var k in icons) icons[k].setAttribute('data-active', k === tab ? 'true' : 'false')
+      }
+
+      function buildIcon(tab) {
         (function (tab) {
           var btn = button('dp-ico', { 'data-tab': tab.key }, function () {
             if (host.getAttribute('data-open') !== 'true') setOpen(true)
@@ -854,8 +884,10 @@ window.__ModuleLoader__.load({
           btn.appendChild(el('span', null, tab.label))
           icons[tab.key] = btn
           bar.appendChild(btn)
-        })(TABS[t])
+        })(tab)
       }
+
+      for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t])
 
       var content = el('div', 'dp-content')
 
@@ -1000,6 +1032,90 @@ window.__ModuleLoader__.load({
         tab = next
         picker = null
         renderContent()
+        for (var k in icons) icons[k].setAttribute('data-active', k === tab ? 'true' : 'false')
+      }
+
+      /**
+       * Developer tab. Drives the pig into any state so a change can be looked at
+       * immediately instead of waiting days for it — and so the states that are
+       * hard to reach by playing (dying, the last illness stage, an elder pig)
+       * can be checked at all.
+       */
+      function devTab() {
+        content.appendChild(el('div', 'dp-dev-note', '🔧 开发者模式 · Ctrl+Shift+D 关闭'))
+
+        var p = view.pig
+        if (p === null) {
+          content.appendChild(el('div', 'dp-empty', '还没有猪。先「拆开纸盒」再调。'))
+          return
+        }
+
+        /** A row of small buttons under a caption. */
+        function group(title, entries) {
+          var head = el('div', 'dp-title')
+          head.appendChild(el('b', null, title))
+          content.appendChild(head)
+          var wrap = el('div', 'dp-dev-row')
+          for (var i = 0; i < entries.length; i += 1) {
+            (function (entry) {
+              var btn = button('dp-mini dp-dev-btn', { 'data-dev': entry.key }, function () { entry.run() })
+              btn.textContent = entry.label
+              wrap.appendChild(btn)
+            })(entries[i])
+          }
+          content.appendChild(wrap)
+        }
+
+        var patch = function (body) { send('dev', { patch: body }) }
+
+        group('状态', [
+          { key: 'full', label: '😊 满状态', run: function () { patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 }) } },
+          { key: 'hungry', label: '🍎 饿', run: function () { patch({ satiety: 10 }) } },
+          { key: 'dirty', label: '🫧 脏', run: function () { patch({ cleanliness: 10 }) } },
+          { key: 'lonely', label: '🥺 孤单', run: function () { patch({ happiness: 10 }) } },
+          { key: 'sleepy', label: '💤 困', run: function () { patch({ satiety: 90, happiness: 90, cleanliness: 90 }) } },
+        ])
+
+        group('生病', [
+          { key: 'cold1', label: '🤒 感冒一期', run: function () { patch({ illness: { chain: 0, stage: 1 }, health: 4 }) } },
+          { key: 'cold4', label: '☠️ 肺炎', run: function () { patch({ illness: { chain: 0, stage: 4 }, health: 1 }) } },
+          { key: 'cough', label: '🫁 肺结核', run: function () { patch({ illness: { chain: 1, stage: 4 }, health: 1 }) } },
+          { key: 'belly', label: '🤢 胃癌', run: function () { patch({ illness: { chain: 2, stage: 4 }, health: 1 }) } },
+          { key: 'cure', label: '💚 治好', run: function () { patch({ illness: null, health: 5 }) } },
+        ])
+
+        group('年龄', [
+          { key: 'box', label: '📦 纸盒', run: function () { patch({ hatched: false }) } },
+          { key: 'piglet', label: '小猪', run: function () { patch({ hatched: true, ageDays: 0.2 }) } },
+          { key: 'young', label: '青年', run: function () { patch({ ageDays: 2 }) } },
+          { key: 'middle', label: '中年', run: function () { patch({ ageDays: 5 }) } },
+          { key: 'elder', label: '老年', run: function () { patch({ ageDays: 9 }) } },
+          { key: 'gone', label: '🪦 老死', run: function () { patch({ ageDays: 20 }) } },
+        ])
+
+        group('资源', [
+          { key: 'coin100', label: '🪙 +100', run: function () { patch({ coins: p.coins + 100 }) } },
+          { key: 'coin999', label: '🪙 9999', run: function () { patch({ coins: 9999 }) } },
+          { key: 'traits', label: '🧠+5 ✨+5 💪+5', run: function () { patch({ traits: { intel: 5, charm: 5, strong: 5 } }) } },
+          { key: 'bag', label: '🎒 全套药', run: function () { patch({ inventory: { med1: 3, med2: 3, med3: 3, med4: 3, soul: 2, apple: 5, soap: 5, yoyo: 3 } }) } },
+        ])
+
+        group('生死', [
+          { key: 'kill', label: '💀 弄死', run: function () { patch({ dead: true }) } },
+          { key: 'revive', label: '✨ 复活', run: function () { patch({ dead: false, health: 5 }) } },
+          { key: 'adopt', label: '📦 领养', run: function () { send('adopt') } },
+          { key: 'reset', label: '🔄 重置', run: function () { send('reset') } },
+        ])
+
+        group('面板', [
+          { key: 'open', label: '展开/收起', run: function () { setOpen(host.getAttribute('data-open') !== 'true') } },
+          { key: 'away1', label: '⏩ +1 小时', run: function () { patch({ __advanceMs: 3600000 }) } },
+          { key: 'away24', label: '⏩ +1 天', run: function () { patch({ __advanceMs: 86400000 }) } },
+        ])
+
+        content.appendChild(el('div', 'dp-dev-note',
+          '当前：' + p.stage.label + ' · 健康 ' + p.health + ' · 🪙 ' + p.coins
+          + (p.illness === null ? '' : ' · ' + p.illness.name)))
       }
 
       // ---- panel rendering ----
@@ -1419,6 +1535,7 @@ window.__ModuleLoader__.load({
         else if (tab === 'work') workTab()
         else if (tab === 'shop') shopTab()
         else if (tab === 'travel') travelTab()
+        else if (tab === 'dev') devTab()
         else bagTab()
 
         // Every tab is a different height, so the fit is recomputed after each
@@ -1436,6 +1553,7 @@ window.__ModuleLoader__.load({
         view = normalize(next)
         host.setAttribute('data-dead', view.dead ? 'true' : 'false')
         host.setAttribute('data-open', isOpen ? 'true' : 'false')
+      host.setAttribute('data-dev', 'false')
         // Drives both the prop and the pig's own activity animation.
         host.setAttribute('data-away', view.activity === null ? 'false' : view.activity.kind)
         if (view.activity === null) {
@@ -1672,6 +1790,43 @@ window.__ModuleLoader__.load({
         fitPanel()
       }
       window.addEventListener?.('resize', onResize)
+
+      // ---- developer mode: Ctrl+Shift+D ----
+      function setDevMode(on) {
+        devMode = on === true
+        writeStore(DEV_KEY, devMode ? '1' : '0')
+        host.setAttribute('data-dev', devMode ? 'true' : 'false')
+        paintBar()
+        if (devMode) {
+          setOpen(true)
+          select('dev')
+          showBubble('🔧 开发者模式已开', 2000)
+        } else {
+          if (tab === 'dev') select('status')
+          showBubble('开发者模式已关', 1600)
+        }
+      }
+
+      devMode = readStore(DEV_KEY) === '1'
+      host.setAttribute('data-dev', devMode ? 'true' : 'false')
+      if (devMode) paintBar()
+
+      function onKeyDown(event) {
+        if (event.ctrlKey && event.shiftKey && (event.key === 'D' || event.key === 'd')) {
+          event.preventDefault()
+          setDevMode(!devMode)
+        }
+      }
+      window.addEventListener?.('keydown', onKeyDown)
+
+      // Also reachable from the console, for when the panel is off screen.
+      try {
+        window.dshPigDev = {
+          on: function () { setDevMode(true) },
+          off: function () { setDevMode(false) },
+          toggle: function () { setDevMode(!devMode) },
+        }
+      } catch (error) { /* frozen window */ }
 
       function dispose() {
         stopped = true
