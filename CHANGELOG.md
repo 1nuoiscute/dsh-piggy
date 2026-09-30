@@ -5,6 +5,31 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [0.9.3] — 2026-09-30
+
+### Fixed
+- **补上 0.9.2 没修完的那一半：插件自己的运行时标识符。** 0.9.2 修好了
+  `cordis.patch.yml` 里的 `name`，但客户端模块还是按旧 id 注册的：
+
+  | 位置 | 之前 | 现在 |
+  |---|---|---|
+  | `client.js` 的 `__ModuleLoader__.load({ id })` | `dsh-pig` | `dsh-piggy` |
+  | `client.js` 的 `exports.name` | `dsh-pig` | `dsh-piggy` |
+  | `index.js` 的 `export const name` | `dsh-pig` | `dsh-piggy` |
+
+  客户端的 bundle 清单是按 id 收的，id 和包名对不上，这个插件的 client 就不会被列进去，
+  组件永远不挂载。（感谢 pi 定位。）
+
+- **这些没改，也不该改**：
+
+  | | 为什么 |
+  |---|---|
+  | HTTP 路由 `/dsh-pig/state`、`/act`、`/art` | 内部契约，改了没有好处 |
+  | 存档目录 `$DSH_HOME/dsh-pig/state.json` | **改了会丢正在养的那只猪** |
+  | CSS 选择器 `[data-dsh-pig]`、`localStorage` 的 `dsh-pig:open` / `:position` | 内部标识；改了会丢掉用户保存的面板位置 |
+
+---
+
 ## [0.9.2] — 2026-09-30
 
 ### Fixed

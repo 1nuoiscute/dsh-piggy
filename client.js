@@ -14,7 +14,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-pig',
+  id: 'dsh-piggy',
   factory: (require) => {
     var module = { exports: {} }
     var exports = module.exports
@@ -1582,7 +1582,7 @@ window.__ModuleLoader__.load({
       return dispose
     }
 
-    exports.name = 'dsh-pig'
+    exports.name = 'dsh-piggy'
     exports.apply = apply
     return module.exports
   },

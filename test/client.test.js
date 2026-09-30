@@ -285,14 +285,14 @@ const SNAPSHOT = {
 
 test('client bundle registers itself under the package id', async () => {
   const { registration } = await loadClient()
-  assert.equal(registration.id, 'dsh-pig')
+  assert.equal(registration.id, 'dsh-piggy')
   assert.equal(typeof registration.factory, 'function')
 })
 
 test('client exports name and apply in the shape DSH expects', async () => {
   const { registration } = await loadClient()
   const exports = registration.factory(() => {})
-  assert.equal(exports.name, 'dsh-pig')
+  assert.equal(exports.name, 'dsh-piggy')
   assert.equal(typeof exports.apply, 'function')
 })
 

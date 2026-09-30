@@ -62,7 +62,7 @@ import {
 } from './render.js'
 import { createStore } from './store.js'
 
-export const name = 'dsh-pig'
+export const name = 'dsh-piggy'
 
 /**
  * No required services. The pig rides on emit-mode events, and it reaches the
