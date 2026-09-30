@@ -260,7 +260,7 @@ function die(state, nowMs, why) {
   state.diedAt = nowMs
   state.stats.deaths = (state.stats.deaths ?? 0) + 1
   remember(state, `${why} ${GRAVE.emoji}`, nowMs)
-  announce(state, 'death', `${state.name} ${why}…用${REVIVE_ITEM.label}可以救回来，也可以领养一只新的`)
+  announce(state, 'death', `${state.name} ${why}…用${REVIVE_ITEM.label}可以救回来，也可以领养一只新的`, nowMs)
 }
 
 /**
@@ -359,7 +359,7 @@ export function applyDevPatch(state, patch, nowMs) {
 
   if (patch.illness === null) state.illness = null
   else if (typeof patch.illness === 'object' && patch.illness !== null) {
-    state.illness = sanitizeIllness({ ...patch.illness, since: nowMs, progressMs: 0 })
+    state.illness = sanitizeIllness({ ...patch.illness, since: nowMs, progressMs: 0 }, nowMs)
   }
 
   if (patch.inventory !== null && typeof patch.inventory === 'object') {
@@ -510,9 +510,9 @@ export function hatchEgg(nowMs) {
 }
 
 /** Fill in anything a hand-edited or older save is missing. */
-export function migrate(raw) {
+export function migrate(raw, nowMs) {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null
-  const egg = layEgg(typeof raw.bornAt === 'number' ? raw.bornAt : Date.now())
+  const egg = layEgg(typeof raw.bornAt === 'number' ? raw.bornAt : nowMs)
   const state = { ...egg, ...raw }
   state.version = STATE_VERSION
   state.stats = { ...egg.stats, ...(asObject(raw.stats) ?? {}) }
@@ -553,7 +553,7 @@ export function migrate(raw) {
   state.happiness = clamp100(state.happiness)
   state.cleanliness = clamp100(state.cleanliness)
   state.coins = Math.max(0, Math.floor(state.coins))
-  state.illness = sanitizeIllness(raw.illness)
+  state.illness = sanitizeIllness(raw.illness, nowMs)
   state.activity = sanitizeActivity(raw.activity ?? raw.work)
   state.dead = state.dead === true || state.health <= 0
   state.hatched = state.hatched === true || state.xp > 0
@@ -723,7 +723,7 @@ function sanitizeInterests(raw) {
   return out
 }
 
-function sanitizeIllness(raw) {
+function sanitizeIllness(raw, nowMs) {
   const source = asObject(raw)
   if (source === null) return null
   const chain = Number.isInteger(source.chain) ? source.chain : -1
@@ -733,7 +733,7 @@ function sanitizeIllness(raw) {
   return {
     chain,
     stage,
-    since: Number.isFinite(source.since) ? source.since : Date.now(),
+    since: Number.isFinite(source.since) ? source.since : nowMs,
     progressMs: Number.isFinite(source.progressMs) ? Math.max(0, source.progressMs) : 0,
   }
 }
@@ -777,9 +777,9 @@ function remember(state, text, nowMs) {
   if (state.memories.length > MEMORY_LIMIT) state.memories.splice(0, state.memories.length - MEMORY_LIMIT)
 }
 
-function announce(state, kind, text) {
+function announce(state, kind, text, nowMs) {
   state.pending = Array.isArray(state.pending) ? state.pending : []
-  state.pending.push({ kind, text, at: Date.now() })
+  state.pending.push({ kind, text, at: nowMs })
   if (state.pending.length > PENDING_LIMIT) state.pending.splice(0, state.pending.length - PENDING_LIMIT)
 }
 
@@ -976,7 +976,7 @@ export function decay(state, nowMs) {
     if (state.stage !== stage.key) {
       state.stage = stage.key
       remember(state, `长成了${stage.label} ${stage.emoji}`, nowMs)
-      announce(state, 'stage', `${state.name} 长成了${stage.label} ${stage.emoji}`)
+      announce(state, 'stage', `${state.name} 长成了${stage.label} ${stage.emoji}`, nowMs)
     }
     if (ageDays(state, nowMs) >= LIFESPAN_DAYS) die(state, nowMs, '老了')
   }
@@ -1008,7 +1008,7 @@ function finishInterest(state, activity, nowMs) {
   state.stats.interests = (state.stats.interests ?? 0) + 1
   applyEffects(state, { xp: interest.xp }, nowMs)
   remember(state, `${interest.emoji} 学完${interest.label}，${TRAITS[interest.trait].label} +${interest.gain}`, nowMs)
-  announce(state, 'study', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`)
+  announce(state, 'study', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`, nowMs)
 }
 
 function finishWork(state, activity, nowMs) {
@@ -1033,7 +1033,7 @@ function finishWork(state, activity, nowMs) {
   remember(state, `${job.emoji} ${job.label}回来，赚了 ${coins} 金币${tag}`, nowMs)
   announce(state, 'work', sick
     ? `${state.name} 带病打工回来了，只赚到 ${coins} 金币 🤒`
-    : `${state.name} 打工回来了！赚到 ${coins} 金币 💰`)
+    : `${state.name} 打工回来了！赚到 ${coins} 金币 💰`, nowMs)
 }
 
 function finishStudy(state, activity, nowMs) {
@@ -1058,7 +1058,7 @@ function finishStudy(state, activity, nowMs) {
   state.stats.lessons += 1
   applyEffects(state, { xp: stage.xp }, nowMs)
   remember(state, `${subject.emoji} 上完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain}`, nowMs)
-  announce(state, 'study', `${state.name} 学完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain} 📚`)
+  announce(state, 'study', `${state.name} 学完${stage.label}${subject.label}，${TRAITS[subject.trait].label} +${stage.gain} 📚`, nowMs)
 }
 
 function finishTrip(state, activity, nowMs) {
@@ -1079,7 +1079,7 @@ function finishTrip(state, activity, nowMs) {
   state.stats.trips += 1
   applyEffects(state, { xp: trip.xp }, nowMs)
   remember(state, `${trip.emoji} ${trip.label}回来，带回「${pick.label}」${tier.emoji}`, nowMs)
-  announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${pick.label}」${tier.emoji}🧳`)
+  announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${pick.label}」${tier.emoji}🧳`, nowMs)
 }
 
 /**
@@ -1113,7 +1113,7 @@ function catchIllness(state, nowMs) {
   const ill = illnessAt(chain, 1)
   if (ill !== null) {
     remember(state, `得了${ill.name} 🤒`, nowMs)
-    announce(state, 'sick', `${state.name} 得了${ill.name}，需要${ill.cure} 🤒`)
+    announce(state, 'sick', `${state.name} 得了${ill.name}，需要${ill.cure} 🤒`, nowMs)
   }
 }
 
@@ -1129,7 +1129,7 @@ function advanceIllness(state, nowMs) {
     state.illness = null
     state.health = Math.min(MAX.health, state.health + 1)
     remember(state, `自己好了，扛过去了 💚`, nowMs)
-    announce(state, 'cured', `${state.name} 的${ILLNESS_CHAINS[chain].name}自己好了 💚`)
+    announce(state, 'cured', `${state.name} 的${ILLNESS_CHAINS[chain].name}自己好了 💚`, nowMs)
     return
   }
 
@@ -1141,7 +1141,7 @@ function advanceIllness(state, nowMs) {
   state.illness = { chain, stage: stage + 1, since: nowMs, progressMs: 0 }
   state.health = STAGE_HEALTH[stage]
   remember(state, `病情加重：${worse.name}`, nowMs)
-  announce(state, 'worse', `${state.name} 的病情加重了：${worse.name}，需要${worse.cure}`)
+  announce(state, 'worse', `${state.name} 的病情加重了：${worse.name}，需要${worse.cure}`, nowMs)
 }
 
 // ---------------------------------------------------------------------------
@@ -1465,7 +1465,7 @@ export const callOffWork = callOffActivity
 // Shop and inventory
 // ---------------------------------------------------------------------------
 
-export function buy(state, itemKey) {
+export function buy(state, itemKey, nowMs) {
   const item = itemByKey(itemKey)
   if (item === null) return { ok: false, reason: 'unknown' }
   if (state.dead && item.key !== REVIVE_ITEM.key) return { ok: false, reason: 'dead' }
@@ -1480,7 +1480,7 @@ export function buy(state, itemKey) {
     state.coins -= item.price
     state.dress = [...(state.dress ?? []), item.key]
     state.stats.purchases += 1
-    remember(state, `买下了 ${item.emoji} ${item.label}（-${item.price} 金币）`, Date.now())
+    remember(state, `买下了 ${item.emoji} ${item.label}（-${item.price} 金币）`, nowMs)
     return { ok: true, item }
   }
 
@@ -1490,33 +1490,45 @@ export function buy(state, itemKey) {
   state.inventory = { ...(state.inventory ?? {}) }
   state.inventory[item.key] = (state.inventory[item.key] ?? 0) + 1
   state.stats.purchases += 1
-  remember(state, `买了 ${item.emoji} ${item.label}（-${item.price} 金币）`, Date.now())
+  remember(state, `买了 ${item.emoji} ${item.label}（-${item.price} 金币）`, nowMs)
   return { ok: true, item }
 }
 
-/**
- * Put a dress item on (or take it off). Only owned items, only dress items.
- * @param {object} state
- * @param {string} itemKey
- * @param {boolean} on - true to wear, false to take off.
- */
-export function wear(state, itemKey, on = true) {
+/** Shared checks for the two 装扮 actions. */
+function wearableDress(state, itemKey) {
   const item = itemByKey(itemKey)
-  if (item === null || item.kind !== 'dress') return { ok: false, reason: 'unknown' }
-  if (!(state.dress ?? []).includes(item.key)) return { ok: false, reason: 'not-owned' }
+  if (item === null || item.kind !== 'dress') return { item: null, reason: 'unknown' }
+  if (!(state.dress ?? []).includes(item.key)) return { item: null, reason: 'not-owned' }
+  return { item, reason: null }
+}
+
+/**
+ * Put a 装扮 on. Only owned dress items; one item per slot, so a new hat
+ * automatically takes the old one off.
+ * @returns `{ ok: true, item, worn }` or `{ ok: false, reason }`.
+ */
+export function wearItem(state, itemKey, nowMs) {
+  const { item, reason } = wearableDress(state, itemKey)
+  if (item === null) return { ok: false, reason }
   const worn = new Set(state.worn ?? [])
-  if (on) {
-    // One item per slot: putting on a hat takes off the other hat.
-    for (const key of [...worn]) {
-      const other = itemByKey(key)
-      if (other !== null && other.slot === item.slot) worn.delete(key)
-    }
-    worn.add(item.key)
-  } else {
-    worn.delete(item.key)
+  for (const key of [...worn]) {
+    const other = itemByKey(key)
+    if (other !== null && other.slot === item.slot) worn.delete(key)
   }
+  worn.add(item.key)
   state.worn = [...worn]
-  remember(state, on ? `戴上了 ${item.emoji} ${item.label}` : `摘下了 ${item.emoji} ${item.label}`, Date.now())
+  remember(state, `戴上了 ${item.emoji} ${item.label}`, nowMs)
+  return { ok: true, item, worn: state.worn.slice() }
+}
+
+/** Take a 装扮 off. */
+export function takeOff(state, itemKey, nowMs) {
+  const { item, reason } = wearableDress(state, itemKey)
+  if (item === null) return { ok: false, reason }
+  const worn = new Set(state.worn ?? [])
+  worn.delete(item.key)
+  state.worn = [...worn]
+  remember(state, `摘下了 ${item.emoji} ${item.label}`, nowMs)
   return { ok: true, item, worn: state.worn.slice() }
 }
 
@@ -1526,7 +1538,7 @@ export function wear(state, itemKey, on = true) {
  * 20 of each consumable, every 装扮 owned, and enough coins that price is never
  * the reason a test in the panel fails.
  */
-export function grantAll(state) {
+export function grantAll(state, nowMs) {
   if (state === null || state === undefined) return { ok: false, reason: 'absent' }
   const inventory = { ...(state.inventory ?? {}) }
   for (const item of SHOP) {
@@ -1538,7 +1550,7 @@ export function grantAll(state) {
   state.dress = dress
   state.coins = Math.max(state.coins ?? 0, 99999)
   state.stats.purchases = (state.stats.purchases ?? 0) + dress.length
-  remember(state, '🔧 调试：一键拿齐了所有物品', Date.now())
+  remember(state, '🔧 调试：一键拿齐了所有物品', nowMs)
   return { ok: true, granted: { items: SHOP.length - dress.length, dress: dress.length, coins: state.coins } }
 }
 
@@ -1575,7 +1587,7 @@ export function useItem(state, itemKey, nowMs) {
     state.health = MAX.health
     state.stats.cures = (state.stats.cures ?? 0) + 1
     remember(state, `吃了 ${item.emoji} ${item.label}，病好了`, nowMs)
-    announce(state, 'cured', `${state.name} 吃了 ${item.label}，痊愈了 💚`)
+    announce(state, 'cured', `${state.name} 吃了 ${item.label}，痊愈了 💚`, nowMs)
     return { ok: true, item }
   }
 
@@ -1598,7 +1610,7 @@ export function revive(state, nowMs) {
   state.riskMinutes = 0
   state.stats.revives = (state.stats.revives ?? 0) + 1
   remember(state, `被 ${REVIVE_ITEM.label} 救了回来 ✨`, nowMs)
-  announce(state, 'revived', `${state.name} 回来了 ✨`)
+  announce(state, 'revived', `${state.name} 回来了 ✨`, nowMs)
 }
 
 // ---------------------------------------------------------------------------

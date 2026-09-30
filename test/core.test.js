@@ -63,7 +63,8 @@ import {
   startWork,
   traitView,
   useItem,
-  wear,
+  wearItem,
+  takeOff,
   workSecondsLeft,
 } from '../core.js'
 import { LIFESPAN_DAYS, DEFAULT_TOY, DRESS_SLOTS, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, interestByKey, INTERESTS, medicineForStage, rarityByKey, subjectByKey, xpForLevel } from '../data.js'
@@ -249,10 +250,10 @@ test('a soul settles on a grave nobody came back for', () => {
 })
 
 test('migrate tolerates junk', () => {
-  assert.equal(migrate(null), null)
-  assert.equal(migrate('nope'), null)
-  assert.equal(migrate([1, 2]), null)
-  const repaired = migrate({ xp: 'lots', satiety: Number.NaN, name: '  ', memories: 'x', stats: null, coins: -5 })
+  assert.equal(migrate(null, T0), null)
+  assert.equal(migrate('nope', T0), null)
+  assert.equal(migrate([1, 2], T0), null)
+  const repaired = migrate({ xp: 'lots', satiety: Number.NaN, name: '  ', memories: 'x', stats: null, coins: -5 }, T0)
   assert.equal(repaired.xp, 0)
   assert.equal(repaired.name, '猪猪')
   assert.equal(repaired.coins, 0)
@@ -265,7 +266,7 @@ test('migrate upgrades a v1 save all the way to the current version', () => {
     version: 1, name: '大花', bornAt: T0, xp: 200, weightG: 5000,
     satiety: 50, happiness: 50, lastSeenAt: T0,
     // no cleanliness, no health, no coins, no inventory, no traits
-  })
+  }, T0)
   assert.equal(upgraded.version, STATE_VERSION)
   assert.equal(upgraded.name, '大花')
   assert.equal(upgraded.xp, 200)
@@ -282,7 +283,7 @@ test('migrate lifts a v3 "work" record into the v4 activity shape', () => {
     ...layEgg(T0),
     version: 3,
     work: { job: 'site', startedAt: T0, endsAt: T0 + MIN },
-  })
+  }, T0)
   assert.equal(upgraded.activity.kind, 'work')
   assert.equal(upgraded.activity.key, 'site')
   assert.equal(upgraded.activity.endsAt, T0 + MIN)
@@ -294,7 +295,7 @@ test('migrate drops unknown inventory keys and bad illness records', () => {
     inventory: { apple: 2, 'not-a-real-item': 9, med1: 'x' },
     illness: { chain: 99, stage: 1, since: T0 },
     activity: { kind: 'work', key: 'nonexistent', endsAt: T0 },
-  })
+  }, T0)
   assert.deepEqual(upgraded.inventory, { apple: 2 })
   assert.equal(upgraded.illness, null)
   assert.equal(upgraded.activity, null)
@@ -441,7 +442,7 @@ test('finishing a lesson counts toward the stage and the subject', () => {
 test('a save from before the ladder keeps the schools it had already opened', () => {
   // Legacy saves counted lessons per stage only, so the ladder is credited from
   // the bottom up: having lessons in 小学 means 幼儿园 and 课外 were cleared.
-  const upgraded = migrate({ ...layEgg(T0), version: 5, courses: { chinese: 3, art: 2 }, lessonsByStage: { primary: 5, college: 0, graduate: 0 } })
+  const upgraded = migrate({ ...layEgg(T0), version: 5, courses: { chinese: 3, art: 2 }, lessonsByStage: { primary: 5, college: 0, graduate: 0 } }, T0)
   assert.equal(upgraded.lessonsByStage.primary, 5, 'existing lessons are not thrown away')
   assert.equal(Object.keys(upgraded.coursesByStage.preschool).length, 3, 'the rungs below are credited')
   assert.equal(Object.keys(upgraded.coursesByStage.extracurricular).length, 4)
@@ -449,7 +450,7 @@ test('a save from before the ladder keeps the schools it had already opened', ()
   assert.equal(studyView(upgraded).find(stage => stage.key === 'primary').unlocked, true)
 
   // A pig that had finished the old nine 小学 lessons has all six new ones.
-  const finished = migrate({ ...layEgg(T0), version: 5, lessonsByStage: { primary: 9 } })
+  const finished = migrate({ ...layEgg(T0), version: 5, lessonsByStage: { primary: 9 } }, T0)
   assert.equal(Object.keys(finished.coursesByStage.primary).length, 6)
   assert.equal(studyView(finished).find(stage => stage.key === 'middle').unlocked, true, '中学 opens')
 })
@@ -1057,7 +1058,7 @@ test('an interest is refused when broke, away or unknown, and spends nothing', (
 })
 
 test('兴趣 counts survive a save, and junk keys are dropped', () => {
-  const upgraded = migrate({ ...layEgg(T0), interests: { coding: 4, nope: 9, photography: 0 } })
+  const upgraded = migrate({ ...layEgg(T0), interests: { coding: 4, nope: 9, photography: 0 } }, T0)
   assert.deepEqual(upgraded.interests, { coding: 4 })
 })
 
@@ -1146,7 +1147,7 @@ test('a legend souvenir is worth more than a common one', () => {
 })
 
 test('a pre-0.20 save keeps its string souvenirs as objects', () => {
-  const upgraded = migrate({ ...layEgg(T0), version: 6, souvenirs: ['贝壳', '松果'] })
+  const upgraded = migrate({ ...layEgg(T0), version: 6, souvenirs: ['贝壳', '松果'] }, T0)
   assert.equal(upgraded.souvenirs.length, 2)
   assert.equal(upgraded.souvenirs[0].label, '贝壳')
   assert.equal(upgraded.souvenirs[0].rarity, 'common')
@@ -1273,34 +1274,34 @@ test('装扮 is bought once behind a level, then worn', () => {
   pig.coins = 200_000
   assert.equal(levelFor(pig.xp), 1, 'a fresh pig is level 1')
 
-  assert.equal(buy(pig, 'scarf').ok, true)
+  assert.equal(buy(pig, 'scarf', T0).ok, true)
   assert.deepEqual(pig.dress, ['scarf'])
   assert.equal(pig.inventory.scarf ?? 0, 0, '家当 is not a consumable')
-  assert.equal(buy(pig, 'scarf').reason, 'owned', 'buying it twice is refused')
+  assert.equal(buy(pig, 'scarf', T0).reason, 'owned', 'buying it twice is refused')
 
-  const gate = buy(pig, 'crown')
+  const gate = buy(pig, 'crown', T0)
   assert.equal(gate.reason, 'low-level')
   assert.equal(gate.need, 13)
   assert.equal(gate.have, 1)
   assert.equal(pig.coins, 200_000 - 80, 'a refused purchase spends nothing')
 
-  assert.equal(wear(pig, 'crown', true).reason, 'not-owned')
-  assert.equal(wear(pig, 'apple', true).reason, 'unknown', 'only 装扮 can be worn')
-  assert.equal(wear(pig, 'scarf', true).ok, true)
+  assert.equal(wearItem(pig, 'crown', T0).reason, 'not-owned')
+  assert.equal(wearItem(pig, 'apple', T0).reason, 'unknown', 'only 装扮 can be worn')
+  assert.equal(wearItem(pig, 'scarf', T0).ok, true)
   assert.deepEqual(pig.worn, ['scarf'])
-  assert.equal(wear(pig, 'scarf', false).ok, true)
+  assert.equal(takeOff(pig, 'scarf', T0).ok, true)
   assert.deepEqual(pig.worn, [])
   assert.equal(useItem(pig, 'scarf', T0).reason, 'not-consumable', 'a scarf is worn, not eaten')
 
   // The level gate is real: xp for Lv.13 opens the crown.
   pig.xp = xpForLevel(13)
   assert.equal(levelFor(pig.xp), 13)
-  assert.equal(buy(pig, 'crown').ok, true)
+  assert.equal(buy(pig, 'crown', T0).ok, true)
   assert.deepEqual(pig.dress, ['scarf', 'crown'])
 })
 
 test('a save cannot dress the pig in medicine, or wear what it does not own', () => {
-  const upgraded = migrate({ ...layEgg(T0), dress: ['scarf', 'scarf', 'apple', 'nope'], worn: ['scarf', 'crown'] })
+  const upgraded = migrate({ ...layEgg(T0), dress: ['scarf', 'scarf', 'apple', 'nope'], worn: ['scarf', 'crown'] }, T0)
   assert.deepEqual(upgraded.dress, ['scarf'], 'duplicates and non-dress items are dropped')
   assert.deepEqual(upgraded.worn, ['scarf'], 'only owned 装扮 can be worn')
 })
@@ -1314,31 +1315,31 @@ test('every dress item has a real slot, and one piece goes per slot', () => {
 
   pig.coins = 200_000
   pig.xp = xpForLevel(16)
-  for (const key of ['strawhat', 'flowercrown', 'crown', 'scarf']) assert.equal(buy(pig, key).ok, true)
-  wear(pig, 'strawhat', true)
-  wear(pig, 'crown', true)
+  for (const key of ['strawhat', 'flowercrown', 'crown', 'scarf']) assert.equal(buy(pig, key, T0).ok, true)
+  wearItem(pig, 'strawhat', T0)
+  wearItem(pig, 'crown', T0)
   assert.deepEqual(pig.worn, ['crown'], 'the 头 slot holds one hat, the new one replaces it')
-  wear(pig, 'scarf', true)
+  wearItem(pig, 'scarf', T0)
   assert.deepEqual([...pig.worn].sort(), ['crown', 'scarf'], 'a different slot stacks')
 })
 
 test('grantAll hands over one of everything, for debugging', () => {
   const pig = hatchEgg(T0)
   pig.coins = 10
-  const result = grantAll(pig)
+  const result = grantAll(pig, T0)
   assert.equal(result.ok, true)
   assert.equal(pig.dress.length, 12)
   assert.equal(pig.coins, 99_999)
   for (const item of SHOP.filter(entry => entry.kind !== 'dress')) {
     assert.equal(pig.inventory[item.key], 20, `${item.label} should be in the bag`)
   }
-  assert.equal(grantAll(null).ok, false)
+  assert.equal(grantAll(null, T0).ok, false)
 })
 
 test('buying deducts coins and fills the backpack', () => {
   const pig = hatchEgg(T0)
   pig.coins = 50
-  const result = buy(pig, 'apple')
+  const result = buy(pig, 'apple', T0)
   assert.equal(result.ok, true)
   assert.equal(pig.coins, 44)
   assert.equal(pig.inventory.apple, 1)
@@ -1349,11 +1350,11 @@ test('buying deducts coins and fills the backpack', () => {
 test('buying is refused when broke, and for unknown goods', () => {
   const pig = hatchEgg(T0)
   pig.coins = 3
-  const poor = buy(pig, 'bone')
+  const poor = buy(pig, 'bone', T0)
   assert.equal(poor.ok, false)
   assert.equal(poor.reason, 'poor')
   assert.equal(pig.coins, 3, 'nothing was spent')
-  assert.equal(buy(pig, 'yacht').reason, 'unknown')
+  assert.equal(buy(pig, 'yacht', T0).reason, 'unknown')
 })
 
 test('inventoryView lists the consumables and leaves 家当 out of the counts', () => {

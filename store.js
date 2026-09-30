@@ -42,7 +42,8 @@ import {
   startTrip as coreStartTrip,
   startWork as coreStartWork,
   useItem as coreUseItem,
-  wear as coreWear,
+  wearItem as coreWearItem,
+  takeOff as coreTakeOff,
 } from './core.js'
 
 /** The harness home, matching the launcher's own resolution. */
@@ -103,7 +104,7 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
       return null
     }
 
-    const upgraded = migrate(parsed)
+    const upgraded = migrate(parsed, now())
     if (upgraded === null) {
       preserveUnusableSave(raw, 'migrate() rejected the shape')
       return null
@@ -209,7 +210,7 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
     startInterest: interestKey => mutate(live => coreStartInterest(live, interestKey, now())),
 
     /** Debug: one of everything (consumables, 装扮, coins). */
-    grantAll: () => mutate(live => coreGrantAll(live)),
+    grantAll: () => mutate(live => coreGrantAll(live, now())),
 
     /** Send the pig travelling. */
     startTrip: tripKey => mutate(live => coreStartTrip(live, tripKey, now())),
@@ -221,12 +222,12 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
     callOffWork: () => mutate(live => coreCallOff(live, now())),
 
     /** Buy one item into the backpack. */
-    buy: itemKey => mutate(live => coreBuy(live, itemKey)),
+    buy: itemKey => mutate(live => coreBuy(live, itemKey, now())),
 
     /** Use one item from the backpack. */
     useItem: itemKey => mutate(live => coreUseItem(live, itemKey, now())),
     sellSouvenir: souvenirKey => mutate(live => coreSellSouvenir(live, souvenirKey, now())),
-    wear: (itemKey, on) => mutate(live => coreWear(live, itemKey, on)),
+    wear: (itemKey, on) => mutate(live => (on ? coreWearItem(live, itemKey, now()) : coreTakeOff(live, itemKey, now()))),
 
     /** Open the box. Only works when there is no pig at all. */
     hatch() {
