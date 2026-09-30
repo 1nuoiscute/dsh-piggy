@@ -15,7 +15,7 @@
  * @module dsh-pig/store
  */
 
-import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeSync } from 'node:fs'
+import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync, writeSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -75,15 +75,53 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
   let timer = null
   let state = load()
 
+  /**
+   * Read the save, keeping the evidence when it cannot be used.
+   *
+   * A bare `catch { return null }` used to turn a corrupt or unreadable save
+   * into "no pig" — the pig silently vanished and the next write would have
+   * buried the old file. Now every unusable save is logged and copied aside
+   * first; the original file is left untouched.
+   */
   function load() {
+    let raw
     try {
-      const parsed = JSON.parse(readFileSync(filePath, 'utf8'))
-      const upgraded = migrate(parsed)
-      if (upgraded !== null && parsed?.version !== upgraded.version) dirty = true
-      return upgraded
-    } catch {
+      raw = readFileSync(filePath, 'utf8')
+    } catch (error) {
+      // A missing save is the normal first run; anything else is worth saying.
+      if (error?.code !== 'ENOENT') {
+        console.warn(`[dsh-pig] could not read save: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+      }
       return null
     }
+
+    let parsed
+    try {
+      parsed = JSON.parse(raw)
+    } catch (error) {
+      preserveUnusableSave(raw, `invalid JSON: ${error instanceof Error ? error.message : String(error)}`)
+      return null
+    }
+
+    const upgraded = migrate(parsed)
+    if (upgraded === null) {
+      preserveUnusableSave(raw, 'migrate() rejected the shape')
+      return null
+    }
+    if (parsed?.version !== upgraded.version) dirty = true
+    return upgraded
+  }
+
+  /** Copy an unusable save next to the original, then complain loudly. */
+  function preserveUnusableSave(raw, reason) {
+    const backup = `${filePath}.corrupt-${new Date(now()).toISOString().replace(/[:.]/g, '-')}`
+    try {
+      writeFileSync(backup, raw)
+    } catch (error) {
+      console.warn(`[dsh-pig] save unusable (${reason}) and the backup failed: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+      return
+    }
+    console.warn(`[dsh-pig] save unusable (${reason}); kept a copy at "${backup}" and left the original untouched`)
   }
 
   function writeNow() {
@@ -106,7 +144,13 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
     if (timer !== null) return
     timer = setTimer(() => {
       timer = null
-      try { writeNow() } catch { /* a pet must never break the harness */ }
+      try {
+        writeNow()
+      } catch (error) {
+        // A failed write must not break the harness, but it must not be silent
+        // either: the player would keep playing against a save that is not there.
+        console.warn(`[dsh-pig] save failed: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+      }
     }, SAVE_THROTTLE_MS)
     if (typeof timer?.unref === 'function') timer.unref()
   }
