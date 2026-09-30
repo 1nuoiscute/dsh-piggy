@@ -18,7 +18,7 @@
 
 - **六个图标的面板** —— 状态 / 学习 / 打工 / 商店 / 旅行 / 背包，**不用敲命令**
 - **零 token** —— 不注册模型工具、不注入上下文，模型不知道它存在
-- **零依赖** —— 纯 JS，不用打包器
+- **零运行时 npm 依赖** —— 纯 JS；客户端源码开发使用 esbuild 打包，类型检查使用 TypeScript（见下方开发说明）
 
 ---
 
@@ -261,7 +261,7 @@ host [data-dsh-pig]   ← 固定在右下角
 
 **年龄按真实时间走** —— 关掉 DSH 期间猪照样在长大，回来时它老了一天。
 
-![一生](/home/clicgger/Documents/deepseek-harness/default-workspace/dsh-pig/docs/screenshots/15-life-stages.png)
+![一生（早期版本界面示意）](docs/screenshots/15-life-stages.png)
 
 所有阶段都是同一只 🐖，靠**体型**区分；小猪和老年猪另外有两张手绘形象
 （[`assets/piglet.svg`](assets/piglet.svg) / [`assets/elder.svg`](assets/elder.svg)，
@@ -327,54 +327,146 @@ POST /dsh-pig/act     执行操作
 
 ## 项目结构
 
-```
-dsh-pig/
-├── package.json          插件清单（dsh.bundle + dsh.client）
+```text
+dsh-piggy/
+├── package.json          插件清单与 build / typecheck / test 脚本
 ├── cordis.patch.yml      profile 配置层
-├── data.js       171 行  静态游戏表：疾病链 / 课程 / 工作 / 商店 / 阈值
-├── core.js       797 行  纯状态机：成长、衰减、动作、外出、疾病、商店（无 IO）
-├── store.js      210 行  持久化：原子写 + 节流 + 时间戳惰性结算
-├── render.js     355 行  所有文案与 ASCII 立绘
-├── index.js      476 行  宿主半边：事件接线 + /pig 命令 + state/act 路由
-├── client.js     975 行  客户端半边：手写 __ModuleLoader__ + 六图标面板 + 动画
-├── test/                 103 个测试
-│   ├── core.test.js      游戏模型（含疾病链、学习、旅行、存档迁移）
-│   ├── host.test.js      路由与命令胶水（含"拒绝必须诚实"、"webServer 延迟到达"回归）
-│   └── client.test.js    在伪造 DOM 里真跑 client.js（含 hidden 与 CSS 的一致性守卫）
-├── tools/
-│   └── preview.html      真实浏览器预览台（不连宿主就能看面板）
-├── docs/
-│   ├── DESIGN.md         设计说明：参考调研、数值映射、架构决策
-│   └── PROCESS.md        开发过程记录：每一轮反馈、每个 bug、每条验证证据
+├── data.js / data/       静态游戏表与常量；data.js 保留导出入口
+├── core.js / core/       纯领域函数；时间由 nowMs 参数传入
+├── store.js / store/     存档读写、原子写与节流
+├── index.js              宿主组装入口
+├── snapshot.js           面板快照
+├── commands.js           /pig 命令
+├── routes.js             HTTP 路由
+├── render.js             文案与 ASCII 立绘
+├── src/client/           客户端源码：场景、交互、样式与 tabs/*
+├── client.js             生成的单文件客户端产物，随仓库提交
+├── scripts/
+│   ├── build-client.mjs   esbuild 打包入口
+│   └── typecheck.mjs      JavaScript 类型检查入口
+├── test/                 游戏逻辑、宿主、客户端、存档、构建与规范检查
+├── tools/                preview.html / art.html 等浏览器预览台
+├── assets/               SVG 立绘
+├── docs/                 设计、编码规范、美术需求与开发记录
 ├── CHANGELOG.md          版本变更历史
-└── LICENSE               MIT（含对 QQ 宠物逆向成果的致谢与声明）
+├── THIRD-PARTY.md        第三方致谢与许可
+└── LICENSE              MIT
 ```
 
-## 测试
+## 从源码开发
+
+需要 **Node.js ≥20**（自带 npm）、Git 和浏览器。运行已提交的插件产物无需开发工具；
+**构建源码和运行完整检查**需要 esbuild、TypeScript 与 Node 类型定义。
+仓库的 `package.json` 当前没有声明这些开发依赖，单独克隆时先在本地安装：
 
 ```sh
-node --test test/*.test.js      # 103 个
+git -c core.autocrlf=false clone https://github.com/CLICGGER-TYPES/dsh-piggy.git
+cd dsh-piggy
+npm install --no-save --package-lock=false esbuild@0.28.2 typescript@5.9.3 @types/node@20
+npm run build
+npm run typecheck
+node --test
 ```
+
+准备贡献时，先 Fork，再把 clone 的地址换成自己的 Fork。
+`core.autocrlf=false` 让此次克隆保留仓库的 LF 换行；构建产物守卫逐字节比较
+`client.js`，Windows 自动转换成 CRLF 会影响这个检查。
+`--no-save --package-lock=false` 只安装本地工具，不修改依赖清单、不生成锁文件；
+`node_modules/` 已被 Git 忽略。
+
+上面的版本组合已经验证可构建和检查。这里固定 TypeScript 5.9.3：
+当前检查脚本没有显式指定 `strict`，而 [TypeScript 6.0 起默认启用 strict](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html#strict-is-now-true-by-default)，
+直接安装新版会产生额外类型错误。升级检查工具应另行验证。
+
+- **客户端**：修改 `src/client/`，运行 `npm run build`，提交生成的 `client.js`。
+  不要直接编辑 `client.js`；DSH 加载它，`test/bundle.test.js` 检查它与源码一致。
+- **游戏逻辑与数据**：修改 `core/` 或 `data/`；存档相关代码在 `store/`。
+  领域层保持无 IO，时间必须由参数传入。
+- **提交前**：运行 `npm run typecheck` 和 `node --test`。
+  UI 改动还要在真实浏览器中确认；约定见 [docs/CONVENTIONS.md](docs/CONVENTIONS.md)。
+
+提示 `esbuild not found` 或 `no tsc found` 时，确认已在仓库根目录执行工具安装命令。
+也可通过 `DSH_PIG_ESBUILD`、`DSH_PIG_TSC`、`DSH_PIG_TYPES` 指向已有工具；
+具体解析规则见 `scripts/`。
 
 ## 看界面（不用连宿主）
 
+直接用浏览器打开 `tools/preview.html` 即可；仓库已包含 `client.js`，
+只看现有界面无需安装开发工具。修改客户端源码后，先重新构建再刷新预览页。
+
+Linux：
+
 ```sh
-# 直接用浏览器打开
 xdg-open tools/preview.html
 ```
 
-预览台伪造 `window.__ModuleLoader__` 和 `fetch`，把一份完整快照喂给 `client.js`，
-所以在**不启动 DSH** 的情况下就能看到收起/展开两种状态和全部六个页签。
-页面上有 `window.pigStub.setOpen(true|false)` 和 `pigStub.tab('study')` 可以操作。
+Windows 的操作见下一节。预览台伪造 `window.__ModuleLoader__` 和 `fetch`，
+不启动 DSH 就能看到面板与六个页签。它使用示例快照：
+**预览中的操作不会验证真实宿主的金币扣除、活动结算或存档读写**。
 
-> **为什么需要它**：假 DOM 没有 CSS 引擎。有一条 bug 是"JS 里 `bar.hidden = true`
-> 完全正确、103 个测试全绿，但浏览器里图标栏照画不误"——因为
-> `.dp-bar{display:grid}` 和 UA 的 `[hidden]{display:none}` 权重相同而我赢了。
-> **断言标志位证明不了元素不可见**，只能真去浏览器看。
+浏览器开发者工具的 Console 中可以使用：
+
+```js
+window.pigStub.setOpen(true)   // 展开；false 收起
+window.pigStub.tab('study')    // 切到学习页
+window.pigStub.state()        // 查看当前布局
+window.dshPigDev.on()         // 开启开发者面板；off() 关闭
+```
+
+`tools/art.html` 可查看立绘，`tools/stages.html` 可查看生命周期形态示意。
+这些预览页使用示例数据，当前阶段与数值以 `data/` 和实际宿主快照为准。
+
+> 假 DOM 没有 CSS 引擎。曾经出现过 JS 正确设置 `hidden = true`、测试通过，
+> 浏览器却仍显示图标栏的情况。**断言标志位证明不了元素不可见**，要在真实浏览器确认。
+
+## Windows 入门（PowerShell）
+
+先安装 Git 与 Node.js ≥20，重新打开 PowerShell，在希望保存项目的目录执行：
+
+```powershell
+git --version
+node --version
+npm.cmd --version
+git -c core.autocrlf=false clone https://github.com/CLICGGER-TYPES/dsh-piggy.git
+Set-Location .\dsh-piggy
+```
+
+`npm.cmd` 调用 npm 的 Windows 命令入口，避免 PowerShell 把 `npm` 解析成
+`npm.ps1` 后因执行策略被拒绝；无需修改系统执行策略。
+如果已按上一节克隆，进入那个目录即可，不用重复 clone。
+
+只看界面，用默认浏览器打开：
+
+```powershell
+Start-Process -FilePath (Resolve-Path .\tools\preview.html).Path
+Start-Process -FilePath (Resolve-Path .\tools\art.html).Path
+```
+
+准备改源码时，在仓库根目录安装开发工具并检查：
+
+```powershell
+npm.cmd install --no-save --package-lock=false esbuild@0.28.2 typescript@5.9.3 @types/node@20
+npm.cmd run build
+npm.cmd run typecheck
+node --test
+```
+
+如果已安装 DSH CLI，且 `dsh` 在 PATH 中，可把本地仓库加入 **web profile**：
+
+```powershell
+dsh plugin --profile web add (Resolve-Path .).Path
+```
+
+安装后重启对应的 DSH 宿主，再刷新页面。**web 与 desktop 是不同 profile**；
+这里的命令只针对 web，不代表 DSH Desktop 的安装步骤。
+源码改完、构建完成后也要重启真实宿主，才能重新组装客户端 bundle；
+开发者面板可以查看宿主快照中的构建版本。
 
 ## 文档
 
 - [CHANGELOG.md](CHANGELOG.md) —— 版本变更历史
+- [docs/CONVENTIONS.md](docs/CONVENTIONS.md) —— 编码、验证与提交规范
+- [docs/REFACTOR-PLAN.md](docs/REFACTOR-PLAN.md) —— 源码分层与构建说明
 - [docs/DESIGN.md](docs/DESIGN.md) —— 为什么是这样：参考调研、数值映射、架构决策
 - [docs/PROCESS.md](docs/PROCESS.md) —— 怎么变成这样：每一轮反馈、每个 bug、每条验证证据
 

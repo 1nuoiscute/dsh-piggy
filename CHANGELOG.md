@@ -5,6 +5,13 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [Unreleased]
+
+### Documentation
+- README 的生命周期截图改用仓库相对路径，并标明是早期版本示意。
+- 更新分层目录与客户端生成产物说明；补充独立克隆需要的开发工具、构建与检查步骤。
+- 新增 Windows PowerShell 入门与预览命令，说明 LF 换行、npm.cmd 和 web profile 的适用范围。
+
 ## [0.24.0] — 2026-09-30
 
 ### Added
