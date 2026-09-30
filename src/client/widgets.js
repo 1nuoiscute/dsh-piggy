@@ -7,34 +7,51 @@
  */
 
 import { button, el, meter } from './dom.js'
+import { num } from './values.js'
 
 /**
- * 折叠分组：默认收起，点标题展开，再点收起；同一个区域同时只开一个。
+ * 一个小方块（动森手游那种网格）：emoji 大、名字一行、右上角挂角标。
  *
- * 用户 2026-10-01：列表默认只该看到几个大类标题，细节点开才看到，
- * 这样一屏不用堆一大段字。
+ * 用户 2026-10-01：学段/货架/背包大类都是这种小块，点进去整屏换成下一层，
+ * 左上角给「← 返回」。
  *
- * @param {object} ui
- * @param {string} key - 区域内的唯一 key（如 `shop:food`）
- * @param {string} title - 标题行（emoji + 名字 + 数量）
- * @param {(body: object) => void} paint - 展开时往 body 里画内容
+ * @param {{ emoji: string, label: string, badge?: string, tag?: string, note?: string,
+ *   active?: boolean, locked?: boolean, dim?: boolean, disabled?: boolean,
+ *   data?: Record<string, string>, onPick: () => void }} spec
  */
-export function section(ui, key, title, paint) {
-  var open = ui.openSection === key
-  var head = button('dp-section' + (open ? ' dp-section-open' : ''), { 'data-section': key }, function (event) {
+export function tile(spec) {
+  var node = button('dp-tile'
+    + (spec.active ? ' dp-tile-on' : '')
+    + (spec.locked ? ' dp-tile-locked' : '')
+    + (spec.dim ? ' dp-tile-dim' : ''), spec.data ?? {}, function (event) {
     if (event && typeof event.stopPropagation === 'function') event.stopPropagation()
-    ui.openSection = open ? null : key
-    ui.renderContent()
+    spec.onPick()
   })
-  head.appendChild(el('span', 'dp-section-t', title))
-  head.appendChild(el('b', 'dp-section-c', open ? '收起' : '展开'))
-  ui.content.appendChild(head)
-  if (!open) return
-  var body = el('div', 'dp-section-body')
-  paint(body)
-  ui.content.appendChild(body)
+  if (spec.disabled === true) node.disabled = true
+  if (spec.badge !== undefined && spec.badge !== '') node.appendChild(el('b', 'dp-tile-badge', spec.badge))
+  if (spec.tag !== undefined && spec.tag !== '') node.appendChild(el('b', 'dp-tile-tag', spec.tag))
+  node.appendChild(el('span', 'dp-tile-e', spec.emoji))
+  node.appendChild(el('span', 'dp-tile-n', spec.label))
+  if (spec.note !== undefined && spec.note !== '') node.appendChild(el('span', 'dp-tile-note', spec.note))
+  return node
 }
-import { num } from './values.js'
+
+/** The grid the tiles sit in. */
+export function tileGrid() {
+  return el('div', 'dp-tiles')
+}
+
+/** 「← 返回」：第二层左上角，点一下回到上一层。 */
+export function backRow(text, onBack) {
+  var row = el('div', 'dp-backrow')
+  var back = button('dp-back', { 'data-back': 'true' }, function (event) {
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation()
+    onBack()
+  })
+  back.textContent = '← ' + text
+  row.appendChild(back)
+  return row
+}
 
 export function labelledBar(ui, label, value, valueText, variant) {
   var row = el('div', 'dp-row')

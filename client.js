@@ -109,20 +109,31 @@
   }
 
   // src/client/widgets.js
-  function section(ui, key, title, paint) {
-    var open = ui.openSection === key;
-    var head = button("dp-section" + (open ? " dp-section-open" : ""), { "data-section": key }, function(event) {
+  function tile(spec) {
+    var node = button("dp-tile" + (spec.active ? " dp-tile-on" : "") + (spec.locked ? " dp-tile-locked" : "") + (spec.dim ? " dp-tile-dim" : ""), spec.data ?? {}, function(event) {
       if (event && typeof event.stopPropagation === "function") event.stopPropagation();
-      ui.openSection = open ? null : key;
-      ui.renderContent();
+      spec.onPick();
     });
-    head.appendChild(el("span", "dp-section-t", title));
-    head.appendChild(el("b", "dp-section-c", open ? "\u6536\u8D77" : "\u5C55\u5F00"));
-    ui.content.appendChild(head);
-    if (!open) return;
-    var body = el("div", "dp-section-body");
-    paint(body);
-    ui.content.appendChild(body);
+    if (spec.disabled === true) node.disabled = true;
+    if (spec.badge !== void 0 && spec.badge !== "") node.appendChild(el("b", "dp-tile-badge", spec.badge));
+    if (spec.tag !== void 0 && spec.tag !== "") node.appendChild(el("b", "dp-tile-tag", spec.tag));
+    node.appendChild(el("span", "dp-tile-e", spec.emoji));
+    node.appendChild(el("span", "dp-tile-n", spec.label));
+    if (spec.note !== void 0 && spec.note !== "") node.appendChild(el("span", "dp-tile-note", spec.note));
+    return node;
+  }
+  function tileGrid() {
+    return el("div", "dp-tiles");
+  }
+  function backRow(text, onBack) {
+    var row = el("div", "dp-backrow");
+    var back = button("dp-back", { "data-back": "true" }, function(event) {
+      if (event && typeof event.stopPropagation === "function") event.stopPropagation();
+      onBack();
+    });
+    back.textContent = "\u2190 " + text;
+    row.appendChild(back);
+    return row;
   }
   function labelledBar(ui, label, value, valueText, variant) {
     var row = el("div", "dp-row");
@@ -179,23 +190,19 @@
   }
 
   // src/client/tabs/bag.js
+  function kindEmoji(kind) {
+    var title = KIND_TITLE[kind] ?? kind;
+    var space = title.indexOf(" ");
+    return space < 0 ? "\u{1F4E6}" : title.slice(0, space);
+  }
+  function kindName(kind) {
+    var title = KIND_TITLE[kind] ?? kind;
+    var space = title.indexOf(" ");
+    return space < 0 ? title : title.slice(space + 1);
+  }
   function firstSentence(text) {
     var stop = text.indexOf("\u3002");
     return stop < 0 ? text : text.slice(0, stop + 1);
-  }
-  function itemRow(ui, item) {
-    var row = el("div", "dp-item" + (item.needed ? " dp-wanted" : ""));
-    row.appendChild(el("span", null, item.emoji));
-    var grow = el("div", "dp-grow");
-    grow.appendChild(el("div", null, item.label + " \xD7" + num(ui.view.inventory[item.key], 0)));
-    grow.appendChild(el("div", "dp-dim", kindLabel(item)));
-    row.appendChild(grow);
-    var use = button("dp-mini", { "data-use": item.key }, function() {
-      ui.send("use", { item: item.key });
-    });
-    use.textContent = "\u4F7F\u7528";
-    row.appendChild(use);
-    return row;
   }
   function renderBagTab(ui) {
     var owned = [];
@@ -205,82 +212,193 @@
     var kinds = [];
     for (var k = 0; k < owned.length; k += 1) if (kinds.indexOf(owned[k].kind) < 0) kinds.push(owned[k].kind);
     kinds.sort((a, b) => KIND_ORDER.indexOf(a) - KIND_ORDER.indexOf(b));
-    for (var s = 0; s < kinds.length; s += 1) {
-      (function(kind) {
-        var items = owned.filter(function(item) {
-          return item.kind === kind;
-        });
-        var total = 0;
-        for (var t = 0; t < items.length; t += 1) total += num(ui.view.inventory[items[t].key], 0);
-        section(ui, "bag:item:" + kind, (KIND_TITLE[kind] ?? kind) + " \xB7 " + total + " \u4E2A", function(body) {
-          var list = el("div", "dp-list");
-          for (var n = 0; n < items.length; n += 1) list.appendChild(itemRow(ui, items[n]));
-          body.appendChild(list);
-        });
-      })(kinds[s]);
-    }
-    if (owned.length === 0) ui.content.appendChild(el("div", "dp-empty", "\u80CC\u5305\u7A7A\u7A7A\u7684\u3002"));
     var wornCount = 0;
     for (var w = 0; w < ui.view.dress.length; w += 1) if (ui.view.dress[w].worn) wornCount += 1;
-    var ownedDress = ui.view.dress.filter(function(item) {
-      return item.owned;
-    });
-    if (ui.view.dress.length > 0) {
-      section(ui, "bag:dress", "\u{1F455} \u5BB6\u5F53 " + wornCount + "/" + ui.view.dress.length + " \u7A7F\u7740\u4E2D", function(body) {
-        if (ownedDress.length === 0) {
-          body.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u88C5\u626E\u3002"));
-          return;
-        }
-        var list = el("div", "dp-list");
-        for (var n = 0; n < ownedDress.length; n += 1) {
-          (function(item) {
-            var row = el("div", "dp-item");
-            row.appendChild(el("span", null, item.emoji));
-            var grow = el("div", "dp-grow");
-            grow.appendChild(el("div", null, item.label + (item.worn ? " \xB7 \u7A7F\u7740" : "")));
-            grow.appendChild(el("div", "dp-dim", (item.slotLabel === "" ? "" : item.slotLabel + " \xB7 ") + (item.blurb === "" ? "Lv." + item.level + " \u89E3\u9501" : item.blurb)));
-            row.appendChild(grow);
-            var toggle = button("dp-mini", { "data-wear": item.key }, function() {
-              ui.send("wear", { item: item.key, on: !item.worn });
-            });
-            toggle.textContent = item.worn ? "\u8131\u4E0B" : "\u7A7F\u4E0A";
-            row.appendChild(toggle);
-            list.appendChild(row);
-          })(ownedDress[n]);
-        }
-        body.appendChild(list);
-      });
-    }
     var diary = ui.view.diary;
-    if (diary.length > 0) {
-      section(ui, "bag:diary", "\u{1F4D4} \u65E5\u8BB0 " + diary.length + " \u7BC7", function(body) {
-        var list = el("div", "dp-list");
-        for (var d = 0; d < diary.length; d += 1) {
-          (function(entry) {
-            var row = el("div", "dp-item dp-diary");
-            row.setAttribute("data-diary", entry.day);
-            row.setAttribute("data-open", "false");
-            var grow = el("div", "dp-grow");
-            grow.appendChild(el("div", null, entry.day + "\u3000" + firstSentence(entry.text)));
-            var full = el("div", "dp-dim dp-diary-full", entry.text);
-            full.hidden = true;
-            grow.appendChild(full);
-            row.appendChild(grow);
-            row.addEventListener("click", function(event) {
-              if (event && typeof event.stopPropagation === "function") event.stopPropagation();
-              full.hidden = !full.hidden;
-              row.setAttribute("data-open", full.hidden ? "false" : "true");
-            });
-            list.appendChild(row);
-          })(diary[d]);
-        }
-        body.appendChild(list);
-      });
-    }
     var souvenirs = ui.view.pig.souvenirs;
-    section(ui, "bag:souvenirs", "\u{1F381} \u7EAA\u5FF5\u54C1 " + souvenirs.length, function(body) {
-      body.appendChild(el("div", "dp-empty", souvenirs.length === 0 ? "\u6536\u85CF\u518C\u8FD8\u7A7A\u7740\u3002" : souvenirs.map((entry) => entry.emoji + entry.label).join(" \xB7 ")));
+    if (ui.bagEntry !== null) {
+      var entry = null;
+      for (var d = 0; d < diary.length; d += 1) if (diary[d].day === ui.bagEntry) entry = diary[d];
+      var keepsake = null;
+      for (var t = 0; t < souvenirs.length; t += 1) if (souvenirs[t].key === ui.bagEntry) keepsake = souvenirs[t];
+      if (entry !== null || keepsake !== null) {
+        ui.content.appendChild(backRow(entry !== null ? entry.day : keepsake.label, function() {
+          ui.bagEntry = null;
+          ui.renderContent();
+        }));
+        var card = el("div", "dp-pick");
+        if (entry !== null) {
+          card.appendChild(el("div", "dp-pick-head", "\u{1F4D4} " + entry.day));
+          card.appendChild(el("div", "dp-dim", entry.text));
+        } else {
+          card.appendChild(el("div", "dp-pick-head", keepsake.emoji + " " + keepsake.label));
+          card.appendChild(el("div", "dp-dim", (keepsake.rarityEmoji ?? "") + (keepsake.rarityLabel ?? "") + (keepsake.fromLabel === "" ? "" : " \xB7 \u6765\u81EA" + keepsake.fromLabel) + (typeof keepsake.price === "number" ? " \xB7 \u503C " + keepsake.price + " \u{1FA99}" : "")));
+          if (typeof keepsake.story === "string" && keepsake.story !== "") card.appendChild(el("div", "dp-dim", keepsake.story));
+        }
+        ui.content.appendChild(card);
+        return;
+      }
+      ui.bagEntry = null;
+    }
+    if (ui.bagSection === null) {
+      var grid = tileGrid();
+      for (var s = 0; s < kinds.length; s += 1) {
+        (function(kind2) {
+          var items2 = owned.filter(function(item) {
+            return item.kind === kind2;
+          });
+          var total = 0;
+          for (var n = 0; n < items2.length; n += 1) total += num(ui.view.inventory[items2[n].key], 0);
+          grid.appendChild(tile({
+            emoji: kindEmoji(kind2),
+            label: kindName(kind2),
+            badge: "\xD7" + total,
+            note: items2.length + " \u79CD",
+            data: { "data-bag-section": "item:" + kind2 },
+            onPick: function() {
+              ui.bagSection = "item:" + kind2;
+              ui.renderContent();
+            }
+          }));
+        })(kinds[s]);
+      }
+      if (owned.length === 0) ui.content.appendChild(el("div", "dp-empty", "\u80CC\u5305\u7A7A\u7A7A\u7684\u3002"));
+      if (ui.view.dress.length > 0) {
+        grid.appendChild(tile({
+          emoji: "\u{1F455}",
+          label: "\u5BB6\u5F53",
+          badge: wornCount + "/" + ui.view.dress.length,
+          note: "\u7A7F\u7740\u4E2D",
+          data: { "data-bag-section": "dress" },
+          onPick: function() {
+            ui.bagSection = "dress";
+            ui.renderContent();
+          }
+        }));
+      }
+      if (diary.length > 0) {
+        grid.appendChild(tile({
+          emoji: "\u{1F4D4}",
+          label: "\u65E5\u8BB0",
+          badge: String(diary.length),
+          note: diary[0].day.slice(5),
+          data: { "data-bag-section": "diary" },
+          onPick: function() {
+            ui.bagSection = "diary";
+            ui.renderContent();
+          }
+        }));
+      }
+      grid.appendChild(tile({
+        emoji: "\u{1F381}",
+        label: "\u7EAA\u5FF5\u54C1",
+        badge: String(souvenirs.length),
+        note: "\u6536\u85CF",
+        data: { "data-bag-section": "souvenirs" },
+        onPick: function() {
+          ui.bagSection = "souvenirs";
+          ui.renderContent();
+        }
+      }));
+      ui.content.appendChild(grid);
+      return;
+    }
+    var section = ui.bagSection;
+    var title = section === "dress" ? "\u5BB6\u5F53" : section === "diary" ? "\u65E5\u8BB0" : section === "souvenirs" ? "\u7EAA\u5FF5\u54C1" : "\u9053\u5177";
+    ui.content.appendChild(backRow(title, function() {
+      ui.bagSection = null;
+      ui.renderContent();
+    }));
+    if (section === "diary") {
+      var days = tileGrid();
+      for (var dd = 0; dd < diary.length; dd += 1) {
+        (function(item) {
+          days.appendChild(tile({
+            emoji: "\u{1F4D4}",
+            label: item.day.slice(5),
+            note: firstSentence(item.text).slice(0, 9),
+            data: { "data-diary": item.day },
+            onPick: function() {
+              ui.bagEntry = item.day;
+              ui.renderContent();
+            }
+          }));
+        })(diary[dd]);
+      }
+      ui.content.appendChild(days);
+      return;
+    }
+    if (section === "souvenirs") {
+      if (souvenirs.length === 0) {
+        ui.content.appendChild(el("div", "dp-empty", "\u6536\u85CF\u518C\u8FD8\u7A7A\u7740\u3002"));
+        return;
+      }
+      var cabinet = tileGrid();
+      for (var ss = 0; ss < souvenirs.length; ss += 1) {
+        (function(item) {
+          cabinet.appendChild(tile({
+            emoji: item.emoji,
+            label: item.label,
+            badge: item.rarityEmoji ?? "",
+            note: item.rarityLabel ?? "",
+            data: { "data-keepsake": item.key },
+            onPick: function() {
+              ui.bagEntry = item.key;
+              ui.renderContent();
+            }
+          }));
+        })(souvenirs[ss]);
+      }
+      ui.content.appendChild(cabinet);
+      return;
+    }
+    if (section === "dress") {
+      var ownedDress = ui.view.dress.filter(function(item) {
+        return item.owned;
+      });
+      if (ownedDress.length === 0) {
+        ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u88C5\u626E\u3002"));
+        return;
+      }
+      var dress = tileGrid();
+      for (var dq = 0; dq < ownedDress.length; dq += 1) {
+        (function(item) {
+          dress.appendChild(tile({
+            emoji: item.emoji,
+            label: item.label,
+            badge: item.worn ? "\u7A7F" : "",
+            note: item.blurb === "" ? item.slotLabel ?? "" : item.blurb,
+            active: item.worn,
+            data: { "data-wear": item.key },
+            onPick: function() {
+              ui.send("wear", { item: item.key, on: !item.worn });
+            }
+          }));
+        })(ownedDress[dq]);
+      }
+      ui.content.appendChild(dress);
+      return;
+    }
+    var kind = section.slice("item:".length);
+    var items = owned.filter(function(item) {
+      return item.kind === kind;
     });
+    var list = tileGrid();
+    for (var n2 = 0; n2 < items.length; n2 += 1) {
+      (function(item) {
+        list.appendChild(tile({
+          emoji: item.emoji,
+          label: item.label,
+          badge: "\xD7" + num(ui.view.inventory[item.key], 0),
+          note: kindLabel(item),
+          data: { "data-use": item.key },
+          onPick: function() {
+            ui.send("use", { item: item.key });
+          }
+        }));
+      })(items[n2]);
+    }
+    ui.content.appendChild(list);
   }
 
   // src/client/tabs/dev.js
@@ -438,29 +556,34 @@
   }
 
   // src/client/tabs/shop.js
-  function shopCell(ui, item) {
-    var cell = button(
-      "dp-cell" + (item.needed ? " dp-wanted" : "") + (item.kind === "dress" ? " dp-cell-dress" : item.affordable ? "" : " dp-poor") + (item.owned ? " dp-owned" : ""),
-      { "data-buy": item.key },
-      function() {
+  function kindEmoji2(kind) {
+    var title = KIND_TITLE[kind] ?? kind;
+    var space = title.indexOf(" ");
+    return space < 0 ? "\u{1F4E6}" : title.slice(0, space);
+  }
+  function kindName2(kind) {
+    var title = KIND_TITLE[kind] ?? kind;
+    var space = title.indexOf(" ");
+    return space < 0 ? title : title.slice(space + 1);
+  }
+  function itemTile(ui, item) {
+    var owned = num(ui.view.inventory[item.key], 0);
+    var locked = item.kind === "dress" && item.unlocked === false;
+    return tile({
+      emoji: item.emoji,
+      label: item.label,
+      badge: item.owned || owned === 0 ? "" : "\xD7" + owned,
+      note: item.owned ? "\u5DF2\u62E5\u6709" : locked ? "\u{1F512} Lv." + item.level : item.price + " \u{1FA99}",
+      locked,
+      // Affordability is colour, not a lock: a tap still explains what is missing.
+      dim: item.owned || !item.affordable && item.kind !== "dress",
+      disabled: item.owned,
+      tag: (item.needed ? "\u9700\u8981" : "") + (item.owned && item.worn ? "\u7A7F\u7740" : ""),
+      data: { "data-buy": item.key },
+      onPick: function() {
         ui.send("buy", { item: item.key });
       }
-    );
-    cell.appendChild(el("span", "dp-cell-e", item.emoji));
-    cell.appendChild(el("span", "dp-cell-n", item.label));
-    if (item.owned) {
-      cell.appendChild(el("span", "dp-cell-p", "\u5DF2\u62E5\u6709"));
-      cell.disabled = true;
-    } else if (item.kind === "dress" && item.unlocked === false) {
-      cell.appendChild(el("span", "dp-cell-p", "\u{1F512} Lv." + item.level));
-    } else {
-      cell.appendChild(el("span", "dp-cell-p", item.price + " \u{1FA99}"));
-    }
-    var owned = num(ui.view.inventory[item.key], 0);
-    if (owned > 0) cell.appendChild(el("b", "dp-cell-c", "\xD7" + owned));
-    if (item.needed) cell.appendChild(el("b", "dp-cell-tag", "\u9700\u8981"));
-    if (item.owned && item.worn) cell.appendChild(el("b", "dp-cell-tag", "\u7A7F\u7740"));
-    return cell;
+    });
   }
   function renderShopTab(ui) {
     if (ui.view.shop.length === 0) {
@@ -476,20 +599,44 @@
     );
     var kinds = [];
     for (var k = 0; k < ordered.length; k += 1) if (kinds.indexOf(ordered[k].kind) < 0) kinds.push(ordered[k].kind);
-    for (var s = 0; s < kinds.length; s += 1) {
-      (function(kind) {
-        var items = ordered.filter(function(item) {
-          return item.kind === kind;
-        });
-        var ownedCount = 0;
-        for (var o = 0; o < items.length; o += 1) if (items[o].owned || num(ui.view.inventory[items[o].key], 0) > 0) ownedCount += 1;
-        section(ui, "shop:" + kind, (KIND_TITLE[kind] ?? kind) + " \xB7 " + items.length + (ownedCount > 0 ? "\uFF08\u6709 " + ownedCount + "\uFF09" : ""), function(body) {
-          var grid = el("div", "dp-shopgrid");
-          for (var i = 0; i < items.length; i += 1) grid.appendChild(shopCell(ui, items[i]));
-          body.appendChild(grid);
-        });
-      })(kinds[s]);
+    if (ui.shopKind === null) {
+      var shelves = tileGrid();
+      for (var s = 0; s < kinds.length; s += 1) {
+        (function(kind2) {
+          var items = ordered.filter(function(item) {
+            return item.kind === kind2;
+          });
+          var buyable = items.filter(function(item) {
+            if (item.owned) return false;
+            return item.kind === "dress" ? item.unlocked !== false : item.affordable;
+          }).length;
+          shelves.appendChild(tile({
+            emoji: kindEmoji2(kind2),
+            label: kindName2(kind2),
+            badge: String(items.length),
+            note: buyable > 0 ? buyable + " \u4EF6\u53EF\u4E70" : "\u6682\u65F6\u4E70\u4E0D\u4E86",
+            data: { "data-shelf": kind2 },
+            onPick: function() {
+              ui.shopKind = kind2;
+              ui.renderContent();
+            }
+          }));
+        })(kinds[s]);
+      }
+      ui.content.appendChild(shelves);
+      return;
     }
+    var kind = kinds.indexOf(ui.shopKind) >= 0 ? ui.shopKind : kinds[0];
+    ui.content.appendChild(backRow(kindName2(kind), function() {
+      ui.shopKind = null;
+      ui.renderContent();
+    }));
+    var grid = tileGrid();
+    var shelf = ordered.filter(function(item) {
+      return item.kind === kind;
+    });
+    for (var i = 0; i < shelf.length; i += 1) grid.appendChild(itemTile(ui, shelf[i]));
+    ui.content.appendChild(grid);
   }
 
   // src/client/tabs/status.js
@@ -620,97 +767,158 @@
     if (stage.upTo !== null && sub.lessons >= stage.upTo) return "done";
     return "ahead";
   }
+  function spanOf(stage) {
+    return stage.upTo === null ? String(stage.from + 1) + "+" : stage.from + 1 + "-" + stage.upTo;
+  }
   function renderStudyTab(ui) {
     if (ui.view.subjects.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8BFE\u7A0B\u8868\u3002"));
       return;
     }
-    var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES;
-    var seg = el("div", "dp-seg");
-    for (var s = 0; s < stageList.length; s += 1) {
-      (function(entry) {
-        var detail2 = null;
-        for (var k = 0; k < ui.view.stages.length; k += 1) if (ui.view.stages[k].key === entry.key) detail2 = ui.view.stages[k];
-        var locked = detail2 !== null && detail2.unlocked === false;
-        var btn = button(null, { "data-stage": entry.key }, function() {
-          ui.stage = entry.key;
-          ui.stagePicked = true;
-          ui.renderContent();
-        });
-        btn.textContent = entry.label;
-        btn.setAttribute("data-active", entry.key === ui.stage ? "true" : "false");
-        btn.setAttribute("data-locked", locked ? "true" : "false");
-        seg.appendChild(btn);
-      })(stageList[s]);
+    if (ui.studyCourse !== null) {
+      var course = null;
+      var interest = null;
+      for (var c = 0; c < ui.view.subjects.length; c += 1) if (ui.view.subjects[c].key === ui.studyCourse) course = ui.view.subjects[c];
+      for (var t = 0; t < ui.view.interests.length; t += 1) if (ui.view.interests[t].key === ui.studyCourse) interest = ui.view.interests[t];
+      if (course !== null || interest !== null) {
+        renderCourse(ui, course, interest);
+        return;
+      }
+      ui.studyCourse = null;
     }
-    if (ui.view.interests.length > 0) {
-      var interestBtn = button(null, { "data-stage": INTEREST_TAB }, function() {
-        ui.stage = INTEREST_TAB;
-        ui.stagePicked = true;
+    if (ui.stage === null) {
+      var grid = tileGrid();
+      var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES;
+      for (var s = 0; s < stageList.length; s += 1) {
+        (function(entry) {
+          var detail2 = null;
+          for (var k = 0; k < ui.view.stages.length; k += 1) if (ui.view.stages[k].key === entry.key) detail2 = ui.view.stages[k];
+          var locked = detail2 !== null && detail2.unlocked === false;
+          grid.appendChild(tile({
+            emoji: detail2 === null || detail2.emoji === void 0 ? "\u{1F4DA}" : detail2.emoji,
+            label: entry.label,
+            badge: detail2 === null ? "" : spanOf(detail2),
+            tag: locked ? "\u{1F512}" : "",
+            note: locked ? detail2.progress === null ? "\u8FD8\u6CA1\u5F00" : detail2.progress.done + "/" + detail2.progress.need : detail2.tuition + " \u{1FA99}",
+            locked,
+            data: { "data-stage": entry.key },
+            onPick: function() {
+              ui.stage = entry.key;
+              ui.studyCourse = null;
+              ui.renderContent();
+            }
+          }));
+        })(stageList[s]);
+      }
+      if (ui.view.interests.length > 0) {
+        grid.appendChild(tile({
+          emoji: "\u{1F3AF}",
+          label: "\u5174\u8DA3",
+          badge: String(ui.view.interests.length),
+          note: "\u968F\u65F6\u80FD\u5B66",
+          data: { "data-stage": INTEREST_TAB },
+          onPick: function() {
+            ui.stage = INTEREST_TAB;
+            ui.studyCourse = null;
+            ui.renderContent();
+          }
+        }));
+      }
+      ui.content.appendChild(grid);
+      return;
+    }
+    if (ui.stage === INTEREST_TAB) {
+      ui.content.appendChild(backRow("\u5174\u8DA3", function() {
+        ui.stage = null;
         ui.renderContent();
-      });
-      interestBtn.textContent = "\u{1F3AF} \u5174\u8DA3";
-      interestBtn.setAttribute("data-active", ui.stage === INTEREST_TAB ? "true" : "false");
-      interestBtn.setAttribute("data-locked", "false");
-      seg.appendChild(interestBtn);
-    }
-    ui.content.appendChild(seg);
-    if (ui.stage === INTEREST_TAB && ui.view.interests.length > 0) {
-      renderInterests(ui);
+      }));
+      var igrid = tileGrid();
+      for (var n = 0; n < ui.view.interests.length; n += 1) {
+        (function(entry) {
+          igrid.appendChild(tile({
+            emoji: entry.emoji,
+            label: entry.label,
+            badge: entry.certified ? "\u{1F4DC}" : entry.times > 0 ? String(entry.times) : "",
+            note: entry.traitEmoji + entry.traitLabel + " +" + entry.gain,
+            data: { "data-interest-open": entry.key },
+            onPick: function() {
+              ui.studyCourse = entry.key;
+              ui.renderContent();
+            }
+          }));
+        })(ui.view.interests[n]);
+      }
+      ui.content.appendChild(igrid);
       return;
     }
     var detail = null;
     for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === ui.stage) detail = ui.view.stages[d];
-    if (detail !== null && detail.unlocked === false && detail.progress !== null) {
-      ui.content.appendChild(el(
-        "div",
-        "dp-locked",
-        "\u{1F512} \u8981\u5148" + detail.progress.label + "\uFF08\u73B0\u5728\u6700\u591A " + detail.progress.done + " \u8282\uFF09"
-      ));
-    }
+    ui.content.appendChild(backRow(detail === null ? "\u5B66\u6BB5" : detail.label, function() {
+      ui.stage = null;
+      ui.renderContent();
+    }));
+    var subjects = tileGrid();
     for (var i = 0; i < ui.view.subjects.length; i += 1) {
       (function(sub) {
         var where = standing(sub, detail);
-        var state = where === "done" ? "\u2713 \u5DF2\u6BD5\u4E1A" : where === "ahead" ? "\u{1F512} \u8FD8\u5728" + (sub.stageLabel || "\u4E0B\u4E00\u6BB5") : sub.traitLabel + " \xB7 " + (detail !== null && detail.upTo !== null ? sub.lessons - detail.from + "/" + (detail.upTo - detail.from) + " \u8282" : "\u4E0A\u8FC7 " + sub.lessons + " \u8282");
-        section(ui, "study:" + sub.key, sub.emoji + " " + sub.label + "\u3000" + state, function(body) {
-          var facts = [];
-          if (detail !== null) {
-            var span = detail.upTo !== null ? "\u7B2C " + (detail.from + 1) + "\u2013" + detail.upTo + " \u8282" : "\u7B2C " + (detail.from + 1) + " \u8282\u8D77";
-            facts.push(span + " \xB7 " + detail.minutes + " \u5206\u949F \xB7 \u5B66\u8D39 " + detail.tuition + " \u{1FA99} \xB7 " + sub.traitLabel + " +" + detail.gain);
+        var done = detail !== null && detail.upTo !== null ? sub.lessons - detail.from : sub.lessons;
+        subjects.appendChild(tile({
+          emoji: sub.emoji,
+          label: sub.label,
+          badge: where === "done" ? "\u2713" : where === "ahead" ? "\u{1F512}" : String(done),
+          note: sub.traitLabel,
+          locked: where === "ahead",
+          dim: where === "done",
+          data: { "data-subject": sub.key },
+          onPick: function() {
+            ui.studyCourse = sub.key;
+            ui.renderContent();
           }
-          if (typeof sub.blurb === "string" && sub.blurb !== "") facts.push(sub.blurb);
-          for (var f = 0; f < facts.length; f += 1) body.appendChild(el("div", "dp-dim", facts[f]));
-          var go = button("dp-mini", { "data-subject": sub.key }, function() {
-            ui.send("study", { subject: sub.key });
-          });
-          go.textContent = "\u53BB\u4E0A\u8BFE";
-          go.disabled = where !== "current" || !ui.view.canGoOut || !sub.affordable;
-          body.appendChild(go);
-        });
+        }));
       })(ui.view.subjects[i]);
     }
+    ui.content.appendChild(subjects);
   }
-  function renderInterests(ui) {
-    var after = ui.view.interests[0].certificateAfter;
-    var note = el("div", "dp-empty", after > 0 ? "\u968F\u65F6\u80FD\u5B66 \xB7 \u540C\u4E00\u95E8\u4E0A\u6EE1 " + after + " \u6B21\u62FF\u8BC1" : "\u968F\u65F6\u80FD\u5B66");
-    note.style.marginBottom = "7px";
-    note.style.marginTop = "0";
-    ui.content.appendChild(note);
-    for (var n = 0; n < ui.view.interests.length; n += 1) {
-      (function(entry) {
-        var progress = entry.certificate === "" ? entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "" : entry.certified ? " \xB7 \u{1F4DC} \u6709\u8BC1" : " \xB7 \u{1F4DC} " + entry.times + "/" + entry.certificateAfter;
-        section(ui, "interest:" + entry.key, entry.emoji + " " + entry.label + "\u3000" + entry.traitEmoji + entry.traitLabel + progress, function(body) {
-          body.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitLabel + " +" + entry.gain));
-          if (typeof entry.blurb === "string" && entry.blurb !== "") body.appendChild(el("div", "dp-dim", entry.blurb));
-          var go = button("dp-mini", { "data-interest": entry.key }, function() {
-            ui.send("interest", { interest: entry.key });
-          });
-          go.textContent = entry.times > 0 ? "\u518D\u5B66" : "\u53BB\u5B66";
-          go.disabled = !ui.view.canGoOut || !entry.affordable;
-          body.appendChild(go);
-        });
-      })(ui.view.interests[n]);
+  function renderCourse(ui, course, interest) {
+    var entry = course !== null ? course : interest;
+    var isInterest = course === null;
+    ui.content.appendChild(backRow(entry.label, function() {
+      ui.studyCourse = null;
+      ui.renderContent();
+    }));
+    var card = el("div", "dp-pick");
+    card.appendChild(el("div", "dp-pick-head", entry.emoji + " " + entry.label));
+    if (isInterest) {
+      card.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain));
+      if (typeof entry.blurb === "string" && entry.blurb !== "") card.appendChild(el("div", "dp-dim", entry.blurb));
+      if (entry.times > 0) card.appendChild(el("div", "dp-dim", "\u5B66\u8FC7 " + entry.times + " \u6B21"));
+      var learn = button("dp-btn dp-btn-wide", { "data-interest": entry.key }, function() {
+        ui.send("interest", { interest: entry.key });
+      });
+      learn.textContent = entry.times > 0 ? "\u518D\u5B66\u4E00\u6B21" : "\u53BB\u5B66";
+      learn.disabled = !ui.view.canGoOut || !entry.affordable;
+      card.appendChild(learn);
+      ui.content.appendChild(card);
+      return;
     }
+    var detail = null;
+    for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === ui.stage) detail = ui.view.stages[d];
+    var where = standing(course, detail);
+    var done = detail !== null && detail.upTo !== null ? course.lessons - detail.from : course.lessons;
+    if (detail !== null) {
+      card.appendChild(el("div", "dp-dim", detail.minutes + " \u5206\u949F \xB7 \u5B66\u8D39 " + detail.tuition + " \u{1FA99} \xB7 " + course.traitLabel + " +" + detail.gain));
+    }
+    card.appendChild(el("div", "dp-dim", "\u8FD9\u4E00\u6BB5\u4E0A\u8FC7 " + done + " \u8282"));
+    if (typeof course.blurb === "string" && course.blurb !== "") card.appendChild(el("div", "dp-dim", course.blurb));
+    if (where === "done") card.appendChild(el("div", "dp-dim", "\u2713 \u8FD9\u4E00\u6BB5\u5DF2\u7ECF\u5FF5\u5B8C\u4E86"));
+    if (where === "ahead") card.appendChild(el("div", "dp-dim", "\u{1F512} \u8FD8\u5728" + (course.stageLabel || "\u4E0B\u4E00\u6BB5")));
+    var go = button("dp-btn dp-btn-wide", { "data-subject": course.key }, function() {
+      ui.send("study", { subject: course.key });
+    });
+    go.textContent = "\u53BB\u4E0A\u8BFE";
+    go.disabled = where !== "current" || !ui.view.canGoOut || !course.affordable;
+    card.appendChild(go);
+    ui.content.appendChild(card);
   }
 
   // src/client/css-base.js
@@ -903,37 +1111,11 @@
     "[data-dsh-pig][data-poke] .dp-pig{animation-name:dp-poke-shake}",
     '[data-dsh-pig][data-poke="2"] .dp-pig{animation-duration:.28s}',
     "@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}",
-    "50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}",
-    /* ---------- shop: a grid of tiles, three to a row ---------- */
-    ".dp-shopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}",
-    // The shelf heading is a grid child too, so it has to span the whole row.
-    ".dp-shopgrid .dp-shelf{grid-column:1/-1;margin:5px 0 0}",
-    ".dp-shopgrid .dp-shelf:first-child{margin-top:0}",
-    ".dp-cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;",
-    "padding:7px 3px 6px;border:1.5px solid var(--ac-border-light);border-radius:12px;"
+    "50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}"
   ].join("");
 
   // src/client/css-tabs.js
   var CSS_TABS = [
-    "background:var(--ac-bg);cursor:pointer;font-family:inherit;text-align:center;",
-    "transition:transform .12s var(--ac-ease),box-shadow .12s var(--ac-ease)}",
-    ".dp-cell:hover{transform:translateY(-1px);box-shadow:0 3px 0 rgba(61,52,40,.14)}",
-    ".dp-cell:active{transform:translateY(1px)}",
-    ".dp-cell-e{font-size:22px;line-height:1.15}",
-    ".dp-cell-n{font-size:10px;font-weight:700;color:var(--ac-text);line-height:1.2;",
-    "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}",
-    ".dp-cell-p{font-size:9.5px;font-weight:600;color:var(--ac-text-2)}",
-    // Owned count and the "needed" flag are badges so they cost no extra row.
-    ".dp-cell-c{position:absolute;top:3px;right:4px;font-size:9px;font-weight:800;",
-    "color:#fff;background:var(--ac-primary);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}",
-    ".dp-cell-tag{position:absolute;top:3px;left:4px;font-size:8px;font-weight:800;",
-    "color:#7a5a12;background:var(--ac-warning);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}",
-    // Affordable is colour; unaffordable is faded but still clickable, so a
-    // tap can explain how much is missing instead of doing nothing.
-    ".dp-cell.dp-poor{opacity:.45}",
-    // 家当 already owned: not for sale, but not "unaffordable" either.
-    ".dp-cell.dp-owned{opacity:.6;border-style:dashed}",
-    ".dp-cell.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
     /* ---------- developer tab ---------- */
     ".dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}",
     ".dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}",
@@ -970,16 +1152,6 @@
     // Reply buttons under a line: small pills, the mint of the primary colour
     // without the 3D base, which the spec keeps for real primary buttons.
     ".dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
-    // 折叠分组：默认只看到这一行标题，点开才看里面的东西。
-    ".dp-section{display:flex;align-items:center;justify-content:space-between;width:100%;",
-    "font:inherit;font-size:11px;font-weight:700;padding:7px 9px;margin-top:7px;cursor:pointer;",
-    "color:var(--ac-text);background:var(--ac-bg-content);border:2px solid var(--ac-border-light);",
-    "border-radius:var(--ac-radius-sm);text-align:left}",
-    ".dp-section:hover{border-color:var(--ac-border-hover)}",
-    ".dp-section:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
-    ".dp-section-open{border-color:var(--ac-border);border-bottom-left-radius:0;border-bottom-right-radius:0}",
-    ".dp-section-c{font-size:9.5px;font-weight:700;color:var(--ac-text-2)}",
-    ".dp-section-body{padding:2px 0 4px}",
     // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
     // 挂在场景**上方**（不是 top 边缘）：折叠时场景就是猪本身，用 top:-6px
     // 会让气泡叠在猪头上（用户反馈 #6）。
@@ -2025,14 +2197,6 @@
     }
     function render(next) {
       ctx.view = normalize(next);
-      var stageEntry = null;
-      var firstOpen = null;
-      for (var s = 0; s < ctx.view.stages.length; s += 1) {
-        var entry = ctx.view.stages[s];
-        if (entry.unlocked !== false && firstOpen === null) firstOpen = entry.key;
-        if (entry.key === ctx.stage) stageEntry = entry;
-      }
-      if (!ctx.stagePicked && firstOpen !== null && (stageEntry === null || stageEntry.unlocked === false)) ctx.stage = firstOpen;
       ctx.host.setAttribute("data-dead", ctx.view.dead ? "true" : "false");
       ctx.host.setAttribute("data-open", ctx.isOpen ? "true" : "false");
       ctx.host.setAttribute("data-dev", ctx.devMode ? "true" : "false");
@@ -2303,15 +2467,17 @@
         var icons = {};
         var view = normalize(null);
         var tab = "status";
-        var stage = "primary";
-        var stagePicked = false;
+        var stage = null;
+        var studyCourse = null;
         var souvenirPick = null;
         var picker = null;
         var ownerEdit = null;
         var pigNameEdit = null;
         var workTrait = "strong";
         var jobDetail = null;
-        var openSection = null;
+        var shopKind = null;
+        var bagSection = null;
+        var bagEntry = null;
         var isOpen = readStore(OPEN_KEY) === "true";
         var lastStage = null;
         var lastPendingAt = 0;
@@ -2377,11 +2543,11 @@
           set stage(next) {
             stage = next;
           },
-          get stagePicked() {
-            return stagePicked;
+          get studyCourse() {
+            return studyCourse;
           },
-          set stagePicked(next) {
-            stagePicked = next;
+          set studyCourse(next) {
+            studyCourse = next;
           },
           get picker() {
             return picker;
@@ -2419,11 +2585,23 @@
           set jobDetail(next) {
             jobDetail = next;
           },
-          get openSection() {
-            return openSection;
+          get shopKind() {
+            return shopKind;
           },
-          set openSection(next) {
-            openSection = next;
+          set shopKind(next) {
+            shopKind = next;
+          },
+          get bagSection() {
+            return bagSection;
+          },
+          set bagSection(next) {
+            bagSection = next;
+          },
+          get bagEntry() {
+            return bagEntry;
+          },
+          set bagEntry(next) {
+            bagEntry = next;
           },
           get isOpen() {
             return isOpen;

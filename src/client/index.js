@@ -100,22 +100,25 @@ import { arr, num, obj, str } from './values.js'
       // ---- state ----
       var view = normalize(null)
       var tab = 'status'
-      var stage = 'primary'
-      // 用户自己点过学段之后，轮询就不许再替他改（B1 的「默认学段」只在没选过时生效）。
-      var stagePicked = false
+      // 学习页：当前打开的学段（null = 第一层方块）与点开的那门课（第三层）。
+      var stage = null
+      var studyCourse = null
       // Which souvenir's story card is open in the travel tab, if any.
       var souvenirPick = null
       // Which care action's item picker is open, if any.
       var picker = null
       // The owner-name draft while it is being edited on the status tab (null = not editing).
       var ownerEdit = null
-      // 猪的名字草稿（同上：编辑期间轮询不许重绘，否则输入框会丢焦点）。
+      // 猪的名字草稿（同上：编辑期间不重绘，输入框才不会丢焦点）。
       var pigNameEdit = null
       // Work tab: which skill's jobs are shown, and whose 详情 is open.
       var workTrait = 'strong'
       var jobDetail = null
-      // 折叠列表里当前展开的那一段（学习/商店/背包共用，同时只开一个）。
-      var openSection = null
+      // 商店当前打开的货架（null = 第一层：货架方块）。
+      var shopKind = null
+      // 背包当前打开的大类（null = 第一层）与点开的那一篇/那件。
+      var bagSection = null
+      var bagEntry = null
 
       /** The tabs get an explicit context instead of closing over the shell locals. */
       var isOpen = readStore(OPEN_KEY) === 'true'
@@ -165,14 +168,16 @@ import { arr, num, obj, str } from './values.js'
         get view() { return view }, set view(next) { view = next },
         get tab() { return tab }, set tab(next) { tab = next },
         get stage() { return stage }, set stage(next) { stage = next },
-        get stagePicked() { return stagePicked }, set stagePicked(next) { stagePicked = next },
+        get studyCourse() { return studyCourse }, set studyCourse(next) { studyCourse = next },
         get picker() { return picker }, set picker(next) { picker = next },
         get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
         get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
         get pigNameEdit() { return pigNameEdit }, set pigNameEdit(next) { pigNameEdit = next },
         get workTrait() { return workTrait }, set workTrait(next) { workTrait = next },
         get jobDetail() { return jobDetail }, set jobDetail(next) { jobDetail = next },
-        get openSection() { return openSection }, set openSection(next) { openSection = next },
+        get shopKind() { return shopKind }, set shopKind(next) { shopKind = next },
+        get bagSection() { return bagSection }, set bagSection(next) { bagSection = next },
+        get bagEntry() { return bagEntry }, set bagEntry(next) { bagEntry = next },
         get isOpen() { return isOpen }, set isOpen(next) { isOpen = next },
         get lastStage() { return lastStage }, set lastStage(next) { lastStage = next },
         get lastPendingAt() { return lastPendingAt }, set lastPendingAt(next) { lastPendingAt = next },

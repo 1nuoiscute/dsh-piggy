@@ -9,25 +9,6 @@
 import { button, meter } from './dom.js'
 
 export const CSS_TABS = [
-  'background:var(--ac-bg);cursor:pointer;font-family:inherit;text-align:center;',
-  'transition:transform .12s var(--ac-ease),box-shadow .12s var(--ac-ease)}',
-  '.dp-cell:hover{transform:translateY(-1px);box-shadow:0 3px 0 rgba(61,52,40,.14)}',
-  '.dp-cell:active{transform:translateY(1px)}',
-  '.dp-cell-e{font-size:22px;line-height:1.15}',
-  '.dp-cell-n{font-size:10px;font-weight:700;color:var(--ac-text);line-height:1.2;',
-  'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}',
-  '.dp-cell-p{font-size:9.5px;font-weight:600;color:var(--ac-text-2)}',
-  // Owned count and the "needed" flag are badges so they cost no extra row.
-  '.dp-cell-c{position:absolute;top:3px;right:4px;font-size:9px;font-weight:800;',
-  'color:#fff;background:var(--ac-primary);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}',
-  '.dp-cell-tag{position:absolute;top:3px;left:4px;font-size:8px;font-weight:800;',
-  'color:#7a5a12;background:var(--ac-warning);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}',
-  // Affordable is colour; unaffordable is faded but still clickable, so a
-  // tap can explain how much is missing instead of doing nothing.
-  '.dp-cell.dp-poor{opacity:.45}',
-  // 家当 already owned: not for sale, but not "unaffordable" either.
-  '.dp-cell.dp-owned{opacity:.6;border-style:dashed}',
-  '.dp-cell.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}',
 
   /* ---------- developer tab ---------- */
   '.dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}',
@@ -68,17 +49,6 @@ export const CSS_TABS = [
   // Reply buttons under a line: small pills, the mint of the primary colour
   // without the 3D base, which the spec keeps for real primary buttons.
   '.dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}',
-  // 折叠分组：默认只看到这一行标题，点开才看里面的东西。
-  '.dp-section{display:flex;align-items:center;justify-content:space-between;width:100%;',
-  'font:inherit;font-size:11px;font-weight:700;padding:7px 9px;margin-top:7px;cursor:pointer;',
-  'color:var(--ac-text);background:var(--ac-bg-content);border:2px solid var(--ac-border-light);',
-  'border-radius:var(--ac-radius-sm);text-align:left}',
-  '.dp-section:hover{border-color:var(--ac-border-hover)}',
-  '.dp-section:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',
-  '.dp-section-open{border-color:var(--ac-border);border-bottom-left-radius:0;border-bottom-right-radius:0}',
-  '.dp-section-c{font-size:9.5px;font-weight:700;color:var(--ac-text-2)}',
-  '.dp-section-body{padding:2px 0 4px}',
-
   // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
   // 挂在场景**上方**（不是 top 边缘）：折叠时场景就是猪本身，用 top:-6px
   // 会让气泡叠在猪头上（用户反馈 #6）。

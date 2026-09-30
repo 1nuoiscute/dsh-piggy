@@ -2,38 +2,47 @@
 /**
  * 商店页签。
  *
- * 按类别分组的货架。
+ * 两层小方块：先是几个货架方块（食物 / 洗浴 / 玩具 / 装扮 / 药品 / 复活），
+ * 点一个整屏换成那一架的货物方块，左上角「← 返回」。点货物方块就是买。
  * @module dsh-pig/client/tabs/shop
  */
 
 import { KIND_ORDER, KIND_TITLE } from '../constants.js'
-import { button, el } from '../dom.js'
+import { el } from '../dom.js'
 import { num } from '../values.js'
-import { section } from '../widgets.js'
+import { backRow, tile, tileGrid } from '../widgets.js'
 
+/** The emoji alone: KIND_TITLE carries the emoji as a prefix. */
+function kindEmoji(kind) {
+  var title = KIND_TITLE[kind] ?? kind
+  var space = title.indexOf(' ')
+  return space < 0 ? '📦' : title.slice(0, space)
+}
 
-/** One shelf cell: emoji, name, price/已拥有, and a count when the pig has some. */
-function shopCell(ui, item) {
-  var cell = button('dp-cell'
-    + (item.needed ? ' dp-wanted' : '')
-    + (item.kind === 'dress' ? ' dp-cell-dress' : (item.affordable ? '' : ' dp-poor'))
-    + (item.owned ? ' dp-owned' : ''),
-    { 'data-buy': item.key }, function () { ui.send('buy', { item: item.key }) })
-  cell.appendChild(el('span', 'dp-cell-e', item.emoji))
-  cell.appendChild(el('span', 'dp-cell-n', item.label))
-  if (item.owned) {
-    cell.appendChild(el('span', 'dp-cell-p', '已拥有'))
-    cell.disabled = true
-  } else if (item.kind === 'dress' && item.unlocked === false) {
-    cell.appendChild(el('span', 'dp-cell-p', '🔒 Lv.' + item.level))
-  } else {
-    cell.appendChild(el('span', 'dp-cell-p', item.price + ' 🪙'))
-  }
+/** The name alone, without the emoji prefix. */
+function kindName(kind) {
+  var title = KIND_TITLE[kind] ?? kind
+  var space = title.indexOf(' ')
+  return space < 0 ? title : title.slice(space + 1)
+}
+
+/** One item tile: emoji, name, price / 已拥有, and a count badge. */
+function itemTile(ui, item) {
   var owned = num(ui.view.inventory[item.key], 0)
-  if (owned > 0) cell.appendChild(el('b', 'dp-cell-c', '×' + owned))
-  if (item.needed) cell.appendChild(el('b', 'dp-cell-tag', '需要'))
-  if (item.owned && item.worn) cell.appendChild(el('b', 'dp-cell-tag', '穿着'))
-  return cell
+  var locked = item.kind === 'dress' && item.unlocked === false
+  return tile({
+    emoji: item.emoji,
+    label: item.label,
+    badge: item.owned || owned === 0 ? '' : '×' + owned,
+    note: item.owned ? '已拥有' : (locked ? '🔒 Lv.' + item.level : item.price + ' 🪙'),
+    locked,
+    // Affordability is colour, not a lock: a tap still explains what is missing.
+    dim: item.owned || (!item.affordable && item.kind !== 'dress'),
+    disabled: item.owned,
+    tag: (item.needed ? '需要' : '') + (item.owned && item.worn ? '穿着' : ''),
+    data: { 'data-buy': item.key },
+    onPick: function () { ui.send('buy', { item: item.key }) },
+  })
 }
 
 export function renderShopTab(ui) {
@@ -45,23 +54,50 @@ export function renderShopTab(ui) {
   head.appendChild(el('b', null, '🛒 商店'))
   head.appendChild(el('span', null, '🪙 ' + ui.view.pig.coins))
   ui.content.appendChild(head)
-  // 默认只列几个大类，点开才看到货（用户反馈 #3）。
+
+  // The host sends the shop in shelf order, but sort defensively so a
+  // reordered table cannot produce duplicate shelves.
   var ordered = ui.view.shop.slice().sort(
     (a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind),
   )
   var kinds = []
   for (var k = 0; k < ordered.length; k += 1) if (kinds.indexOf(ordered[k].kind) < 0) kinds.push(ordered[k].kind)
-  for (var s = 0; s < kinds.length; s += 1) {
-    (function (kind) {
-      var items = ordered.filter(function (item) { return item.kind === kind })
-      var ownedCount = 0
-      for (var o = 0; o < items.length; o += 1) if (items[o].owned || num(ui.view.inventory[items[o].key], 0) > 0) ownedCount += 1
-      section(ui, 'shop:' + kind, (KIND_TITLE[kind] ?? kind) + ' · ' + items.length
-        + (ownedCount > 0 ? '（有 ' + ownedCount + '）' : ''), function (body) {
-        var grid = el('div', 'dp-shopgrid')
-        for (var i = 0; i < items.length; i += 1) grid.appendChild(shopCell(ui, items[i]))
-        body.appendChild(grid)
-      })
-    })(kinds[s])
+
+  // ---- 第一层：货架方块 ----
+  if (ui.shopKind === null) {
+    var shelves = tileGrid()
+    for (var s = 0; s < kinds.length; s += 1) {
+      (function (kind) {
+        var items = ordered.filter(function (item) { return item.kind === kind })
+        var buyable = items.filter(function (item) {
+          if (item.owned) return false
+          return item.kind === 'dress' ? item.unlocked !== false : item.affordable
+        }).length
+        shelves.appendChild(tile({
+          emoji: kindEmoji(kind),
+          label: kindName(kind),
+          badge: String(items.length),
+          note: buyable > 0 ? buyable + ' 件可买' : '暂时买不了',
+          data: { 'data-shelf': kind },
+          onPick: function () {
+            ui.shopKind = kind
+            ui.renderContent()
+          },
+        }))
+      })(kinds[s])
+    }
+    ui.content.appendChild(shelves)
+    return
   }
+
+  // ---- 第二层：这一架的货物方块 ----
+  var kind = kinds.indexOf(ui.shopKind) >= 0 ? ui.shopKind : kinds[0]
+  ui.content.appendChild(backRow(kindName(kind), function () {
+    ui.shopKind = null
+    ui.renderContent()
+  }))
+  var grid = tileGrid()
+  var shelf = ordered.filter(function (item) { return item.kind === kind })
+  for (var i = 0; i < shelf.length; i += 1) grid.appendChild(itemTile(ui, shelf[i]))
+  ui.content.appendChild(grid)
 }
