@@ -613,6 +613,50 @@ test('the work tab lists jobs and sending the pig out POSTs the job', async () =
   assert.deepEqual(JSON.parse(post.body), { action: 'work', job: 'odd' })
 })
 
+test('a job behind a trait gate says what it needs instead of just greying out', async () => {
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      jobs: [
+        { key: 'odd', label: '打零工', emoji: '🧹', minutes: 15, coins: 30, available: true, qualified: true, lockText: '', traitLabel: '魅力', traitEmoji: '✨', traitPoints: 0, baseMinutes: 15, baseCoins: 30, payPercent: 0, speedPercent: 0 },
+        { key: 'tutor', label: '家教', emoji: '📚', minutes: 120, coins: 480, available: true, qualified: false, lockText: '🧠 智力 10（你现在 0）', traitLabel: '智力', traitEmoji: '🧠', traitPoints: 0, baseMinutes: 120, baseCoins: 480, payPercent: 0, speedPercent: 0 },
+      ],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'work')
+
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('🔒 需要 🧠 智力 10（你现在 0）'), text)
+  assert.ok(text.includes('去「学习」上课就能涨这些属性'), text)
+  assert.equal(findByAttr(contentOf(dom), 'data-job', 'tutor').disabled, true)
+  assert.ok(findByAttr(contentOf(dom), 'data-job', 'tutor').allText().includes('没资格'))
+  assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
+})
+
+test('an older host with no job gates does not lock the whole board', async () => {
+  // Same family as the `undefined` bug: an absent field must default to
+  // "allowed". Defaulting the other way would brick every job the moment the
+  // host and the client bundle drift apart.
+  const { registration, dom } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      jobs: [{ key: 'odd', label: '打零工', emoji: '🧹', minutes: 15, coins: 30, available: true }],
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'work')
+
+  const text = contentOf(dom).allText()
+  assert.ok(!text.includes('🔒'), text)
+  assert.ok(!text.includes('undefined'), text)
+  assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
+})
+
 test('the shop tab is a grid that fades what the pig cannot afford and flags the needed medicine', async () => {
   const { registration, dom, net } = await loadClient({
     status: {

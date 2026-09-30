@@ -477,13 +477,56 @@ test('mood: dead beats sick beats working beats everything else', () => {
 // ===========================================================================
 
 test('the job board is well formed', () => {
-  assert.ok(JOBS.length >= 3)
+  assert.equal(JOBS.length, 10, 'ten jobs now, not three')
   for (const job of JOBS) {
     assert.equal(typeof job.key, 'string')
     assert.ok(job.minutes > 0)
     assert.ok(job.coins > 0)
     assert.ok(job.satiety < 0, 'work costs satiety')
+    assert.deepEqual(Object.keys(job.requires).sort(), ['charm', 'intel', 'strong'], 'every job carries all three axes')
+    assert.ok(['intel', 'charm', 'strong'].includes(job.trait), 'the primary trait must exist')
   }
+  assert.ok(JOBS.some(job => Object.values(job.requires).every(v => v === 0)), 'one job stays open to everybody')
+})
+
+test('a job the pig is not qualified for is refused, with the exact axes it lacks', () => {
+  const fresh = hatchEgg(T0)
+  assert.equal(startWork(fresh, 'odd', T0).ok, true, '打零工 has no gate')
+
+  const refusal = startWork(hatchEgg(T0), 'tutor', T0)
+  assert.equal(refusal.ok, false)
+  assert.equal(refusal.reason, 'underqualified')
+  assert.deepEqual(refusal.missing.map(m => m.key), ['intel'])
+  assert.equal(refusal.missing[0].need, 10)
+  assert.equal(refusal.missing[0].have, 0)
+
+  // A two-axis job reports both axes, not just the first one it fails.
+  const dual = startWork(hatchEgg(T0), 'office', T0)
+  assert.deepEqual(dual.missing.map(m => m.key), ['intel', 'charm'])
+})
+
+test('schooling is what opens the gated jobs', () => {
+  const pig = hatchEgg(T0)
+  assert.equal(startWork(pig, 'tutor', T0).reason, 'underqualified')
+  // Every trait point beyond the gate also pays: this is the 学习 → 打工 link.
+  pig.traits = { intel: 10, charm: 0, strong: 0 }
+  const started = startWork(pig, 'tutor', T0)
+  assert.equal(started.ok, true)
+  assert.equal(pig.activity.key, 'tutor')
+
+  const before = pig.coins
+  advance(pig, JOBS.find(job => job.key === 'tutor').minutes + 1)
+  assert.ok(pig.coins > before, 'the shift pays')
+  assert.ok(pig.traits.intel >= 10, 'and the lessons are not spent by working')
+})
+
+test('the gate is checked before the pig walks out, so nothing is consumed', () => {
+  const pig = hatchEgg(T0)
+  pig.satiety = 90
+  const refusal = startWork(pig, 'researcher', T0)
+  assert.equal(refusal.reason, 'underqualified')
+  assert.equal(pig.activity, null, 'still at home')
+  assert.equal(pig.satiety, 90, 'no satiety spent on a job it never started')
 })
 
 test('a shift pays out when the clock passes its end', () => {
@@ -507,7 +550,10 @@ test('a shift pays out when the clock passes its end', () => {
 test('a shift drains satiety and cleanliness faster than idling', () => {
   const working = hatchEgg(T0)
   const idle = hatchEgg(T0)
-  startWork(working, 'office', T0)
+  // 上班 sits behind a gate now, so the pig has to have the schooling first.
+  working.traits = { intel: 14, charm: 6, strong: 0 }
+  idle.traits = { intel: 14, charm: 6, strong: 0 }
+  assert.equal(startWork(working, 'office', T0).ok, true)
   advance(working, 5)
   advance(idle, 5)
   assert.ok(working.satiety < idle.satiety, 'working pig gets hungrier')
@@ -552,7 +598,8 @@ test('care actions are blocked while the pig is away (except petting)', () => {
 test('calling the pig home early forfeits the pay', () => {
   const pig = hatchEgg(T0)
   const before = pig.coins
-  startWork(pig, 'office', T0)
+  // 打零工 is the ungated job, so this test stays about the recall, not the gate.
+  startWork(pig, 'odd', T0)
   assert.equal(callOffWork(pig, T0).ok, true)
   assert.equal(pig.activity, null)
   assert.equal(pig.coins, before, 'no pay for an unfinished shift')
@@ -598,6 +645,7 @@ test('being well cared for keeps the pig healthy', () => {
 })
 
 test('a sick pig earns half, but still earns', () => {
+  const ODD = JOBS.find(job => job.key === 'odd')
   const run = (sick) => {
     const pig = hatchEgg(T0)
     pig.coins = 0
@@ -605,14 +653,14 @@ test('a sick pig earns half, but still earns', () => {
       pig.illness = { chain: 0, stage: 1, since: T0, progressMs: 0 }
       pig.health = 4
     }
-    startWork(pig, 'site', T0)
+    startWork(pig, ODD.key, T0)
     decay(pig, pig.activity.endsAt)
     return pig.coins
   }
   const healthy = run(false)
   const ill = run(true)
-  assert.equal(healthy, JOBS[1].coins)
-  assert.equal(ill, Math.round(JOBS[1].coins / 2), 'half pay')
+  assert.equal(healthy, ODD.coins)
+  assert.equal(ill, Math.round(ODD.coins / 2), 'half pay')
   assert.ok(ill > 0, 'but never nothing — working while ill is the way out of being broke')
 })
 
@@ -947,7 +995,7 @@ test('recalling a study session refunds the tuition; recalling work does not pay
 
   const worker = hatchEgg(T0)
   const before = worker.coins
-  startWork(worker, 'office', T0)
+  startWork(worker, 'odd', T0)
   const forfeit = callOffActivity(worker, T0)
   assert.equal(forfeit.refunded, 0)
   assert.equal(worker.coins, before)
@@ -974,7 +1022,7 @@ test('anything away from home drains the pig faster', () => {
     away.satiety = 100
     idle.satiety = 100
     away.coins = 5000
-    if (kind === 'work') startWork(away, 'office', T0)
+    if (kind === 'work') startWork(away, 'odd', T0)
     else if (kind === 'study') {
       away.coins = 5000
       away.lessonsByStage = { primary: 9, college: 9, graduate: 0 }

@@ -282,6 +282,8 @@ test('care is refused while working, and the refusal is honest', async () => {
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs)
     pig.satiety = 80
+    // 上班 needs 智力 14 + 魅力 6 since 0.17.0; the pig earns those by studying.
+    pig.traits = { intel: 14, charm: 6, strong: 0 }
     return pig
   })
   try {
@@ -305,6 +307,26 @@ test('care is refused while working, and the refusal is honest', async () => {
 
     assert.equal((await app.post({ action: 'calloff' })).ok, true)
     assert.equal((await app.get()).activity, null)
+  } finally {
+    app.cleanup()
+  }
+})
+
+test('the route refuses an unqualified job and hands back the missing axes', async () => {
+  const app = boot(nowMs => hatchEgg(nowMs))
+  try {
+    const refused = await app.post({ action: 'work', job: 'tutor' })
+    assert.equal(refused.ok, false)
+    assert.equal(refused.reason, 'underqualified')
+    assert.deepEqual(refused.missing.map(m => m.key), ['intel'])
+    assert.equal(refused.missing[0].need, 10)
+    // The refusal must not leave the pig mid-shift, and the panel needs the
+    // gate on the board itself, not only in the POST result.
+    assert.equal(refused.activity, null)
+    const board = refused.jobs.find(job => job.key === 'tutor')
+    assert.equal(board.qualified, false)
+    assert.match(board.lockText, /智力 10/)
+    assert.equal(refused.jobs.find(job => job.key === 'odd').qualified, true)
   } finally {
     app.cleanup()
   }
@@ -337,7 +359,9 @@ test('a finished shift pays out on the next read and is announced once', async (
   })
   try {
     const first = await app.get()
-    assert.equal(first.pig.coins, JOBS[1].coins)
+    // The seeded shift is 搬砖; look its pay up by key — the board's order is
+    // content, not API.
+    assert.equal(first.pig.coins, JOBS.find(job => job.key === 'site').coins)
     assert.equal(first.activity, null)
     // A shift is worth enough XP to cross a level too, so there may be more
     // than one announcement — the payday is the one that must be there.

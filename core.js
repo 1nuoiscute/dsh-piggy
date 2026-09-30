@@ -55,6 +55,7 @@ import {
   illnessAt,
   itemByKey,
   jobByKey,
+  jobRequirement,
   careItems,
   medicineForStage,
   nextIllness,
@@ -1113,6 +1114,12 @@ export function startWork(state, jobKey, nowMs) {
   if (state.dead) return { ok: false, reason: 'dead' }
   if (state.activity !== null) return { ok: false, reason: 'away' }
   if (state.health <= TOO_WEAK_HEALTH) return { ok: false, reason: 'weak' }
+  // The gate is checked before the pig walks out: an unqualified job is refused
+  // with the exact axes it is short on, so the panel can point at 学习.
+  const gate = jobRequirement(job, state.traits)
+  if (gate !== null && !gate.ok) {
+    return { ok: false, reason: 'underqualified', missing: gate.missing, job: job.key }
+  }
   if (state.satiety < 15) return { ok: false, reason: 'hungry' }
   // The pig's trait shortens the shift; the pay bonus is applied on the way out.
   const points = state.traits?.[job.trait] ?? 0

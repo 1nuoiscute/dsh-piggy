@@ -182,6 +182,10 @@ window.__ModuleLoader__.load({
           baseCoins: num(obj(job).baseCoins, 0),
           payPercent: num(obj(job).payPercent, 0),
           speedPercent: num(obj(job).speedPercent, 0),
+          // An old host has no gate at all, so a missing flag must read as
+          // "qualified" — the opposite default would lock every job on upgrade.
+          qualified: obj(job).qualified !== false,
+          lockText: str(obj(job).lockText, ''),
         })).filter(job => job.key !== ''),
         subjects: arr(d.subjects).map(sub => ({
           key: str(obj(sub).key, ''),
@@ -669,6 +673,9 @@ window.__ModuleLoader__.load({
       '.dp-locked{margin:0 0 8px;font-size:10.5px;font-weight:600;line-height:1.5;',
       'color:var(--ac-text-body);background:#fdf7e2;border:2px solid #f0dfa8;',
       'border-radius:var(--ac-radius-sm);padding:6px 9px}',
+      // The per-job gate reads as a lock, not as another grey stat line: a
+      // threshold the pig cannot see is indistinguishable from a broken button.
+      '.dp-lock{font-size:10px;font-weight:700;line-height:1.5;color:#9a6b1f}',
 
       '.dp-empty{color:var(--ac-text-2);font-size:10.5px;font-weight:500;line-height:1.65;',
       'margin-top:4px}',
@@ -1408,10 +1415,16 @@ window.__ModuleLoader__.load({
             var byTrait = job.traitEmoji + job.traitLabel + ' ' + job.traitPoints
               + (job.payPercent > 0 ? ' · 报酬 +' + job.payPercent + '%' : ' · 去上课就能涨')
             grow.appendChild(el('div', 'dp-dim', byTrait))
+            // A gate with no reason on screen is a bug report waiting to happen.
+            var locked = job.qualified === false
+            if (locked) {
+              grow.appendChild(el('div', 'dp-lock', '🔒 需要 ' + job.lockText))
+              grow.appendChild(el('div', 'dp-dim', '去「学习」上课就能涨这些属性'))
+            }
             row.appendChild(grow)
             var go = button('dp-mini', { 'data-job': job.key }, function () { send('work', { job: job.key }) })
-            go.textContent = '出发'
-            go.disabled = !view.canGoOut
+            go.textContent = locked ? '没资格' : '出发'
+            go.disabled = !view.canGoOut || locked
             row.appendChild(go)
             list.appendChild(row)
           })(view.jobs[i])

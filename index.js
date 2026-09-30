@@ -46,7 +46,7 @@ import {
   studyView,
   traitView,
 } from './core.js'
-import { jobByKey, traitBonus } from './data.js'
+import { jobByKey, jobRequirement, traitBonus } from './data.js'
 import {
   renderAbout,
   renderAction,
@@ -215,6 +215,7 @@ export function apply(ctx, config = {}) {
             reason: result.reason,
             wait: result.wait,
             price: result.price,
+            missing: result.missing,
           }, { 'cache-control': 'no-store' })
         },
       }))
@@ -394,11 +395,15 @@ function actionsFor(state, nowMs) {
 
 function jobsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
+  const traits = state?.traits ?? {}
   return JOBS.map(job => {
     // Jobs lean on a trait and lessons raise it, so the panel has to show what
     // the pig's schooling is actually buying it.
-    const points = state === null ? 0 : (state.traits?.[job.trait] ?? 0)
+    const points = state === null ? 0 : (traits[job.trait] ?? 0)
     const bonus = traitBonus(job.trait, points)
+    // A locked job must say exactly what it wants, or the gate reads as a bug.
+    const gate = jobRequirement(job, traits)
+    const missing = gate === null ? [] : gate.missing.slice()
     return {
       key: job.key, label: job.label, emoji: job.emoji,
       trait: job.trait,
@@ -413,6 +418,10 @@ function jobsFor(state) {
       speedPercent: Math.round((1 - bonus.minutes) * 100),
       satiety: job.satiety,
       available: open,
+      // `available` is "the pig is home"; `qualified` is "the pig has the traits".
+      qualified: gate === null ? true : gate.ok,
+      missing,
+      lockText: missing.map(entry => `${entry.emoji} ${entry.label} ${entry.need}（你现在 ${entry.have}）`).join('、'),
     }
   })
 }
@@ -580,6 +589,10 @@ function refusalText(result, state) {
     case 'sick': return `${state.name} 病着，不能出门 —— 先治好它。`
     case 'hungry': return `${state.name} 太饿了，先喂点东西。`
     case 'poor': return `钱不够，需要 ${result.price} 金币，你只有 ${state.coins}。`
+    case 'underqualified': {
+      const want = (result.missing ?? []).map(entry => `${entry.emoji} ${entry.label} ${entry.need}（现在 ${entry.have}）`).join('、')
+      return `这份工作还轮不到它 —— 需要 ${want}。去「学习」上课就能涨。`
+    }
     case 'unknown': return '没有这个选项。'
     default: return '现在没法出门。'
   }
