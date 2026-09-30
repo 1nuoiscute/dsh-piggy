@@ -83,3 +83,19 @@ test('source files stay under the 400-line ceiling', () => {
   const offenders = files.filter(url => lineCount(url) > 400).map(url => `${shortName(url)}:${lineCount(url)}`)
   assert.deepEqual(offenders, [], 'split the file instead of growing past 400 lines (CONVENTIONS §分层)')
 })
+
+test('package.json ships every module the runtime imports', () => {
+  // Splitting files is only safe if the published tarball carries them: the
+  // `files` allow-list decides that, and a missing directory breaks the plugin
+  // for anyone who installs it from npm (the local link hides the mistake).
+  const manifest = JSON.parse(read(new URL('package.json', packageRoot)))
+  const listed = new Set(manifest.files)
+  const required = [
+    'index.js', 'snapshot.js', 'commands.js', 'routes.js', 'core.js', 'data.js',
+    'store.js', 'render.js', 'client.js', 'core', 'data', 'store', 'src', 'scripts',
+  ]
+  const missing = required.filter(entry => !listed.has(entry))
+  assert.deepEqual(missing, [], 'add these to package.json files:')
+  const absent = [...listed].filter(entry => !existsSync(new URL(entry, packageRoot)))
+  assert.deepEqual(absent, [], 'files lists something that is not in the package:')
+})
