@@ -15,6 +15,7 @@ import { hatchEgg, layEgg } from '../core.js'
 import { GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS } from '../data.js'
 import { canSignIn, dayKeyFor, ensureDaily, giftBucketIndex, openGift, recordOnline, signIn } from '../packages/pet-core/src/core/daily.js'
 import { rollerFor } from '../packages/pet-core/src/core/random.js'
+import { composeDiary, diaryView, ensureDiary, noteToday, writeDiaryIfNewDay } from '../packages/pet-core/src/core/diary.js'
 import { migrate } from '../packages/pet-core/src/core/migrate.js'
 
 const MIN = 60_000
@@ -254,4 +255,86 @@ test('the gift table draws close to the confirmed probabilities', () => {
       `bucket ${index} (${bucket.chance}) came out at ${share.toFixed(4)}`,
     )
   })
+})
+
+// ===========================================================================
+// 宠物日记
+// ===========================================================================
+
+test('the first read after 06:00 writes yesterday into a diary entry', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  writeDiaryIfNewDay(pig, at(2026, 10, 1, 9))     // 第一次读：给今天归位
+  noteToday(pig, 'feed')
+  noteToday(pig, 'feed')
+  noteToday(pig, 'turn', 43)
+
+  assert.equal(writeDiaryIfNewDay(pig, at(2026, 10, 1, 23, 0)), false, '同一天不落笔')
+  assert.equal(pig.diary.entries.length, 0)
+
+  assert.equal(writeDiaryIfNewDay(pig, at(2026, 10, 2, 6, 30)), true, '换天落笔')
+  assert.equal(pig.diary.entries.length, 1)
+  const entry = pig.diary.entries[0]
+  assert.equal(entry.day, '2026-10-01')
+  assert.ok(entry.text.includes('2 顿'), entry.text)
+  assert.ok(entry.text.includes('43 轮'), entry.text)
+  assert.equal(pig.diary.today.counts.feed, undefined, '今天的计数清零了')
+  assert.equal(pig.diary.today.day, '2026-10-02')
+})
+
+test('a day where nothing happened still gets a line', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  writeDiaryIfNewDay(pig, at(2026, 10, 1, 9))
+  writeDiaryIfNewDay(pig, at(2026, 10, 2, 7, 0))
+  assert.equal(pig.diary.entries.length, 1)
+  assert.ok(pig.diary.entries[0].text.includes('睡了一整天'), pig.diary.entries[0].text)
+})
+
+test('a diary entry is at most five sentences, whatever the day held', () => {
+  const counts = { feed: 1, bathe: 1, pet: 1, work: 1, study: 1, trip: 1, levelUp: 1, turn: 1 }
+  const text = composeDiary(counts, '主人')
+  assert.ok(text.length > 0)
+  // 每句以「。」结尾；模板都是单个句号收尾。
+  assert.ok(text.split('。').filter(part => part !== '').length <= 5, text)
+})
+
+test('the owner name replaces the placeholder in the diary', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  pig.dialogue = { ownerName: '老板' }
+  noteToday(pig, 'turn', 7)
+  writeDiaryIfNewDay(pig, at(2026, 10, 1, 9))
+  writeDiaryIfNewDay(pig, at(2026, 10, 2, 7, 0))
+  assert.ok(pig.diary.entries[0].text.includes('老板'), pig.diary.entries[0].text)
+  assert.ok(!pig.diary.entries[0].text.includes('[主人]'), '占位符必须换掉')
+})
+
+test('only the newest 60 entries are kept', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  writeDiaryIfNewDay(pig, at(2026, 10, 1, 9))
+  for (let day = 1; day <= 70; day += 1) {
+    writeDiaryIfNewDay(pig, at(2026, 10, 1 + day, 7, 0))
+  }
+  assert.equal(pig.diary.entries.length, 60, '71 days lived, 60 kept')
+  // 每次落笔写的是「前一天」，所以最后一次写的是 12-09 那篇。
+  assert.equal(pig.diary.entries[59].day, '2026-12-09', 'the newest one is last in the save')
+  assert.equal(pig.diary.entries[0].day, '2026-10-11', 'the oldest survivors start here')
+})
+
+test('the panel gets the diary newest-first, and old saves get an empty one', () => {
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  writeDiaryIfNewDay(pig, at(2026, 10, 1, 9))
+  writeDiaryIfNewDay(pig, at(2026, 10, 2, 7, 0))
+  writeDiaryIfNewDay(pig, at(2026, 10, 3, 7, 0))
+  const view = diaryView(pig)
+  assert.equal(view[0].day, '2026-10-02', 'newest first')
+
+  const old = hatchEgg(at(2026, 10, 1, 9))
+  delete old.diary
+  const upgraded = migrate(JSON.parse(JSON.stringify(old)), at(2026, 10, 1, 10))
+  assert.deepEqual(upgraded.diary, { entries: [], today: { day: null, counts: {} } })
+
+  const broken = hatchEgg(at(2026, 10, 1, 9))
+  broken.diary = { entries: [{ day: 1 }, 'nope', { day: '2026-10-01', text: '好' }], today: { counts: { feed: -2, turn: 3 } } }
+  const repaired = ensureDiary(broken)
+  assert.deepEqual(repaired.entries, [{ day: '2026-10-01', text: '好' }])
+  assert.deepEqual(repaired.today.counts, { turn: 3 })
 })

@@ -11,6 +11,7 @@ import { MEMORY_LIMIT, STATE_VERSION } from './constants.js'
 import { clamp, clamp100 } from './effects.js'
 import { layEgg, pickSex } from './egg.js'
 import { ensureDaily } from './daily.js'
+import { ensureDiary } from './diary.js'
 import { ensureDialogue } from './lines.js'
 import { isSeed, seedFor } from './random.js'
 import { applyUpgrades } from './upgrades.js'
@@ -70,6 +71,7 @@ export function migrate(input, nowMs) {
   if (!Number.isInteger(state.pendingSeq) || state.pendingSeq < 0) state.pendingSeq = 0
   ensureDialogue(state)
   ensureDaily(state)
+  ensureDiary(state)
   return state
 }
 

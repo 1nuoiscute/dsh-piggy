@@ -14,6 +14,7 @@ import { describeDrops, graduationDrops, studyDrops, workDrops } from './drops.j
 import { advanceIllness, noteOuting, restAtHome, rollForIllness } from './illness.js'
 import { say } from './lines.js'
 import { rollerFor } from './random.js'
+import { noteToday } from './diary.js'
 
 export { currentIllness, die } from './illness.js'
 
@@ -190,6 +191,7 @@ export function finishInterest(state, activity, nowMs) {
   grow(state, STUDY_GROWTH_PER_LESSON, nowMs)
   remember(state, `${interest.emoji} 学完${interest.label}，${TRAITS[interest.trait].label} +${interest.gain}`, nowMs)
   announce(state, 'study', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`, nowMs)
+  noteToday(state, 'study')
   if (certified) {
     remember(state, `📜 拿到了${interest.certificate}`, nowMs)
     announce(state, 'certificate', `${state.name} 拿到了${interest.certificate} 📜`, nowMs)
@@ -216,6 +218,8 @@ export function finishWork(state, activity, nowMs, next = rollerFor(state)) {
   }
   state.stats.jobs += 1
   state.stats.coinsEarned += coins
+  noteToday(state, 'work')
+  noteToday(state, 'coinsEarned', coins)
   noteOuting(state)
   grow(state, outingGrowth(job === null ? activity.minutes ?? 0 : job.minutes), nowMs)
   const brought = workDrops(state, coins, next)
@@ -261,6 +265,7 @@ export function finishStudy(state, activity, nowMs, next = rollerFor(state)) {
     state.stats.graduations = (state.stats.graduations ?? 0) + 1
     remember(state, `🎓 ${subject.label}${stage.label}毕业（第 ${taken + 1} 节）`, nowMs)
     announce(state, 'graduate', `${state.name} ${subject.label}${stage.label}毕业啦 🎓 ${gains}，带回${describeDrops(gifts)}`, nowMs)
+    noteToday(state, 'graduate')
     say(state, 'graduate', nowMs)
     return
   }
@@ -268,6 +273,7 @@ export function finishStudy(state, activity, nowMs, next = rollerFor(state)) {
   const extra = brought.length > 0 ? `，还带回了${describeDrops(brought)}` : ''
   remember(state, `${subject.emoji} 上完${subject.label}第 ${taken + 1} 节，${gains}`, nowMs)
   announce(state, 'study', `${state.name} 上完${subject.label}第 ${taken + 1} 节，${gains} 📚${extra}`, nowMs)
+  noteToday(state, 'study')
   say(state, (state.outingStreak ?? 0) >= ILLNESS_ONSET.overworkStreak ? 'tired' : 'study', nowMs)
 }
 
@@ -290,6 +296,8 @@ export function finishTrip(state, activity, nowMs) {
   grow(state, outingGrowth(trip.minutes), nowMs)
   remember(state, `${trip.emoji} ${trip.label}回来，带回「${pick.label}」${tier.emoji}`, nowMs)
   announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${pick.label}」${tier.emoji}🧳`, nowMs)
+  noteToday(state, 'trip')
+  noteToday(state, 'souvenirs')
   say(state, 'tripBack', nowMs)
 }
 

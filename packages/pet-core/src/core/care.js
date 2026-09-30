@@ -13,6 +13,7 @@ import { growFromRealWork } from './growth.js'
 import { rollForOverfeeding } from './illness.js'
 import { say } from './lines.js'
 import { decay } from './settlement.js'
+import { noteToday } from './diary.js'
 
 /** Which line scene each care action makes the pig speak from. */
 const CARE_SCENE = Object.freeze({ feed: 'eat', bathe: 'bathe', play: 'play', pet: 'pet' })
@@ -41,6 +42,7 @@ export function feed(state, event, nowMs) {
   if (state.hatched !== true) return []
   applyEffects(state, diet, nowMs)
   growFromRealWork(state, event, nowMs)
+  noteToday(state, event)
   return []
 }
 
@@ -98,6 +100,7 @@ export function act(state, action, nowMs, itemKey) {
   if (action === 'feed') rollForOverfeeding(state, satietyBefore, nowMs)
   // Feeding a pig that was already stuffed gets a different complaint.
   say(state, action === 'feed' && satietyBefore >= ILLNESS_ONSET.overfullAt ? 'overfull' : CARE_SCENE[action], nowMs)
+  noteToday(state, action)
   return { ok: true, item: item === null ? null : item.key, spent: item !== null && item.default !== true }
 }
 

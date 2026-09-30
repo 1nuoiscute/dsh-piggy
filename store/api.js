@@ -24,6 +24,7 @@ import {
   rename as coreRename,
   replyToLine as coreReplyToLine,
   openGift as coreOpenGift,
+  writeDiaryIfNewDay as coreWriteDiary,
   recordOnline as coreRecordOnline,
   signIn as coreSignIn,
   reset as coreReset,
@@ -94,6 +95,8 @@ export function createApi(control) {
         // 一次「面板还在轮询」的证据。
         coreRecordOnline(state, lastPollMs, nowMs)
         lastPollMs = nowMs
+        // 跨过 06:00 之后第一次读状态，就把前一天写成一篇日记。
+        coreWriteDiary(state, nowMs)
         decay(state, nowMs)
         scheduleSave()
       } catch (error) {
