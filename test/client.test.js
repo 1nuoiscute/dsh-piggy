@@ -750,6 +750,55 @@ test('the travel tab lists destinations and the souvenir collection', async () =
   assert.deepEqual(JSON.parse(post.body), { action: 'trip', trip: 'suburb' })
 })
 
+test('a souvenir opens its story card and can be sold from there', async () => {
+  const { registration, dom, net } = await loadClient({
+    status: {
+      ...SNAPSHOT,
+      pig: {
+        ...PIG,
+        souvenirs: [
+          { key: 'shell', emoji: '🐚', label: '一枚海螺', rarityLabel: '稀有', rarityEmoji: '🔵', price: 320, story: '在海边捡到一枚海螺，贴在耳朵上能听见浪声。', fromLabel: '看海' },
+        ],
+      },
+    },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'travel')
+
+  const listed = contentOf(dom).allText()
+  assert.ok(listed.includes('🔵稀有'), `expected the rarity on the chip, got: ${listed}`)
+  assert.ok(listed.includes('值 320 🪙'), listed)
+
+  findByAttr(contentOf(dom), 'data-souvenir', 'shell').fire('click')
+  const opened = contentOf(dom).allText()
+  assert.ok(opened.includes('贴在耳朵上能听见浪声'), opened)
+  assert.ok(opened.includes('来自看海'), opened)
+
+  findByAttr(contentOf(dom), 'data-sell', 'shell').fire('click')
+  await settle()
+  await settle()
+  const post = net.calls.find(call => call.method === 'POST')
+  assert.deepEqual(JSON.parse(post.body), { action: 'sell', souvenir: 'shell' })
+})
+
+test('a legacy string souvenir still lists, with a plain card and no sell button', async () => {
+  // The old host sent strings; the client must not print [object Object] or
+  // invent a price for something the host never priced.
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'travel')
+  findByAttr(contentOf(dom), 'data-souvenir', '贝壳').fire('click')
+  const text = contentOf(dom).allText()
+  assert.ok(text.includes('贝壳'), text)
+  assert.ok(text.includes('旧版本带回来的'), text)
+  assert.equal(findByAttr(contentOf(dom), 'data-sell', '贝壳'), undefined)
+  assert.ok(!text.includes('undefined'), text)
+})
+
 test('the bag tab lists owned items with a use button', async () => {
   const { registration, dom, net } = await loadClient()
   registration.factory(() => {}).apply({})

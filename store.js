@@ -35,6 +35,7 @@ import {
   hatchEgg,
   migrate,
   rename as coreRename,
+  sellSouvenir as coreSellSouvenir,
   startStudy as coreStartStudy,
   startTrip as coreStartTrip,
   startWork as coreStartWork,
@@ -171,6 +172,7 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
 
     /** Use one item from the backpack. */
     useItem: itemKey => mutate(live => coreUseItem(live, itemKey, now())),
+    sellSouvenir: souvenirKey => mutate(live => coreSellSouvenir(live, souvenirKey, now())),
 
     /** Open the box. Only works when there is no pig at all. */
     hatch() {

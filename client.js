@@ -167,7 +167,24 @@ window.__ModuleLoader__.load({
             strong: num(obj(pig.traits).strong, 0),
           },
           courses: obj(pig.courses),
-          souvenirs: arr(pig.souvenirs),
+          // Souvenirs are objects now (rarity + story). An old host sent bare
+          // strings, and those must still list rather than turn into [object
+          // Object] or vanish.
+          souvenirs: arr(pig.souvenirs).map(entry => {
+            if (typeof entry === 'string') {
+              return { key: entry, emoji: '🎁', label: entry, rarityLabel: '普通', rarityEmoji: '⚪', price: 0, story: '', fromLabel: '' }
+            }
+            return {
+              key: str(obj(entry).key, ''),
+              emoji: str(obj(entry).emoji, '🎁'),
+              label: str(obj(entry).label, '纪念品'),
+              rarityLabel: str(obj(entry).rarityLabel, '普通'),
+              rarityEmoji: str(obj(entry).rarityEmoji, '⚪'),
+              price: num(obj(entry).price, 0),
+              story: str(obj(entry).story, ''),
+              fromLabel: str(obj(entry).fromLabel, ''),
+            }
+          }).filter(entry => entry.key !== ''),
           memories: arr(pig.memories).filter(m => typeof m === 'string'),
         },
         actions: normalizeActions(d.actions),
@@ -245,6 +262,11 @@ window.__ModuleLoader__.load({
           emoji: str(obj(trip).emoji, '🧳'),
           minutes: num(obj(trip).minutes, 0),
           cost: num(obj(trip).cost, 0),
+          happiness: num(obj(trip).happiness, 0),
+          // What the destination can bring back — the far trips advertise it.
+          souvenirCount: num(obj(trip).souvenirCount, 0),
+          bestRarity: str(obj(trip).bestRarity, ''),
+          bestRarityEmoji: str(obj(trip).bestRarityEmoji, ''),
           affordable: obj(trip).affordable === true,
           available: obj(trip).available === true,
         })).filter(trip => trip.key !== ''),
@@ -999,6 +1021,8 @@ window.__ModuleLoader__.load({
       var view = normalize(null)
       var tab = 'status'
       var stage = 'primary'
+      // Which souvenir's story card is open in the travel tab, if any.
+      var souvenirPick = null
       // Which care action's item picker is open, if any.
       var picker = null
       var isOpen = readStore(OPEN_KEY) === 'true'
@@ -1538,7 +1562,8 @@ window.__ModuleLoader__.load({
             row.appendChild(el('span', null, trip.emoji))
             var grow = el('div', 'dp-grow')
             grow.appendChild(el('div', null, trip.label))
-            grow.appendChild(el('div', 'dp-dim', trip.minutes + ' 分钟 · ' + trip.cost + ' 🪙'))
+            grow.appendChild(el('div', 'dp-dim', formatMinutes(trip.minutes) + ' · ' + trip.cost + ' 🪙'
+              + (trip.bestRarity ? ' · 可带回 ' + trip.bestRarityEmoji + trip.bestRarity : '')))
             row.appendChild(grow)
             var go = button('dp-mini', { 'data-trip': trip.key }, function () { send('trip', { trip: trip.key }) })
             go.textContent = '出发'
@@ -1554,7 +1579,53 @@ window.__ModuleLoader__.load({
         head.style.marginTop = '10px'
         head.appendChild(el('b', null, '🎁 纪念品 ' + souvenirs.length))
         content.appendChild(head)
-        content.appendChild(el('div', 'dp-empty', souvenirs.length === 0 ? '还没出过远门。' : souvenirs.join(' · ')))
+        if (souvenirs.length === 0) {
+          content.appendChild(el('div', 'dp-empty', '还没出过远门。'))
+          return
+        }
+
+        var chips = el('div', 'dp-grid')
+        for (var s = 0; s < souvenirs.length; s += 1) {
+          (function (entry) {
+            var chip = button('dp-item', { 'data-souvenir': entry.key }, function () {
+              souvenirPick = souvenirPick === entry.key ? null : entry.key
+              renderContent()
+            })
+            chip.appendChild(el('span', null, entry.emoji))
+            var grow = el('div', 'dp-grow')
+            grow.appendChild(el('div', null, entry.label))
+            grow.appendChild(el('div', 'dp-dim', entry.rarityEmoji + entry.rarityLabel
+              + (entry.price > 0 ? ' · 值 ' + entry.price + ' 🪙' : '')))
+            chip.appendChild(grow)
+            chips.appendChild(chip)
+          })(souvenirs[s])
+        }
+        content.appendChild(chips)
+
+        // The story card: tapping a souvenir is how the pig tells you where it
+        // went and what it brought back.
+        var picked = null
+        for (var q = 0; q < souvenirs.length; q += 1) if (souvenirs[q].key === souvenirPick) picked = souvenirs[q]
+        if (picked !== null) {
+          // Named uniquely: the CSS-guard test maps `var x = el(...)` names to
+          // classes, and reusing `card` here shadowed the real .dp-card entry.
+          var souvenirCard = el('div', 'dp-locked')
+          souvenirCard.appendChild(el('div', null, picked.emoji + ' ' + picked.label + ' · ' + picked.rarityEmoji + picked.rarityLabel
+            + (picked.fromLabel === '' ? '' : ' · 来自' + picked.fromLabel)))
+          souvenirCard.appendChild(el('div', null, picked.story === ''
+            ? '（这只纪念品是旧版本带回来的，没有留下故事。）'
+            : '「' + picked.story + '」'))
+          if (picked.price > 0) {
+            var sell = button('dp-mini', { 'data-sell': picked.key }, function () {
+              souvenirPick = null
+              send('sell', { souvenir: picked.key })
+            })
+            sell.textContent = '卖掉 +' + picked.price + ' 🪙'
+            sell.style.marginTop = '6px'
+            souvenirCard.appendChild(sell)
+          }
+          content.appendChild(souvenirCard)
+        }
       }
 
       function bagTab() {
@@ -1596,6 +1667,17 @@ window.__ModuleLoader__.load({
         if (days >= 1) return Math.round(days) + ' 天'
         const hours = days * 24
         return hours >= 1 ? Math.round(hours) + ' 小时' : Math.max(1, Math.round(hours * 60)) + ' 分钟'
+      }
+
+      /**
+       * Long trips read better in hours, and the row has to fit a 292px panel:
+       * "720 分钟" is three characters of noise that push the rarity hint off.
+       */
+      function formatMinutes(minutes) {
+        if (minutes < 60) return minutes + ' 分钟'
+        const hours = Math.floor(minutes / 60)
+        const rest = minutes % 60
+        return rest === 0 ? hours + ' 小时' : hours + ' 小时' + rest + ' 分'
       }
 
       function kindLabel(item) {

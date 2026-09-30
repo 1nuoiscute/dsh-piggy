@@ -52,6 +52,7 @@ import {
   daysToNextStage,
   lifeStageFor,
   rename,
+  sellSouvenir,
   skillBonus,
   skillLevels,
   startStudy,
@@ -62,7 +63,7 @@ import {
   useItem,
   workSecondsLeft,
 } from '../core.js'
-import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, medicineForStage, subjectByKey } from '../data.js'
+import { LIFESPAN_DAYS, DEFAULT_TOY, ILLNESS_CHAINS, illnessStageMs, SICK_RISK_MINUTES, illnessAt, medicineForStage, rarityByKey, subjectByKey } from '../data.js'
 
 const T0 = 1_700_000_000_000
 const MIN = 60_000
@@ -1141,7 +1142,14 @@ test('travelling costs coins up front and brings back a souvenir', () => {
   advance(pig, trip.minutes + 1)
   assert.equal(pig.activity, null)
   assert.equal(pig.souvenirs.length, 1)
-  assert.ok(trip.souvenirs.includes(pig.souvenirs[0]), 'the souvenir comes from this trip')
+  const kept = pig.souvenirs[0]
+  assert.ok(trip.souvenirs.some(entry => entry.key === kept.key), 'the souvenir comes from this trip')
+  // A souvenir is an object now: the story card needs all of it.
+  assert.equal(typeof kept.label, 'string')
+  assert.equal(typeof kept.story, 'string')
+  assert.ok(kept.story.length > 0, 'and it has something to say')
+  assert.ok(['common', 'rare', 'legend'].includes(kept.rarity))
+  assert.equal(kept.fromLabel, trip.label)
   assert.ok(pig.happiness > happiness - 5, 'a trip should not leave the pig sad')
   assert.equal(pig.stats.trips, 1)
   assert.ok(pig.pending.some(e => e.kind === 'trip'))
@@ -1160,8 +1168,45 @@ test('the souvenir rotation is deterministic, so every keepsake is reachable', (
     decay(pig, clock)
     collected.push(pig.souvenirs[i])
   }
-  assert.deepEqual(collected.slice(0, trip.souvenirs.length), [...trip.souvenirs])
-  assert.equal(collected[trip.souvenirs.length], trip.souvenirs[0], 'it wraps around')
+  assert.deepEqual(collected.slice(0, trip.souvenirs.length).map(entry => entry.key), trip.souvenirs.map(entry => entry.key))
+  assert.equal(collected[trip.souvenirs.length].key, trip.souvenirs[0].key, 'it wraps around')
+})
+
+test('selling a souvenir pays its rarity price and takes it out of the collection', () => {
+  const pig = hatchEgg(T0)
+  pig.coins = 5000
+  const trip = TRIPS[0]
+  startTrip(pig, trip.key, T0)
+  decay(pig, pig.activity.endsAt)
+  const kept = pig.souvenirs[0]
+  const before = pig.coins
+  const sold = sellSouvenir(pig, kept.key, T0)
+  assert.equal(sold.ok, true)
+  assert.equal(sold.coins, rarityByKey(kept.rarity).price)
+  assert.equal(pig.coins, before + sold.coins)
+  assert.equal(pig.souvenirs.length, 0)
+  assert.equal(pig.stats.sales, 1)
+  // Selling it twice, or something the pig never owned, is refused honestly.
+  assert.equal(sellSouvenir(pig, kept.key, T0).reason, 'not-owned')
+  assert.equal(sellSouvenir(pig, 'not-a-souvenir', T0).reason, 'not-owned')
+  assert.equal(pig.coins, before + sold.coins, 'a refusal pays nothing')
+})
+
+test('a legend souvenir is worth more than a common one', () => {
+  const prices = ['common', 'rare', 'legend'].map(key => rarityByKey(key).price)
+  assert.deepEqual(prices, [...prices].sort((a, b) => a - b))
+  assert.ok(rarityByKey('legend').price >= rarityByKey('rare').price * 3)
+})
+
+test('a pre-0.20 save keeps its string souvenirs as objects', () => {
+  const upgraded = migrate({ ...layEgg(T0), version: 6, souvenirs: ['贝壳', '松果'] })
+  assert.equal(upgraded.souvenirs.length, 2)
+  assert.equal(upgraded.souvenirs[0].label, '贝壳')
+  assert.equal(upgraded.souvenirs[0].rarity, 'common')
+  // Still sellable, at the common price.
+  const before = upgraded.coins
+  assert.equal(sellSouvenir(upgraded, '贝壳', T0).ok, true)
+  assert.equal(upgraded.coins, before + rarityByKey('common').price)
 })
 
 test('a trip is refused when broke, and nothing is spent', () => {
@@ -1170,7 +1215,7 @@ test('a trip is refused when broke, and nothing is spent', () => {
   const result = startTrip(pig, 'abroad', T0)
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'poor')
-  assert.equal(result.price, TRIPS[3].cost)
+  assert.equal(result.price, TRIPS.find(trip => trip.key === 'abroad').cost)
   assert.equal(pig.coins, 5)
   assert.equal(pig.activity, null)
   assert.equal(startTrip(pig, 'mars', T0).reason, 'unknown')

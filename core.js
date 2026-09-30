@@ -47,6 +47,7 @@ import {
   SICK_RISK_MINUTES,
   SKILLS,
   SLEEPY_AFTER_MINUTES,
+  SOUVENIR_RARITY,
   STAGE_HEALTH,
   SUBJECTS,
   THRESHOLDS,
@@ -60,6 +61,7 @@ import {
   careItems,
   medicineForStage,
   nextIllness,
+  rarityByKey,
   schoolStageByKey,
   stageProgress,
   stageSubjectKeys,
@@ -70,7 +72,7 @@ import {
 } from './data.js'
 
 /** Bumped when the saved shape changes in a way migrate() must handle. */
-export const STATE_VERSION = 6
+export const STATE_VERSION = 7
 
 const BIRTH_WEIGHT_G = 1200
 const HATCH_WEIGHT_G = 160
@@ -464,7 +466,7 @@ export function layEgg(nowMs) {
       turns: 0, messages: 0, tools: 0, toolErrors: 0, agentErrors: 0,
       levelUps: 0, feeds: 0, baths: 0, plays: 0, pets: 0,
       jobs: 0, coinsEarned: 0, purchases: 0, illnesses: 0, cures: 0, deaths: 0, revives: 0,
-      courses: 0, lessons: 0, trips: 0,
+      courses: 0, lessons: 0, trips: 0, sales: 0,
     },
   }
 }
@@ -514,7 +516,7 @@ export function migrate(raw) {
   state.courses = sanitizeCourses(raw.courses)
   state.lessonsByStage = sanitizeLessonsByStage(raw.lessonsByStage, raw.courses)
   state.coursesByStage = sanitizeCoursesByStage(raw.coursesByStage, state.lessonsByStage)
-  state.souvenirs = Array.isArray(raw.souvenirs) ? raw.souvenirs.filter(s => typeof s === 'string').slice(-40) : []
+  state.souvenirs = sanitizeSouvenirs(raw.souvenirs)
   state.pending = []
   state.memories = Array.isArray(raw.memories)
     ? raw.memories.filter(m => typeof m === 'string').slice(-MEMORY_LIMIT)
@@ -651,6 +653,34 @@ function sanitizeCoursesByStage(raw, lessonsByStage) {
     const done = index < highest ? keys.length : Math.floor(lessonsByStage?.[stage.key] ?? 0)
     for (const key of keys.slice(0, Math.min(done, keys.length))) counts[key] = 1
     if (Object.keys(counts).length > 0) out[stage.key] = counts
+  }
+  return out
+}
+
+/**
+ * Souvenirs became objects in 0.20.0 so they could carry a rarity and a story.
+ * A save written before that holds bare strings ("贝壳"); wrap them so an old
+ * collection stays visible and sellable instead of being dropped.
+ */
+function sanitizeSouvenirs(raw) {
+  if (!Array.isArray(raw)) return []
+  const out = []
+  for (const entry of raw.slice(-40)) {
+    if (typeof entry === 'string' && entry !== '') {
+      out.push({ key: entry, emoji: '🎁', label: entry, rarity: 'common', story: '', from: null, fromLabel: '' })
+      continue
+    }
+    const source = asObject(entry)
+    if (source === null || typeof source.key !== 'string' || source.key === '') continue
+    out.push({
+      key: source.key,
+      emoji: typeof source.emoji === 'string' && source.emoji !== '' ? source.emoji : '🎁',
+      label: typeof source.label === 'string' && source.label !== '' ? source.label : source.key,
+      rarity: typeof source.rarity === 'string' && SOUVENIR_RARITY[source.rarity] !== undefined ? source.rarity : 'common',
+      story: typeof source.story === 'string' ? source.story : '',
+      from: typeof source.from === 'string' ? source.from : null,
+      fromLabel: typeof source.fromLabel === 'string' ? source.fromLabel : '',
+    })
   }
   return out
 }
@@ -968,17 +998,47 @@ function finishStudy(state, activity, nowMs) {
 function finishTrip(state, activity, nowMs) {
   const trip = tripByKey(activity.key)
   if (trip === null) return
-  // Deterministic souvenir rotation keeps the mechanic testable without RNG.
-  const souvenir = trip.souvenirs[state.stats.trips % trip.souvenirs.length]
-  state.souvenirs = [...(state.souvenirs ?? []), souvenir]
+  // Deterministic souvenir rotation keeps the mechanic testable without RNG —
+  // and the rarity is a property of the souvenir, so "far trips are worth more"
+  // is a fact about the table rather than a dice roll.
+  const pick = trip.souvenirs[state.stats.trips % trip.souvenirs.length]
+  const tier = rarityByKey(pick.rarity)
+  state.souvenirs = [...(state.souvenirs ?? []), {
+    key: pick.key, emoji: pick.emoji, label: pick.label,
+    rarity: pick.rarity, story: pick.story,
+    from: trip.key, fromLabel: trip.label,
+  }]
   // 审美（画画练出来的）makes the pig enjoy the trip more, not just look at it.
   const taste = 1 + skillBonus(state, 'taste')
   state.happiness = clamp100(state.happiness + Math.round(trip.happiness * taste))
   state.satiety = clamp100(state.satiety + trip.satiety)
   state.stats.trips += 1
   applyEffects(state, { xp: trip.xp }, nowMs)
-  remember(state, `${trip.emoji} ${trip.label}回来，带回「${souvenir}」`, nowMs)
-  announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${souvenir}」🧳`)
+  remember(state, `${trip.emoji} ${trip.label}回来，带回「${pick.label}」${tier.emoji}`, nowMs)
+  announce(state, 'trip', `${state.name} 从${trip.label}回来了，带回「${pick.label}」${tier.emoji}🧳`)
+}
+
+/**
+ * Sell one souvenir from the collection.
+ *
+ * Souvenirs used to be strings with no way out of the list; now each one has a
+ * rarity and a price, so the collection is a wallet as well as a shelf.
+ *
+ * @returns `{ok: true, sold, coins}` or `{ok: false, reason}`.
+ */
+export function sellSouvenir(state, souvenirKey, nowMs) {
+  if (state === null || state === undefined) return { ok: false, reason: 'absent' }
+  if (state.dead === true) return { ok: false, reason: 'dead' }
+  const list = Array.isArray(state.souvenirs) ? state.souvenirs : []
+  const index = list.findIndex(entry => entry !== null && typeof entry === 'object' && entry.key === souvenirKey)
+  if (index < 0) return { ok: false, reason: 'not-owned' }
+  const entry = list[index]
+  const tier = rarityByKey(entry.rarity)
+  state.souvenirs = [...list.slice(0, index), ...list.slice(index + 1)]
+  state.coins += tier.price
+  state.stats.sales = (state.stats.sales ?? 0) + 1
+  remember(state, `把「${entry.label}」卖了 ${tier.price} 金币`, nowMs)
+  return { ok: true, sold: entry.key, coins: tier.price, rarity: tier.key }
 }
 
 function catchIllness(state, nowMs) {

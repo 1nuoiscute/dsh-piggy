@@ -359,6 +359,41 @@ test('the snapshot carries the four interest skills and the relief they give', a
   }
 })
 
+test('the sell route pays the rarity price and is honest about what is not owned', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs)
+    pig.coins = 0
+    pig.souvenirs = [
+      { key: 'shell', emoji: '🐚', label: '一枚海螺', rarity: 'rare', story: '贴在耳朵上能听见浪声。', from: 'sea', fromLabel: '看海' },
+      { key: 'seasalt', emoji: '🧂', label: '海盐', rarity: 'common', story: '咸得发苦。', from: 'sea', fromLabel: '看海' },
+    ]
+    return pig
+  })
+  try {
+    const board = await app.get()
+    const shell = board.pig.souvenirs.find(entry => entry.key === 'shell')
+    assert.equal(shell.rarityLabel, '稀有')
+    assert.equal(shell.price, 320)
+    assert.equal(board.pig.souvenirs[0].story.length > 0, true, 'the story reaches the client')
+    assert.equal(board.trips.find(trip => trip.key === 'sea').bestRarity, '传说')
+
+    const sold = await app.post({ action: 'sell', souvenir: 'shell' })
+    assert.equal(sold.ok, true)
+    assert.equal(sold.sold, 'shell')
+    assert.equal(sold.pig.coins, 320, 'the rarity price is paid')
+    assert.equal(sold.pig.souvenirs.length, 1)
+
+    const again = await app.post({ action: 'sell', souvenir: 'shell' })
+    assert.equal(again.ok, false)
+    assert.equal(again.reason, 'not-owned')
+    assert.equal(again.pig.coins, 320, 'a refusal pays nothing')
+
+    assert.equal((await app.post({ action: 'sell', souvenir: 'nope' })).reason, 'not-owned')
+  } finally {
+    app.cleanup()
+  }
+})
+
 test('buying is refused when broke, and the refusal is honest', async () => {
   const app = boot(nowMs => { const pig = hatchEgg(nowMs); pig.coins = 2; return pig })
   try {

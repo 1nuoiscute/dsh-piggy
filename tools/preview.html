@@ -37,7 +37,11 @@
       xp: 168, coins: 60,
       ageMs: 0,
       traits: { intel: 12, charm: 6, strong: 9 },
-      courses: { chinese: 1 }, souvenirs: ['贝壳'],
+      courses: { chinese: 1 },
+      souvenirs: [
+        { key: 'shell', emoji: '🐚', label: '一枚海螺', rarityLabel: '稀有', rarityEmoji: '🔵', price: 320, story: '在海边捡到一枚海螺，贴在耳朵上能听见浪声。', fromLabel: '看海' },
+        { key: 'seasalt', emoji: '🧂', label: '海盐', rarityLabel: '普通', rarityEmoji: '⚪', price: 60, story: '在礁石坑里刮了点海盐，咸得发苦。', fromLabel: '看海' },
+      ],
       stageLine: '圆滚滚的，走路会晃', illness: null,
       memories: ['[18:03] 长成了「圆滚猪」🐖'],
     },
@@ -105,11 +109,15 @@
       { key: 'graduate', label: '研究生', emoji: '🔬', minutes: 480, tuition: 1600, gain: 6, subjects: ['english', 'mathematics', 'physics', 'chemistry', 'biology', 'politics', 'philosophy', 'economics', 'engineering'], unlocked: false,
         progress: { done: 0, need: 9, label: '大学 9 门课各上一次' } },
     ],
+    // Seven destinations; `affordable` follows the preview pig's 60 coins.
     trips: [
-      { key: 'suburb', label: '郊游', emoji: '🏞', minutes: 60, cost: 60, happiness: 10, available: true, affordable: true },
-      { key: 'mountain', label: '名山大川', emoji: '🏔', minutes: 180, cost: 200, happiness: 16, available: true, affordable: true },
-      { key: 'sea', label: '看海', emoji: '🌊', minutes: 480, cost: 620, happiness: 24, available: true, affordable: false },
-      { key: 'abroad', label: '出国', emoji: '🌍', minutes: 1440, cost: 2000, happiness: 38, available: true, affordable: false },
+      { key: 'suburb', label: '郊游', emoji: '🏞', minutes: 60, cost: 60, happiness: 10, available: true, affordable: true, souvenirCount: 3, bestRarity: '稀有', bestRarityEmoji: '🔵' },
+      { key: 'mountain', label: '名山大川', emoji: '🏔', minutes: 180, cost: 200, happiness: 16, available: true, affordable: false, souvenirCount: 4, bestRarity: '传说', bestRarityEmoji: '🟡' },
+      { key: 'hotspring', label: '泡温泉', emoji: '♨️', minutes: 360, cost: 380, happiness: 20, available: true, affordable: false, souvenirCount: 3, bestRarity: '稀有', bestRarityEmoji: '🔵' },
+      { key: 'sea', label: '看海', emoji: '🌊', minutes: 480, cost: 620, happiness: 24, available: true, affordable: false, souvenirCount: 4, bestRarity: '传说', bestRarityEmoji: '🟡' },
+      { key: 'oldtown', label: '古镇', emoji: '🏮', minutes: 720, cost: 1100, happiness: 30, available: true, affordable: false, souvenirCount: 3, bestRarity: '传说', bestRarityEmoji: '🟡' },
+      { key: 'abroad', label: '出国', emoji: '🌍', minutes: 1440, cost: 2000, happiness: 38, available: true, affordable: false, souvenirCount: 4, bestRarity: '传说', bestRarityEmoji: '🟡' },
+      { key: 'aurora', label: '看极光', emoji: '🌌', minutes: 1440, cost: 3600, happiness: 44, available: true, affordable: false, souvenirCount: 4, bestRarity: '传说', bestRarityEmoji: '🟡' },
     ],
     shop: [
       { key: 'apple', label: '苹果', emoji: '🍎', price: 6, kind: 'food', tier: null, affordable: true, needed: false },

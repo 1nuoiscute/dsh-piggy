@@ -48,7 +48,7 @@ import {
   studyView,
   traitView,
 } from './core.js'
-import { jobByKey, jobRequirement, skillByKey, SKILLS, stageSubjectKeys, traitBonus } from './data.js'
+import { jobByKey, jobRequirement, rarityByKey, skillByKey, SKILLS, stageSubjectKeys, traitBonus } from './data.js'
 import {
   renderAbout,
   renderAction,
@@ -127,6 +127,8 @@ const OPERATIONS = {
   calloff: store => store.callOffActivity(),
   buy: (store, body) => store.buy(str(body.item)),
   use: (store, body) => store.useItem(str(body.item)),
+  // Souvenirs are the only thing the pig can sell back.
+  sell: (store, body) => store.sellSouvenir(str(body.souvenir)),
 }
 
 const str = value => (typeof value === 'string' ? value : '')
@@ -218,6 +220,7 @@ export function apply(ctx, config = {}) {
             wait: result.wait,
             price: result.price,
             missing: result.missing,
+            sold: result.sold,
           }, { 'cache-control': 'no-store' })
         },
       }))
@@ -348,7 +351,7 @@ export function snapshot(store, options = {}) {
       coins: state.coins,
       traits: traitView(state),
       courses: courseView(state),
-      souvenirs: (state.souvenirs ?? []).slice(-30),
+      souvenirs: souvenirsFor(state),
       stageLine: life.line,
       illness: illness === null ? null : { name: illness.name, cure: illness.cure, stage: illness.stage, chain: illness.chain },
       memories: state.memories.slice(-3),
@@ -495,12 +498,38 @@ function subjectsFor(state) {
 
 function tripsFor(state) {
   const open = state !== null && awayBlockedReason(state) === null
-  return TRIPS.map(trip => ({
-    key: trip.key, label: trip.label, emoji: trip.emoji,
-    minutes: trip.minutes, cost: trip.cost, happiness: trip.happiness,
-    available: open,
-    affordable: state === null ? false : state.coins >= trip.cost,
-  }))
+  return TRIPS.map(trip => {
+    // The rarest souvenir a destination can give, so the far trips advertise
+    // what they are actually worth.
+    const tiers = trip.souvenirs.map(entry => rarityByKey(entry.rarity))
+    const best = tiers.reduce((a, b) => (b.price > a.price ? b : a), tiers[0])
+    return {
+      key: trip.key, label: trip.label, emoji: trip.emoji,
+      minutes: trip.minutes, cost: trip.cost, happiness: trip.happiness,
+      souvenirCount: trip.souvenirs.length,
+      bestRarity: best.label,
+      bestRarityEmoji: best.emoji,
+      available: open,
+      affordable: state === null ? false : state.coins >= trip.cost,
+    }
+  })
+}
+
+/** The collection, with each souvenir's rarity spelled out and priced. */
+function souvenirsFor(state) {
+  const list = Array.isArray(state?.souvenirs) ? state.souvenirs : []
+  return list.slice(-40).map(entry => {
+    const tier = rarityByKey(entry.rarity)
+    return {
+      key: entry.key,
+      emoji: typeof entry.emoji === 'string' && entry.emoji !== '' ? entry.emoji : '🎁',
+      label: typeof entry.label === 'string' && entry.label !== '' ? entry.label : entry.key,
+      rarity: tier.key, rarityLabel: tier.label, rarityEmoji: tier.emoji, price: tier.price,
+      story: typeof entry.story === 'string' ? entry.story : '',
+      from: typeof entry.from === 'string' ? entry.from : null,
+      fromLabel: typeof entry.fromLabel === 'string' ? entry.fromLabel : '',
+    }
+  })
 }
 
 function shopFor(state) {
