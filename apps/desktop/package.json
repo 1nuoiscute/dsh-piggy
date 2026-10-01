@@ -9,7 +9,8 @@
     "pack-game": "node scripts/pack-game.mjs",
     "start": "npm run pack-game && electron .",
     "dist:linux": "npm run pack-game && electron-builder --linux",
-    "dist:win": "npm run pack-game && electron-builder --win"
+    "dist:win": "npm run pack-game && electron-builder --win",
+    "release-game": "node scripts/release-game.mjs"
   },
   "devDependencies": {
     "electron": "44.5.1",
@@ -63,5 +64,8 @@
   },
   "allowScripts": {
     "electron@44.5.1": true
+  },
+  "piggy": {
+    "minShell": "0.1.0"
   }
 }

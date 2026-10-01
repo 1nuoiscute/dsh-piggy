@@ -81,7 +81,19 @@ npm run dist:win       # 打 Windows 安装包
 ```
 
 Linux 上默认走 XWayland（Wayland 不让窗口给自己裁形状）。
-从 GitHub 一键更新、选版本还在做。
+
+**更新**：桌面版主屏多一个 🔄 更新 App ——
+
+- 「更新到最新」一键换到 GitHub 上最新的版本；也可以在版本列表里挑一个换过去
+- 换完猪重启一下（约 1 秒）就好；换之前自动备份存档，还能「回到上一个版本」
+- 换的只是游戏本身（几百 KB 的游戏包，下载后校验 sha256），不用重装
+- 太旧、读不了现在存档的版本是灰的；要更新安装包本身的版本会带你去下载页
+
+<p align="center"><img src="docs/screenshots/desktop-update.png" width="300" alt="桌面版更新"></p>
+
+**发版**：把根目录 `package.json` 的 version 改好，推一个同名标签（如 `v0.25.0`），
+GitHub Actions（[`.github/workflows/release.yml`](.github/workflows/release.yml)）会跑测试、
+生成游戏包、打 Linux AppImage 和 Windows 安装包，一起挂到 Release 上。
 
 ## 养成规则
 

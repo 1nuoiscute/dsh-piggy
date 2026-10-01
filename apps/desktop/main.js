@@ -13,9 +13,10 @@ import { homedir } from 'node:os'
 import { dirname, extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, protocol, screen } from 'electron'
+import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, net, protocol, screen, shell } from 'electron'
 
 import { startHost } from './lib/host.js'
+import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -32,7 +33,7 @@ protocol.registerSchemesAsPrivileged([
 if (process.env.PIGGY_USERDATA) app.setPath('userData', resolve(process.env.PIGGY_USERDATA))
 if (!app.requestSingleInstanceLock()) app.quit()
 
-/** The game shipped inside the app; updates live under userData (see lib/versions.js later). */
+/** The game shipped inside the app; downloaded versions live under userData (lib/versions.js). */
 function bundledGameDir() {
   return app.isPackaged ? join(process.resourcesPath, 'game') : join(HERE, 'game')
 }
@@ -49,6 +50,8 @@ function serveFile(root, rel) {
 }
 
 let host = null
+/** @type {ReturnType<typeof createVersions> | null} */
+let versions = null
 let win = null
 let tray = null
 
@@ -158,8 +161,68 @@ function readVersion(gameDir) {
   try { return JSON.parse(readFileSync(join(gameDir, 'package.json'), 'utf8')).version } catch { return '?' }
 }
 
+/** Keep a copy of the save before the game code under it changes. */
+function backupSave(label) {
+  const file = statePath()
+  if (existsSync(file)) copyFileSync(file, `${file}.before-${label}-${new Date().toISOString().replace(/[:.]/g, '-')}`)
+}
+
+/** Load the new game: flush the save first, then start over. */
+function restartGame() {
+  try { host?.dispose() } catch { /* best effort */ }
+  // Testing runs one launch at a time; the next one is started by hand.
+  if (process.env.PIGGY_CAPTURE) return app.exit(0)
+  app.relaunch()
+  app.exit(0)
+}
+
+// ---- 更新 App（页面里的 tabs/update.js）通过这几个口子调用 ----
+let releases = []
+const fromPage = event => win !== null && event.sender === win.webContents
+ipcMain.handle('piggy:updates:current', event => (fromPage(event) ? versions?.current() : null))
+ipcMain.handle('piggy:updates:list', async event => {
+  if (!fromPage(event) || versions === null) return { ok: false, reason: '不在桌面版里' }
+  try {
+    releases = await versions.list()
+    return { ok: true, releases: releases.map(({ manifest, packUrl, ...rest }) => rest) }
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+  }
+})
+ipcMain.handle('piggy:updates:install', async (event, version) => {
+  if (!fromPage(event) || versions === null) return { ok: false, reason: '不在桌面版里' }
+  const target = releases.find(r => r.version === version)
+  if (target === undefined) return { ok: false, reason: '先刷新一下版本列表' }
+  if (target.blocked !== null) return { ok: false, reason: target.blocked === 'shell' ? '要先装新的安装包' : '存档太新，这个版本读不了' }
+  try {
+    backupSave('v' + target.version)
+    await versions.install(target, fraction => win?.webContents.send('piggy:progress', fraction))
+    setTimeout(restartGame, 600)
+    return { ok: true, version: target.version }
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+  }
+})
+ipcMain.handle('piggy:updates:rollback', event => {
+  if (!fromPage(event) || versions === null) return { ok: false, reason: '不在桌面版里' }
+  backupSave('rollback')
+  const result = versions.rollback()
+  if (result.ok) setTimeout(restartGame, 600)
+  return result
+})
+ipcMain.handle('piggy:open', (event, url) => {
+  // Only this repo's own pages: the release notes and installers.
+  if (fromPage(event) && typeof url === 'string' && url.startsWith(RELEASES_PAGE.replace(/\/releases$/, '/'))) shell.openExternal(url)
+})
+
 app.whenReady().then(async () => {
-  const gameDir = bundledGameDir()
+  versions = createVersions({
+    userData: app.getPath('userData'), bundledDir: bundledGameDir(), shellVersion: app.getVersion(),
+    statePath: statePath(), releasesUrl: process.env.PIGGY_RELEASES_URL || undefined,
+    // Chromium's network stack: follows the system proxy, which plain fetch does not.
+    fetch: /** @type {any} */ (net.fetch.bind(net)),
+  })
+  const gameDir = versions.activeDir()
   host = await startHost(gameDir, statePath())
   registerProtocol(gameDir)
   createWindow()
@@ -169,23 +232,34 @@ app.whenReady().then(async () => {
 })
 
 /**
- * Testing: photograph the page (with its transparency) closed and then open,
- * print the clickable regions each time, and quit. Wayland desktops cannot be
- * screenshotted from here, so this is how the window is checked.
+ * Testing: run a list of steps against the page and photograph it (with its
+ * transparency), printing the clickable regions each time; then quit. Wayland
+ * desktops cannot be screenshotted from here, so this is how the window is
+ * checked. Steps (PIGGY_CAPTURE_STEPS, JSON): { js } runs code in the page,
+ * { click } clicks a selector inside the pig, { wait } pauses, { shot } saves a PNG.
  */
 async function captureForCheck(dir) {
   const wait = ms => new Promise(done => setTimeout(done, ms))
+  const steps = process.env.PIGGY_CAPTURE_STEPS
+    ? JSON.parse(process.env.PIGGY_CAPTURE_STEPS)
+    : [{ shot: 'first' }, { js: "document.querySelector('[data-dsh-pig] .dp-scene').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))" }, { shot: 'toggled' }]
   mkdirSync(dir, { recursive: true })
-  const shot = async name => {
-    await wait(1500)
-    const image = await win.webContents.capturePage()
-    writeFileSync(join(dir, name + '.png'), image.toPNG())
-    console.log('[capture]', name, JSON.stringify({ window: win.getBounds(), shape: lastShape }))
-  }
   await wait(2500)
-  await shot('closed')
-  await win.webContents.executeJavaScript("document.querySelector('[data-dsh-pig] .dp-scene').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))")
-  await shot('open')
+  for (const step of steps) {
+    if (step.wait) await wait(step.wait)
+    if (step.js) await win.webContents.executeJavaScript(step.js).catch(error => console.log('[capture] js failed', String(error)))
+    if (step.click) {
+      const ok = await win.webContents.executeJavaScript(`(() => { const n = document.querySelector('[data-dsh-pig] ${step.click.replace(/'/g, "\\'")}'); if (n) n.click(); return n !== null })()`)
+      console.log('[capture] click', step.click, ok)
+      await wait(400)
+    }
+    if (step.shot) {
+      await wait(1200)
+      const image = await win.webContents.capturePage()
+      writeFileSync(join(dir, step.shot + '.png'), image.toPNG())
+      console.log('[capture]', step.shot, JSON.stringify({ shape: lastShape }))
+    }
+  }
   app.quit()
 }
 

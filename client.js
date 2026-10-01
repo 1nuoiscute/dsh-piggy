@@ -28,6 +28,7 @@
   ];
   var DEV_KEY = "dsh-piggy:dev";
   var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
+  var UPDATE_TAB = { key: "update", label: "\u66F4\u65B0", emoji: "\u{1F504}" };
   var PET_LINES = [
     "\u597D\u8212\u670D\u2026",
     "\u518D\u6478\u6478\uFF5E",
@@ -1453,7 +1454,12 @@
     "[data-dsh-pig] .dp-alert + .dp-actions{margin-bottom:14px}",
     ".dp-job-go{display:block;width:100%;margin-top:9px}",
     // A picked tile's details (a diary page, a souvenir's story) sit under the grid.
-    ".dp-tile-card{margin-top:12px}"
+    ".dp-tile-card{margin-top:12px}",
+    // 更新 App: the release notes keep their line breaks but stay short.
+    ".dp-update-notes{white-space:pre-wrap;font-size:10.5px;line-height:1.5;color:var(--ac-text-2);max-height:120px;overflow:auto;margin:4px 0 6px}",
+    ".dp-update-back{margin-top:10px;width:100%}",
+    ".dp-update-now{margin-bottom:12px}",
+    ".dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}"
   ].join("");
 
   // src/client/css-card.js
@@ -1873,7 +1879,7 @@
         ctx.busy = false;
       }
     }
-    async function refresh() {
+    async function refresh2() {
       if (ctx.stopped) return;
       ctx.fitPanel();
       var startedAt = actionSeq;
@@ -1888,7 +1894,7 @@
         ctx.showBubble("\u8FDE\u63A5\u4E0D\u4E0A\u5BBF\u4E3B", 4e3);
       }
     }
-    return { send, refresh };
+    return { send, refresh: refresh2 };
   }
 
   // src/client/layout.js
@@ -2479,6 +2485,7 @@
     shop: "red",
     travel: "blue",
     bag: "teal",
+    update: "lime",
     dev: "brown"
   };
   function renderHome(ui, apps) {
@@ -2528,6 +2535,177 @@
     row.appendChild(el("b", "dp-drill-title", app.emoji + " " + app.label));
     if (info) row.appendChild(el("span", "dp-drill-info", info));
     ui.content.appendChild(row);
+  }
+
+  // src/client/tabs/update.js
+  var state = {
+    current: null,
+    list: null,
+    error: null,
+    loading: false,
+    pick: null,
+    busy: null,
+    fraction: 0,
+    message: null,
+    listening: false
+  };
+  function updatesBridge() {
+    var shell = (
+      /** @type {any} */
+      window.piggyShell
+    );
+    return shell && shell.updates ? shell : null;
+  }
+  function refresh(ui) {
+    var shell = updatesBridge();
+    if (shell === null || state.loading) return;
+    state.loading = true;
+    state.error = null;
+    if (!state.listening) {
+      state.listening = true;
+      shell.updates.onProgress(function(fraction) {
+        state.fraction = fraction;
+        ui.renderContent();
+      });
+    }
+    Promise.all([shell.updates.current(), shell.updates.list()]).then(function(got) {
+      state.current = got[0];
+      if (got[1] && got[1].ok) state.list = got[1].releases;
+      else state.error = got[1] && got[1].reason || "\u6CA1\u95EE\u5230";
+    }, function() {
+      state.error = "\u6CA1\u95EE\u5230";
+    }).then(function() {
+      state.loading = false;
+      ui.renderContent();
+    });
+  }
+  function install(ui, version) {
+    var shell = updatesBridge();
+    if (shell === null) return;
+    state.busy = version;
+    state.fraction = 0;
+    state.message = null;
+    ui.renderContent();
+    shell.updates.install(version).then(function(result) {
+      state.message = result.ok ? "\u6362\u597D\u4E86\uFF0C\u732A\u9A6C\u4E0A\u56DE\u6765\u2026" : result.reason;
+      if (!result.ok) state.busy = null;
+      ui.renderContent();
+    });
+  }
+  function rollback(ui) {
+    var shell = updatesBridge();
+    if (shell === null) return;
+    state.busy = "rollback";
+    ui.renderContent();
+    shell.updates.rollback().then(function(result) {
+      state.message = result.ok ? "\u56DE\u53BB\u4E86\uFF0C\u732A\u9A6C\u4E0A\u56DE\u6765\u2026" : result.reason;
+      if (!result.ok) state.busy = null;
+      ui.renderContent();
+    });
+  }
+  function renderUpdateTab(ui) {
+    if (updatesBridge() === null) {
+      ui.content.appendChild(el("div", "dp-empty", "\u684C\u9762\u7248\u624D\u6709\u8FD9\u4E2A"));
+      return;
+    }
+    if (state.current === null && state.list === null && state.error === null) refresh(ui);
+    var cur = state.current;
+    var head = el("div", "dp-pick dp-tile-card dp-update-now");
+    head.appendChild(el("div", "dp-pick-head", cur === null ? "\u6B63\u5728\u770B\u73B0\u5728\u7684\u7248\u672C\u2026" : "\u73B0\u5728 v" + cur.version + (cur.bundled ? "\uFF08\u5B89\u88C5\u5305\u81EA\u5E26\uFF09" : "")));
+    if (cur !== null) head.appendChild(el("div", "dp-dim", "\u5B89\u88C5\u5305 " + cur.shell));
+    if (state.message !== null) head.appendChild(el("div", "dp-req", state.message));
+    if (state.busy !== null && state.message === null) {
+      head.appendChild(el("div", "dp-dim", state.busy === "rollback" ? "\u6B63\u5728\u6362\u56DE\u53BB\u2026" : "\u4E0B\u8F7D\u4E2D " + Math.round(state.fraction * 100) + "%"));
+    }
+    var latest = state.list === null ? null : state.list.find(function(r) {
+      return r.blocked === null && !r.prerelease;
+    }) || null;
+    if (latest !== null && cur !== null && !latest.current) {
+      var up = button("dp-btn dp-btn-wide", { "data-update-latest": latest.version }, function() {
+        install(ui, latest.version);
+      });
+      up.textContent = "\u2B06\uFE0F \u66F4\u65B0\u5230\u6700\u65B0 v" + latest.version;
+      up.disabled = state.busy !== null;
+      head.appendChild(up);
+    } else if (latest !== null) {
+      head.appendChild(el("div", "dp-req dp-req-ok", "\u2713 \u5DF2\u7ECF\u662F\u6700\u65B0"));
+    }
+    ui.content.appendChild(head);
+    if (state.loading && state.list === null) ui.content.appendChild(el("div", "dp-empty", "\u6B63\u5728\u95EE GitHub\u2026"));
+    if (state.error !== null) {
+      ui.content.appendChild(el("div", "dp-empty", state.error));
+      var again = button("dp-btn dp-btn-wide", { "data-update-retry": "" }, function() {
+        refresh(ui);
+      });
+      again.textContent = "\u518D\u8BD5\u4E00\u6B21";
+      ui.content.appendChild(again);
+    }
+    if (state.list !== null) renderList(ui, state.list);
+    if (cur !== null && cur.previous !== null) {
+      var back = button("dp-btn dp-btn-wide dp-update-back", { "data-update-rollback": "" }, function() {
+        rollback(ui);
+      });
+      back.textContent = "\u21A9\uFE0F \u56DE\u5230\u4E0A\u4E00\u4E2A\u7248\u672C v" + cur.previous;
+      back.disabled = state.busy !== null;
+      ui.content.appendChild(back);
+    }
+  }
+  function renderList(ui, list) {
+    if (list.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "GitHub \u4E0A\u8FD8\u6CA1\u6709\u80FD\u70ED\u66F4\u65B0\u7684\u7248\u672C"));
+      return;
+    }
+    var grid = tileGrid();
+    var picked = null;
+    for (var i = 0; i < list.length; i += 1) {
+      (function(release, first) {
+        var active = state.pick === release.version;
+        if (active) picked = release;
+        grid.appendChild(tile({
+          emoji: release.current ? "\u{1F416}" : "\u{1F4E6}",
+          label: "v" + release.version,
+          color: "lime",
+          soft: true,
+          active,
+          note: release.date,
+          badge: first && release.blocked === null ? "\u65B0" : "",
+          tag: release.current ? "\u5728\u7528" : release.blocked !== null ? "\u{1F512}" : "",
+          dim: release.blocked !== null,
+          data: { "data-release": release.version },
+          onPick: function() {
+            state.pick = active ? null : release.version;
+            ui.renderContent();
+          }
+        }));
+      })(list[i], i === 0);
+    }
+    ui.content.appendChild(grid);
+    if (picked !== null) ui.content.appendChild(details(ui, picked));
+  }
+  function details(ui, release) {
+    var box = el("div", "dp-pick dp-tile-card dp-update-detail");
+    box.appendChild(el("div", "dp-pick-head", "v" + release.version + (release.date ? " \xB7 " + release.date : "") + (release.prerelease ? " \xB7 \u9884\u89C8\u7248" : "")));
+    if (release.notes) box.appendChild(el("div", "dp-update-notes", release.notes));
+    var go = button("dp-btn dp-btn-wide", { "data-update-install": release.version }, function() {
+      if (release.blocked === "shell") updatesBridge().openPage(release.page);
+      else install(ui, release.version);
+    });
+    if (release.current) {
+      go.textContent = "\u6B63\u5728\u7528\u8FD9\u4E2A";
+      go.disabled = true;
+    } else if (release.blocked === "shell") {
+      box.appendChild(el("div", "dp-req", "\u2717 \u8981\u5148\u88C5 " + release.minShell + " \u4EE5\u4E0A\u7684\u5B89\u88C5\u5305"));
+      go.textContent = "\u53BB\u4E0B\u8F7D\u65B0\u5B89\u88C5\u5305";
+    } else if (release.blocked === "save") {
+      box.appendChild(el("div", "dp-req", "\u2717 \u5B58\u6863\u592A\u65B0\uFF0C\u8FD9\u4E2A\u7248\u672C\u8BFB\u4E0D\u4E86"));
+      go.textContent = "\u6362\u4E0D\u4E86";
+      go.disabled = true;
+    } else {
+      go.textContent = "\u6362\u5230\u8FD9\u4E2A\u7248\u672C";
+      go.disabled = state.busy !== null;
+    }
+    box.appendChild(go);
+    return box;
   }
 
   // src/client/panel.js
@@ -2595,7 +2773,7 @@
         ctx.content.appendChild(grid);
         return;
       }
-      var apps = ctx.devMode ? TABS.concat([DEV_TAB]) : TABS;
+      var apps = TABS.concat(updatesBridge() !== null ? [UPDATE_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
       if (ctx.tab === "home") {
         renderHome(ctx, apps);
         ctx.fitPanel();
@@ -2614,6 +2792,7 @@
       else if (ctx.tab === "shop") renderShopTab(ctx);
       else if (ctx.tab === "travel") renderTravelTab(ctx);
       else if (ctx.tab === "dev") renderDevTab(ctx);
+      else if (ctx.tab === "update") renderUpdateTab(ctx);
       else renderBagTab(ctx);
       ctx.fitPanel();
     }
@@ -3089,7 +3268,7 @@
         var paintBar = layout.paintBar, buildIcon = layout.buildIcon;
         for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t]);
         var io = createIo(ctx);
-        var send = io.send, refresh = io.refresh;
+        var send = io.send, refresh2 = io.refresh;
         ctx.send = send;
         ctx.render = render;
         ctx.renderContent = renderContent;
@@ -3174,8 +3353,8 @@
         clampPig();
         setOpen(isOpen);
         render(view);
-        refresh();
-        pollTimer = window.setInterval(refresh, POLL_MS);
+        refresh2();
+        pollTimer = window.setInterval(refresh2, POLL_MS);
         var chatTimer = null;
         function scheduleChat() {
           var minutes = IDLE_CHAT_MINUTES.min + Math.random() * (IDLE_CHAT_MINUTES.max - IDLE_CHAT_MINUTES.min);

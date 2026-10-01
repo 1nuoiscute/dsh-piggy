@@ -195,6 +195,8 @@ async function loadClient(options) {
       if (list) windowListeners[name] = list.filter(entry => entry !== fn)
     },
   }
+  // Extra window globals, e.g. the desktop app's bridge.
+  Object.assign(globalThis.window, options?.windowExtra ?? {})
   const resize = () => { for (const fn of windowListeners.resize ?? []) fn() }
   globalThis.document = dom.document
   globalThis.fetch = net.fetch
@@ -2052,4 +2054,64 @@ test('the 加冕 tile sits next to 居民卡 on the home screen and lights up wh
   assert.notEqual(tile, undefined)
   assert.match(tile.allText(), /加冕/)
   assert.match(tile.allText(), /!/)
+})
+
+// ===========================================================================
+// 更新 App（桌面版）
+// ===========================================================================
+
+/** A fake desktop bridge: two versions on GitHub, the newer one installable. */
+function fakeDesktop() {
+  const calls = []
+  const releases = [
+    { version: '0.26.0', date: '2026-10-02', notes: '要新安装包', current: false, blocked: 'shell', minShell: '0.2.0', page: 'https://github.com/CLICGGER-TYPES/dsh-piggy/releases/tag/v0.26.0', prerelease: false },
+    { version: '0.25.0', date: '2026-10-01', notes: '加了更新', current: false, blocked: null, minShell: '0.1.0', page: 'p', prerelease: false },
+    { version: '0.24.0', date: '2026-09-30', notes: '', current: true, blocked: null, minShell: '0.1.0', page: 'p', prerelease: false },
+  ]
+  const piggyShell = {
+    setShape: () => {},
+    openPage: url => { calls.push(['open', url]); return Promise.resolve() },
+    updates: {
+      current: () => Promise.resolve({ version: '0.24.0', bundled: true, bundledVersion: '0.24.0', shell: '0.1.0', previous: null }),
+      list: () => Promise.resolve({ ok: true, releases }),
+      install: version => { calls.push(['install', version]); return Promise.resolve({ ok: true, version }) },
+      rollback: () => Promise.resolve({ ok: true }),
+      onProgress: () => {},
+    },
+  }
+  return { piggyShell, calls }
+}
+
+test('inside DSH there is no 更新 tile; in the desktop app there is', async () => {
+  const plain = await loadClient()
+  plain.registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(plain.dom, 'home')
+  assert.equal(findByAttr(contentOf(plain.dom), 'data-app', 'update'), undefined)
+
+  const { piggyShell } = fakeDesktop()
+  const desk = await loadClient({ windowExtra: { piggyShell } })
+  desk.registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(desk.dom, 'home')
+  assert.notEqual(findByAttr(contentOf(desk.dom), 'data-app', 'update'), undefined)
+})
+
+test('the 更新 app offers the newest version it can install, and a newer installer opens its page', async () => {
+  const { piggyShell, calls } = fakeDesktop()
+  const { registration, dom } = await loadClient({ windowExtra: { piggyShell } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'update')
+  await settle()
+  await settle()
+  const latest = findByAttr(contentOf(dom), 'data-update-latest', '0.25.0')
+  assert.notEqual(latest, undefined, contentOf(dom).allText())
+  latest.fire('click')
+  assert.deepEqual(calls.at(-1), ['install', '0.25.0'])
+  await settle()
+  tap(dom, 'data-release', '0.26.0')
+  assert.match(contentOf(dom).allText(), /要先装 0\.2\.0 以上的安装包/)
+  tap(dom, 'data-update-install', '0.26.0')
+  assert.equal(calls.at(-1)[0], 'open')
 })

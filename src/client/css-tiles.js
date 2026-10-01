@@ -81,4 +81,9 @@ export const CSS_TILES = [
   '.dp-job-go{display:block;width:100%;margin-top:9px}',
   // A picked tile's details (a diary page, a souvenir's story) sit under the grid.
   '.dp-tile-card{margin-top:12px}',
+  // 更新 App: the release notes keep their line breaks but stay short.
+  '.dp-update-notes{white-space:pre-wrap;font-size:10.5px;line-height:1.5;color:var(--ac-text-2);max-height:120px;overflow:auto;margin:4px 0 6px}',
+  '.dp-update-back{margin-top:10px;width:100%}',
+  '.dp-update-now{margin-bottom:12px}',
+  '.dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}',
 ].join('')

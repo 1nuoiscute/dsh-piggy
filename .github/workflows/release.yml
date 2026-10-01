@@ -1,0 +1,64 @@
+# 发版：推一个 v* 标签（版本号要和根目录 package.json 的 version 一样），自动：
+#   1. 跑测试
+#   2. 生成桌面版热更新用的游戏包 game-<版本>.json.gz + manifest
+#   3. 在 Linux 上打 AppImage、在 Windows 上打安装包和免安装版
+# 全部挂到这个标签的 GitHub Release 上。
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  game:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: 标签要和 package.json 的版本一致
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - name: 测试
+        run: |
+          npm install --no-save --package-lock=false esbuild@0.28.2 typescript@5.9.3 @types/node@20.19.43
+          npm run build
+          npm test
+          npm run typecheck
+      - name: 游戏包
+        run: node apps/desktop/scripts/release-game.mjs dist-game
+      - name: 建 Release 并上传游戏包
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist-game/* --clobber
+
+  desktop:
+    needs: game
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: --linux
+          - os: windows-latest
+            target: --win
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run: { working-directory: apps/desktop }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: 装依赖
+        run: npm ci
+      - name: 打包
+        shell: bash
+        run: |
+          node scripts/pack-game.mjs
+          npx electron-builder ${{ matrix.target }} --publish never
+      - name: 上传安装包
+        shell: bash
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: gh release upload "$GITHUB_REF_NAME" $(ls dist/*.AppImage dist/*.exe 2>/dev/null) --clobber

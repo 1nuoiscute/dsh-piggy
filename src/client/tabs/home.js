@@ -11,7 +11,7 @@ import { tile, tileGrid } from '../widgets.js'
 /** One colour per app, so the home screen reads at a glance. */
 var APP_COLOR = {
   status: 'green', card: 'pink', crown: 'purple', study: 'yellow', work: 'orange',
-  shop: 'red', travel: 'blue', bag: 'teal', dev: 'brown',
+  shop: 'red', travel: 'blue', bag: 'teal', update: 'lime', dev: 'brown',
 }
 
 /** The home screen: who the pig is, its money, and one tile per app. */

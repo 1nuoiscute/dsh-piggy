@@ -50,6 +50,9 @@ export const TABS = [
 export const DEV_KEY = 'dsh-piggy:dev'
 export const DEV_TAB = { key: 'dev', label: '调试', emoji: '🔧' }
 
+/** 桌面版独有：从 GitHub 更新、换版本（apps/desktop）。 */
+export const UPDATE_TAB = { key: 'update', label: '更新', emoji: '🔄' }
+
 /** What the pig says when you pat it. A single line got old immediately. */
 export const PET_LINES = [
   '好舒服…', '再摸摸～', '嘿嘿', '呼噜呼噜…', '这里这里！',

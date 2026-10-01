@@ -6,7 +6,7 @@
  * @module dsh-piggy/client/panel
  */
 import { syncPigArt } from './art.js'
-import { DEV_TAB, OPEN_KEY, TABS } from './constants.js'
+import { DEV_TAB, OPEN_KEY, TABS, UPDATE_TAB } from './constants.js'
 import { button, el } from './dom.js'
 import { normalize } from './normalize.js'
 import { writeStore } from './storage.js'
@@ -16,6 +16,7 @@ import { renderCardTab } from './tabs/card.js'
 import { renderCrownTab } from './tabs/crown.js'
 import { appHeader, renderHome } from './tabs/home.js'
 import { renderDevTab } from './tabs/dev.js'
+import { renderUpdateTab, updatesBridge } from './tabs/update.js'
 import { renderShopTab } from './tabs/shop.js'
 import { renderStatusTab } from './tabs/status.js'
 import { renderStudyTab } from './tabs/study.js'
@@ -110,7 +111,7 @@ export function createPanel(ctx) {
 
         // B9: the home screen first; every app gets a 「‹」 back to it on its
         // top layer (inside a category the app's own 「‹」 goes up a layer).
-        var apps = ctx.devMode ? TABS.concat([DEV_TAB]) : TABS
+        var apps = TABS.concat(updatesBridge() !== null ? [UPDATE_TAB] : [], ctx.devMode ? [DEV_TAB] : [])
         if (ctx.tab === 'home') {
           renderHome(ctx, apps)
           ctx.fitPanel()
@@ -128,6 +129,7 @@ export function createPanel(ctx) {
         else if (ctx.tab === 'shop') renderShopTab(ctx)
         else if (ctx.tab === 'travel') renderTravelTab(ctx)
         else if (ctx.tab === 'dev') renderDevTab(ctx)
+        else if (ctx.tab === 'update') renderUpdateTab(ctx)
         else renderBagTab(ctx)
 
         // Every tab is a different height, so the fit is recomputed after each

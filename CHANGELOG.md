@@ -5,6 +5,15 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [Unreleased] — 桌面版
+
+### Added
+- `apps/desktop/`：Electron 桌面版，双击出猪。复用插件的存档、结算和路由，不开端口；
+  透明置顶窗口只在猪和面板处接收点击。托盘：藏起来 / 开机自启 / 从 DSH 导入猪 / 退出。
+- 桌面版主屏的 🔄 更新 App：从 GitHub Release 一键更新、挑版本、回退；游戏包校验 sha256，
+  换版本前备份存档，读不了当前存档的旧版本置灰。
+- 发版流程 `.github/workflows/release.yml`：推 `v*` 标签自动测试并出游戏包、AppImage、Windows 安装包。
+
 ## [Unreleased] — 名字统一成 dsh-piggy
 
 ### Changed
