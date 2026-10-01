@@ -551,6 +551,18 @@
       ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u732A\u3002\u5148\u300C\u62C6\u5F00\u7EB8\u76D2\u300D\u518D\u8C03\u3002"));
       return;
     }
+    group("\u9053\u5177", forms.filter(function(form) {
+      return form.item !== "";
+    }).map(function(form) {
+      return {
+        key: "item:" + form.item,
+        label: form.emoji + " \u7ED9" + form.label + "\u9053\u5177",
+        run: function() {
+          var count = num(ui.view.inventory[form.item], 0);
+          patch({ inventory: { [form.item]: count + 1 } });
+        }
+      };
+    }));
     group("\u72B6\u6001", [
       { key: "full", label: "\u{1F60A} \u6EE1\u72B6\u6001", run: function() {
         patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 });

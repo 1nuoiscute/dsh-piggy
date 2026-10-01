@@ -139,7 +139,7 @@ test('dead pigs cannot sign; revival keeps it and adoption clears generation pro
   const fresh = adopt(state, NOW)
   assert.equal(fresh.form, null)
   assert.equal(fresh.stats.plays, 0)
-  assert.equal(formsView(fresh), null, 'adoption starts with an unhatched box')
+  assert.equal(formsView(fresh).forms.every(form => !form.ready), true, 'adoption starts with an unhatched box')
 })
 
 test('devil survives a saved state and reopen without a schema upgrade', () => {

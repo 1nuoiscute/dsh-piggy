@@ -179,6 +179,21 @@ test('每种形态在调试页都有一个入口，外加「恢复普通」', as
   assert.notEqual(findByAttr(contentOf(dom), 'data-dev', 'form:none'), undefined, '要有「恢复普通」')
 })
 
+test('C3 每种晋升道具在调试页都有一键给予入口', async () => {
+  const status = {
+    ...SNAPSHOT,
+    forms: { current: null, forms: FORMS.map(form => ({
+      key: form.key, item: form.item, label: form.label, emoji: form.emoji,
+      stage: form.stage, fromLevel: lifeStageByKey(form.stage).fromLevel,
+      current: false, ready: false, requirements: [],
+    })) },
+  }
+  const { dom } = await openDevTab({ status })
+  for (const form of FORMS) {
+    assert.notEqual(findByAttr(contentOf(dom), 'data-dev', 'item:' + form.item), undefined, form.item)
+  }
+})
+
 test('以后加的皮肤和鱼也必须进调试页（表还不存在就先跳过）', async () => {
   const tables = []
   for (const entry of [

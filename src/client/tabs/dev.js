@@ -7,6 +7,7 @@
  */
 
 import { button, el } from '../dom.js'
+import { num } from '../values.js'
 
 export function renderDevTab(ui) {
   // 关掉调试模式就靠这个按钮（C1：没有快捷键，也不写 localStorage）。
@@ -71,6 +72,17 @@ export function renderDevTab(ui) {
     ui.content.appendChild(el('div', 'dp-empty', '还没有猪。先「拆开纸盒」再调。'))
     return
   }
+
+  group('道具', forms.filter(function (form) { return form.item !== '' }).map(function (form) {
+    return {
+      key: 'item:' + form.item,
+      label: form.emoji + ' 给' + form.label + '道具',
+      run: function () {
+        var count = num(ui.view.inventory[form.item], 0)
+        patch({ inventory: { [form.item]: count + 1 } })
+      },
+    }
+  }))
 
   group('状态', [
     { key: 'full', label: '😊 满状态', run: function () { patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 }) } },
