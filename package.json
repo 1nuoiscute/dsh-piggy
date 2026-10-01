@@ -1,6 +1,6 @@
 {
   "name": "dsh-piggy",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "🐖 一只住在 DeepSeek Harness 里的猪：吃你的真实工作长大，会学习、打工、旅行、生病、需要照顾",
   "keywords": [
     "dsh",
@@ -41,8 +41,6 @@
     "CHANGELOG.md",
     "THIRD-PARTY.md",
     "LICENSE",
-    "docs",
-    "tools",
     "assets"
   ],
   "scripts": {
@@ -64,11 +62,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/clicgger/dsh-piggy.git"
+    "url": "git+https://github.com/CLICGGER-TYPES/dsh-piggy.git"
   },
-  "homepage": "https://github.com/clicgger/dsh-piggy#readme",
+  "homepage": "https://github.com/CLICGGER-TYPES/dsh-piggy#readme",
   "bugs": {
-    "url": "https://github.com/clicgger/dsh-piggy/issues"
+    "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/issues"
   },
   "author": "clicgger"
 }

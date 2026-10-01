@@ -5,7 +5,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
-## [Unreleased] — 桌面版
+## [0.25.0] — 2026-10-01 · — 桌面版
 
 ### Added
 - `apps/desktop/`：Electron 桌面版，双击出猪。复用插件的存档、结算和路由，不开端口；
@@ -14,7 +14,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
   换版本前备份存档，读不了当前存档的旧版本置灰。
 - 发版流程 `.github/workflows/release.yml`：推 `v*` 标签自动测试并出游戏包、AppImage、Windows 安装包。
 
-## [Unreleased] — 名字统一成 dsh-piggy
+## [0.25.0] — 2026-10-01 · — 名字统一成 dsh-piggy
 
 ### Changed
 - 路由 `/dsh-pig/*` → `/dsh-piggy/*`，默认存档目录 `$DSH_HOME/dsh-pig/` → `$DSH_HOME/dsh-piggy/`，
@@ -22,7 +22,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - 旧存档目录第一次启动时自动整个复制过去，旧目录改名为 `dsh-pig.moved-<时间>` 保留。
 - 面板的本地设置（开合、位置、开发者模式）换了键名，仍会读旧键，不会重置。
 
-## [Unreleased] — 加冕（改编自 PR #2，作者 1nuoiscute）
+## [0.25.0] — 2026-10-01 · — 加冕（改编自 PR #2，作者 1nuoiscute）
 
 ### Added
 - 加冕：长成后（成年 Lv40 + 三维各 20 + 本代打工 10 次）可以在主屏新的「👑 加冕」App 里加冕成猪猪王，
@@ -33,7 +33,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 ### Changed
 - 存档 v12：新字段 `form`。
 
-## [Unreleased] — B9 主屏与居民卡
+## [0.25.0] — 2026-10-01 · — B9 主屏与居民卡
 
 - 打开面板先是九宫格主屏（像动森手机）：状态、居民卡、学习、打工、商店、旅行、背包各一格，点进去，左上角「‹」回来。底部图标栏不再显示。
 - 新的「居民卡」：头像、名字、性别、等级称号、生日、星座、性格、口头禅、签名、收藏数。性格拆盒时随机，口头禅和签名可以改，猪说话时偶尔带上口头禅。
@@ -41,13 +41,13 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - 「在外面 / 生病 / 走了」的提示只在状态页显示，主屏的「状态」方块上挂小标签；和下面的内容拉开了间距。
 - 修：猪出门时，面板下方的名字框会挤到猪身上。
 
-## [Unreleased] — B8 方块界面
+## [0.25.0] — 2026-10-01 · — B8 方块界面
 
 - 学习、商店、背包改成动森手机那样的彩色方块：第一层是大类（学段 / 货架 / 背包分类），点进去里面也是方块，左上角「‹」返回。截图见 `docs/screenshots/b8-*.png`。
 - 锁住的学段变灰但能点进去看；等级不够的装扮变灰；背包空的分类变灰。
 - 面板展开时 📅 签到不再压在图标栏上，挪到猪旁边。
 
-## [Unreleased] — 界面体验修复
+## [0.25.0] — 2026-10-01 · — 界面体验修复
 
 按用户 2026-10-01 的反馈修的 bug（**学习 / 商店 / 背包的排版保持原样**：用户先要过折叠、
 再要过方块，看了都不满意，最后要求还原，两个版本都已撤掉）：
@@ -60,7 +60,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - **面板里能改猪的名字了**：「✏️ 称呼」改主人、「✏️ 名字」改猪；昵称不再印在面板上。
 - **删掉解释性废话**：纸盒的「不用敲命令」、生病与墓碑的长说明、空背包/空家当的劝告。
 
-## [Unreleased] — B6 台词
+## [0.25.0] — 2026-10-01 · — B6 台词
 
 - 24 个场景、90 多句台词（文案见 `docs/tasks/numbers/B6-lines.md`）：吃撑、打工回来/累了、上完课、毕业、旅行回来、长大、复活等都会说话。
 - 闲着每 20–40 分钟冒一句，先说需要什么（饿/脏/孤单），不需要才闲聊；离开半小时以上再打开会打招呼。
@@ -68,7 +68,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - 学习页：「🎯 兴趣」成了学段旁边的一个按钮。
 - 调整：病得慢一点（饿、脏各 3%/h），三维报酬加成降到每点 1/150 且不再缩短工时。
 
-## [Unreleased] — B2 成长 · B3 疾病 · B4 学习→职业
+## [0.25.0] — 2026-10-01 · — B2 成长 · B3 疾病 · B4 学习→职业
 
 数值全部照 `docs/tasks/numbers/` 里用户 2026-10-01 确认的单子。存档 8 → 11，每一级升级前都会原样备份。
 
@@ -97,7 +97,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 ### Verification（文档）
 - 本地链接、构建、类型检查及完整自动测试通过；客户端生成产物保持与上游一致。
 
-## [Unreleased] — 批次 0 框架
+## [0.25.0] — 2026-10-01 · — 批次 0 框架
 
 ### Changed（内部）
 - 领域层抽成 `packages/pet-core`（`@dsh-piggy/core`，零依赖），DSH 插件和以后的独立版共用；根目录 `core.js` / `data.js` 改为再导出，导入路径不变。
