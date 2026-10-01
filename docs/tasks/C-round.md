@@ -283,6 +283,12 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
   - 面板展开：**324×271 DIP**（X 里 648×542），正好是面板 292 + 32 留白 ✓
   - 可点区域（`XShapeGetRectangles`）**2 块**：面板 (32,32,584,192) + 猪 (32,240,584,272) —— 空白角被抠掉，
     点得到桌面 ✓
+- **给 Windows 用户的实测步骤**（Claude 补充：现象主要出在浏览器 —— 全屏透明置顶窗口压着，
+  浏览器的 direct flip/overlay 失效）：
+  1. 装免安装版 `dsh-piggy-portable-<版本>.exe`，开着猪，滚动一个长网页（新闻/微博都行），
+     记录 1 分钟任务管理器里 `dsh-piggy` 和「桌面窗口管理器」的 CPU/GPU；
+  2. 托盘「退出」关掉猪，同样滚动 1 分钟，再记一次；
+  3. 对比两次；顺带确认：拖猪、展开面板、空白处点击落到桌面、托盘、退出、更新 App 都正常。
 - **Windows 测试包：本机打不出来**（`apps/desktop` 没装 electron-builder，机器上也没有 wine，NSIS 打不了；
   `.github/workflows/release.yml` 是 `push: tags: v*` 触发的，还要标签与 `package.json` 版本一致）。
   可选：① 推一个 `v0.25.2`（或 0.25.1 的补丁版）标签，CI 会产出
