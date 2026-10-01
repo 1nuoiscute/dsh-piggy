@@ -5,7 +5,7 @@
  * 淡色点点底的卡（女孩粉、男孩蓝）：左边头像，右边名字和等级；下面「标签：值」
  * 一行行（生日 / 星座 / 性格 / 口头禅），签名单独一个气泡，最底下一行收藏数。
  * 口头禅和签名旁边的铅笔按钮就地改，改的时候轮询不重画（见 panel.js）。
- * 最底下是加冕：每种形态一块，条件逐条打勾，齐了就能点「加冕」；加冕后卡上多一行「形态」。
+ * 加冕在主屏自己的 App 里（tabs/crown.js）；加冕后卡上多一行「形态」。
  * @module dsh-pig/client/tabs/card
  */
 
@@ -57,31 +57,6 @@ export function renderCardTab(ui) {
   card.appendChild(el('div', 'dp-vcard-foot',
     '养了 ' + c.days + ' 天 · 证书 ' + c.certificates + ' · 纪念品 ' + c.souvenirs + ' · 毕业 ' + c.graduations))
   ui.content.appendChild(card)
-  if (forms !== null && !ui.view.dead) {
-    for (var f = 0; f < forms.forms.length; f += 1) {
-      if (!forms.forms[f].current) ui.content.appendChild(crownBlock(ui, forms.forms[f]))
-    }
-  }
-}
-
-/** 加冕 one form: its conditions as ticked chips, and the button once they are all met. */
-function crownBlock(ui, form) {
-  var box = el('div', 'dp-crown')
-  box.setAttribute('data-form', form.key)
-  box.appendChild(el('div', 'dp-crown-head', form.emoji + ' 加冕 · ' + form.label))
-  var chips = el('div', 'dp-crown-reqs')
-  for (var r = 0; r < form.requirements.length; r += 1) {
-    var row = form.requirements[r]
-    var chip = el('span', row.met ? 'dp-crown-req dp-crown-ok' : 'dp-crown-req',
-      (row.met ? '✓ ' : '✗ ') + row.label + ' ' + Math.min(row.have, row.need) + '/' + row.need)
-    chips.appendChild(chip)
-  }
-  box.appendChild(chips)
-  var go = button('dp-btn dp-btn-wide', { 'data-crown': form.key }, function () { ui.send('crown', { form: form.key }) })
-  go.textContent = form.ready ? '👑 加冕' : '条件齐了就能加冕'
-  go.disabled = !form.ready
-  box.appendChild(go)
-  return box
 }
 
 /** 「标签：值」 —— the value in a cream pill, like the reference form. */

@@ -585,8 +585,8 @@ test('the panel opens on a home screen of app tiles, and the icon bar is gone (B
     return findByClass(appTile, 'dp-tile-e').allText() + ' ' + findByClass(appTile, 'dp-tile-n').allText()
   }
   assert.deepEqual(
-    ['status', 'card', 'study', 'work', 'shop', 'travel', 'bag'].map(labelOf),
-    ['📋 状态', '🪪 居民卡', '📚 学习', '💼 打工', '🛒 商店', '🧳 旅行', '🎒 背包'],
+    ['status', 'card', 'crown', 'study', 'work', 'shop', 'travel', 'bag'].map(labelOf),
+    ['📋 状态', '🪪 居民卡', '👑 加冕', '📚 学习', '💼 打工', '🛒 商店', '🧳 旅行', '🎒 背包'],
   )
   const css = await readCss()
   assert.match(css, /\.dp-card \.dp-bar\{display:none\}/, 'the old icon bar is not shown')
@@ -1976,7 +1976,7 @@ test('banners live on the status tab only; the home screen flags the status tile
 })
 
 // ===========================================================================
-// 加冕（居民卡底下）
+// 加冕 App（主屏一格）
 // ===========================================================================
 
 const PROFILE = {
@@ -1993,13 +1993,13 @@ const kingForm = (patch = {}) => ({
   ...patch,
 })
 
-test('the card shows how close the pig is to 加冕, and the button waits until every box is ticked', async () => {
+test('the 加冕 app shows how close the pig is to 加冕, and the button waits until every box is ticked', async () => {
   const { registration, dom, net } = await loadClient({
     status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [kingForm()] } },
   })
   registration.factory(() => {}).apply({})
   await settle()
-  openPanel(dom, 'card')
+  openPanel(dom, 'crown')
   const block = findByAttr(contentOf(dom), 'data-form', 'king')
   assert.notEqual(block, undefined)
   assert.match(block.allText(), /✓ 等级 40\/40/)
@@ -2008,14 +2008,14 @@ test('the card shows how close the pig is to 加冕, and the button waits until 
   assert.equal(net.calls.filter(call => call.method === 'POST').length, 0)
 })
 
-test('a ready pig can be crowned from its card', async () => {
+test('a ready pig can be crowned from the 加冕 app', async () => {
   const ready = kingForm({ ready: true, requirements: [{ key: 'level', label: '等级', have: 40, need: 40, met: true }] })
   const { registration, dom, net } = await loadClient({
     status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [ready] } },
   })
   registration.factory(() => {}).apply({})
   await settle()
-  openPanel(dom, 'card')
+  openPanel(dom, 'crown')
   const go = findByAttr(contentOf(dom), 'data-crown', 'king')
   assert.equal(go.disabled, false)
   go.fire('click')
@@ -2025,13 +2025,31 @@ test('a ready pig can be crowned from its card', async () => {
   assert.deepEqual(JSON.parse(posted[0].body), { action: 'crown', form: 'king' })
 })
 
-test('once crowned the card says which form, and the block goes away', async () => {
-  const { registration, dom } = await loadClient({
-    status: { ...SNAPSHOT, profile: PROFILE, forms: { current: 'king', forms: [kingForm({ current: true })] } },
-  })
+test('once crowned the card says which form, and the app marks it as current', async () => {
+  const status = { ...SNAPSHOT, profile: PROFILE, forms: { current: 'king', forms: [kingForm({ current: true })] } }
+  const { registration, dom } = await loadClient({ status })
   registration.factory(() => {}).apply({})
   await settle()
   openPanel(dom, 'card')
   assert.match(contentOf(dom).allText(), /形态：\s*👑 猪猪王/)
-  assert.equal(findByAttr(contentOf(dom), 'data-form', 'king'), undefined)
+  assert.equal(findByAttr(contentOf(dom), 'data-form', 'king'), undefined, 'the card itself has no 加冕 block')
+  const again = await loadClient({ status })
+  again.registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(again.dom, 'crown')
+  assert.match(findByAttr(contentOf(again.dom), 'data-form', 'king').allText(), /当前形态/)
+  assert.equal(findByAttr(contentOf(again.dom), 'data-crown', 'king'), undefined)
+})
+
+test('the 加冕 tile sits next to 居民卡 on the home screen and lights up when a form is ready', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [kingForm({ ready: true })] } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'home')
+  const tile = findByAttr(contentOf(dom), 'data-app', 'crown')
+  assert.notEqual(tile, undefined)
+  assert.match(tile.allText(), /加冕/)
+  assert.match(tile.allText(), /!/)
 })

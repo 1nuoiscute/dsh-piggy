@@ -13,6 +13,7 @@ import { writeStore } from './storage.js'
 import { CSS } from './styles.js'
 import { renderBagTab } from './tabs/bag.js'
 import { renderCardTab } from './tabs/card.js'
+import { renderCrownTab } from './tabs/crown.js'
 import { appHeader, renderHome } from './tabs/home.js'
 import { renderDevTab } from './tabs/dev.js'
 import { renderShopTab } from './tabs/shop.js'
@@ -121,6 +122,7 @@ export function createPanel(ctx) {
 
         if (ctx.tab === 'status') renderStatusTab(ctx)
         else if (ctx.tab === 'card') renderCardTab(ctx)
+        else if (ctx.tab === 'crown') renderCrownTab(ctx)
         else if (ctx.tab === 'study') renderStudyTab(ctx)
         else if (ctx.tab === 'work') renderWorkTab(ctx)
         else if (ctx.tab === 'shop') renderShopTab(ctx)
@@ -269,6 +271,8 @@ export function createPanel(ctx) {
         })
         ctx.icons.study.setAttribute('data-alert', hasCourse ? 'true' : 'false')
         ctx.icons.shop.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.illness !== null ? 'true' : 'false')
+        // 加冕: a form is waiting to be picked.
+        ctx.icons.crown.setAttribute('data-alert', ctx.view.forms !== null && ctx.view.forms.forms.some(function (f) { return f.ready }) ? 'true' : 'false')
         ctx.icons.travel.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? 'true' : 'false')
 
         for (var i = 0; i < ctx.view.pending.length; i += 1) {

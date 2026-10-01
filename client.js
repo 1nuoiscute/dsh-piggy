@@ -19,6 +19,7 @@
   var TABS = [
     { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
     { key: "card", label: "\u5C45\u6C11\u5361", emoji: "\u{1FAAA}" },
+    { key: "crown", label: "\u52A0\u5195", emoji: "\u{1F451}" },
     { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
     { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
     { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
@@ -1491,14 +1492,21 @@
     "[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}",
     ".dp-vcard-foot{margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--vc-line);",
     "font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    // 加冕: a cream box under the card, conditions as small chips.
-    ".dp-crown{margin-top:10px;padding:10px 12px;border-radius:16px;background:#fffbe7;border:2px dashed #e8c66a}",
-    ".dp-crown-head{font-size:12px;font-weight:800;color:var(--ac-text);margin-bottom:7px}",
-    ".dp-crown-reqs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}",
-    ".dp-crown-req{padding:2px 8px;border-radius:var(--ac-pill);font-size:10px;font-weight:700;white-space:nowrap;",
+    // 加冕 App: one cream box per form, its picture on the left, conditions as small chips.
+    ".dp-crown{margin-bottom:10px;padding:10px 12px;border-radius:16px;background:#fffbe7;border:2px dashed #e8c66a}",
+    ".dp-crown.dp-crown-now{border-style:solid;background:#fdf3d0}",
+    ".dp-crown-top{display:flex;gap:10px;align-items:flex-start}",
+    ".dp-crown-pic{flex:none;width:58px;height:58px;border-radius:14px;display:flex;align-items:center;justify-content:center;",
+    "background:#fff;border:2px solid #f0dca0;font-size:30px}",
+    ".dp-crown-img{width:50px;height:50px;display:block}",
+    ".dp-crown-side{flex:1;min-width:0}",
+    ".dp-crown-head{font-size:12px;font-weight:800;color:var(--ac-text);margin-bottom:6px}",
+    ".dp-crown-done{font-size:11px;font-weight:700;color:#3f8a62}",
+    ".dp-crown-reqs{display:flex;flex-wrap:wrap;gap:4px}",
+    ".dp-crown-req{padding:2px 7px;border-radius:var(--ac-pill);font-size:10px;font-weight:700;white-space:nowrap;",
     "background:#f3ece0;color:var(--ac-text-2)}",
     ".dp-crown-req.dp-crown-ok{background:#dff3e8;color:#3f8a62}",
-    ".dp-crown .dp-btn{width:100%}"
+    ".dp-crown .dp-btn{width:100%;margin-top:9px}"
   ].join("");
 
   // src/client/styles.js
@@ -2341,8 +2349,8 @@
     if (profile.zodiac !== null) card.appendChild(field("\u661F\u5EA7", profile.zodiac.emoji + " " + profile.zodiac.label));
     if (profile.personality !== null) card.appendChild(field("\u6027\u683C", profile.personality.emoji + " " + profile.personality.label));
     var forms = ui.view.forms;
-    var worn = forms === null ? null : forms.forms.find(function(f2) {
-      return f2.current;
+    var worn = forms === null ? null : forms.forms.find(function(f) {
+      return f.current;
     }) || null;
     if (worn !== null) card.appendChild(field("\u5F62\u6001", worn.emoji + " " + worn.label));
     card.appendChild(editableField(ui, "catchphrase", "\u53E3\u5934\u7985", profile.catchphrase));
@@ -2354,34 +2362,6 @@
       "\u517B\u4E86 " + c.days + " \u5929 \xB7 \u8BC1\u4E66 " + c.certificates + " \xB7 \u7EAA\u5FF5\u54C1 " + c.souvenirs + " \xB7 \u6BD5\u4E1A " + c.graduations
     ));
     ui.content.appendChild(card);
-    if (forms !== null && !ui.view.dead) {
-      for (var f = 0; f < forms.forms.length; f += 1) {
-        if (!forms.forms[f].current) ui.content.appendChild(crownBlock(ui, forms.forms[f]));
-      }
-    }
-  }
-  function crownBlock(ui, form) {
-    var box = el("div", "dp-crown");
-    box.setAttribute("data-form", form.key);
-    box.appendChild(el("div", "dp-crown-head", form.emoji + " \u52A0\u5195 \xB7 " + form.label));
-    var chips = el("div", "dp-crown-reqs");
-    for (var r = 0; r < form.requirements.length; r += 1) {
-      var row = form.requirements[r];
-      var chip = el(
-        "span",
-        row.met ? "dp-crown-req dp-crown-ok" : "dp-crown-req",
-        (row.met ? "\u2713 " : "\u2717 ") + row.label + " " + Math.min(row.have, row.need) + "/" + row.need
-      );
-      chips.appendChild(chip);
-    }
-    box.appendChild(chips);
-    var go = button("dp-btn dp-btn-wide", { "data-crown": form.key }, function() {
-      ui.send("crown", { form: form.key });
-    });
-    go.textContent = form.ready ? "\u{1F451} \u52A0\u5195" : "\u6761\u4EF6\u9F50\u4E86\u5C31\u80FD\u52A0\u5195";
-    go.disabled = !form.ready;
-    box.appendChild(go);
-    return box;
   }
   function field(label, value) {
     var row = el("div", "dp-vcard-row");
@@ -2432,10 +2412,67 @@
     return row;
   }
 
+  // src/client/tabs/crown.js
+  function renderCrownTab(ui) {
+    var forms = ui.view.forms;
+    if (forms === null) {
+      ui.content.appendChild(el("div", "dp-empty", "\u91CD\u542F dsh \u4E4B\u540E\u624D\u6709\u52A0\u5195"));
+      return;
+    }
+    if (ui.view.dead) ui.content.appendChild(el("div", "dp-empty", "\u5B83\u8D70\u4E86\uFF0C\u6551\u56DE\u6765\u624D\u80FD\u52A0\u5195"));
+    for (var f = 0; f < forms.forms.length; f += 1) ui.content.appendChild(formBlock(ui, forms.forms[f]));
+  }
+  function formBlock(ui, form) {
+    var box = el("div", form.current ? "dp-crown dp-crown-now" : "dp-crown");
+    box.setAttribute("data-form", form.key);
+    var top = el("div", "dp-crown-top");
+    var pic = el("div", "dp-crown-pic");
+    if (form.art !== "") {
+      var img = (
+        /** @type {HTMLImageElement} */
+        el("img", "dp-crown-img")
+      );
+      img.src = ART_URL + form.art + ".svg";
+      img.alt = "";
+      pic.appendChild(img);
+    } else {
+      pic.appendChild(el("span", null, form.emoji));
+    }
+    top.appendChild(pic);
+    var side = el("div", "dp-crown-side");
+    side.appendChild(el("div", "dp-crown-head", form.emoji + " " + form.label));
+    if (form.current) {
+      side.appendChild(el("div", "dp-crown-done", "\u2713 \u5F53\u524D\u5F62\u6001"));
+    } else {
+      var chips = el("div", "dp-crown-reqs");
+      for (var r = 0; r < form.requirements.length; r += 1) {
+        var row = form.requirements[r];
+        chips.appendChild(el(
+          "span",
+          row.met ? "dp-crown-req dp-crown-ok" : "dp-crown-req",
+          (row.met ? "\u2713 " : "\u2717 ") + row.label + " " + Math.min(row.have, row.need) + "/" + row.need
+        ));
+      }
+      side.appendChild(chips);
+    }
+    top.appendChild(side);
+    box.appendChild(top);
+    if (!form.current) {
+      var go = button("dp-btn dp-btn-wide", { "data-crown": form.key }, function() {
+        ui.send("crown", { form: form.key });
+      });
+      go.textContent = form.ready ? "\u{1F451} \u52A0\u5195" : "\u6761\u4EF6\u9F50\u4E86\u5C31\u80FD\u52A0\u5195";
+      go.disabled = !form.ready;
+      box.appendChild(go);
+    }
+    return box;
+  }
+
   // src/client/tabs/home.js
   var APP_COLOR = {
     status: "green",
     card: "pink",
+    crown: "purple",
     study: "yellow",
     work: "orange",
     shop: "red",
@@ -2570,6 +2607,7 @@
       if (app !== void 0 && !drilled) appHeader(ctx, app, ctx.tab === "shop" ? "\u{1FA99} " + ctx.view.pig.coins : "");
       if (ctx.tab === "status") renderStatusTab(ctx);
       else if (ctx.tab === "card") renderCardTab(ctx);
+      else if (ctx.tab === "crown") renderCrownTab(ctx);
       else if (ctx.tab === "study") renderStudyTab(ctx);
       else if (ctx.tab === "work") renderWorkTab(ctx);
       else if (ctx.tab === "shop") renderShopTab(ctx);
@@ -2683,6 +2721,9 @@
       });
       ctx.icons.study.setAttribute("data-alert", hasCourse ? "true" : "false");
       ctx.icons.shop.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.illness !== null ? "true" : "false");
+      ctx.icons.crown.setAttribute("data-alert", ctx.view.forms !== null && ctx.view.forms.forms.some(function(f) {
+        return f.ready;
+      }) ? "true" : "false");
       ctx.icons.travel.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? "true" : "false");
       for (var i = 0; i < ctx.view.pending.length; i += 1) {
         var event = ctx.view.pending[i];

@@ -45,12 +45,19 @@ export const CSS_CARD = [
   '.dp-vcard-foot{margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--vc-line);',
   'font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
 
-  // 加冕: a cream box under the card, conditions as small chips.
-  '.dp-crown{margin-top:10px;padding:10px 12px;border-radius:16px;background:#fffbe7;border:2px dashed #e8c66a}',
-  '.dp-crown-head{font-size:12px;font-weight:800;color:var(--ac-text);margin-bottom:7px}',
-  '.dp-crown-reqs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}',
-  '.dp-crown-req{padding:2px 8px;border-radius:var(--ac-pill);font-size:10px;font-weight:700;white-space:nowrap;',
+  // 加冕 App: one cream box per form, its picture on the left, conditions as small chips.
+  '.dp-crown{margin-bottom:10px;padding:10px 12px;border-radius:16px;background:#fffbe7;border:2px dashed #e8c66a}',
+  '.dp-crown.dp-crown-now{border-style:solid;background:#fdf3d0}',
+  '.dp-crown-top{display:flex;gap:10px;align-items:flex-start}',
+  '.dp-crown-pic{flex:none;width:58px;height:58px;border-radius:14px;display:flex;align-items:center;justify-content:center;',
+  'background:#fff;border:2px solid #f0dca0;font-size:30px}',
+  '.dp-crown-img{width:50px;height:50px;display:block}',
+  '.dp-crown-side{flex:1;min-width:0}',
+  '.dp-crown-head{font-size:12px;font-weight:800;color:var(--ac-text);margin-bottom:6px}',
+  '.dp-crown-done{font-size:11px;font-weight:700;color:#3f8a62}',
+  '.dp-crown-reqs{display:flex;flex-wrap:wrap;gap:4px}',
+  '.dp-crown-req{padding:2px 7px;border-radius:var(--ac-pill);font-size:10px;font-weight:700;white-space:nowrap;',
   'background:#f3ece0;color:var(--ac-text-2)}',
   '.dp-crown-req.dp-crown-ok{background:#dff3e8;color:#3f8a62}',
-  '.dp-crown .dp-btn{width:100%}',
+  '.dp-crown .dp-btn{width:100%;margin-top:9px}',
 ].join('')
