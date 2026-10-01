@@ -393,6 +393,55 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
 **结论**：根因（CSS 让猪永远靠右）✅ 已修，207px 跳消失；左上角展开/收起的残余位移 12.8 / 24.9 DIP
 **未达标**，不申请验收。
 
+
+### D1 返工 3（DSH agent，2026-10-01）：✅ 四个角展开/收起位移全部 0.0 DIP
+
+**按 Claude 给的两步收敛做的**
+1. `shell.js` 上报里多带 `pigWindow`（`layoutBox(.dp-pig)` 的**窗口坐标**，不减内容框原点）；
+   key 里给它的档位是 **1px**（内容/猪在内容框里的位置仍是 4px）—— 主进程补完平移要靠这次重报验证，
+   粗了会漏掉 4px 以内的补正。
+2. `lib/window-geometry.js` 新增纯函数 `anchorCorrection(windowBounds, pigWindow, targetPigScreen, area)`：
+   算「猪现在的屏幕坐标 − 内容变化前记下的屏幕坐标」，不为 0 就返回平移后的 bounds（夹进 workArea），
+   差值 ≤1px 时返回 null（不折腾）。
+3. `main.js`：内容变化（尺寸或锚边变了）时先 `setBounds` 改大小，同时记下 `anchorFix = {target: 猪的屏幕坐标}`；
+   页面下一帧再来报（窗口大小变了，`pigWindow` 会变 → key 变 → 必然重报）时调 `anchorCorrection` 补一次平移，
+   收敛或补满 3 次就撤掉这个标记。**闲着不触发**（没内容变化就不进这条分支）。
+   Claude 说的根因就是这个：主进程把内容框原点当成窗口原点，面板换方向时最左/最上的框换人，差值变成十几像素。
+
+**测试（先写红）**：`apps/desktop/test/window.test.js`
+- 「四个角展开/收起：两步收敛后猪的屏幕坐标差 ≤ 4px」：模拟四个角各展开、收起一次（含锚边翻转的左上/左下），
+  断言补正后 ≤4px、窗口不出界。**红证明**：把 `anchorCorrection` 直接 return null，这条立刻红。
+- 「收敛不折腾」：容差内返回 null、差 10px 时正好补掉 10px。
+- 外壳侧：「上报要带 pigWindow」。
+`npm run build && npm test` → **383 / 383**；`npm run typecheck` → **0 错误**。
+
+**X11 实机（`npm run pack-game` 之后跑，本机 3840×2160，electron 44.5.1 `--ozone-platform=x11`）**
+四个角各拖过去 → 展开 → 收起，猪的屏幕坐标用**布局盒**量（`offsetLeft/offsetTop` 累加：
+`getBoundingClientRect` 含浮动动画的 transform，会带 ±7px 噪声，上一轮就是这个把我自己骗了）：
+
+| 角 | data-panel-side | 展开位移 (DIP) | 收起位移 (DIP) | 面板在窗口里 | 窗口尺寸回到收起态 |
+|---|---|---|---|---|---|
+| 左上 | right | **(0.0, 0.0)** | **(0.0, 0.0)** | ✓ | ✓ |
+| 右上 | left | **(0.0, 0.0)** | **(0.0, 0.0)** | ✓ | ✓ |
+| 左下 | right | **(0.0, 0.0)** | **(0.0, 0.0)** | ✓ | ✓ |
+| 右下 | left | **(0.0, 0.0)** | **(0.0, 0.0)** | ✓ | ✓ |
+
+主进程日志里能直接看到两步（左上角那次）：
+```
+bounds content {"x":1596,"y":743,"width":324,"height":271}   ← 第一步：改大小
+bounds anchor  {"x":1584,"y":743,"width":324,"height":271}   ← 第二步：补 12px 平移
+```
+（补的这 12px 就是上一轮残余的十几像素。）截图（朝右开、猪在左上角）：
+`/zyx/DSH/workspaces/.piggy-shots/panel-right.png`。
+
+**上一轮的教训**：桌面版加载的是 `apps/desktop/game/` 里打包好的 `client.js`，改 `src/client` 后必须
+`npm run pack-game` 再实机，否则测的是旧前端。
+
+**C4 那件小事（加冕/签约台词）**：C3 还没合进 main —— `git merge-base --is-ancestor 6c20d76 HEAD` 为假，
+`main..codex/next` 还有 12 个提交（加冕/签约/恶魔猪都在那边）。`data/lines.js` 里的 `coronation`/`contract`
+场景和「成功时用它们」都依赖 C3 的晋升道具流程，所以我没动 `lines.js`（避免和 codex/next 冲突），
+等 C3 合进来之后我马上补。
+
 ## 疑问（数值/规则觉得不合理写这里，等用户定）
 
 - **C2 番茄钟**三条自己定的规则，等用户点头：
