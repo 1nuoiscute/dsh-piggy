@@ -6,7 +6,7 @@
  * @module dsh-piggy/client/panel
  */
 import { syncPigArt } from './art.js'
-import { DEV_TAB, OPEN_KEY, TABS, UPDATE_TAB } from './constants.js'
+import { DEV_TAB, OPEN_KEY, QUIT_TAB, TABS, UPDATE_TAB } from './constants.js'
 import { button, el } from './dom.js'
 import { normalize } from './normalize.js'
 import { writeStore } from './storage.js'
@@ -63,6 +63,12 @@ export function createPanel(ctx) {
       }
 
       function select(next) {
+        // 桌面版「退出」不是页签：直接让外壳存档关窗。
+        if (next === 'quit') {
+          var desk = updatesBridge()
+          if (desk !== null && desk.quit) desk.quit()
+          return
+        }
         ctx.tab = next
         ctx.picker = null
         // Opening a tile tab always starts at its top layer.
@@ -111,7 +117,8 @@ export function createPanel(ctx) {
 
         // B9: the home screen first; every app gets a 「‹」 back to it on its
         // top layer (inside a category the app's own 「‹」 goes up a layer).
-        var apps = TABS.concat(updatesBridge() !== null ? [UPDATE_TAB] : [], ctx.devMode ? [DEV_TAB] : [])
+        var shell = updatesBridge()
+        var apps = TABS.concat(shell !== null ? [UPDATE_TAB] : [], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : [])
         if (ctx.tab === 'home') {
           renderHome(ctx, apps)
           ctx.fitPanel()

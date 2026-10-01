@@ -181,6 +181,8 @@ function createTray(gameDir) {
   const icon = nativeImage.createFromPath(join(HERE, 'build', 'tray.png'))
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon)
   tray.setToolTip('dsh-piggy')
+  // Windows：单击托盘图标叫猪出来 / 藏起来（右键是菜单）
+  tray.on('click', () => { win?.isVisible() ? win.hide() : win?.showInactive() })
   const menu = () => Menu.buildFromTemplate([
     { label: win?.isVisible() ? '藏起来' : '叫猪出来', click: () => { win?.isVisible() ? win.hide() : win?.showInactive(); tray?.setContextMenu(menu()) } },
     { label: '开机自启', type: 'checkbox', checked: autostartOn(), click: item => setAutostart(item.checked) },
@@ -245,6 +247,7 @@ ipcMain.handle('piggy:updates:rollback', event => {
   if (result.ok) setTimeout(restartGame, 600)
   return result
 })
+ipcMain.handle('piggy:quit', (event) => { if (fromPage(event)) app.quit() })
 ipcMain.handle('piggy:open', (event, url) => {
   // Only this repo's own pages: the release notes and installers.
   if (fromPage(event) && typeof url === 'string' && url.startsWith(RELEASES_PAGE.replace(/\/releases$/, '/'))) shell.openExternal(url)

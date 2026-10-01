@@ -69,7 +69,8 @@ dsh plugin --profile web add /path/to/dsh-piggy
 
 - 窗口铺满屏幕但只有猪、面板、气泡那几块接收点击，其余地方照常点桌面
 - 存档和 DSH 里那只各养各的；托盘菜单「从 DSH 导入猪…」可以把那只接过来
-- 托盘菜单还有：藏起来 / 开机自启 / 退出
+- 托盘菜单还有：藏起来 / 开机自启 / 退出；主屏也有「👋 退出」
+- Linux 的 GNOME 默认不显示托盘图标，要托盘的话装「AppIndicator and KStatusNotifierItem Support」扩展；不装也能用主屏的「退出」
 - 桌面版没有「吃你的真实工作」，只靠时间慢慢长
 
 ```sh

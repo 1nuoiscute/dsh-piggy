@@ -52,6 +52,8 @@ export const DEV_TAB = { key: 'dev', label: '调试', emoji: '🔧' }
 
 /** 桌面版独有：从 GitHub 更新、换版本（apps/desktop）。 */
 export const UPDATE_TAB = { key: 'update', label: '更新', emoji: '🔄' }
+/** 桌面版独有：关掉桌面上的猪（存档会先存好）。 */
+export const QUIT_TAB = { key: 'quit', label: '退出', emoji: '👋' }
 
 /** What the pig says when you pat it. A single line got old immediately. */
 export const PET_LINES = [

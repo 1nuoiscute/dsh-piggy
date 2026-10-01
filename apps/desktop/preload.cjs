@@ -13,4 +13,6 @@ contextBridge.exposeInMainWorld('piggyShell', {
     onProgress: callback => { ipcRenderer.on('piggy:progress', (event, fraction) => callback(fraction)) },
   },
   openPage: url => ipcRenderer.invoke('piggy:open', String(url)),
+  /** 主屏「退出」：存好档再关。 */
+  quit: () => ipcRenderer.invoke('piggy:quit'),
 })

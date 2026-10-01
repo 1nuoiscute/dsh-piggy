@@ -2115,3 +2115,21 @@ test('the 更新 app offers the newest version it can install, and a newer insta
   tap(dom, 'data-update-install', '0.26.0')
   assert.equal(calls.at(-1)[0], 'open')
 })
+
+test('the desktop app gets a 退出 tile that asks the shell to close, and DSH does not', async () => {
+  const { piggyShell } = fakeDesktop()
+  let quits = 0
+  piggyShell.quit = () => { quits += 1; return Promise.resolve() }
+  const { registration, dom } = await loadClient({ windowExtra: { piggyShell } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'home')
+  tap(dom, 'data-app', 'quit')
+  assert.equal(quits, 1)
+
+  const plain = await loadClient()
+  plain.registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(plain.dom, 'home')
+  assert.equal(findByAttr(contentOf(plain.dom), 'data-app', 'quit'), undefined)
+})

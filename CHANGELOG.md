@@ -5,6 +5,12 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [0.25.1] — 2026-10-01 · 桌面版退出与托盘
+
+### Fixed
+- 桌面版托盘图标没打进安装包，Windows 托盘是空的；现在安装包里带上了图标，单击托盘图标可以叫猪出来或藏起来。
+- 桌面版主屏多了「👋 退出」，存好档再关（Linux 的 GNOME 默认不显示托盘，以前没地方退出）。
+
 ## [0.25.0] — 2026-10-01 · — 桌面版
 
 ### Added

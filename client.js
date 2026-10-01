@@ -29,6 +29,7 @@
   var DEV_KEY = "dsh-piggy:dev";
   var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
   var UPDATE_TAB = { key: "update", label: "\u66F4\u65B0", emoji: "\u{1F504}" };
+  var QUIT_TAB = { key: "quit", label: "\u9000\u51FA", emoji: "\u{1F44B}" };
   var PET_LINES = [
     "\u597D\u8212\u670D\u2026",
     "\u518D\u6478\u6478\uFF5E",
@@ -2486,6 +2487,7 @@
     travel: "blue",
     bag: "teal",
     update: "lime",
+    quit: "peach",
     dev: "brown"
   };
   function renderHome(ui, apps) {
@@ -2735,6 +2737,11 @@
       }
     }
     function select(next) {
+      if (next === "quit") {
+        var desk = updatesBridge();
+        if (desk !== null && desk.quit) desk.quit();
+        return;
+      }
       ctx.tab = next;
       ctx.picker = null;
       if (next in ctx.drill) {
@@ -2773,7 +2780,8 @@
         ctx.content.appendChild(grid);
         return;
       }
-      var apps = TABS.concat(updatesBridge() !== null ? [UPDATE_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
+      var shell = updatesBridge();
+      var apps = TABS.concat(shell !== null ? [UPDATE_TAB] : [], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
       if (ctx.tab === "home") {
         renderHome(ctx, apps);
         ctx.fitPanel();
