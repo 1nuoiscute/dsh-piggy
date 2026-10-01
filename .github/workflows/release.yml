@@ -29,10 +29,21 @@ jobs:
           npm run typecheck
       - name: 游戏包
         run: node apps/desktop/scripts/release-game.mjs dist-game
+      - name: 改动说明（CHANGELOG 这一版的小节 + 下载指引；GitHub 再在后面接 PR 与贡献者列表）
+        run: |
+          node scripts/release-notes.mjs "$GITHUB_REF_NAME" > notes.md
+          cat >> notes.md <<'NOTES'
+
+          ### 下载
+          - **Windows**：`dsh-piggy-setup-*.exe`（安装版）或 `dsh-piggy-portable-*.exe`（免安装，双击就跑）
+          - **Linux**：`dsh-piggy-*.AppImage`（加执行权限后双击）
+          - **DSH 插件**：`dsh plugin --profile web add dsh-piggy`，装完重启 dsh
+          - 已装桌面版的：主屏「🔄 更新」一键升级
+          NOTES
       - name: 建 Release 并上传游戏包
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --generate-notes
           gh release upload "$GITHUB_REF_NAME" dist-game/* --clobber
 
   desktop:
