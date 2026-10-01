@@ -5,7 +5,15 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
-## [Unreleased] — D1 桌面版 Windows 卡顿
+## [0.25.2] — 2026-10-01 · 桌面版不再拖卡浏览器，新增 macOS 包
+
+> 桌面版安装包（外壳）升到 0.1.2：窗口的修复在外壳里，**Windows / Linux 用户请重新下载安装包**，
+> 主屏「🔄 更新」只换游戏、换不到这一层。
+
+### Added
+- **macOS 包**：发版时由 GitHub 的 macOS 构建机打 `dmg`（Apple 芯片 arm64 / Intel x64 各一个）。
+  没有签名，第一次打开要右键 →「打开」，或者执行 `xattr -dr com.apple.quarantine /Applications/dsh-piggy.app`。
+  macOS 不支持只让窗口一部分可点，猪和面板四周约 16px 的透明边会挡住下面的点击。
 
 ### Fixed
 - **修复 Windows 上开着猪整机变卡**：桌面版窗口以前铺满整个工作区（透明 + 置顶），Windows 每帧都要
@@ -20,7 +28,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - 番茄钟倒计时一段一段跳（只在每 4 秒一次的轮询时更新）：现在本地每秒走一格，以服务端为准对表，
   到点马上结算。
 
-## [Unreleased] — C 批次
+## [0.25.2] — 2026-10-01 · 番茄钟、王冠变成道具、恶魔猪、调试要解锁
 
 ### Changed
 - 调试模式改成「解锁才开」：`Ctrl+Shift+D` 和 `dshPigDev.on/toggle` 都撤掉了，改成主屏版本号

@@ -96,6 +96,7 @@ npm install
 npm start              # 直接跑
 npm run dist:linux     # 打 AppImage（dist/）
 npm run dist:win       # 打 Windows 安装包
+npm run dist:mac       # 打 macOS dmg（只能在 Mac 上打；发版时由 GitHub 的 macOS 构建机打）
 ```
 
 Linux 上默认走 XWayland（Wayland 不让窗口给自己裁形状）。
@@ -112,7 +113,9 @@ Linux 上默认走 XWayland（Wayland 不让窗口给自己裁形状）。
 
 **发版**：把根目录 `package.json` 的 version 改好，推一个同名标签（如 `v0.25.0`），
 GitHub Actions（[`.github/workflows/release.yml`](.github/workflows/release.yml)）会跑测试、
-生成游戏包、打 Linux AppImage 和 Windows 安装包，一起挂到 Release 上。
+生成游戏包、打 Linux AppImage、Windows 安装包和 macOS dmg，一起挂到 Release 上。
+macOS 包没有签名：第一次打开要右键 →「打开」，或者执行 `xattr -dr com.apple.quarantine /Applications/dsh-piggy.app`。
+macOS 不支持只让窗口一部分可点，猪和面板四周约 16px 的透明边会挡住下面的点击。
 
 ## 养成规则
 
@@ -274,7 +277,7 @@ Windows 的操作见下一节。预览台伪造 `window.__ModuleLoader__` 和 `f
 window.pigStub.setOpen(true)   // 展开；false 收起
 window.pigStub.tab('study')    // 打开学习 App
 window.pigStub.state()        // 查看当前布局
-window.dshPigDev.on()         // 开启开发者面板；off() 关闭
+window.dshPigDev.off()        // 关闭调试（打开要在主屏连点版本号 7 次）
 ```
 
 `tools/art.html` 可查看立绘，`tools/stages.html` 可查看生命周期形态示意。

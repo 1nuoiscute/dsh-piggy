@@ -1,7 +1,7 @@
 # 发版：推一个 v* 标签（版本号要和根目录 package.json 的 version 一样），自动：
 #   1. 跑测试
 #   2. 生成桌面版热更新用的游戏包 game-<版本>.json.gz + manifest
-#   3. 在 Linux 上打 AppImage、在 Windows 上打安装包和免安装版
+#   3. 在 Linux 上打 AppImage、在 Windows 上打安装包和免安装版、在 macOS 上打 dmg（未签名）
 # 全部挂到这个标签的 GitHub Release 上。
 name: release
 
@@ -37,6 +37,7 @@ jobs:
           ### 下载
           - **Windows**：`dsh-piggy-setup-*.exe`（安装版）或 `dsh-piggy-portable-*.exe`（免安装，双击就跑）
           - **Linux**：`dsh-piggy-*.AppImage`（加执行权限后双击）
+          - **macOS**：`dsh-piggy-*-arm64.dmg`（M 系列芯片）或 `-x64.dmg`（Intel）。没有签名，第一次打开要在「访达」里**右键 → 打开**；或者终端执行 `xattr -dr com.apple.quarantine /Applications/dsh-piggy.app`
           - **DSH 插件**：`dsh plugin --profile web add dsh-piggy`，装完重启 dsh
           - 已装桌面版的：主屏「🔄 更新」一键升级
           NOTES
@@ -55,6 +56,8 @@ jobs:
             target: --linux
           - os: windows-latest
             target: --win
+          - os: macos-latest
+            target: --mac
     runs-on: ${{ matrix.os }}
     defaults:
       run: { working-directory: apps/desktop }
@@ -74,5 +77,5 @@ jobs:
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
           shopt -s nullglob
-          files=(dist/*.AppImage dist/*.exe)
+          files=(dist/*.AppImage dist/*.exe dist/*.dmg)
           gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber

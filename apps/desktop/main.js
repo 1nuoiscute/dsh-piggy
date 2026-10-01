@@ -158,6 +158,15 @@ function applyBounds(next, why) {
   pushGeometry()
 }
 
+/**
+ * 只让窗口的一部分可点（其余点击落到桌面）。Electron 只在 Windows / Linux 支持；
+ * macOS 上跳过 —— 窗口已经只有猪和面板那么大，四周 16px 的透明边会挡一下点击，影响不大。
+ */
+function applyShape(rects) {
+  if (win === null || process.platform === 'darwin' || typeof win.setShape !== 'function') return
+  win.setShape(rects)
+}
+
 function createWindow() {
   const area = pigDisplay().workArea
   const saved = readWindowState()
@@ -178,7 +187,7 @@ function createWindow() {
   // 30fps：猪的动画够看，整窗合成的次数砍一半（D1 第 3 条）。
   win.webContents.setFrameRate(FRAME_RATE)
   // Until the page reports where the pig is, the window takes no clicks at all.
-  win.setShape([])
+  applyShape([])
   win.loadURL('piggy://app/index.html')
   win.once('ready-to-show', () => { log('ready-to-show'); win.showInactive(); log('shown', JSON.stringify(win.getBounds()), win.isVisible()) })
   win.webContents.on('did-finish-load', () => log('page loaded'))
@@ -239,7 +248,7 @@ ipcMain.on('piggy:content', (event, content) => {
   const pigOnScreen = hasPigWindow ? { x: win.getBounds().x + pigWindow.x, y: win.getBounds().y + pigWindow.y } : null
   log('content', JSON.stringify({ window: win.getBounds(), anchor, pigOnScreen, fix: anchorFix === null ? 'done' : anchorFix.passes }))
   const shape = Array.isArray(content.shape) ? content.shape : []
-  win.setShape(shape.slice(0, 64).map(r => ({
+  applyShape(shape.slice(0, 64).map(r => ({
     x: Math.max(0, Math.round(Number(r.x) || 0)), y: Math.max(0, Math.round(Number(r.y) || 0)),
     width: Math.max(0, Math.round(Number(r.width) || 0)), height: Math.max(0, Math.round(Number(r.height) || 0)),
   })))
@@ -267,7 +276,7 @@ ipcMain.on('piggy:shape', (event, rects) => {
   if (lastShape.length === 0 && Array.isArray(rects) && rects.length > 0) log('first shape', JSON.stringify(rects))
   if (win === null || event.sender !== win.webContents || !Array.isArray(rects)) return
   lastShape = rects
-  win.setShape(rects.slice(0, 64).map(r => ({
+  applyShape(rects.slice(0, 64).map(r => ({
     x: Math.round(Number(r.x) || 0), y: Math.round(Number(r.y) || 0),
     width: Math.max(0, Math.round(Number(r.width) || 0)), height: Math.max(0, Math.round(Number(r.height) || 0)),
   })))
