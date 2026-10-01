@@ -11,7 +11,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-import { SNAPSHOT, fakeDom, contentOf, findByAttr, hostOf, mount, openPanel, sceneOf, settle } from './helpers/bundle.js'
+import { SNAPSHOT, fakeDom, contentOf, findByAttr, findByClass, hostOf, mount, openPanel, sceneOf, settle } from './helpers/bundle.js'
 
 const SHELL_SRC = readFileSync(new URL('../apps/desktop/renderer/shell.js', import.meta.url), 'utf8')
 
@@ -66,6 +66,37 @@ test('桌面版：拖动增量按屏幕坐标算（窗口自己在动，clientX 
   scene.fire('pointerup', { pointerId: 1 })
 
   assert.deepEqual(calls.move, [{ dx: 40, dy: -40 }], '要按屏幕坐标算增量，不是 clientX')
+})
+
+test('桌面版：四个角挑边，host 上写 data-panel-side（猪才能待在对应那端）', async () => {
+  const corners = [
+    { name: '左上', room: { above: 40, below: 887, left: 28, right: 1819, width: 1920, height: 985 }, side: 'right' },
+    { name: '右上', room: { above: 40, below: 887, left: 1819, right: 28, width: 1920, height: 985 }, side: 'left' },
+    { name: '左下', room: { above: 887, below: 40, left: 28, right: 1819, width: 1920, height: 985 }, side: 'right' },
+    { name: '右下', room: { above: 887, below: 40, left: 1819, right: 28, width: 1920, height: 985 }, side: 'left' },
+  ]
+  for (const corner of corners) {
+    const { shell } = fakeShell(corner.room)
+    const { dom } = await mount({ windowExtra: { __dshPiggyShell: shell } })
+    const host = hostOf(dom)
+    assert.equal(host.getAttribute('data-panel-side'), null, `${corner.name}：没开面板不该写属性`)
+    openPanel(dom, 'status')
+    assert.equal(host.getAttribute('data-panel-side'), corner.side, `${corner.name}：面板该朝${corner.side === 'right' ? '右' : '左'}开`)
+    const card = host.children[0]
+    if (corner.side === 'right') {
+      assert.equal(card.style.left, '0px', `${corner.name}：面板贴猪右边`)
+      assert.equal(card.style.right, 'auto')
+    } else {
+      assert.equal(card.style.right, '0px', `${corner.name}：面板在猪左边`)
+    }
+    // HUD 仍从场景左边起：朝右开时猪就在左端，9px 正好贴它
+    const hud = findByClass(host, 'dp-hud')
+    assert.ok(hud !== undefined, 'HUD 要在')
+    assert.equal(hud.style.left, '9px', `${corner.name}：HUD 从场景左边起`)
+    // 纵向：上方有地方就朝上开
+    const above = corner.room.above > corner.room.below
+    assert.ok(String(card.style.bottom).includes('100%') === above, `${corner.name}：纵向挑边`)
+  }
 })
 
 test('网页版：没有外壳时行为不变（坐标写盘、面板按视口挑边）', async () => {
@@ -195,4 +226,17 @@ test('真实顺序（shell.js → client.js）：按住猪拖，窗口跟着走�
     '页面里猪的位置不能在拖动时变',
   )
   assert.equal(store.get('dsh-piggy:position'), undefined, '桌面版不写网页版的 POSITION_KEY')
+})
+
+test('CSS：朝右开时场景改左对齐，气泡/道具跟着镜像（网页版不受影响）', async () => {
+  const { dom } = await mount()
+  const css = String(dom.document.head.children.map(node => node.textContent ?? '').join('\n'))
+  assert.match(css, /\[data-dsh-pig\]\[data-panel-side="right"\] \.dp-scene\{[^}]*justify-content:flex-start/,
+    '朝右开时猪要待在场景左端（不然面板一开猪从右端跑到左端，位移 207px）')
+  assert.match(css, /\[data-dsh-pig\]\[data-panel-side="right"\] \.dp-bubble\{[^}]*left:8px/,
+    '气泡要跟着猪挪到左边')
+  assert.match(css, /\[data-dsh-pig\]\[data-panel-side="right"\] \.dp-work\{margin:0 0 6px 2px\}/,
+    '打工道具的间距也要镜像')
+  // 网页版没有这个属性，规则不会命中
+  assert.ok(!/\[data-panel-side/.test(css.replace(/\[data-dsh-pig\]\[data-panel-side/g, '')), '规则都要挂在 data-dsh-pig 上')
 })

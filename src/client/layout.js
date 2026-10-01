@@ -55,6 +55,10 @@ export function createLayout(ctx) {
             var width = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN))
             var opensRight = typeof room.left === 'number' && typeof room.right === 'number'
               && room.left < width + PANEL_MARGIN && room.right > room.left
+            // 面板朝哪边开，猪就待在场景的哪一端。老 CSS 是「场景一开就撑到面板那么宽，
+            // 猪永远靠右」（[data-open] .dp-scene{width:...} + justify-content:flex-end），
+            // 朝右开时猪已经贴在右端了，一展开就横移整个面板宽度。
+            ctx.host.setAttribute('data-panel-side', opensRight ? 'right' : 'left')
             if (opensRight) {
               ctx.card.style.right = 'auto'
               ctx.card.style.left = '0px'
@@ -63,7 +67,8 @@ export function createLayout(ctx) {
               ctx.card.style.right = '0px'
             }
             ctx.card.style.maxWidth = width + 'px'
-            ctx.hud.style.left = '9px'
+            // HUD 贴着猪：朝右开时猪在场景左端，HUD 也从左边起。
+            ctx.hud.style.left = (opensRight ? Math.max(9, Math.round(ctx.pig.offsetLeft || 0)) : 9) + 'px'
             return
           }
         }

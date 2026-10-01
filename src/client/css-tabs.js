@@ -38,6 +38,7 @@ export const CSS_TABS = [
   // paints over the bubble whenever the two boxes overlap — which is exactly
   // what happened when collapsed and the scene was only as wide as the pig.
   '.dp-bubble{position:absolute;right:8px;top:7px;z-index:2;max-width:162px;padding:6px 10px;',
+  '[data-dsh-pig][data-panel-side="right"] .dp-bubble::after{left:auto;right:14px}',
   'border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.45;',
   'color:var(--ac-text-body);background:var(--ac-bg-input);',
   'border:2px solid var(--ac-border-light);box-shadow:var(--ac-shadow-sm)}',

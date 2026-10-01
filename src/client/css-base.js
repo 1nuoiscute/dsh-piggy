@@ -96,6 +96,11 @@ export const CSS_BASE = [
   // speech bubble have somewhere to sit — the pig is right-aligned either
   // way, so widening costs it no movement.
   '[data-dsh-pig][data-open="true"] .dp-scene{width:var(--panel-width)}',
+  // 桌面版面板朝右开时（外壳把窗口贴着猪、右边有地方），猪改待在场景左端，
+  // 跟着猪定位的气泡和打工道具也要镜像 —— 网页版没有这个属性，规则不命中。
+  '[data-dsh-pig][data-panel-side="right"] .dp-scene{justify-content:flex-start}',
+  '[data-dsh-pig][data-panel-side="right"] .dp-bubble{right:auto;left:8px}',
+  '[data-dsh-pig][data-panel-side="right"] .dp-work{margin:0 0 6px 2px}',
   // Collapsed the scene shrinks to just the pig. An explicit height rather
   // than `auto` keeps the pig's line box identical in both states, so
   // opening moves it by exactly zero pixels.
