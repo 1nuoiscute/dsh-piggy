@@ -68,7 +68,10 @@ export function createLayout(ctx) {
             }
             ctx.card.style.maxWidth = width + 'px'
             // HUD 贴着猪：朝右开时猪在场景左端，HUD 也从左边起。
-            ctx.hud.style.left = (opensRight ? Math.max(9, Math.round(ctx.pig.offsetLeft || 0)) : 9) + 'px'
+            // 朝右开时猪在场景左端：名字框放到猪的右边，不然正好压在猪身上。
+            ctx.hud.style.left = (opensRight
+              ? Math.round((ctx.pig.offsetLeft || 0) + (ctx.pig.offsetWidth || 0) + 8)
+              : 9) + 'px'
             return
           }
         }

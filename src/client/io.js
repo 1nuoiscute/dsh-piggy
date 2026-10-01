@@ -7,6 +7,7 @@
  */
 import { ACT_URL, NO_ITEM_LINE, STATE_URL } from './constants.js'
 import { el } from './dom.js'
+import { createPomodoroClock } from './pomodoro-clock.js'
 import { num, str } from './values.js'
 
 /**
@@ -108,5 +109,9 @@ export function createIo(ctx) {
         }
       }
 
+  // 番茄钟倒计时在本地一秒一秒走（轮询每 POLL_MS 才报一次），到点立刻 refresh。
+  // 面板每次重画都会按服务端取整后的秒数写一遍，紧接着让秒针按本地时间覆盖回来（同一帧，不闪）。
+  ctx.pomoTick = createPomodoroClock(function () { return ctx.view }, ctx.pomoHint, ctx.content, refresh,
+    function () { return ctx.stopped === true }).tick
   return { send: send, refresh: refresh }
 }

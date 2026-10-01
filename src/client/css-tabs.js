@@ -62,6 +62,8 @@ export const CSS_TABS = [
   // 改成蹲在猪左边、贴着猪身子（再高会碰到左边的名字框）。
   '[data-dsh-pig][data-open="true"] .dp-daily{left:auto;margin-left:0;',
   'right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + 4px)}',
+  // 桌面版面板朝右开时猪在左端：日历跟着镜像到猪右边。
+  '[data-dsh-pig][data-panel-side="right"][data-open="true"] .dp-daily{right:auto;left:calc(6px + var(--pig-size) + 10px)}',
   '.dp-daily:hover{border-color:var(--ac-border-hover)}',
   '.dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',
   // 名字必须独占：叫 dp-bob 会覆盖猪的待机动画（css-base.js），

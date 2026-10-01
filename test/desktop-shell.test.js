@@ -89,10 +89,16 @@ test('桌面版：四个角挑边，host 上写 data-panel-side（猪才能待�
     } else {
       assert.equal(card.style.right, '0px', `${corner.name}：面板在猪左边`)
     }
-    // HUD 仍从场景左边起：朝右开时猪就在左端，9px 正好贴它
+    // 朝右开时猪在场景左端：HUD 挪到猪右边（不然压在猪身上）；朝左开时照旧从 9px 起
     const hud = findByClass(host, 'dp-hud')
     assert.ok(hud !== undefined, 'HUD 要在')
-    assert.equal(hud.style.left, '9px', `${corner.name}：HUD 从场景左边起`)
+    if (corner.side === 'right') {
+      const pig = findByClass(host, 'dp-pig')
+      const want = Math.round((pig.offsetLeft || 0) + (pig.offsetWidth || 0) + 8) + 'px'
+      assert.equal(hud.style.left, want, `${corner.name}：HUD 在猪右边`)
+    } else {
+      assert.equal(hud.style.left, '9px', `${corner.name}：HUD 从场景左边起`)
+    }
     // 纵向：上方有地方就朝上开
     const above = corner.room.above > corner.room.below
     assert.ok(String(card.style.bottom).includes('100%') === above, `${corner.name}：纵向挑边`)

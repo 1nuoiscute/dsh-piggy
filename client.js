@@ -1284,6 +1284,8 @@
     // 改成蹲在猪左边、贴着猪身子（再高会碰到左边的名字框）。
     '[data-dsh-pig][data-open="true"] .dp-daily{left:auto;margin-left:0;',
     "right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + 4px)}",
+    // 桌面版面板朝右开时猪在左端：日历跟着镜像到猪右边。
+    '[data-dsh-pig][data-panel-side="right"][data-open="true"] .dp-daily{right:auto;left:calc(6px + var(--pig-size) + 10px)}',
     ".dp-daily:hover{border-color:var(--ac-border-hover)}",
     ".dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
     // 名字必须独占：叫 dp-bob 会覆盖猪的待机动画（css-base.js），
@@ -1958,6 +1960,107 @@
     return { react, burst, transform, flash, showBubble, showLine, toast, dispose };
   }
 
+  // src/client/tabs/pomodoro.js
+  function clockText(seconds) {
+    var left = Math.max(0, Math.round(seconds));
+    var mm = Math.floor(left / 60);
+    var ss = left % 60;
+    return mm + ":" + (ss < 10 ? "0" : "") + ss;
+  }
+  function renderPomodoroTab(ui) {
+    var view = ui.view.pomodoro;
+    if (view === null) {
+      ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u756A\u8304\u949F\u3002"));
+      return;
+    }
+    if (view.active) {
+      var live = el("div", "dp-pomo-live");
+      live.appendChild(el("div", "dp-pomo-clock", "\u{1F345} " + clockText(view.secondsLeft)));
+      live.appendChild(el("div", "dp-dim", "\u4E13\u6CE8 " + view.minutes + " \u5206\u949F \xB7 \u8FD9\u671F\u95F4\u6211\u4E0D\u5435\u4F60"));
+      ui.content.appendChild(live);
+      var stop = button("dp-btn dp-btn-wide", { "data-pomo-abandon": "true" }, function() {
+        ui.send("pomodoroAbandon");
+      });
+      stop.textContent = "\u653E\u5F03\u8FD9\u4E00\u4E2A";
+      ui.content.appendChild(stop);
+    } else {
+      if (view.breakSecondsLeft > 0) {
+        var rest = el("div", "dp-empty", "\u2615 \u4F11\u606F " + clockText(view.breakSecondsLeft) + "\uFF08\u4E5F\u53EF\u4EE5\u76F4\u63A5\u5F00\u4E0B\u4E00\u4E2A\uFF09");
+        rest.setAttribute("data-pomo-break", "true");
+        ui.content.appendChild(rest);
+      }
+      var head = el("div", "dp-title");
+      head.appendChild(el("b", null, "\u{1F345} \u4E13\u6CE8\u591A\u4E45\uFF1F"));
+      head.appendChild(el("span", null, "\u4F11\u606F " + view.breakMinutes + " \u5206\u949F"));
+      ui.content.appendChild(head);
+      var row = el("div", "dp-dev-row");
+      for (var i = 0; i < view.options.length; i += 1) {
+        (function(minutes) {
+          var start = button("dp-mini dp-dev-btn", { "data-pomo-start": String(minutes) }, function() {
+            ui.send("pomodoro", { minutes });
+          });
+          start.textContent = minutes + " \u5206\u949F";
+          row.appendChild(start);
+        })(view.options[i]);
+      }
+      ui.content.appendChild(row);
+    }
+    var today = el("div", "dp-row");
+    today.appendChild(el("span", null, "\u4ECA\u5929\u5B8C\u6210"));
+    today.appendChild(el("b", null, view.todayDone + " \u4E2A" + (view.todayDone >= view.cap ? " \xB7 \u5956\u52B1\u5DF2\u62FF\u6EE1" : "")));
+    ui.content.appendChild(today);
+    ui.content.appendChild(el(
+      "div",
+      "dp-dim",
+      "\u6BCF\u4E2A +" + view.reward.coins + " \u{1FA99} \xB7 \u5FC3\u60C5 +" + view.reward.happiness + "\uFF0C\u6BCF\u5929\u524D " + view.cap + " \u4E2A\u7ED9\u5956\u52B1"
+    ));
+  }
+
+  // src/client/pomodoro-clock.js
+  function createPomodoroClock(getView, pill, content, refresh2, isStopped) {
+    var seen = null;
+    var endsAt = 0;
+    var breakEndsAt = 0;
+    function resync(local, server) {
+      if (local === 0 || server === 0) return server;
+      return Math.abs(server - local) > 1500 ? server : local;
+    }
+    function tick() {
+      if (isStopped()) {
+        window.clearInterval(timer);
+        return;
+      }
+      var p = getView().pomodoro;
+      var now = Date.now();
+      if (p && p !== seen) {
+        seen = p;
+        endsAt = resync(endsAt, p.active ? now + p.secondsLeft * 1e3 : 0);
+        breakEndsAt = resync(breakEndsAt, !p.active && p.breakSecondsLeft > 0 ? now + p.breakSecondsLeft * 1e3 : 0);
+      }
+      if (endsAt > 0) {
+        var left = Math.max(0, Math.ceil((endsAt - now) / 1e3));
+        var text = "\u{1F345} " + clockText(left);
+        if (pill.getAttribute("data-pomo") === "on") pill.textContent = text;
+        var clock = content.querySelector(".dp-pomo-clock");
+        if (clock !== null) clock.textContent = text;
+        if (left === 0) {
+          endsAt = 0;
+          refresh2();
+        }
+      }
+      if (breakEndsAt > 0) {
+        var rest = Math.max(0, Math.ceil((breakEndsAt - now) / 1e3));
+        var note = content.querySelector("[data-pomo-break]");
+        if (note !== null) note.textContent = "\u2615 \u4F11\u606F " + clockText(rest) + "\uFF08\u4E5F\u53EF\u4EE5\u76F4\u63A5\u5F00\u4E0B\u4E00\u4E2A\uFF09";
+        if (rest === 0) breakEndsAt = 0;
+      }
+    }
+    var timer = window.setInterval(tick, 1e3);
+    return { tick, dispose: function() {
+      window.clearInterval(timer);
+    } };
+  }
+
   // src/client/io.js
   function createIo(ctx) {
     var actionSeq = 0;
@@ -2043,6 +2146,17 @@
         ctx.showBubble("\u8FDE\u63A5\u4E0D\u4E0A\u5BBF\u4E3B", 4e3);
       }
     }
+    ctx.pomoTick = createPomodoroClock(
+      function() {
+        return ctx.view;
+      },
+      ctx.pomoHint,
+      ctx.content,
+      refresh2,
+      function() {
+        return ctx.stopped === true;
+      }
+    ).tick;
     return { send, refresh: refresh2 };
   }
 
@@ -2097,7 +2211,7 @@
             ctx.card.style.right = "0px";
           }
           ctx.card.style.maxWidth = width + "px";
-          ctx.hud.style.left = (opensRight ? Math.max(9, Math.round(ctx.pig.offsetLeft || 0)) : 9) + "px";
+          ctx.hud.style.left = (opensRight ? Math.round((ctx.pig.offsetLeft || 0) + (ctx.pig.offsetWidth || 0) + 8) : 9) + "px";
           return;
         }
       }
@@ -2759,60 +2873,6 @@
     ui.content.appendChild(row);
   }
 
-  // src/client/tabs/pomodoro.js
-  function clockText(seconds) {
-    var left = Math.max(0, Math.round(seconds));
-    var mm = Math.floor(left / 60);
-    var ss = left % 60;
-    return mm + ":" + (ss < 10 ? "0" : "") + ss;
-  }
-  function renderPomodoroTab(ui) {
-    var view = ui.view.pomodoro;
-    if (view === null) {
-      ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u756A\u8304\u949F\u3002"));
-      return;
-    }
-    if (view.active) {
-      var live = el("div", "dp-pomo-live");
-      live.appendChild(el("div", "dp-pomo-clock", "\u{1F345} " + clockText(view.secondsLeft)));
-      live.appendChild(el("div", "dp-dim", "\u4E13\u6CE8 " + view.minutes + " \u5206\u949F \xB7 \u8FD9\u671F\u95F4\u6211\u4E0D\u5435\u4F60"));
-      ui.content.appendChild(live);
-      var stop = button("dp-btn dp-btn-wide", { "data-pomo-abandon": "true" }, function() {
-        ui.send("pomodoroAbandon");
-      });
-      stop.textContent = "\u653E\u5F03\u8FD9\u4E00\u4E2A";
-      ui.content.appendChild(stop);
-    } else {
-      if (view.breakSecondsLeft > 0) {
-        ui.content.appendChild(el("div", "dp-empty", "\u2615 \u4F11\u606F " + clockText(view.breakSecondsLeft) + "\uFF08\u4E5F\u53EF\u4EE5\u76F4\u63A5\u5F00\u4E0B\u4E00\u4E2A\uFF09"));
-      }
-      var head = el("div", "dp-title");
-      head.appendChild(el("b", null, "\u{1F345} \u4E13\u6CE8\u591A\u4E45\uFF1F"));
-      head.appendChild(el("span", null, "\u4F11\u606F " + view.breakMinutes + " \u5206\u949F"));
-      ui.content.appendChild(head);
-      var row = el("div", "dp-dev-row");
-      for (var i = 0; i < view.options.length; i += 1) {
-        (function(minutes) {
-          var start = button("dp-mini dp-dev-btn", { "data-pomo-start": String(minutes) }, function() {
-            ui.send("pomodoro", { minutes });
-          });
-          start.textContent = minutes + " \u5206\u949F";
-          row.appendChild(start);
-        })(view.options[i]);
-      }
-      ui.content.appendChild(row);
-    }
-    var today = el("div", "dp-row");
-    today.appendChild(el("span", null, "\u4ECA\u5929\u5B8C\u6210"));
-    today.appendChild(el("b", null, view.todayDone + " \u4E2A" + (view.todayDone >= view.cap ? " \xB7 \u5956\u52B1\u5DF2\u62FF\u6EE1" : "")));
-    ui.content.appendChild(today);
-    ui.content.appendChild(el(
-      "div",
-      "dp-dim",
-      "\u6BCF\u4E2A +" + view.reward.coins + " \u{1FA99} \xB7 \u5FC3\u60C5 +" + view.reward.happiness + "\uFF0C\u6BCF\u5929\u524D " + view.cap + " \u4E2A\u7ED9\u5956\u52B1"
-    ));
-  }
-
   // src/client/tabs/update.js
   var state = {
     current: null,
@@ -3088,8 +3148,10 @@
       else if (ctx.tab === "work") renderWorkTab(ctx);
       else if (ctx.tab === "shop") renderShopTab(ctx);
       else if (ctx.tab === "travel") renderTravelTab(ctx);
-      else if (ctx.tab === "pomodoro") renderPomodoroTab(ctx);
-      else if (ctx.tab === "dev") renderDevTab(ctx);
+      else if (ctx.tab === "pomodoro") {
+        renderPomodoroTab(ctx);
+        if (typeof ctx.pomoTick === "function") ctx.pomoTick();
+      } else if (ctx.tab === "dev") renderDevTab(ctx);
       else if (ctx.tab === "update") renderUpdateTab(ctx);
       else renderBagTab(ctx);
       ctx.fitPanel();
@@ -3186,6 +3248,7 @@
       ctx.pomoHint.hidden = !pomoOn || ctx.bubble.hidden === false;
       if (pomoOn) ctx.pomoHint.textContent = "\u{1F345} " + clockText(pomo.secondsLeft);
       noticePomodoro(pomo);
+      if (typeof ctx.pomoTick === "function") ctx.pomoTick();
       var daily = ctx.view.daily;
       var dailyAction = daily.canSignIn ? "signIn" : daily.unclaimed > 0 ? "openGift" : null;
       ctx.dailyHint.hidden = dailyAction === null || ctx.view.pig === null;

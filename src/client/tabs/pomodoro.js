@@ -38,7 +38,9 @@ export function renderPomodoroTab(ui) {
     ui.content.appendChild(stop)
   } else {
     if (view.breakSecondsLeft > 0) {
-      ui.content.appendChild(el('div', 'dp-empty', '☕ 休息 ' + clockText(view.breakSecondsLeft) + '（也可以直接开下一个）'))
+      var rest = el('div', 'dp-empty', '☕ 休息 ' + clockText(view.breakSecondsLeft) + '（也可以直接开下一个）')
+      rest.setAttribute('data-pomo-break', 'true')
+      ui.content.appendChild(rest)
     }
     var head = el('div', 'dp-title')
     head.appendChild(el('b', null, '🍅 专注多久？'))

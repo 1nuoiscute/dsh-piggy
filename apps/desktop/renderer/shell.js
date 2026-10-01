@@ -21,9 +21,6 @@
   /** 取整步长：和 lib/window-geometry.js 的 QUANTIZE_STEP 一致。 */
   var STEP = 4
 
-  /** 猪在窗口里的固定内边距：桌面版位置归窗口管，页面里不再自己挪。 */
-  var INSET = 16
-
   // 先把外壳挂上：client.js 在挂载那一刻（apply 里）就会读 __dshPiggyShell，
   // 晚一步它就把桌面版当网页版 —— 拖动只挪页面里的猪、窗口不跟。几何还没到时
   // room() 返回 null，页面会先用自己那套算，等几何到了再改。
@@ -146,16 +143,16 @@
     var pigNode = host.querySelector === undefined ? null : host.querySelector('.dp-pig')
     var pigBox = pigNode === null ? { x: 0, y: 0, width: 0, height: 0 } : layoutBox(pigNode)
     var pig = { x: pigBox.x - content.x, y: pigBox.y - content.y, width: pigBox.width, height: pigBox.height }
-    // 窗口坐标下的可点区域（内容框左上角是窗口原点）。
+    // 可点区域直接用页面坐标（页面原点就是窗口原点）。左上向下取整、右下向上取整，
+    // 再各放宽 1px：以前按内容框原点换算再四舍五入到 4px，相邻两块之间会漏出一道缝，
+    // 透出窗口后面的东西（用户看到的「黑条」），面板右边也会被切掉几像素。
     var shape = rects.map(function (r) {
-      return {
-        x: Math.round((r.x - content.x) / STEP) * STEP,
-        y: Math.round((r.y - content.y) / STEP) * STEP,
-        width: Math.round((r.r - r.x) / STEP) * STEP,
-        height: Math.round((r.b - r.y) / STEP) * STEP,
-      }
+      var x = Math.max(0, Math.floor(r.x) - 1)
+      var y = Math.max(0, Math.floor(r.y) - 1)
+      return { x: x, y: y, width: Math.ceil(r.r) + 1 - x, height: Math.ceil(r.b) + 1 - y }
     })
-    return { content: content, shape: shape, pig: pig, hostBox: hostBox, pigBox: pigBox }
+    var contentBox = { left: left, top: top, right: right, bottom: bottom }
+    return { content: content, shape: shape, pig: pig, hostBox: hostBox, pigBox: pigBox, contentBox: contentBox }
   }
 
   /** 上一次写过的样式，避免每帧都改。 */
@@ -165,32 +162,28 @@
   var lastHorizontal = 'right'
 
   /**
-   * 让**猪**离窗口的锚边正好 INSET：钉的是猪，不是外层 host。
+   * 让**整块内容**（猪、面板、HUD、气泡）离窗口的锚边正好 PAD。
    *
-   * 面板一开，场景会被撑到面板那么宽，猪在 host 内部的位置就偏了 —— 只钉 host 的话
-   * 猪会跟着漂（实测左上角展开时漂了 208px）。这里按猪的实际布局盒反推 host 的内边距，
-   * 是一个收敛到固定目标的闭环：窗口大小怎么变，猪离锚边都是 INSET。
+   * 以前钉的是猪：面板朝下开时 HUD 在猪上面，猪离顶边 16px，HUD 就伸到窗口外面去了。
+   * 现在按内容外接框反推 host 的内边距；猪在屏幕上不动由主进程的两步补正保证。
+   * 一次就收敛：下一帧量到的内容边正好在 PAD。
    */
-  function pinPig(vertical, horizontal, hostBox, pigBox) {
+  function pinPig(vertical, horizontal, hostBox, contentBox) {
     var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
     if (host === null) return
-    var innerLeft = pigBox.x - hostBox.x
-    var innerTop = pigBox.y - hostBox.y
-    var innerRight = hostBox.width - innerLeft - pigBox.width
-    var innerBottom = hostBox.height - innerTop - pigBox.height
     var want = {}
     if (horizontal === 'left') {
-      want.left = (INSET - innerLeft) + 'px'
+      want.left = Math.round(hostBox.x - contentBox.left + PAD) + 'px'
       want.right = 'auto'
     } else {
-      want.right = (INSET - innerRight) + 'px'
+      want.right = Math.round(contentBox.right - hostBox.x - hostBox.width + PAD) + 'px'
       want.left = 'auto'
     }
     if (vertical === 'top') {
-      want.top = (INSET - innerTop) + 'px'
+      want.top = Math.round(hostBox.y - contentBox.top + PAD) + 'px'
       want.bottom = 'auto'
     } else {
-      want.bottom = (INSET - innerBottom) + 'px'
+      want.bottom = Math.round(contentBox.bottom - hostBox.y - hostBox.height + PAD) + 'px'
       want.top = 'auto'
     }
     var key = [vertical, horizontal, want.left, want.right, want.top, want.bottom].join('|')
@@ -251,7 +244,7 @@
     if (next.content === null) return
     var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
     var side = sides(host)
-    pinPig(side.vertical, side.horizontal, next.hostBox, next.pigBox)
+    pinPig(side.vertical, side.horizontal, next.hostBox, next.contentBox)
     var key = keyOf(next.content, next.shape, next.pig, next.pigBox)
     if (key === lastKey) return
     lastKey = key
@@ -270,7 +263,6 @@
   // ---------------------------------------------------------------------------
 
   function start() {
-    pinPig('bottom', 'right', { x: 0, y: 0, width: 0, height: 0 }, { x: 0, y: 0, width: 0, height: 0 })
     setInterval(tick, 120)
     window.addEventListener('pointermove', tick)
     window.addEventListener('pointerup', tick)

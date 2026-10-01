@@ -211,7 +211,7 @@ test('真实加载顺序：client 挂载时外壳已经挂好了（拖动才不�
   assert.equal(typeof page.window.__dshPiggyShell.moveBy, 'function')
 })
 
-test('面板把场景撑宽后，猪离窗口锚边仍然是 16px（钉的是猪不是 host）', () => {
+test('面板把场景撑宽后，整块内容离窗口锚边仍然是 16px（HUD 不会被挤出窗口）', () => {
   const page = fakePage()
   page.run()
   page.tick(false)
@@ -220,10 +220,11 @@ test('面板把场景撑宽后，猪离窗口锚边仍然是 16px（钉的是猪
   page.pig.offsetLeft = 120
   page.scene.offsetWidth = 292
   page.tick()
-  // 猪被挤到 host 右边 → 外壳钉右边，并把 host 的右边距补偿成「猪离右边 16px」：
-  // innerRight = 292 - 120 - 66 = 106 → right = 16 - 106 = -90
+  // 猪被挤到 host 右边 → 外壳钉右边。钉的是整块内容（这里 host 就是最宽的那块），
+  // 让它离窗口右边正好 16px；以前钉猪，面板朝下开时 HUD 会伸出窗口顶边。
+  // 猪在屏幕上不动由主进程的两步补正保证（见 anchorCorrection 的测试）。
   const right = Number(String(page.host.style.right).replace('px', ''))
-  assert.equal(right, 16 - (292 - 120 - 66), `host 右边距要补偿猪的内部偏移：${page.host.style.right}`)
+  assert.equal(right, 16, `内容右边离窗口右边 16px：${page.host.style.right}`)
   assert.equal(page.host.style.left, 'auto', '钉右边时左边是 auto')
 })
 

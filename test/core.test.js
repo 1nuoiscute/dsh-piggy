@@ -1081,7 +1081,7 @@ test('trait and course views always list everything', () => {
 // ===========================================================================
 
 test('the shop is well formed: 63 items across seven shelves, every cure stocked', () => {
-  assert.equal(SHOP.length, 64, 'C3 adds a promotion crown while retaining the old wearable')
+  assert.equal(SHOP.length, 63, 'C3 adds the crown and the contract; the old wearable crown is gone')
   const counts = {}
   for (const item of SHOP) {
     assert.equal(typeof item.key, 'string')
@@ -1089,7 +1089,7 @@ test('the shop is well formed: 63 items across seven shelves, every cure stocked
     assert.ok(['food', 'bath', 'toy', 'dress', 'medicine', 'revive', 'promotion'].includes(item.kind))
     counts[item.kind] = (counts[item.kind] ?? 0) + 1
   }
-  assert.deepEqual(counts, { food: 10, bath: 8, toy: 10, dress: 12, medicine: 21, revive: 1, promotion: 2 })
+  assert.deepEqual(counts, { food: 10, bath: 8, toy: 10, dress: 11, medicine: 21, revive: 1, promotion: 2 })
   // 装扮 is a different economy: level-gated, owned once, never counted.
   for (const item of SHOP.filter(entry => entry.kind === 'dress')) {
     assert.ok(Number.isInteger(item.level) && item.level >= 1, `${item.label} needs a level`)
@@ -1114,13 +1114,13 @@ test('装扮 is bought once behind a level, then worn', () => {
   assert.equal(pig.inventory.scarf ?? 0, 0, '家当 is not a consumable')
   assert.equal(buy(pig, 'scarf', T0).reason, 'owned', 'buying it twice is refused')
 
-  const gate = buy(pig, 'royal-crown', T0)
+  const gate = buy(pig, 'wings', T0)
   assert.equal(gate.reason, 'low-level')
-  assert.equal(gate.need, 40, 're-spread on the 60-level curve (2026-10-01)')
+  assert.equal(gate.need, 50, 're-spread on the 60-level curve (2026-10-01)')
   assert.equal(gate.have, 1)
   assert.equal(pig.coins, 200_000 - 80, 'a refused purchase spends nothing')
 
-  assert.equal(wearItem(pig, 'royal-crown', T0).reason, 'not-owned')
+  assert.equal(wearItem(pig, 'wings', T0).reason, 'not-owned')
   assert.equal(wearItem(pig, 'apple', T0).reason, 'unknown', 'only 装扮 can be worn')
   assert.equal(wearItem(pig, 'scarf', T0).ok, true)
   assert.deepEqual(pig.worn, ['scarf'])
@@ -1128,11 +1128,11 @@ test('装扮 is bought once behind a level, then worn', () => {
   assert.deepEqual(pig.worn, [])
   assert.equal(useItem(pig, 'scarf', T0).reason, 'not-consumable', 'a scarf is worn, not eaten')
 
-  // The level gate is real: growth for Lv.40 opens the crown.
-  pig.xp = xpForLevel(40)
-  assert.equal(levelFor(pig.xp), 40)
-  assert.equal(buy(pig, 'royal-crown', T0).ok, true)
-  assert.deepEqual(pig.dress, ['scarf', 'royal-crown'])
+  // The level gate is real: growth for Lv.50 opens the wings.
+  pig.xp = xpForLevel(50)
+  assert.equal(levelFor(pig.xp), 50)
+  assert.equal(buy(pig, 'wings', T0).ok, true)
+  assert.deepEqual(pig.dress, ['scarf', 'wings'])
 })
 
 test('a save cannot dress the pig in medicine, or wear what it does not own', () => {
@@ -1150,12 +1150,12 @@ test('every dress item has a real slot, and one piece goes per slot', () => {
 
   pig.coins = 200_000
   pig.xp = xpForLevel(50)
-  for (const key of ['strawhat', 'flowercrown', 'royal-crown', 'scarf']) assert.equal(buy(pig, key, T0).ok, true)
+  for (const key of ['strawhat', 'flowercrown', 'tophat', 'scarf']) assert.equal(buy(pig, key, T0).ok, true)
   wearItem(pig, 'strawhat', T0)
-  wearItem(pig, 'royal-crown', T0)
-  assert.deepEqual(pig.worn, ['royal-crown'], 'the 头 slot holds one hat, the new one replaces it')
+  wearItem(pig, 'tophat', T0)
+  assert.deepEqual(pig.worn, ['tophat'], 'the 头 slot holds one hat, the new one replaces it')
   wearItem(pig, 'scarf', T0)
-  assert.deepEqual([...pig.worn].sort(), ['royal-crown', 'scarf'], 'a different slot stacks')
+  assert.deepEqual([...pig.worn].sort(), ['scarf', 'tophat'], 'a different slot stacks')
 })
 
 test('grantAll hands over one of everything, for debugging', () => {
@@ -1163,7 +1163,7 @@ test('grantAll hands over one of everything, for debugging', () => {
   pig.coins = 10
   const result = grantAll(pig, T0)
   assert.equal(result.ok, true)
-  assert.equal(pig.dress.length, 12)
+  assert.equal(pig.dress.length, 11)
   assert.equal(pig.coins, 99_999)
   for (const item of SHOP.filter(entry => entry.kind !== 'dress')) {
     assert.equal(pig.inventory[item.key], 20, `${item.label} should be in the bag`)

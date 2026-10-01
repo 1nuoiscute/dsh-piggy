@@ -255,7 +255,7 @@ test('the snapshot exposes everything the panel draws', async () => {
       [...SHOP.filter(item => item.kind !== 'dress').map(item => item.key), DEFAULT_TOY.key].sort(),
       'every consumable plus the free default toy',
     )
-    assert.equal(snap.dress.length, 12, 'and the 装扮 shelf is its own list')
+    assert.equal(snap.dress.length, 11, 'and the 装扮 shelf is its own list')
     assert.equal(snap.maxHealth, 5)
   } finally {
     app.cleanup()
@@ -449,12 +449,12 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
   })
   try {
     const board = await app.get()
-    assert.equal(board.shop.length, 64)
-    assert.equal(board.dress.length, 12)
+    assert.equal(board.shop.length, 63)
+    assert.equal(board.dress.length, 11)
     assert.equal(board.shop.find(item => item.key === 'scarf').owned, true)
-    const crown = board.shop.find(item => item.key === 'royal-crown')
-    assert.equal(crown.unlocked, false)
-    assert.equal(crown.level, 40, 're-spread on the 60-level curve (2026-10-01)')
+    const wings = board.shop.find(item => item.key === 'wings')
+    assert.equal(wings.unlocked, false)
+    assert.equal(wings.level, 50, 're-spread on the 60-level curve (2026-10-01)')
 
     const on = await app.post({ action: 'wear', item: 'scarf' })
     assert.equal(on.ok, true)
@@ -465,14 +465,14 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
     assert.equal(off.ok, true)
     assert.equal(off.dress.find(item => item.key === 'scarf').worn, false)
 
-    const notOwned = await app.post({ action: 'wear', item: 'royal-crown' })
+    const notOwned = await app.post({ action: 'wear', item: 'wings' })
     assert.equal(notOwned.ok, false)
     assert.equal(notOwned.reason, 'not-owned')
 
-    const locked = await app.post({ action: 'buy', item: 'royal-crown' })
+    const locked = await app.post({ action: 'buy', item: 'wings' })
     assert.equal(locked.ok, false)
     assert.equal(locked.reason, 'low-level')
-    assert.equal(locked.need, 40)
+    assert.equal(locked.need, 50)
 
     // A dress is worn, never eaten.
     assert.equal((await app.post({ action: 'use', item: 'scarf' })).reason, 'not-consumable')
@@ -488,7 +488,7 @@ test('the debug giveAll route hands over everything at once', async () => {
     assert.equal(res.ok, true)
     assert.equal(res.pig.coins, 99_999)
     assert.equal(res.inventory.apple, 20, 'consumables land in the bag')
-    assert.equal(res.dress.filter(entry => entry.owned).length, 12, 'and every 装扮 is owned')
+    assert.equal(res.dress.filter(entry => entry.owned).length, 11, 'and every 装扮 is owned')
   } finally {
     app.cleanup()
   }

@@ -88,7 +88,6 @@ export const SHOP = Object.freeze([
   Object.freeze({ key: 'flowercrown', label: '花环', emoji: '💐', price: 1800, kind: 'dress', level: 20, slot: 'head', blurb: '春天做的' }),
   Object.freeze({ key: 'tophat', label: '礼帽', emoji: '🎩', price: 2600, kind: 'dress', level: 25, slot: 'head', blurb: '正式场合' }),
   Object.freeze({ key: 'necklace', label: '项链', emoji: '📿', price: 3600, kind: 'dress', level: 30, slot: 'neck', blurb: '据说是祖传的' }),
-  Object.freeze({ key: 'royal-crown', label: '礼冠', emoji: '👑', price: 5200, kind: 'dress', level: 40, slot: 'head', blurb: '旧版王冠装扮' }),
   Object.freeze({ key: 'wings', label: '翅膀', emoji: '🪽', price: 8000, kind: 'dress', level: 50, slot: 'back', blurb: '能不能飞，谁也没见它飞过' }),
   // --- medicine: the twenty stage cures and 百草丹 (data/illness.js) ------
   ...MEDICINES,

@@ -60,7 +60,7 @@ test('contract follows the same item path and does not spend on refusal', () => 
   assert.equal(state.form, 'devil')
 })
 
-test('an old king stays king and an old wearable crown is preserved without a version bump', () => {
+test('an old king stays king and an old wearable crown becomes a crown item, without a version bump', () => {
   const old = readyKing()
   old.form = 'king'
   old.dress = ['crown']
@@ -68,6 +68,19 @@ test('an old king stays king and an old wearable crown is preserved without a ve
   const loaded = migrate(old, NOW)
   assert.equal(loaded.version, old.version)
   assert.equal(loaded.form, 'king')
-  assert.deepEqual(loaded.dress, ['royal-crown'])
-  assert.deepEqual(loaded.worn, ['royal-crown'])
+  assert.deepEqual(loaded.dress, [])
+  assert.deepEqual(loaded.worn, [])
+  assert.equal(loaded.inventory.crown, 1, 'the 5200 they paid turns into one crown item')
+  const again = migrate(loaded, NOW)
+  assert.equal(again.inventory.crown, 1, 'loading it again gives nothing more')
+})
+
+test('a C3-era 礼冠 also becomes a crown item', () => {
+  const old = readyKing()
+  old.dress = ['scarf', 'royal-crown']
+  old.worn = ['royal-crown']
+  const loaded = migrate(old, NOW)
+  assert.deepEqual(loaded.dress, ['scarf'])
+  assert.deepEqual(loaded.worn, [])
+  assert.equal(loaded.inventory.crown, 1)
 })

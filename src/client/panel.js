@@ -152,7 +152,7 @@ export function createPanel(ctx) {
         else if (ctx.tab === 'work') renderWorkTab(ctx)
         else if (ctx.tab === 'shop') renderShopTab(ctx)
         else if (ctx.tab === 'travel') renderTravelTab(ctx)
-        else if (ctx.tab === 'pomodoro') renderPomodoroTab(ctx)
+        else if (ctx.tab === 'pomodoro') { renderPomodoroTab(ctx); if (typeof ctx.pomoTick === 'function') ctx.pomoTick() }
         else if (ctx.tab === 'dev') renderDevTab(ctx)
         else if (ctx.tab === 'update') renderUpdateTab(ctx)
         else renderBagTab(ctx)
@@ -275,6 +275,7 @@ export function createPanel(ctx) {
         ctx.pomoHint.hidden = !pomoOn || ctx.bubble.hidden === false
         if (pomoOn) ctx.pomoHint.textContent = '🍅 ' + clockText(pomo.secondsLeft)
         noticePomodoro(pomo)
+        if (typeof ctx.pomoTick === 'function') ctx.pomoTick()
 
         // 猪头上的日常提示：能签到就先显示签到，否则显示礼包。
         // 点一下直接领；点击不再冒泡到场景，免得同时被当成摸猪/拖动。

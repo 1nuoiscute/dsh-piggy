@@ -32,6 +32,10 @@ export function migrate(input, nowMs) {
   state.stats.jobs = Number.isFinite(state.stats.jobs) ? Math.max(0, Math.floor(state.stats.jobs)) : 0
   state.cooldowns = { ...(asObject(raw.cooldowns) ?? {}) }
   state.inventory = sanitizeInventory(raw.inventory)
+  // 王冠以前是 5200 的装扮（C3 里改名「礼冠」），现在只剩能加冕的王冠道具：
+  // 买过的换成一顶王冠放进背包，不白花钱。换过之后装扮表里就没有它了，不会重复给。
+  const oldCrown = [raw.dress, raw.worn].some(list => Array.isArray(list) && (list.includes('crown') || list.includes('royal-crown')))
+  if (oldCrown) state.inventory.crown = (state.inventory.crown ?? 0) + 1
   state.dress = sanitizeDressList(raw.dress)
   // Only owned items can be worn, and unknown keys are dropped.
   state.worn = sanitizeDressList(raw.worn).filter(key => state.dress.includes(key))
@@ -158,10 +162,7 @@ export function sanitizeSouvenirs(raw) {
 export function sanitizeDressList(raw) {
   if (!Array.isArray(raw)) return []
   const out = []
-  for (const savedKey of raw) {
-    // Before C3, crown was a wearable. Keep the paid-for outfit under its new
-    // key; the promotion item now owns `crown` in the inventory namespace.
-    const key = savedKey === 'crown' ? 'royal-crown' : savedKey
+  for (const key of raw) {
     if (typeof key !== 'string') continue
     const item = itemByKey(key)
     if (item === null || item.kind !== 'dress' || out.includes(key)) continue
