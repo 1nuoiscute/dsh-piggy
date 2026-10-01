@@ -350,6 +350,24 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
 
 **结论**：第 0 条（提交/记录）、第 1 条（加载顺序）✅；第 2 条（拖动）✅ 有实机数据；第 3 条（左上角展开时
 猪不动）❌ 仍未通过。不申请验收，等 Claude 看这个诊断。
+### C3 加冕道具化（Codex，2026-10-01）
+
+- `npm run build`：通过；`npm test`：**377 / 377 通过**；`npm run typecheck`：**0 错误**。
+  `client.js` 由构建脚本重新生成。
+- 没有王冠时，加冕 App 与 `/pig crown` 都拒绝操作并提示去商店购买王冠。
+- 买到王冠但条件不齐时，点「加冕」会拒绝、保留背包中的王冠，并逐条列出尚未满足的条件；
+  条件全部满足后播放 `👑✨` 全屏特效、立绘切换为猪猪王，并消耗 1 个王冠。
+- 恶魔契约走相同的商店购买、条件校验和成功消耗流程；背包按钮文字为「签约」，成功时播放
+  `😈🔥` 全屏特效并切换为恶魔猪。
+- 老存档实测：已有 `form='king'` 的存档加载后仍是猪猪王。旧版把 `crown` 当装扮键，加载迁移时
+  `sanitizeDressList` 将 `dress` 与 `worn` 中的 `crown` 同步映射为 `royal-crown`，因此已购装扮不丢、
+  穿戴状态保留；本轮**没有提升存档版本**，迁移是幂等的字段/键兼容处理。
+- 截图：`docs/screenshots/c3-crown-needs-item.png`（无王冠提示）、
+  `docs/screenshots/c3-promotion-shop.png`（晋升货架）、`docs/screenshots/c3-bag-crown.png`（背包加冕按钮）、
+  `docs/screenshots/c3-king-effect.png`、`docs/screenshots/c3-king.png`、
+  `docs/screenshots/c3-devil-effect.png`、`docs/screenshots/c3-devil.png`。
+- 截图实测使用隔离实例与 Playwright + `/usr/bin/chromium`；后续隔离实例按用户要求固定使用 3084，
+  不触碰 3080、3082、3083。
 
 
 ### D1 返工 2（DSH agent，2026-10-01）：根因已修（207px 跳没了），残余 12.8 / 24.9 DIP 仍未达标
