@@ -1619,46 +1619,90 @@
 
   // src/client/css-dex.js
   var CSS_DEX = [
-    ".dp-dex-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;perspective:700px}",
-    ".dp-dex-card{position:relative;min-width:0;aspect-ratio:4/5;padding:7px;border:1.5px solid rgba(117,91,48,.3);",
-    "border-radius:14px;overflow:hidden;cursor:pointer;color:var(--ac-text);font:inherit;",
+    // Category dashboard: existing app tiles plus a thin museum-style progress rail.
+    ".dp-dex-sections .dp-tile{gap:3px}",
+    ".dp-dex-progress{display:block;width:42px;height:3px;margin-top:1px;border-radius:4px;overflow:hidden;",
+    "background:rgba(61,52,40,.12)}",
+    ".dp-dex-progress i{display:block;height:100%;border-radius:inherit;background:var(--tile-c,var(--ac-primary));",
+    "transition:width .25s var(--ac-ease)}",
+    // Forms and skins: three genuinely small collectible cards.
+    ".dp-dex-flash-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;perspective:700px}",
+    ".dp-dex-card{position:relative;min-width:0;aspect-ratio:4/5;padding:4px;border:1.5px solid rgba(117,91,48,.3);",
+    "border-radius:11px;overflow:hidden;cursor:pointer;color:var(--ac-text);font:inherit;",
     "background:linear-gradient(145deg,#fff9dc 0%,#f5dd9e 38%,#e8bfcf 68%,#b9ddec 100%);",
-    "box-shadow:0 4px 0 rgba(61,52,40,.14),0 8px 18px rgba(91,67,37,.1);",
+    "box-shadow:0 3px 0 rgba(61,52,40,.13),0 6px 12px rgba(91,67,37,.09);",
     "transform:rotateX(var(--dex-rx,0deg)) rotateY(var(--dex-ry,0deg));transform-style:preserve-3d;",
-    "transition:transform .2s var(--ac-ease),box-shadow .2s var(--ac-ease)}",
+    "transition:transform .18s var(--ac-ease),box-shadow .18s var(--ac-ease)}",
     ".dp-dex-card:hover{transform:translateY(-2px) rotateX(var(--dex-rx,-2deg)) rotateY(var(--dex-ry,3deg));",
-    "box-shadow:0 6px 0 rgba(61,52,40,.12),0 12px 22px rgba(91,67,37,.16)}",
-    ".dp-dex-card:focus-visible{outline:2px solid var(--ac-primary);outline-offset:2px}",
-    '.dp-dex-card::after,.dp-dex-big::after{content:"";position:absolute;inset:-45%;pointer-events:none;',
-    "background:linear-gradient(112deg,transparent 32%,rgba(255,255,255,.1) 42%,rgba(255,255,255,.72) 49%,",
+    "box-shadow:0 5px 0 rgba(61,52,40,.11),0 9px 16px rgba(91,67,37,.14)}",
+    ".dp-dex-card:focus-visible,.dp-dex-museum-item:focus-visible,.dp-dex-row:focus-visible{outline:2px solid var(--ac-primary);outline-offset:2px}",
+    '.dp-dex-card-foil::after,.dp-dex-big-foil::after{content:"";position:absolute;inset:-45%;pointer-events:none;',
+    "background:linear-gradient(112deg,transparent 32%,rgba(255,255,255,.08) 42%,rgba(255,255,255,.7) 49%,",
     "rgba(155,224,255,.3) 54%,transparent 66%);transform:translateX(-58%) rotate(5deg);",
     "transition:transform .65s ease;mix-blend-mode:screen}",
-    ".dp-dex-card:hover::after,.dp-dex-big:hover::after{transform:translateX(58%) rotate(5deg)}",
+    ".dp-dex-card-foil:hover::after,.dp-dex-big-foil:hover::after{transform:translateX(58%) rotate(5deg)}",
     ".dp-dex-card-locked{background:linear-gradient(145deg,#e4e2dc,#bbbcb9 52%,#d4d0ca);border-color:#aaa7a0}",
-    ".dp-dex-artbox{position:relative;height:calc(100% - 25px);display:flex;align-items:center;justify-content:center;",
-    "border-radius:10px;background:rgba(255,255,255,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.7);overflow:hidden}",
-    ".dp-dex-art{display:block;width:88%;height:88%;object-fit:contain;filter:drop-shadow(0 4px 3px rgba(61,52,40,.18));",
-    "transform:translateZ(14px);transition:transform .2s var(--ac-ease)}",
-    ".dp-dex-card:hover .dp-dex-art{transform:translateZ(18px) scale(1.04)}",
-    ".dp-dex-card-locked .dp-dex-art,.dp-dex-big-locked .dp-dex-art{filter:grayscale(1) brightness(0);opacity:.32}",
-    ".dp-dex-emoji{font-size:42px;line-height:1;filter:drop-shadow(0 3px 2px rgba(61,52,40,.16))}",
+    ".dp-dex-artbox{position:relative;height:calc(100% - 19px);display:flex;align-items:center;justify-content:center;",
+    "border-radius:8px;background:rgba(255,255,255,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.7);overflow:hidden}",
+    ".dp-dex-art{display:block;width:88%;height:88%;object-fit:contain;filter:drop-shadow(0 3px 2px rgba(61,52,40,.16));",
+    "transform:translateZ(10px);transition:transform .18s var(--ac-ease)}",
+    ".dp-dex-card-foil:hover .dp-dex-art{transform:translateZ(13px) scale(1.04)}",
+    ".dp-dex-card-locked .dp-dex-art,.dp-dex-big-locked .dp-dex-art,.dp-dex-museum-locked .dp-dex-art,",
+    ".dp-dex-info-locked .dp-dex-art{filter:grayscale(1) brightness(0);opacity:.3}",
+    ".dp-dex-emoji{font-size:27px;line-height:1;filter:drop-shadow(0 2px 1px rgba(61,52,40,.14))}",
+    ".dp-dex-emoji-large{font-size:42px}",
     ".dp-dex-lock{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;",
-    "align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;font-size:17px;",
-    "background:rgba(58,57,54,.78);border:2px solid rgba(255,255,255,.8);box-shadow:0 3px 8px rgba(0,0,0,.18)}",
-    ".dp-dex-caption{position:relative;z-index:1;display:block;margin-top:6px;font-size:10.5px;font-weight:800;",
+    "align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;font-size:12px;",
+    "background:rgba(58,57,54,.78);border:1.5px solid rgba(255,255,255,.82);box-shadow:0 2px 6px rgba(0,0,0,.16)}",
+    ".dp-dex-caption{position:relative;z-index:1;display:block;margin-top:4px;font-size:8.5px;font-weight:800;",
     "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}",
-    ".dp-dex-card-locked .dp-dex-caption{color:#615f5b;letter-spacing:.08em}",
-    ".dp-dex-detail{margin-top:12px;perspective:800px}",
-    ".dp-dex-big{position:relative;overflow:hidden;min-height:198px;padding:13px;border-radius:19px;",
-    "border:2px solid rgba(177,127,43,.48);background:linear-gradient(145deg,#fff8cf 0%,#f6d48c 32%,#efb8d1 61%,#a9d9ec 100%);",
-    "box-shadow:0 5px 0 rgba(61,52,40,.14),0 14px 28px rgba(91,67,37,.14);transform-style:preserve-3d;",
-    "transform:rotateX(var(--dex-rx,0deg)) rotateY(var(--dex-ry,0deg));transition:transform .18s ease}",
+    ".dp-dex-card-locked .dp-dex-caption{color:#615f5b;letter-spacing:.04em}",
+    // Fish and souvenirs: pastel three-column museum shelf, no foil or 3D.
+    ".dp-dex-museum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 8px}",
+    ".dp-dex-museum-item{font:inherit;min-width:0;height:82px;padding:5px;border:0;border-radius:13px;cursor:pointer;",
+    "display:flex;flex-direction:column;align-items:center;justify-content:space-between;color:var(--ac-text);",
+    "background:var(--ac-bg-content);box-shadow:inset 0 0 0 1.5px var(--ac-border-light)}",
+    ".dp-dex-museum-item:nth-child(4n+1){background:#e5f3f5}.dp-dex-museum-item:nth-child(4n+2){background:#f5e6ef}",
+    ".dp-dex-museum-item:nth-child(4n+3){background:#eef3df}.dp-dex-museum-item:nth-child(4n){background:#f8efd9}",
+    ".dp-dex-museum-art{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:54px}",
+    ".dp-dex-museum-art .dp-dex-art{width:48px;height:48px}",
+    ".dp-dex-museum-lock{position:absolute;right:1px;top:1px;font-size:10px}",
+    ".dp-dex-museum-name{display:block;width:100%;font-size:8.5px;font-weight:800;white-space:nowrap;",
+    "overflow:hidden;text-overflow:ellipsis;text-align:center}",
+    ".dp-dex-museum-locked{filter:grayscale(.45);color:var(--ac-text-2)}",
+    // Item catalogue: search + wraparound category chips + dense rows.
+    ".dp-dex-catalog-tools{margin-bottom:8px}",
+    ".dp-dex-search{width:100%;height:28px;margin:0 0 6px;padding:4px 10px;font-size:10px}",
+    ".dp-dex-filters{display:flex;gap:4px;overflow-x:auto;padding:1px 0 3px;scrollbar-width:none}",
+    ".dp-dex-filters::-webkit-scrollbar{display:none}",
+    ".dp-dex-filter{font:inherit;flex:none;border:1.5px solid var(--ac-border-light);border-radius:var(--ac-pill);",
+    "background:var(--ac-bg-input);color:var(--ac-text-2);padding:3px 8px;font-size:9px;font-weight:700;cursor:pointer}",
+    '.dp-dex-filter[data-active="true"]{background:var(--tile-orange);border-color:#cc7950;color:#fff}',
+    ".dp-dex-catalog{display:flex;flex-direction:column;gap:5px}",
+    ".dp-dex-row{font:inherit;width:100%;min-width:0;border:1.5px solid var(--ac-border-light);border-radius:10px;",
+    "background:var(--ac-bg-content);color:var(--ac-text);padding:5px 8px;display:flex;align-items:center;gap:8px;cursor:pointer;text-align:left}",
+    ".dp-dex-row-emoji{flex:none;width:25px;text-align:center;font-size:19px}",
+    ".dp-dex-row-text{flex:1;min-width:0;display:flex;flex-direction:column}",
+    ".dp-dex-row-text b{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".dp-dex-row-text small{font-size:8.5px;color:var(--ac-text-2)}",
+    ".dp-dex-row-count{flex:none;font-size:9px;font-weight:800;color:var(--ac-text-2)}",
+    ".dp-dex-row-locked{color:var(--ac-text-2);background:#efeee9}",
+    '.dp-dex-row[data-search-hidden="true"]{display:none}',
+    // A detail replaces the shelf instead of stretching it underneath.
+    ".dp-dex-detail{perspective:800px}",
+    ".dp-dex-big,.dp-dex-info{position:relative;overflow:hidden;padding:12px;border-radius:18px;",
+    "border:2px solid rgba(177,127,43,.4);background:linear-gradient(145deg,#fff8cf 0%,#f6d48c 32%,#efb8d1 61%,#a9d9ec 100%);",
+    "box-shadow:0 4px 0 rgba(61,52,40,.13),0 10px 22px rgba(91,67,37,.12)}",
+    ".dp-dex-big{transform-style:preserve-3d;transform:rotateX(var(--dex-rx,0deg)) rotateY(var(--dex-ry,0deg));transition:transform .18s ease}",
     ".dp-dex-big-locked{background:linear-gradient(145deg,#e9e7e1,#c5c5c1 56%,#ddd9d3);border-color:#aaa7a0}",
-    ".dp-dex-big-art{position:relative;height:112px;display:flex;align-items:center;justify-content:center;border-radius:14px;",
-    "background:rgba(255,255,255,.48);box-shadow:inset 0 0 0 1px rgba(255,255,255,.75);overflow:hidden}",
-    ".dp-dex-big-art .dp-dex-art{width:106px;height:106px}",
+    ".dp-dex-info{background:#fffaf0;border-color:var(--ac-border-light)}",
+    ".dp-dex-info-locked{background:#e9e7e1;border-color:#aaa7a0}",
+    ".dp-dex-big-art,.dp-dex-info-art{position:relative;height:112px;display:flex;align-items:center;justify-content:center;",
+    "border-radius:14px;background:rgba(255,255,255,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.76);overflow:hidden}",
+    ".dp-dex-info-art{height:92px}.dp-dex-big-art .dp-dex-art{width:106px;height:106px}",
+    ".dp-dex-info-art .dp-dex-art{width:82px;height:82px}",
     ".dp-dex-big-title{position:relative;z-index:1;margin-top:9px;font-size:14px;font-weight:900;text-align:center;color:var(--ac-text)}",
-    ".dp-dex-riddle{position:relative;z-index:1;margin-top:8px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.52);",
+    ".dp-dex-riddle{position:relative;z-index:1;margin-top:8px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.55);",
     "font-size:10.5px;font-weight:600;line-height:1.55;color:var(--ac-text-body)}",
     ".dp-dex-riddle b{display:block;margin-bottom:2px;font-size:9px;letter-spacing:.14em;color:#766f65}",
     ".dp-dex-story{position:relative;z-index:1;margin-top:7px;font-size:10.5px;font-weight:600;line-height:1.5;",
@@ -1666,7 +1710,7 @@
     ".dp-dex-foot{position:relative;z-index:1;margin-top:8px;padding-top:7px;border-top:1px dashed rgba(87,69,42,.3);",
     "font-size:9.5px;font-weight:700;text-align:center;color:var(--ac-text-2)}",
     "@media (prefers-reduced-motion:reduce){.dp-dex-card,.dp-dex-big,.dp-dex-art{transition:none!important;transform:none!important}",
-    ".dp-dex-card::after,.dp-dex-big::after{display:none}}"
+    ".dp-dex-card-foil::after,.dp-dex-big-foil::after{display:none}}"
   ].join("");
 
   // src/client/styles.js
@@ -2680,6 +2724,8 @@
           art: str(entry.art, ""),
           description: str(entry.description, ""),
           hint: str(entry.hint, ""),
+          kind: str(entry.kind, ""),
+          kindLabel: str(entry.kindLabel, ""),
           acquired: entry.acquired === true,
           firstAt: typeof entry.firstAt === "number" ? entry.firstAt : null,
           count: num(entry.count, 0),
@@ -2825,6 +2871,16 @@
 
   // src/client/tabs/dex.js
   var SECTIONS = [];
+  var ITEM_KINDS = [
+    ["all", "\u5168\u90E8"],
+    ["food", "\u98DF\u7269"],
+    ["bath", "\u6D17\u6D74"],
+    ["toy", "\u73A9\u5177"],
+    ["medicine", "\u836F\u54C1"],
+    ["revive", "\u590D\u6D3B"],
+    ["promotion", "\u664B\u5347"],
+    ["dress", "\u88C5\u626E"]
+  ];
   function registerDexSection(section) {
     if (section === null || typeof section !== "object" || typeof section.key !== "string") return;
     const index = SECTIONS.findIndex((entry) => entry.key === section.key);
@@ -2843,14 +2899,18 @@
     if (picked === null) return renderSections(ui);
     const section = SECTIONS.find((entry) => entry.key === picked);
     if (section === void 0) return drillTo(ui, "dex", null);
-    renderEntries(ui, section);
+    const entries = ui.view.dex[section.key] ?? [];
+    const detail = entries.find((entry) => entry.key === ui.drill.pick);
+    if (detail !== void 0) return renderDetail(ui, section, detail);
+    renderEntries(ui, section, entries);
   }
   function renderSections(ui) {
     const grid = tileGrid();
+    grid.className += " dp-dex-sections";
     for (const section of SECTIONS) {
       const entries = ui.view.dex[section.key] ?? [];
       const got = entries.filter((entry) => entry.acquired).length;
-      grid.appendChild(tile({
+      const node = tile({
         emoji: section.emoji,
         label: section.label,
         color: section.color,
@@ -2859,52 +2919,149 @@
         onPick: function() {
           drillTo(ui, "dex", section.key);
         }
-      }));
+      });
+      const progress = el("span", "dp-dex-progress");
+      const fill = el("i");
+      fill.style.width = (entries.length === 0 ? 0 : Math.round(got / entries.length * 100)) + "%";
+      progress.appendChild(fill);
+      node.appendChild(progress);
+      grid.appendChild(node);
     }
     ui.content.appendChild(grid);
   }
-  function renderEntries(ui, section) {
-    const entries = ui.view.dex[section.key] ?? [];
+  function renderEntries(ui, section, entries) {
     const acquired = entries.filter((entry) => entry.acquired).length;
     drillHeader(ui, "dex", section.emoji + " " + section.label, acquired + "/" + entries.length);
     if (entries.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E00\u9875\u8FD8\u6CA1\u6709\u6536\u5F55\u5185\u5BB9"));
       return;
     }
-    const list = el("div", "dp-dex-grid");
-    for (const entry of entries) {
-      list.appendChild(entryCard(ui, entry, section.label));
-    }
-    ui.content.appendChild(list);
-    const picked = entries.find((entry) => entry.key === ui.drill.pick);
-    if (picked !== void 0) ui.content.appendChild(detailCard(picked, section.label));
+    if (section.key === "forms" || section.key === "skins") renderFlashShelf(ui, section, entries);
+    else if (section.key === "items") renderCatalogue(ui, entries);
+    else renderMuseum(ui, section, entries);
   }
-  function entryCard(ui, entry, sectionLabel) {
-    const card = button(
-      "dp-dex-card" + (entry.acquired ? "" : " dp-dex-card-locked"),
-      { "data-dex-entry": entry.key },
-      function() {
-        ui.drill.pick = ui.drill.pick === entry.key ? null : entry.key;
-        ui.renderContent();
-      }
-    );
+  function renderFlashShelf(ui, section, entries) {
+    const grid = el("div", "dp-dex-flash-grid");
+    for (const entry of entries) grid.appendChild(flashCard(ui, section, entry));
+    ui.content.appendChild(grid);
+  }
+  function flashCard(ui, section, entry) {
+    const classes = ["dp-dex-card"];
+    if (entry.acquired) classes.push("dp-dex-card-foil");
+    else classes.push("dp-dex-card-locked");
+    const card = button(classes.join(" "), { "data-dex-entry": entry.key }, function() {
+      openDetail(ui, entry.key);
+    });
     const art = el("span", "dp-dex-artbox");
-    appendArt(art, entry);
+    appendArt(art, entry, true);
     if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
     card.appendChild(art);
-    card.appendChild(el("span", "dp-dex-caption", entry.acquired ? entry.label : "\u672A\u77E5" + sectionLabel));
-    tilt(card);
+    card.appendChild(el("span", "dp-dex-caption", entry.acquired ? entry.label : "\u672A\u77E5" + section.label));
+    if (entry.acquired) tilt(card);
     return card;
   }
-  function detailCard(entry, sectionLabel) {
+  function renderMuseum(ui, section, entries) {
+    const grid = el("div", "dp-dex-museum");
+    for (const entry of entries) {
+      const card = button(
+        "dp-dex-museum-item" + (entry.acquired ? "" : " dp-dex-museum-locked"),
+        { "data-dex-entry": entry.key },
+        function() {
+          openDetail(ui, entry.key);
+        }
+      );
+      const art = el("span", "dp-dex-museum-art");
+      appendArt(art, entry, false);
+      if (!entry.acquired) art.appendChild(el("span", "dp-dex-museum-lock", "\u{1F512}"));
+      card.appendChild(art);
+      card.appendChild(el("span", "dp-dex-museum-name", entry.acquired ? entry.label : "\u672A\u77E5" + section.label));
+      grid.appendChild(card);
+    }
+    ui.content.appendChild(grid);
+  }
+  function renderCatalogue(ui, entries) {
+    const controls = el("div", "dp-dex-catalog-tools");
+    const search = (
+      /** @type {HTMLInputElement} */
+      el("input", "dp-input dp-dex-search")
+    );
+    search.type = "search";
+    search.placeholder = "\u641C\u7D22\u5DF2\u53D1\u73B0\u7684\u9053\u5177";
+    search.value = ui.drill.dexQuery ?? "";
+    search.setAttribute("data-dex-search", "items");
+    controls.appendChild(search);
+    const filters = el("div", "dp-dex-filters");
+    const active = ui.drill.dexFilter ?? "all";
+    const available = new Set(entries.map((entry) => entry.kind));
+    for (const [key, label] of ITEM_KINDS) {
+      if (key !== "all" && !available.has(key)) continue;
+      const filter = button("dp-dex-filter", { "data-dex-filter": key }, function() {
+        ui.drill.dexFilter = key;
+        ui.drill.pick = null;
+        ui.renderContent();
+      });
+      filter.textContent = label;
+      filter.setAttribute("data-active", active === key ? "true" : "false");
+      filters.appendChild(filter);
+    }
+    controls.appendChild(filters);
+    ui.content.appendChild(controls);
+    const query = String(ui.drill.dexQuery ?? "").trim().toLowerCase();
+    const list = el("div", "dp-dex-catalog");
+    for (const entry of entries) {
+      if (active !== "all" && entry.kind !== active) continue;
+      const searchable = entry.acquired ? entry.label.toLowerCase() : ("\u672A\u77E5" + entry.kindLabel).toLowerCase();
+      if (query !== "" && !searchable.includes(query)) continue;
+      list.appendChild(catalogueRow(ui, entry));
+    }
+    ui.content.appendChild(list);
+    search.addEventListener("input", function() {
+      ui.drill.dexQuery = search.value;
+      const needle = search.value.trim().toLowerCase();
+      for (const row of list.children) {
+        const hidden = needle !== "" && !String(row.getAttribute("data-search-text") ?? "").includes(needle);
+        if (hidden) row.setAttribute("data-search-hidden", "true");
+        else row.removeAttribute("data-search-hidden");
+      }
+    });
+  }
+  function catalogueRow(ui, entry) {
+    const row = button(
+      "dp-dex-row" + (entry.acquired ? "" : " dp-dex-row-locked"),
+      { "data-dex-entry": entry.key, "data-search-text": entry.acquired ? entry.label.toLowerCase() : ("\u672A\u77E5" + entry.kindLabel).toLowerCase() },
+      function() {
+        openDetail(ui, entry.key);
+      }
+    );
+    row.appendChild(el("span", "dp-dex-row-emoji", entry.acquired ? entry.emoji : "\u25C6"));
+    const copy = el("span", "dp-dex-row-text");
+    copy.appendChild(el("b", null, entry.acquired ? entry.label : "\u672A\u77E5\u9053\u5177"));
+    copy.appendChild(el("small", null, entry.kindLabel || "\u5176\u4ED6"));
+    row.appendChild(copy);
+    row.appendChild(el("span", "dp-dex-row-count", entry.acquired ? "\xD7" + entry.count : "\u{1F512}"));
+    return row;
+  }
+  function renderDetail(ui, section, entry) {
+    const header = el("div", "dp-drill");
+    const back = button("dp-drill-back", { "data-dex-detail-back": section.key }, function() {
+      ui.drill.pick = null;
+      ui.renderContent();
+      ui.content.scrollTop = 0;
+    });
+    back.textContent = "\u2039";
+    header.appendChild(back);
+    header.appendChild(el("b", "dp-drill-title", section.emoji + " " + section.label));
+    header.appendChild(el("span", "dp-drill-info", entry.acquired ? "\u5DF2\u6536\u5F55" : "\u672A\u89E3\u9501"));
+    ui.content.appendChild(header);
+    const flash = section.key === "forms" || section.key === "skins";
     const wrap = el("div", "dp-dex-detail");
     wrap.setAttribute("data-dex-detail", entry.key);
-    const card = el("div", "dp-dex-big" + (entry.acquired ? "" : " dp-dex-big-locked"));
-    const art = el("div", "dp-dex-big-art");
-    appendArt(art, entry);
+    const card = el("div", flash ? "dp-dex-big" + (entry.acquired ? " dp-dex-big-foil" : " dp-dex-big-locked") : "dp-dex-info" + (entry.acquired ? "" : " dp-dex-info-locked"));
+    const art = el("div", flash ? "dp-dex-big-art" : "dp-dex-info-art");
+    appendArt(art, entry, flash);
     if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
     card.appendChild(art);
-    card.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + sectionLabel));
+    card.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + section.label));
     if (entry.acquired) {
       card.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
       card.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21"));
@@ -2915,10 +3072,15 @@
       card.appendChild(riddle);
     }
     wrap.appendChild(card);
-    tilt(card);
-    return wrap;
+    ui.content.appendChild(wrap);
+    if (flash && entry.acquired) tilt(card);
   }
-  function appendArt(parent, entry) {
+  function openDetail(ui, key) {
+    ui.drill.pick = key;
+    ui.renderContent();
+    ui.content.scrollTop = 0;
+  }
+  function appendArt(parent, entry, large) {
     if (entry.art) {
       const img = (
         /** @type {HTMLImageElement} */
@@ -2928,7 +3090,7 @@
       img.alt = entry.acquired ? entry.label : "";
       parent.appendChild(img);
     } else {
-      parent.appendChild(el("span", "dp-dex-emoji", entry.acquired ? entry.emoji : "\u25C6"));
+      parent.appendChild(el("span", large ? "dp-dex-emoji dp-dex-emoji-large" : "dp-dex-emoji", entry.emoji));
     }
   }
   function firstSeen(value) {
@@ -2940,8 +3102,8 @@
       const box = node.getBoundingClientRect();
       const x = ((event.clientX ?? box.left + box.width / 2) - box.left) / Math.max(1, box.width) - 0.5;
       const y = ((event.clientY ?? box.top + box.height / 2) - box.top) / Math.max(1, box.height) - 0.5;
-      node.style.setProperty("--dex-rx", (-y * 7).toFixed(2) + "deg");
-      node.style.setProperty("--dex-ry", (x * 9).toFixed(2) + "deg");
+      node.style.setProperty("--dex-rx", (-y * 5).toFixed(2) + "deg");
+      node.style.setProperty("--dex-ry", (x * 7).toFixed(2) + "deg");
     });
     node.addEventListener("pointerleave", function() {
       node.style.removeProperty("--dex-rx");

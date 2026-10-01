@@ -68,6 +68,10 @@ export function recordDex(state, section, key, nowMs, count = 1) {
 
 const found = (dex, section, key) => dex[section][key] ?? null
 
+const ITEM_KIND_LABEL = Object.freeze({
+  food: '食物', bath: '洗浴', toy: '玩具', medicine: '药品', revive: '复活', promotion: '晋升', dress: '装扮',
+})
+
 /** Build the complete locked/unlocked catalogue sent to the client. */
 export function dexView(state, formView, nowMs = 0) {
   const dex = ensureDex(state, nowMs)
@@ -92,6 +96,7 @@ export function dexView(state, formView, nowMs = 0) {
       const gate = item.kind === 'dress' && (item.level ?? 1) > 1 ? ` · Lv.${item.level}` : ''
       return {
         key: item.key, label: item.label, emoji: item.emoji,
+        kind: item.kind, kindLabel: ITEM_KIND_LABEL[item.kind] ?? '其他',
         acquired: record !== null, firstAt: record?.firstAt ?? null, count: record?.count ?? 0,
         description: item.blurb ?? '一件陪伴日常生活的小东西。',
         hint: '有些相遇藏在货架、礼物，或一次意外收获里。',

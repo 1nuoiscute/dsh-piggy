@@ -25,8 +25,8 @@ const DEX = {
   skins: [],
   fish: [],
   items: [
-    { key: 'apple', label: '苹果', emoji: '🍎', acquired: true, firstAt: 1_800_000_000_000, count: 3, condition: '商店购买' },
-    { key: 'crown', label: '王冠', emoji: '👑', acquired: false, firstAt: null, count: 0, condition: '商店购买 · 3000 金币' },
+    { key: 'apple', label: '苹果', emoji: '🍎', kind: 'food', kindLabel: '食物', acquired: true, firstAt: 1_800_000_000_000, count: 3, condition: '商店购买' },
+    { key: 'crown', label: '王冠', emoji: '👑', kind: 'promotion', kindLabel: '晋升', acquired: false, firstAt: null, count: 0, condition: '商店购买 · 3000 金币' },
   ],
   souvenirs: [
     { key: 'shell', label: '一枚海螺', emoji: '🐚', acquired: false, firstAt: null, count: 0, condition: '旅行到看海获得' },
@@ -43,7 +43,9 @@ test('C4 the 图鉴 replaces 加冕 in the same home slot and exposes five secti
   assert.match(app.allText(), /图鉴/)
   app.fire('click')
   for (const key of ['forms', 'skins', 'fish', 'items', 'souvenirs']) {
-    assert.notEqual(findByAttr(contentOf(dom), 'data-dex-section', key), undefined, key)
+    const section = findByAttr(contentOf(dom), 'data-dex-section', key)
+    assert.notEqual(section, undefined, key)
+    assert.notEqual(findByClass(section, 'dp-dex-progress'), undefined, key + ' progress')
   }
 })
 
@@ -53,12 +55,15 @@ test('C4 form shelf uses SVG flash cards and keeps exact requirements secret', a
   findByAttr(contentOf(dom), 'data-dex-section', 'forms').fire('click')
   const king = findByAttr(contentOf(dom), 'data-dex-entry', 'king')
   const devil = findByAttr(contentOf(dom), 'data-dex-entry', 'devil')
+  assert.notEqual(findByClass(contentOf(dom), 'dp-dex-flash-grid'), undefined)
   assert.match(king.className, /dp-dex-card-locked/)
+  assert.doesNotMatch(king.className, /dp-dex-card-foil/)
   assert.equal(findByClass(king, 'dp-dex-art').src, '/dsh-piggy/art/pig-king.svg')
   assert.match(king.allText(), /🔒/)
   assert.doesNotMatch(king.allText(), /猪猪王|等级|魅力|40\/40|12\/20/)
   assert.equal(findByClass(devil, 'dp-dex-art').src, '/dsh-piggy/art/pig-devil.svg')
   assert.match(devil.allText(), /恶魔猪/)
+  assert.match(devil.className, /dp-dex-card-foil/)
 })
 
 test('C4 opening a locked card reveals a riddle, while an unlocked card reveals its story', async () => {
@@ -68,14 +73,45 @@ test('C4 opening a locked card reveals a riddle, while an unlocked card reveals 
 
   findByAttr(contentOf(dom), 'data-dex-entry', 'king').fire('click')
   const locked = findByAttr(contentOf(dom), 'data-dex-detail', 'king')
+  assert.equal(findByAttr(contentOf(dom), 'data-dex-entry', 'king'), undefined)
   assert.match(locked.allText(), /解锁谜面/)
   assert.match(locked.allText(), /金色会选择它的主人/)
   assert.doesNotMatch(locked.allText(), /使用王冠|等级 40\/40|魅力 12\/20/)
 
+  findByAttr(contentOf(dom), 'data-dex-detail-back', 'forms').fire('click')
   findByAttr(contentOf(dom), 'data-dex-entry', 'devil').fire('click')
   const unlocked = findByAttr(contentOf(dom), 'data-dex-detail', 'devil')
   assert.match(unlocked.allText(), /玩出了本事，也玩出了自己的小脾气/)
   assert.match(unlocked.allText(), /获得 2 次/)
+})
+
+test('C4 items use a searchable filtered catalogue instead of flash cards', async () => {
+  const { dom } = await mount({ status: { ...SNAPSHOT, dex: DEX } })
+  openPanel(dom, 'dex')
+  findByAttr(contentOf(dom), 'data-dex-section', 'items').fire('click')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-dex-search', 'items'), undefined)
+  assert.notEqual(findByClass(contentOf(dom), 'dp-dex-catalog'), undefined)
+  assert.equal(findByClass(contentOf(dom), 'dp-dex-flash-grid'), undefined)
+
+  const search = findByAttr(contentOf(dom), 'data-dex-search', 'items')
+  search.value = '苹果'
+  search.fire('input')
+  assert.equal(findByAttr(contentOf(dom), 'data-dex-entry', 'apple').getAttribute('data-search-hidden'), null)
+  assert.equal(findByAttr(contentOf(dom), 'data-dex-entry', 'crown').getAttribute('data-search-hidden'), 'true')
+
+  search.value = ''
+  search.fire('input')
+  findByAttr(contentOf(dom), 'data-dex-filter', 'promotion').fire('click')
+  assert.equal(findByAttr(contentOf(dom), 'data-dex-entry', 'apple'), undefined)
+  assert.notEqual(findByAttr(contentOf(dom), 'data-dex-entry', 'crown'), undefined)
+})
+
+test('C4 souvenirs use the compact museum grid', async () => {
+  const { dom } = await mount({ status: { ...SNAPSHOT, dex: DEX } })
+  openPanel(dom, 'dex')
+  findByAttr(contentOf(dom), 'data-dex-section', 'souvenirs').fire('click')
+  assert.notEqual(findByClass(contentOf(dom), 'dp-dex-museum'), undefined)
+  assert.equal(findByClass(contentOf(dom), 'dp-dex-flash-grid'), undefined)
 })
 
 test('C4 a host without dex data degrades to empty sections', async () => {
