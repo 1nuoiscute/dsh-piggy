@@ -98,6 +98,7 @@ function flash(action) {
 var bubbleTimer = null
 function showBubble(text, ms) {
   if (bubbleTimer !== null) window.clearTimeout(bubbleTimer)
+  bubble.setAttribute('data-bubble-shown', 'true')
   bubble.textContent = text
   bubble.hidden = false
   bubbleTimer = window.setTimeout(function () {

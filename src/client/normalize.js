@@ -252,6 +252,23 @@ export function normalize(raw) {
       onlineMinutes: num(obj(d.daily).onlineMinutes, 0),
     },
     // 新到旧；老宿主没有 diary 时是空数组，面板不显示这一栏。
+    // C2 番茄钟：老宿主不发就是 null，页签显示「宿主还没提供」。
+    pomodoro: isObj(d.pomodoro) ? {
+      active: d.pomodoro.active === true,
+      minutes: num(d.pomodoro.minutes, 0),
+      secondsLeft: num(d.pomodoro.secondsLeft, 0),
+      breakSecondsLeft: num(d.pomodoro.breakSecondsLeft, 0),
+      todayDone: num(d.pomodoro.todayDone, 0),
+      rewardedToday: num(d.pomodoro.rewardedToday, 0),
+      cap: num(d.pomodoro.cap, 8),
+      reward: {
+        coins: num(obj(d.pomodoro.reward).coins, 0),
+        happiness: num(obj(d.pomodoro.reward).happiness, 0),
+      },
+      breakMinutes: num(d.pomodoro.breakMinutes, 5),
+      options: arr(d.pomodoro.options).filter(value => typeof value === 'number'),
+      finishedAt: typeof d.pomodoro.finishedAt === 'number' ? d.pomodoro.finishedAt : null,
+    } : null,
     diary: arr(d.diary).map(entry => ({
       day: str(obj(entry).day, ''),
       text: str(obj(entry).text, ''),

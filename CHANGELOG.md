@@ -13,7 +13,13 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
   localStorage 里的「已开」在启动时会被写掉。控制台只保留 `dshPigDev.off()` 救急。
 
 ### Added
+- **🍅 番茄钟 App**：挑 15/25/45 分钟（休息 5 分钟），猪在旁边陪着并自动进免打扰，头顶挂
+  番茄与剩余时间；完成 +8 🪙、心情 +6，每天前 8 个给奖励，之后只计数，中途放弃不给。
+  倒计时存在 `state.pomodoro`（`ensurePomodoro` 补默认值，存档版本不变），关面板/刷新/重启
+  都接着走，到点由下次请求结算；完成时发浏览器通知（没权限就用气泡），状态页显示今天做了几个。
+- 新台词场景 `pomodoroStart` / `pomodoroDone` / `pomodoroAbandon`（各 3 句）。
 - 调试页顶部「🔧 关闭调试」按钮。
+- 调试页「番茄钟」组：一键完成当前番茄、把今天的完成数设成 8（测每天上限）。
 - 调试页新增「形态」组：一键变成猪猪王、一键恢复普通（不看等级和三维条件）——`applyDevPatch`
   支持 `form` 字段（`null` 恢复普通）。以后每加一种形态/皮肤/鱼，调试页都会自动列出来。
 - 形态按钮会顺手把等级拉到该形态所在阶段的起始等级（从 `data/life.js` 读，不写死数字），

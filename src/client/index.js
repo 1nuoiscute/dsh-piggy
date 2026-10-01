@@ -64,7 +64,7 @@ import { arr, num, obj, str } from './values.js'
       // instead of breaking the panel.
       var parts = createScene()
       var { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop,
-        progressWrap, progressFill, pokeHint, dailyHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content } = parts
+        progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content } = parts
 
       var savedPos = readStore(POSITION_KEY)
       // The pig's position as the user set it, before any on-screen clamp.
@@ -150,6 +150,7 @@ import { arr, num, obj, str } from './values.js'
         progressFill: progressFill,
         pokeHint: pokeHint,
         dailyHint: dailyHint,
+        pomoHint: pomoHint,
         soul: soul,
         pigArt: pigArt,
         pigEmoji: pigEmoji,

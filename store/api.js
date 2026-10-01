@@ -25,6 +25,9 @@ import {
   replyToLine as coreReplyToLine,
   openGift as coreOpenGift,
   writeDiaryIfNewDay as coreWriteDiary,
+  startPomodoro as coreStartPomodoro,
+  settlePomodoro as coreSettlePomodoro,
+  abandonPomodoro as coreAbandonPomodoro,
   recordOnline as coreRecordOnline,
   signIn as coreSignIn,
   reset as coreReset,
@@ -101,6 +104,8 @@ export function createApi(control) {
         // 跨过 06:00 之后第一次读状态，就把前一天写成一篇日记。
         coreWriteDiary(state, nowMs)
         decay(state, nowMs)
+        // 番茄钟到点就在下一次请求结算（关着面板也算），奖励与计数都在核心侧。
+        coreSettlePomodoro(state, nowMs)
         scheduleSave()
       } catch (error) {
         // Keep the stale-but-valid state, but say why it is stale.
@@ -166,6 +171,9 @@ export function createApi(control) {
 
     /** 领今天的签到礼包。 */
     signIn: () => mutate(live => coreSignIn(live, now())),
+    /** C2: 开一个番茄（15/25/45 分钟）／放弃当前这个。 */
+    startPomodoro: minutes => mutate(live => coreStartPomodoro(live, Number(minutes), now())),
+    abandonPomodoro: () => mutate(live => coreAbandonPomodoro(live, now())),
 
     /** 开一个攒着的在线礼包。 */
     openGift: () => mutate(live => coreOpenGift(live, now())),

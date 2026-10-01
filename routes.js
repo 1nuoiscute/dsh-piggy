@@ -56,6 +56,9 @@ const OPERATIONS = {
   reply: (store, body) => store.reply(Number(body.line), Number(body.index)),
   // 日常：签到（在线礼包在 B5 的第二步接上）。
   signIn: store => store.signIn(),
+  // C2 番茄钟：开一个（分钟数由客户端给 15/25/45）／放弃当前这个。
+  pomodoro: (store, body) => store.startPomodoro(Number(body.minutes)),
+  pomodoroAbandon: store => store.abandonPomodoro(),
   openGift: store => store.openGift(),
   // The panel's timers ask the pig to speak up; the pig decides whether to.
   chat: (store, body) => store.chat(str(body.reason)),

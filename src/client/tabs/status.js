@@ -39,6 +39,15 @@ export function renderStatusTab(ui) {
     + (daily.unclaimed > 0 ? ' · 🎁 ' + daily.unclaimed : '')))
   ui.content.appendChild(dailyLine)
 
+  // C2：番茄钟今天完成了几个（没有番茄钟字段的老宿主不显示）。
+  var pomodoro = ui.view.pomodoro
+  if (pomodoro !== null && pomodoro.todayDone > 0) {
+    var pomoRow = el('div', 'dp-row')
+    pomoRow.appendChild(el('span', null, '🍅 番茄钟'))
+    pomoRow.appendChild(el('b', null, '今天 ' + pomodoro.todayDone + ' 个'))
+    ui.content.appendChild(pomoRow)
+  }
+
   var lvl = el('div', 'dp-row')
   lvl.appendChild(el('span', null, '⭐ 等级'))
   lvl.appendChild(el('b', null, 'Lv.' + p.level.level + ' ' + p.level.titleEmoji + p.level.titleLabel

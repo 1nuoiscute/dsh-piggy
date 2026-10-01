@@ -9,6 +9,14 @@
  */
 
 export const CSS_TILES = [
+  // 番茄钟（C2）：猪头顶的药丸 + App 里的倒计时。
+  '.dp-pomo{position:absolute;bottom:calc(100% + 40px);left:50%;transform:translateX(-50%);',
+  'font-size:10px;font-weight:800;color:#fff;background:var(--tile-red);',
+  'border-radius:var(--ac-pill);padding:2px 7px;white-space:nowrap;pointer-events:none;',
+  'box-shadow:0 2px 0 rgba(61,52,40,.16);z-index:4}',
+  '.dp-pomo-live{display:flex;flex-direction:column;align-items:center;gap:3px;margin:6px 0 10px}',
+  '.dp-pomo-clock{font-size:26px;font-weight:800;color:var(--ac-text);letter-spacing:1px}',
+
   // 主屏底部的版本号：一行灰字，不占格子（连点 7 次解锁调试模式，见 C1）。
   '.dp-version{margin-top:8px;text-align:center;font-size:9.5px;font-weight:600;',
   'color:var(--ac-text-muted);cursor:default;user-select:none}',

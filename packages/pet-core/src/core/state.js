@@ -7,10 +7,11 @@
  */
 
 import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, formByKey, xpForLevel } from '../data.js'
-import { lifeStageFor } from './clock.js'
+import { dayKeyFor, lifeStageFor } from './clock.js'
 import { MEMORY_LIMIT } from './constants.js'
 import { announce, clamp, remember } from './effects.js'
 import { layEgg } from './egg.js'
+import { ensurePomodoro, settlePomodoro } from './pomodoro.js'
 import { say } from './lines.js'
 import { sanitizeIllness, sanitizeInventory, sanitizeTraits } from './migrate.js'
 import { decay, die } from './settlement.js'
@@ -122,8 +123,15 @@ export function applyDevPatch(state, patch, nowMs) {
   // Fast-forward: decay the pig as if `__advanceMs` had really passed. This is
   // the whole point of dev mode — the interesting states take days to reach.
   if (typeof patch.__advanceMs === 'number' && Number.isFinite(patch.__advanceMs) && patch.__advanceMs > 0) {
-    state.lastSeenAt = nowMs - Math.min(patch.__advanceMs, 60 * 86_400_000)
+    const advance = Math.min(patch.__advanceMs, 60 * 86_400_000)
+    state.lastSeenAt = nowMs - advance
+    // 番茄钟是墙上时钟的计时器：快进也要把它一起往前挪，否则「+1 小时」永远等不到结算
+    // （验收：调试快进一小时后结算并发奖）。挪完立刻结算，响应里就能看到奖励。
+    const pomo = ensurePomodoro(state)
+    if (pomo.startedAt !== null) pomo.startedAt -= advance
+    if (pomo.restUntil !== null) pomo.restUntil -= advance
     decay(state, nowMs)
+    settlePomodoro(state, nowMs)
   }
 
   // Level is what takes months to see now (B2): jump straight to one.
@@ -159,6 +167,20 @@ export function applyDevPatch(state, patch, nowMs) {
     state.dead = false
     state.diedAt = null
     state.stage = 'box'
+  }
+
+  // 番茄钟（C2）：一键完成当前番茄（照常结算发奖）／把今天的完成数设成 8（测上限）。
+  if (patch.pomodoro !== null && typeof patch.pomodoro === 'object') {
+    const pomo = ensurePomodoro(state)
+    if (patch.pomodoro.finish === true && pomo.startedAt !== null) {
+      // 把开始时间往前挪到「刚好到点」，再走正常结算 —— 奖励和计数都照规矩来。
+      pomo.startedAt = nowMs - pomo.minutes * 60_000
+      settlePomodoro(state, nowMs)
+    }
+    if (typeof patch.pomodoro.todayDone === 'number' && Number.isFinite(patch.pomodoro.todayDone)) {
+      pomo.todayDone = clamp(Math.round(patch.pomodoro.todayDone), 0, 999)
+      pomo.day = dayKeyFor(nowMs)
+    }
   }
 
   // 形态（C1）：调试页要能直接变成猪猪王 / 恶魔猪，条件不看。传 null 恢复普通。

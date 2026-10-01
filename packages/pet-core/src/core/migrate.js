@@ -12,6 +12,7 @@ import { clamp, clamp100 } from './effects.js'
 import { layEgg, pickSex } from './egg.js'
 import { ensureDaily } from './daily.js'
 import { ensureDiary } from './diary.js'
+import { ensurePomodoro } from './pomodoro.js'
 import { ensureDialogue } from './lines.js'
 import { ensureProfile } from './profile.js'
 import { isSeed, seedFor } from './random.js'
@@ -77,6 +78,7 @@ export function migrate(input, nowMs) {
   ensureProfile(state)
   ensureDaily(state)
   ensureDiary(state)
+  ensurePomodoro(state)
   return state
 }
 

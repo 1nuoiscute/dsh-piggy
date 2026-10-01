@@ -15,6 +15,7 @@ import { renderBagTab } from './tabs/bag.js'
 import { renderCardTab } from './tabs/card.js'
 import { renderCrownTab } from './tabs/crown.js'
 import { appHeader, renderHome } from './tabs/home.js'
+import { clockText, renderPomodoroTab } from './tabs/pomodoro.js'
 import { renderDevTab } from './tabs/dev.js'
 import { renderUpdateTab, updatesBridge } from './tabs/update.js'
 import { renderShopTab } from './tabs/shop.js'
@@ -83,6 +84,22 @@ export function createPanel(ctx) {
        * The body is rebuilt from scratch on every poll; without saving the
        * offset, a long shelf jumped back to the top every four seconds.
        */
+      // 番茄钟完成的通知：同一个 finishedAt 只弹一次；没权限就退回猪的气泡。
+      var pomodoroNotifiedAt = null
+      function noticePomodoro(pomodoro) {
+        if (pomodoro === null || pomodoro.finishedAt === null || pomodoro.finishedAt === pomodoroNotifiedAt) return
+        pomodoroNotifiedAt = pomodoro.finishedAt
+        var paid = pomodoro.todayDone <= pomodoro.cap
+        var text = '今天第 ' + pomodoro.todayDone + ' 个' + (paid ? ' · +' + pomodoro.reward.coins + ' 🪙' : ' · 今天奖励已拿满')
+        try {
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification('🍅 专注结束', { body: text })
+            return
+          }
+        } catch (error) { /* 浏览器不给就算了 */ }
+        ctx.showBubble('🍅 专注结束 · ' + text, 3200)
+      }
+
       function renderContent() {
         var scrollTop = ctx.content.scrollTop
         paintContent()
@@ -135,6 +152,7 @@ export function createPanel(ctx) {
         else if (ctx.tab === 'work') renderWorkTab(ctx)
         else if (ctx.tab === 'shop') renderShopTab(ctx)
         else if (ctx.tab === 'travel') renderTravelTab(ctx)
+        else if (ctx.tab === 'pomodoro') renderPomodoroTab(ctx)
         else if (ctx.tab === 'dev') renderDevTab(ctx)
         else if (ctx.tab === 'update') renderUpdateTab(ctx)
         else renderBagTab(ctx)
@@ -248,6 +266,13 @@ export function createPanel(ctx) {
           }
           ctx.lastStage = pigStage.key
         }
+
+        // 番茄钟（C2）：专注中就在猪头顶挂着倒计时。
+        var pomo = ctx.view.pomodoro
+        var pomoOn = pomo !== null && pomo.active
+        ctx.pomoHint.hidden = !pomoOn
+        if (pomoOn) ctx.pomoHint.textContent = '🍅 ' + clockText(pomo.secondsLeft)
+        noticePomodoro(pomo)
 
         // 猪头上的日常提示：能签到就先显示签到，否则显示礼包。
         // 点一下直接领；点击不再冒泡到场景，免得同时被当成摸猪/拖动。

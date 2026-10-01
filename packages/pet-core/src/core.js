@@ -93,3 +93,4 @@ export { bar, formatWeight, healthPercent, mood, traitView } from './core/views.
 export { JOBS, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, THRESHOLDS, TRAITS, TRAIT_ORDER, TRIPS } from './data.js'
 export { GRAVE, LIFE_STAGES, MAX_LEVEL, SOUL, SOUL_AFTER_DAYS } from './data.js'
 export { DIET } from './core/constants.js'
+export { abandonPomodoro, awayFromPomodoro, emptyPomodoro, ensurePomodoro, pomodoroRunning, pomodoroView, rollPomodoroDay, settlePomodoro, startPomodoro } from './core/pomodoro.js'

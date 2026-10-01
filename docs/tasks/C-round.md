@@ -190,7 +190,48 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
   （`applyDevPatch` 支持 `form`，`null` = 恢复普通）、测试两个、README、CHANGELOG
 
 
+### C1 尾巴：形态按钮拉等级（DSH agent，2026-10-01）
+
+- 用户定了「要拉等级」：等级低于该形态所在阶段时，同一次 dev patch 里把等级顶到起始等级。
+  起始等级由宿主从 `data/life.js` 读（`formsView` 新增 `stage` / `fromLevel`），客户端不写死数字。
+- 测试 +4（幼年拉等级、等级够了不动、纸盒置灰、死猪置灰）；`npm test` 333/333、typecheck 0。
+- 真机（隔离 3082）：`Lv.2 幼年猪` → 点「👑 猪猪王」→ `Lv.40 猪猪王`，立绘换成 `pig-king` ✓
+  截图 `docs/screenshots/c1-tail-form-level.png`。
+- 备注：纸盒存档在真机上进不到调试页（面板整屏是纸盒页），那条置灰逻辑用直接渲染调试页的
+  单元测试守着。
+
+### C2 番茄钟（DSH agent，2026-10-01）
+
+- `npm run build && npm test`：**356 / 356 通过**（新增 `test/pomodoro.test.js` 23 条：核心 15、
+  界面 7、真实 store 1；顺手把客户端挂具抽成 `test/helpers/bundle.js`，C1/C2 共用）
+- `npm run typecheck`：**0 错误**
+- 红测试：把 `store/api.js` freshen 里的结算钩子注释掉，「走真实 store」那条立刻变红（已复原）
+- 卡上四条验收（隔离实例 3082，Playwright + 接口实测）：
+
+  | 验收项 | 实测 |
+  |---|---|
+  | 开 25 分钟后刷新仍在倒计时 | 刷新后 `active: true`、`secondsLeft: 1493`，猪头顶药丸 🍅 24:55 ✓ |
+  | 调试 +1 小时后结算发奖 | `todayDone: 1`，金币 500 → 508 ✓ |
+  | 第 9 个不给钱 | 设今天=8 → 再完成一个：`todayDone: 9`，金币仍是 508 ✓ |
+  | 放弃不给奖励 | 放弃前后 `todayDone` 与金币都不变，药丸消失 ✓ |
+
+- 截图：`docs/screenshots/c2-home-tile.png`（主屏新 App）、`c2-app-idle.png`（三个时长）、
+  `c2-focusing.png`（专注中：页面倒计时 + 猪头顶 🍅 + 开场台词）、`c2-after-reload.png`（刷新后还在走）、
+  `c2-settled.png`、`c2-cap.png`（今天=8 之后）、`c2-abandoned.png`
+- 实现要点：状态在 `state.pomodoro`（`ensurePomodoro` 补默认值，**不升存档版本**）；结算挂在
+  `store/api.js` 的 freshen（每次读状态都会结算，所以关着面板也算）；完成时 `finishedAt` 变化，
+  客户端按时间去重弹一次浏览器通知，没权限退回气泡
+- **顺带一动**：调试页「⏩ +1 小时」以前只推进猪的时间（decay），墙上时钟不动，所以番茄钟永远
+  等不到点。现在快进会把番茄钟的 `startedAt` / `restUntil` 一起往前挪并立即结算 —— 这是卡上
+  「调试快进一小时后结算发奖」这条验收的前提，改动只在 `applyDevPatch` 的调试分支里。
+
 ## 疑问（数值/规则觉得不合理写这里，等用户定）
+
+- **C2 番茄钟**三条自己定的规则，等用户点头：
+  1. 猪在打工 / 学习 / 旅行（`state.activity !== null`）时**开不了**番茄钟（它在外面陪不了你），
+     返回 `reason: 'away'`；纸盒和已去世同理。
+  2. 「休息 5 分钟」只做显示与提示，**可以直接开下一个**（不强制等待）。
+  3. 开始前如果用户自己开着免打扰，结束后仍然保持免打扰（不覆盖用户设置）。
 
 - **C1**：「形态」按钮按卡只改 `state.form`。而形态的立绘只在该形态对应的生活阶段才显示
   （猪猪王要 `middle`/青年以后，见 `formStageView`），所以幼年猪点「猪猪王」看不到变化。

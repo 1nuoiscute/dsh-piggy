@@ -192,6 +192,22 @@ export const LINES = Object.freeze({
     line('我在地上捡到一个盒子！'),
     line('陪你这么久，这是奖励'),
   ),
+  // --- C2 番茄钟 --------------------------------------------------------------
+  pomodoroStart: scene(
+    line('[主人]忙吧，我趴这儿不动'),
+    line('专注模式！我帮你看着时间'),
+    line('这 25 分钟我也不吵你，说好了'),
+  ),
+  pomodoroDone: scene(
+    line('时间到！[主人]真厉害'),
+    line('做完一个啦，起来动动脖子'),
+    line('我陪你数着呢，一个都不少'),
+  ),
+  pomodoroAbandon: scene(
+    line('不做了呀？那就歇会儿'),
+    line('没事，等你准备好再来'),
+    line('我先把番茄收起来啦'),
+  ),
 })
 
 /** Every scene a line can be asked for. */

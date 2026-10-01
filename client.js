@@ -24,7 +24,8 @@
     { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
     { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
     { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
-    { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" }
+    { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" },
+    { key: "pomodoro", label: "\u756A\u8304\u949F", emoji: "\u{1F345}" }
   ];
   var DEV_TAPS_TO_UNLOCK = 7;
   var DEV_TAP_WINDOW_MS = 3e3;
@@ -609,6 +610,14 @@
         ui.send("ageFromNow");
       } }
     ]);
+    group("\u756A\u8304\u949F", [
+      { key: "pomoDone", label: "\u{1F345} \u5B8C\u6210\u5F53\u524D", run: function() {
+        patch({ pomodoro: { finish: true } });
+      } },
+      { key: "pomoCap", label: "\u{1F522} \u4ECA\u5929=8", run: function() {
+        patch({ pomodoro: { todayDone: 8 } });
+      } }
+    ]);
     group("\u8D44\u6E90", [
       { key: "coin100", label: "\u{1FA99} +100", run: function() {
         patch({ coins: p.coins + 100 });
@@ -692,6 +701,13 @@
     dailyLine.appendChild(el("span", null, "\u{1F4C5} \u7B7E\u5230"));
     dailyLine.appendChild(el("b", null, "\u7B2C " + daily.signInDay + "/" + daily.cycle + " \u5929" + (daily.canSignIn ? " \xB7 \u4ECA\u5929\u8FD8\u6CA1\u7B7E" : "") + (daily.unclaimed > 0 ? " \xB7 \u{1F381} " + daily.unclaimed : "")));
     ui.content.appendChild(dailyLine);
+    var pomodoro = ui.view.pomodoro;
+    if (pomodoro !== null && pomodoro.todayDone > 0) {
+      var pomoRow = el("div", "dp-row");
+      pomoRow.appendChild(el("span", null, "\u{1F345} \u756A\u8304\u949F"));
+      pomoRow.appendChild(el("b", null, "\u4ECA\u5929 " + pomodoro.todayDone + " \u4E2A"));
+      ui.content.appendChild(pomoRow);
+    }
     var lvl = el("div", "dp-row");
     lvl.appendChild(el("span", null, "\u2B50 \u7B49\u7EA7"));
     lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.maxed ? " \xB7 \u6EE1\u7EA7" : " \xB7 \u8FD8\u5DEE " + Math.ceil(p.level.toNext) + " \u6210\u957F")));
@@ -1051,6 +1067,7 @@
     "[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],",
     "[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],",
     "[data-dsh-pig] .dp-poke-hint[hidden],[data-dsh-pig] .dp-daily[hidden],",
+    "[data-dsh-pig] .dp-pomo[hidden],",
     "[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}",
     /* ---------- the panel: cream parchment, border not shadow ---------- */
     // Taken out of flow on purpose. In flow it would widen the wrapper, and a
@@ -1421,6 +1438,13 @@
 
   // src/client/css-tiles.js
   var CSS_TILES = [
+    // 番茄钟（C2）：猪头顶的药丸 + App 里的倒计时。
+    ".dp-pomo{position:absolute;bottom:calc(100% + 40px);left:50%;transform:translateX(-50%);",
+    "font-size:10px;font-weight:800;color:#fff;background:var(--tile-red);",
+    "border-radius:var(--ac-pill);padding:2px 7px;white-space:nowrap;pointer-events:none;",
+    "box-shadow:0 2px 0 rgba(61,52,40,.16);z-index:4}",
+    ".dp-pomo-live{display:flex;flex-direction:column;align-items:center;gap:3px;margin:6px 0 10px}",
+    ".dp-pomo-clock{font-size:26px;font-weight:800;color:var(--ac-text);letter-spacing:1px}",
     // 主屏底部的版本号：一行灰字，不占格子（连点 7 次解锁调试模式，见 C1）。
     ".dp-version{margin-top:8px;text-align:center;font-size:9.5px;font-weight:600;",
     "color:var(--ac-text-muted);cursor:default;user-select:none}",
@@ -1810,6 +1834,7 @@
     var bubbleTimer = null;
     function showBubble(text, ms) {
       if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
+      bubble.setAttribute("data-bubble-shown", "true");
       bubble.textContent = text;
       bubble.hidden = false;
       bubbleTimer = window.setTimeout(function() {
@@ -2240,6 +2265,23 @@
         onlineMinutes: num(obj(d.daily).onlineMinutes, 0)
       },
       // 新到旧；老宿主没有 diary 时是空数组，面板不显示这一栏。
+      // C2 番茄钟：老宿主不发就是 null，页签显示「宿主还没提供」。
+      pomodoro: isObj(d.pomodoro) ? {
+        active: d.pomodoro.active === true,
+        minutes: num(d.pomodoro.minutes, 0),
+        secondsLeft: num(d.pomodoro.secondsLeft, 0),
+        breakSecondsLeft: num(d.pomodoro.breakSecondsLeft, 0),
+        todayDone: num(d.pomodoro.todayDone, 0),
+        rewardedToday: num(d.pomodoro.rewardedToday, 0),
+        cap: num(d.pomodoro.cap, 8),
+        reward: {
+          coins: num(obj(d.pomodoro.reward).coins, 0),
+          happiness: num(obj(d.pomodoro.reward).happiness, 0)
+        },
+        breakMinutes: num(d.pomodoro.breakMinutes, 5),
+        options: arr(d.pomodoro.options).filter((value) => typeof value === "number"),
+        finishedAt: typeof d.pomodoro.finishedAt === "number" ? d.pomodoro.finishedAt : null
+      } : null,
       diary: arr(d.diary).map((entry) => ({
         day: str(obj(entry).day, ""),
         text: str(obj(entry).text, "")
@@ -2526,6 +2568,7 @@
     shop: "red",
     travel: "blue",
     bag: "teal",
+    pomodoro: "red",
     update: "lime",
     quit: "peach",
     dev: "brown"
@@ -2584,6 +2627,60 @@
     row.appendChild(el("b", "dp-drill-title", app.emoji + " " + app.label));
     if (info) row.appendChild(el("span", "dp-drill-info", info));
     ui.content.appendChild(row);
+  }
+
+  // src/client/tabs/pomodoro.js
+  function clockText(seconds) {
+    var left = Math.max(0, Math.round(seconds));
+    var mm = Math.floor(left / 60);
+    var ss = left % 60;
+    return mm + ":" + (ss < 10 ? "0" : "") + ss;
+  }
+  function renderPomodoroTab(ui) {
+    var view = ui.view.pomodoro;
+    if (view === null) {
+      ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u756A\u8304\u949F\u3002"));
+      return;
+    }
+    if (view.active) {
+      var live = el("div", "dp-pomo-live");
+      live.appendChild(el("div", "dp-pomo-clock", "\u{1F345} " + clockText(view.secondsLeft)));
+      live.appendChild(el("div", "dp-dim", "\u4E13\u6CE8 " + view.minutes + " \u5206\u949F \xB7 \u8FD9\u671F\u95F4\u6211\u4E0D\u5435\u4F60"));
+      ui.content.appendChild(live);
+      var stop = button("dp-btn dp-btn-wide", { "data-pomo-abandon": "true" }, function() {
+        ui.send("pomodoroAbandon");
+      });
+      stop.textContent = "\u653E\u5F03\u8FD9\u4E00\u4E2A";
+      ui.content.appendChild(stop);
+    } else {
+      if (view.breakSecondsLeft > 0) {
+        ui.content.appendChild(el("div", "dp-empty", "\u2615 \u4F11\u606F " + clockText(view.breakSecondsLeft) + "\uFF08\u4E5F\u53EF\u4EE5\u76F4\u63A5\u5F00\u4E0B\u4E00\u4E2A\uFF09"));
+      }
+      var head = el("div", "dp-title");
+      head.appendChild(el("b", null, "\u{1F345} \u4E13\u6CE8\u591A\u4E45\uFF1F"));
+      head.appendChild(el("span", null, "\u4F11\u606F " + view.breakMinutes + " \u5206\u949F"));
+      ui.content.appendChild(head);
+      var row = el("div", "dp-dev-row");
+      for (var i = 0; i < view.options.length; i += 1) {
+        (function(minutes) {
+          var start = button("dp-mini dp-dev-btn", { "data-pomo-start": String(minutes) }, function() {
+            ui.send("pomodoro", { minutes });
+          });
+          start.textContent = minutes + " \u5206\u949F";
+          row.appendChild(start);
+        })(view.options[i]);
+      }
+      ui.content.appendChild(row);
+    }
+    var today = el("div", "dp-row");
+    today.appendChild(el("span", null, "\u4ECA\u5929\u5B8C\u6210"));
+    today.appendChild(el("b", null, view.todayDone + " \u4E2A" + (view.todayDone >= view.cap ? " \xB7 \u5956\u52B1\u5DF2\u62FF\u6EE1" : "")));
+    ui.content.appendChild(today);
+    ui.content.appendChild(el(
+      "div",
+      "dp-dim",
+      "\u6BCF\u4E2A +" + view.reward.coins + " \u{1FA99} \xB7 \u5FC3\u60C5 +" + view.reward.happiness + "\uFF0C\u6BCF\u5929\u524D " + view.cap + " \u4E2A\u7ED9\u5956\u52B1"
+    ));
   }
 
   // src/client/tabs/update.js
@@ -2798,6 +2895,21 @@
       renderContent();
       for (var k in ctx.icons) ctx.icons[k].setAttribute("data-active", k === ctx.tab ? "true" : "false");
     }
+    var pomodoroNotifiedAt = null;
+    function noticePomodoro(pomodoro) {
+      if (pomodoro === null || pomodoro.finishedAt === null || pomodoro.finishedAt === pomodoroNotifiedAt) return;
+      pomodoroNotifiedAt = pomodoro.finishedAt;
+      var paid = pomodoro.todayDone <= pomodoro.cap;
+      var text = "\u4ECA\u5929\u7B2C " + pomodoro.todayDone + " \u4E2A" + (paid ? " \xB7 +" + pomodoro.reward.coins + " \u{1FA99}" : " \xB7 \u4ECA\u5929\u5956\u52B1\u5DF2\u62FF\u6EE1");
+      try {
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          new Notification("\u{1F345} \u4E13\u6CE8\u7ED3\u675F", { body: text });
+          return;
+        }
+      } catch (error) {
+      }
+      ctx.showBubble("\u{1F345} \u4E13\u6CE8\u7ED3\u675F \xB7 " + text, 3200);
+    }
     function renderContent() {
       var scrollTop = ctx.content.scrollTop;
       paintContent();
@@ -2846,6 +2958,7 @@
       else if (ctx.tab === "work") renderWorkTab(ctx);
       else if (ctx.tab === "shop") renderShopTab(ctx);
       else if (ctx.tab === "travel") renderTravelTab(ctx);
+      else if (ctx.tab === "pomodoro") renderPomodoroTab(ctx);
       else if (ctx.tab === "dev") renderDevTab(ctx);
       else if (ctx.tab === "update") renderUpdateTab(ctx);
       else renderBagTab(ctx);
@@ -2937,6 +3050,11 @@
         }
         ctx.lastStage = pigStage.key;
       }
+      var pomo = ctx.view.pomodoro;
+      var pomoOn = pomo !== null && pomo.active;
+      ctx.pomoHint.hidden = !pomoOn;
+      if (pomoOn) ctx.pomoHint.textContent = "\u{1F345} " + clockText(pomo.secondsLeft);
+      noticePomodoro(pomo);
       var daily = ctx.view.daily;
       var dailyAction = daily.canSignIn ? "signIn" : daily.unclaimed > 0 ? "openGift" : null;
       ctx.dailyHint.hidden = dailyAction === null || ctx.view.pig === null;
@@ -3043,6 +3161,10 @@
     pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
     pokeHint.hidden = true;
     scene.appendChild(pokeHint);
+    var pomoHint = el("div", "dp-pomo");
+    pomoHint.setAttribute("data-pomo-pill", "true");
+    pomoHint.hidden = true;
+    scene.appendChild(pomoHint);
     var dailyHint = el("button", "dp-daily");
     dailyHint.hidden = true;
     scene.appendChild(dailyHint);
@@ -3077,7 +3199,7 @@
         }
       }, { once: true });
     }
-    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
+    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
   }
 
   // src/client/dev-mode.js
@@ -3166,6 +3288,7 @@
           progressFill,
           pokeHint,
           dailyHint,
+          pomoHint,
           soul,
           pigArt,
           pigEmoji,
@@ -3233,6 +3356,7 @@
           progressFill,
           pokeHint,
           dailyHint,
+          pomoHint,
           soul,
           pigArt,
           pigEmoji,

@@ -101,6 +101,12 @@ export function renderDevTab(ui) {
     { key: 'real', label: '⏪ 天数归零', run: function () { ui.send('ageFromNow') } },
   ])
 
+  // 番茄钟（C2）：一键完成当前这个（照常结算发奖）／把今天的完成数设成 8 测上限。
+  group('番茄钟', [
+    { key: 'pomoDone', label: '🍅 完成当前', run: function () { patch({ pomodoro: { finish: true } }) } },
+    { key: 'pomoCap', label: '🔢 今天=8', run: function () { patch({ pomodoro: { todayDone: 8 } }) } },
+  ])
+
   group('资源', [
     { key: 'coin100', label: '🪙 +100', run: function () { patch({ coins: p.coins + 100 }) } },
     { key: 'coin999', label: '🪙 9999', run: function () { patch({ coins: 9999 }) } },
