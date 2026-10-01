@@ -352,8 +352,8 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
 猪不动）❌ 仍未通过。不申请验收，等 Claude 看这个诊断。
 ### C3 加冕道具化（Codex，2026-10-01）
 
-- `npm run build`：通过；`npm test`：**377 / 377 通过**；`npm run typecheck`：**0 错误**。
-  `client.js` 由构建脚本重新生成。
+- rebase 到包含 C1、C2、D1 的最新 `main` 后，`npm run build`：通过；`npm test`：
+  **395 / 395 通过**；`npm run typecheck`：**0 错误**。`client.js` 由构建脚本重新生成且无未提交差异。
 - 没有王冠时，加冕 App 与 `/pig crown` 都拒绝操作并提示去商店购买王冠。
 - 买到王冠但条件不齐时，点「加冕」会拒绝、保留背包中的王冠，并逐条列出尚未满足的条件；
   条件全部满足后播放 `👑✨` 全屏特效、立绘切换为猪猪王，并消耗 1 个王冠。
