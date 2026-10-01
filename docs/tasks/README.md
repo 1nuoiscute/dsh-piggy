@@ -22,6 +22,9 @@
 | [B8](B8-tiles.md) | 学习/商店/背包改成动森手机式方块（两层都是方块），截图在 docs/screenshots/b8-*.png | Claude | ✅ 已合入 |
 | B6 | 台词全量 + 闲聊 + 免打扰（动画、右键菜单暂不动）（[审稿单](numbers/B6-lines.md)） | Claude | ✅ 已合入（用户：不审，按稿直接上） |
 
+
+**C 批次（2026-10-01 起）**：调试解锁、番茄钟、加冕道具化、图鉴、钓鱼、换肤、胖猪 —— 见 [C-round.md](C-round.md)。DSH agent 做 C1/C2/C4，Codex 做 C3/C5/C6/C7（worktree `dsh-pig-codex`，分支 `codex/next`）。
+
 四张数值单用户已于 2026-10-01 确认（全部按建议值）。**不改确认过的数字**；觉得不合理就写在卡里，等用户定。
 
 ## 协作规则
