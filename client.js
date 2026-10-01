@@ -1,5 +1,67 @@
 // GENERATED FILE. Edit src/client/ and run `npm run build`; do not edit by hand.
 (() => {
+  // src/client/constants.js
+  var STATE_URL = "/dsh-pig/state";
+  var ART_URL = "/dsh-pig/art/";
+  var ACT_URL = "/dsh-pig/act";
+  var POLL_MS = 4e3;
+  var IDLE_CHAT_MINUTES = { min: 20, max: 40 };
+  var GREET_DELAY_MS = 1500;
+  var MOUNTED = "data-dsh-pig";
+  var OPEN_KEY = "dsh-pig:open";
+  var POSITION_KEY = "dsh-pig:position";
+  var PANEL_WIDTH = 292;
+  var PANEL_GAP = 8;
+  var PANEL_MARGIN = 10;
+  var PANEL_MIN_HEIGHT = 120;
+  var SCENE_RESERVE = 132;
+  var PIG_PADDING_X = 6;
+  var TABS = [
+    { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
+    { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
+    { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
+    { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
+    { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
+    { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" }
+  ];
+  var DEV_KEY = "dsh-pig:dev";
+  var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
+  var PET_LINES = [
+    "\u597D\u8212\u670D\u2026",
+    "\u518D\u6478\u6478\uFF5E",
+    "\u563F\u563F",
+    "\u547C\u565C\u547C\u565C\u2026",
+    "\u8FD9\u91CC\u8FD9\u91CC\uFF01",
+    "\uFF08\u772F\u8D77\u773C\u775B\uFF09",
+    "\u4ECA\u5929\u5FC3\u60C5\u4E0D\u9519",
+    "\u5514\u2026\u597D\u75D2",
+    "\u4F60\u5728\u5FD9\u4EC0\u4E48\u5440",
+    "\u518D\u591A\u5F85\u4E00\u4F1A\u513F"
+  ];
+  var MODES = ["feed", "bathe", "play", "pet"];
+  var CARE_LABEL = { feed: ["\u5582\u98DF", "\u{1F34E}"], bathe: ["\u6D17\u6FA1", "\u{1F6C1}"], play: ["\u73A9\u800D", "\u{1F3BE}"], pet: ["\u6478\u6478", "\u2764\uFE0F"] };
+  var BOX_POKES_TO_OPEN = 3;
+  var BOX_POKE_LINES = [
+    "\u91CC\u9762\u597D\u50CF\u6709\u4E1C\u897F\u2026",
+    "\u52A8\u4E86\uFF01\u518D\u6233\u4E00\u4E0B\uFF01"
+  ];
+  var NO_ITEM_LINE = {
+    food: "\u6CA1\u6709\u5403\u7684\u5566\uFF0C\u5FEB\u53BB\u4E70\u4E00\u70B9 \u{1F34E}",
+    bath: "\u6CA1\u6709\u6D17\u6D74\u7528\u54C1\u4E86\uFF0C\u53BB\u4E70\u70B9\u5427 \u{1F9FC}",
+    toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
+  };
+  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B" };
+  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive"];
+  var STAGES = [
+    { key: "preschool", label: "\u5E7C\u513F\u56ED" },
+    { key: "extracurricular", label: "\u8BFE\u5916" },
+    { key: "primary", label: "\u5C0F\u5B66" },
+    { key: "middle", label: "\u4E2D\u5B66" },
+    { key: "high", label: "\u9AD8\u4E2D" },
+    { key: "college", label: "\u5927\u5B66" },
+    { key: "graduate", label: "\u7814\u7A76\u751F" }
+  ];
+
   // src/client/values.js
   var isObj = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
   var obj = (v) => isObj(v) ? v : {};
@@ -32,119 +94,394 @@
     return wrap;
   }
 
-  // src/client/format.js
-  function formatMinutes(minutes) {
-    if (minutes < 60) return minutes + " \u5206\u949F";
-    const hours = Math.floor(minutes / 60);
-    const rest = minutes % 60;
-    return rest === 0 ? hours + " \u5C0F\u65F6" : hours + " \u5C0F\u65F6" + rest + " \u5206";
+  // src/client/widgets.js
+  function labelledBar(ui, label, value, valueText, variant) {
+    var row = el("div", "dp-row");
+    row.appendChild(el("span", null, label));
+    row.appendChild(el("b", null, valueText));
+    ui.content.appendChild(row);
+    ui.content.appendChild(meter(value, variant));
   }
-  function kindLabel(item) {
-    if (item.kind === "medicine") return item.needed ? "\u5BF9\u75C7\uFF01" : "\u836F";
-    if (item.kind === "revive") return "\u590D\u6D3B\u7528";
-    if (item.kind === "bath") return "\u6D17\u6D74";
-    return "\u98DF\u7269";
+  function pickerPanel(ui, action) {
+    var wrap = el("div", "dp-pick");
+    var asks = { feed: "\u5582\u70B9\u4EC0\u4E48\uFF1F", bathe: "\u7528\u54EA\u4E2A\u6D17\u6FA1\uFF1F", play: "\u62FF\u54EA\u4E2A\u73A9\u5177\uFF1F" };
+    wrap.appendChild(el("div", "dp-pick-head", asks[action] ?? "\u7528\u54EA\u4E2A\uFF1F"));
+    var list = el("div", "dp-list");
+    var shelf = ui.view.care[action] ?? [];
+    for (var i = 0; i < shelf.length; i += 1) {
+      (function(item) {
+        var row = el("div", "dp-item");
+        row.appendChild(el("span", null, item.emoji));
+        var grow = el("div", "dp-grow");
+        grow.appendChild(el("div", null, item.label + (item.default ? "\uFF08\u81EA\u5E26\uFF09" : " \xD7" + num(item.count, 0))));
+        grow.appendChild(el("div", "dp-dim", careEffectLine(action, item)));
+        row.appendChild(grow);
+        var use = button("dp-mini", { "data-care": action + ":" + item.key }, function() {
+          ui.picker = null;
+          ui.send(action, { item: item.key });
+        });
+        use.textContent = "\u7528";
+        row.appendChild(use);
+        list.appendChild(row);
+      })(shelf[i]);
+    }
+    wrap.appendChild(list);
+    var cancel = button("dp-cancel", {}, function() {
+      ui.picker = null;
+      ui.renderContent();
+    });
+    cancel.textContent = "\u7B97\u4E86";
+    wrap.appendChild(cancel);
+    return wrap;
+  }
+  function careEffectLine(action, item) {
+    var parts = [];
+    if (action === "feed") {
+      parts.push("\u9971\u98DF +" + item.satiety);
+      if (item.happiness) parts.push("\u5FC3\u60C5 +" + item.happiness);
+    } else if (action === "bathe") {
+      parts.push("\u6E05\u6D01 +" + item.cleanliness);
+      if (item.happiness) parts.push("\u5FC3\u60C5 +" + item.happiness);
+    } else {
+      parts.push("\u5FC3\u60C5 +" + item.happiness);
+      if (item.satiety) parts.push("\u9971\u98DF " + item.satiety);
+    }
+    return parts.join(" \xB7 ");
+  }
+  function tileGrid() {
+    return el("div", "dp-tiles");
+  }
+  function tile(spec) {
+    var node = button("dp-tile" + (spec.soft ? " dp-tile-soft" : ""), spec.data ?? {}, function() {
+      spec.onPick();
+    });
+    node.setAttribute("data-color", spec.color);
+    if (spec.locked) node.setAttribute("data-locked", "true");
+    if (spec.dim) node.setAttribute("data-dim", "true");
+    if (spec.active) node.setAttribute("data-active", "true");
+    if (spec.disabled === true) node.disabled = true;
+    var icon = el("span", "dp-tile-icon");
+    icon.appendChild(el("span", "dp-tile-e", spec.emoji));
+    if (spec.badge) icon.appendChild(el("b", "dp-tile-badge", spec.badge));
+    if (spec.tag) icon.appendChild(el("b", "dp-tile-tag", spec.tag));
+    node.appendChild(icon);
+    node.appendChild(el("span", "dp-tile-n", spec.label));
+    if (spec.note) node.appendChild(el("span", "dp-tile-note", spec.note));
+    return node;
+  }
+  function drillTo(ui, tab, key) {
+    ui.drill[tab] = key;
+    ui.drill.pick = null;
+    ui.renderContent();
+    ui.content.scrollTop = 0;
+  }
+  function drillHeader(ui, tab, title, info) {
+    var row = el("div", "dp-drill");
+    var back = button("dp-drill-back", { "data-back": tab }, function() {
+      drillTo(ui, tab, null);
+    });
+    back.textContent = "\u2039";
+    row.appendChild(back);
+    row.appendChild(el("b", "dp-drill-title", title));
+    if (info) row.appendChild(el("span", "dp-drill-info", info));
+    ui.content.appendChild(row);
+  }
+
+  // src/client/tabs/shop.js
+  var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", dress: "pink", medicine: "green", revive: "purple" };
+  function shelfParts(kind) {
+    var title = KIND_TITLE[kind] ?? kind;
+    var space = title.indexOf(" ");
+    return space < 0 ? ["\u{1F6D2}", title] : [title.slice(0, space), title.slice(space + 1)];
+  }
+  function renderShopTab(ui) {
+    if (ui.view.shop.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8D27\u67B6\u3002"));
+      return;
+    }
+    var coins = "\u{1FA99} " + ui.view.pig.coins;
+    var shelf = ui.drill.shop;
+    if (shelf === null || KIND_ORDER.indexOf(shelf) < 0) {
+      renderShelves(ui, coins);
+      return;
+    }
+    var parts = shelfParts(shelf);
+    drillHeader(ui, "shop", parts[0] + " " + parts[1], coins);
+    var grid = tileGrid();
+    var items = ui.view.shop.filter(function(item) {
+      return item.kind === shelf;
+    });
+    for (var i = 0; i < items.length; i += 1) grid.appendChild(itemTile(ui, items[i], SHELF_COLOR[shelf]));
+    ui.content.appendChild(grid);
+  }
+  function renderShelves(ui, coins) {
+    var head = el("div", "dp-title");
+    head.appendChild(el("b", null, "\u{1F6D2} \u5546\u5E97"));
+    head.appendChild(el("span", null, coins));
+    ui.content.appendChild(head);
+    var grid = tileGrid();
+    for (var k = 0; k < KIND_ORDER.length; k += 1) {
+      (function(kind) {
+        var items = ui.view.shop.filter(function(item) {
+          return item.kind === kind;
+        });
+        if (items.length === 0) return;
+        var parts = shelfParts(kind);
+        var needed = items.some(function(item) {
+          return item.needed;
+        });
+        grid.appendChild(tile({
+          emoji: parts[0],
+          label: parts[1],
+          color: SHELF_COLOR[kind] ?? "blue",
+          tag: needed ? "\u9700\u8981" : "",
+          data: { "data-shelf": kind },
+          onPick: function() {
+            drillTo(ui, "shop", kind);
+          }
+        }));
+      })(KIND_ORDER[k]);
+    }
+    ui.content.appendChild(grid);
+  }
+  function itemTile(ui, item, color) {
+    var owned = num(ui.view.inventory[item.key], 0);
+    var note = item.price + " \u{1FA99}";
+    if (item.owned) note = "\u5DF2\u62E5\u6709";
+    else if (item.kind === "dress" && item.unlocked === false) note = "\u{1F512} Lv." + item.level;
+    return tile({
+      emoji: item.emoji,
+      label: item.label,
+      color,
+      soft: true,
+      note,
+      badge: owned > 0 ? "\xD7" + owned : "",
+      tag: item.needed ? "\u9700\u8981" : item.owned && item.worn ? "\u7A7F\u7740" : "",
+      dim: !item.owned && (!item.affordable || item.kind === "dress" && item.unlocked === false),
+      disabled: item.owned === true,
+      data: { "data-buy": item.key },
+      onPick: function() {
+        ui.send("buy", { item: item.key });
+      }
+    });
   }
 
   // src/client/tabs/bag.js
-  function firstSentence(text) {
-    var stop = text.indexOf("\u3002");
-    return stop < 0 ? text : text.slice(0, stop + 1);
+  var CONSUMABLES = KIND_ORDER.filter(function(kind) {
+    return kind !== "dress";
+  });
+  var EXTRA = {
+    dress: { emoji: "\u{1F455}", label: "\u88C5\u626E", color: "pink" },
+    diary: { emoji: "\u{1F4D4}", label: "\u65E5\u8BB0", color: "brown" },
+    souvenir: { emoji: "\u{1F381}", label: "\u7EAA\u5FF5\u54C1", color: "blue" }
+  };
+  function shortDay(day) {
+    return day.length >= 10 ? day.slice(5) : day;
   }
   function renderBagTab(ui) {
-    var owned = [];
-    for (var i = 0; i < ui.view.shop.length; i += 1) {
-      if (num(ui.view.inventory[ui.view.shop[i].key], 0) > 0) owned.push(ui.view.shop[i]);
-    }
-    if (owned.length === 0) {
-      ui.content.appendChild(el("div", "dp-empty", "\u80CC\u5305\u7A7A\u7A7A\u7684\u3002"));
-    } else {
-      var list = el("div", "dp-list");
-      for (var j = 0; j < owned.length; j += 1) {
-        (function(item) {
-          var row = el("div", "dp-item" + (item.needed ? " dp-wanted" : ""));
-          row.appendChild(el("span", null, item.emoji));
-          var grow = el("div", "dp-grow");
-          grow.appendChild(el("div", null, item.label + " \xD7" + num(ui.view.inventory[item.key], 0)));
-          grow.appendChild(el("div", "dp-dim", kindLabel(item)));
-          row.appendChild(grow);
-          var use = button("dp-mini", { "data-use": item.key }, function() {
-            ui.send("use", { item: item.key });
-          });
-          use.textContent = "\u4F7F\u7528";
-          row.appendChild(use);
-          list.appendChild(row);
-        })(owned[j]);
-      }
-      ui.content.appendChild(list);
-    }
-    if (ui.view.dress.length > 0) {
-      var dhead = el("div", "dp-title");
-      dhead.style.marginTop = "10px";
-      var wornCount = 0;
-      for (var w = 0; w < ui.view.dress.length; w += 1) if (ui.view.dress[w].worn) wornCount += 1;
-      dhead.appendChild(el("b", null, "\u{1F455} \u5BB6\u5F53 " + wornCount + "/" + ui.view.dress.length + " \u7A7F\u7740\u4E2D"));
-      ui.content.appendChild(dhead);
-      var ownedDress = [];
-      for (var m = 0; m < ui.view.dress.length; m += 1) if (ui.view.dress[m].owned) ownedDress.push(ui.view.dress[m]);
-      if (ownedDress.length === 0) {
-        ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u88C5\u626E\u3002"));
-      } else {
-        var dlist = el("div", "dp-list");
-        for (var n = 0; n < ownedDress.length; n += 1) {
-          (function(item) {
-            var row = el("div", "dp-item");
-            row.appendChild(el("span", null, item.emoji));
-            var grow = el("div", "dp-grow");
-            grow.appendChild(el("div", null, item.label + (item.worn ? " \xB7 \u7A7F\u7740" : "")));
-            grow.appendChild(el("div", "dp-dim", (item.slotLabel === "" ? "" : item.slotLabel + " \xB7 ") + (item.blurb === "" ? "Lv." + item.level + " \u89E3\u9501" : item.blurb)));
-            row.appendChild(grow);
-            var toggle = button("dp-mini", { "data-wear": item.key }, function() {
-              ui.send("wear", { item: item.key, on: !item.worn });
-            });
-            toggle.textContent = item.worn ? "\u8131\u4E0B" : "\u7A7F\u4E0A";
-            row.appendChild(toggle);
-            dlist.appendChild(row);
-          })(ownedDress[n]);
-        }
-        ui.content.appendChild(dlist);
-      }
-    }
-    var diary = ui.view.diary;
-    if (diary.length > 0) {
-      var dhead = el("div", "dp-title");
-      dhead.style.marginTop = "10px";
-      dhead.appendChild(el("b", null, "\u{1F4D4} \u65E5\u8BB0 " + diary.length));
-      ui.content.appendChild(dhead);
-      var dlist = el("div", "dp-list");
-      for (var d = 0; d < diary.length; d += 1) {
-        (function(entry) {
-          var row = el("div", "dp-item dp-diary");
-          row.setAttribute("data-diary", entry.day);
-          row.setAttribute("data-open", "false");
-          var grow = el("div", "dp-grow");
-          var head2 = el("div", null, entry.day + "\u3000" + firstSentence(entry.text));
-          var full = el("div", "dp-dim dp-diary-full", entry.text);
-          full.hidden = true;
-          grow.appendChild(head2);
-          grow.appendChild(full);
-          row.appendChild(grow);
-          row.addEventListener("click", function(event) {
-            if (event && typeof event.stopPropagation === "function") event.stopPropagation();
-            full.hidden = !full.hidden;
-            row.setAttribute("data-open", full.hidden ? "false" : "true");
-          });
-          dlist.appendChild(row);
-        })(diary[d]);
-      }
-      ui.content.appendChild(dlist);
-    }
-    var souvenirs = ui.view.pig.souvenirs;
+    var open = ui.drill.bag;
+    if (open === "dress") renderDress(ui);
+    else if (open === "diary") renderDiary(ui);
+    else if (open === "souvenir") renderSouvenirs(ui);
+    else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open);
+    else renderCategories(ui);
+  }
+  function ownedOf(ui, kind) {
+    return ui.view.shop.filter(function(item) {
+      return item.kind === kind && num(ui.view.inventory[item.key], 0) > 0;
+    });
+  }
+  function renderCategories(ui) {
     var head = el("div", "dp-title");
-    head.style.marginTop = "10px";
-    head.appendChild(el("b", null, "\u{1F381} \u7EAA\u5FF5\u54C1 " + souvenirs.length));
+    head.appendChild(el("b", null, "\u{1F392} \u80CC\u5305"));
     ui.content.appendChild(head);
-    ui.content.appendChild(el("div", "dp-empty", souvenirs.length === 0 ? "\u6536\u85CF\u518C\u8FD8\u7A7A\u7740\u3002" : souvenirs.map((entry) => entry.emoji + entry.label).join(" \xB7 ")));
+    var grid = tileGrid();
+    for (var k = 0; k < CONSUMABLES.length; k += 1) {
+      (function(kind) {
+        var items = ownedOf(ui, kind);
+        var count = items.reduce(function(sum, item) {
+          return sum + num(ui.view.inventory[item.key], 0);
+        }, 0);
+        var parts = shelfParts(kind);
+        grid.appendChild(tile({
+          emoji: parts[0],
+          label: parts[1],
+          color: SHELF_COLOR[kind] ?? "blue",
+          badge: count > 0 ? String(count) : "",
+          dim: count === 0,
+          tag: items.some(function(item) {
+            return item.needed;
+          }) ? "\u9700\u8981" : "",
+          data: { "data-bag": kind },
+          onPick: function() {
+            drillTo(ui, "bag", kind);
+          }
+        }));
+      })(CONSUMABLES[k]);
+    }
+    var counts = {
+      dress: ui.view.dress.filter(function(item) {
+        return item.owned;
+      }).length,
+      diary: ui.view.diary.length,
+      souvenir: ui.view.pig.souvenirs.length
+    };
+    for (var key in EXTRA) {
+      (function(category) {
+        var spec = EXTRA[category];
+        grid.appendChild(tile({
+          emoji: spec.emoji,
+          label: spec.label,
+          color: spec.color,
+          badge: counts[category] > 0 ? String(counts[category]) : "",
+          dim: counts[category] === 0,
+          data: { "data-bag": category },
+          onPick: function() {
+            drillTo(ui, "bag", category);
+          }
+        }));
+      })(key);
+    }
+    ui.content.appendChild(grid);
+  }
+  function renderItems(ui, kind) {
+    var parts = shelfParts(kind);
+    drillHeader(ui, "bag", parts[0] + " " + parts[1], "\u70B9\u4E00\u4E0B\u5C31\u7528");
+    var items = ownedOf(ui, kind);
+    if (items.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u7A7A\u7684"));
+      return;
+    }
+    var grid = tileGrid();
+    for (var i = 0; i < items.length; i += 1) {
+      (function(item) {
+        grid.appendChild(tile({
+          emoji: item.emoji,
+          label: item.label,
+          color: SHELF_COLOR[kind] ?? "blue",
+          soft: true,
+          badge: "\xD7" + num(ui.view.inventory[item.key], 0),
+          tag: item.needed ? "\u9700\u8981" : "",
+          data: { "data-use": item.key },
+          onPick: function() {
+            ui.send("use", { item: item.key });
+          }
+        }));
+      })(items[i]);
+    }
+    ui.content.appendChild(grid);
+  }
+  function renderDress(ui) {
+    var owned = ui.view.dress.filter(function(item) {
+      return item.owned;
+    });
+    var worn = owned.filter(function(item) {
+      return item.worn;
+    }).length;
+    drillHeader(ui, "bag", "\u{1F455} \u88C5\u626E", worn + " \u4EF6\u7A7F\u7740");
+    if (owned.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u88C5\u626E"));
+      return;
+    }
+    var grid = tileGrid();
+    for (var i = 0; i < owned.length; i += 1) {
+      (function(item) {
+        grid.appendChild(tile({
+          emoji: item.emoji,
+          label: item.label,
+          color: EXTRA.dress.color,
+          soft: true,
+          note: item.slotLabel,
+          tag: item.worn ? "\u7A7F\u7740" : "",
+          active: item.worn,
+          data: { "data-wear": item.key },
+          onPick: function() {
+            ui.send("wear", { item: item.key, on: !item.worn });
+          }
+        }));
+      })(owned[i]);
+    }
+    ui.content.appendChild(grid);
+  }
+  function renderDiary(ui) {
+    drillHeader(ui, "bag", "\u{1F4D4} \u65E5\u8BB0", ui.view.diary.length + " \u7BC7");
+    if (ui.view.diary.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u65E5\u8BB0"));
+      return;
+    }
+    var grid = tileGrid();
+    var picked = null;
+    for (var d = 0; d < ui.view.diary.length; d += 1) {
+      (function(entry) {
+        var active = ui.drill.pick === entry.day;
+        if (active) picked = entry;
+        grid.appendChild(tile({
+          emoji: "\u{1F4D4}",
+          label: shortDay(entry.day),
+          color: EXTRA.diary.color,
+          soft: true,
+          active,
+          data: { "data-diary": entry.day },
+          onPick: function() {
+            ui.drill.pick = active ? null : entry.day;
+            ui.renderContent();
+          }
+        }));
+      })(ui.view.diary[d]);
+    }
+    ui.content.appendChild(grid);
+    if (picked !== null) {
+      var page = el("div", "dp-pick dp-tile-card dp-diary-page");
+      page.appendChild(el("div", "dp-pick-head", picked.day));
+      page.appendChild(el("div", null, picked.text));
+      ui.content.appendChild(page);
+    }
+  }
+  function renderSouvenirs(ui) {
+    var list = ui.view.pig.souvenirs;
+    drillHeader(ui, "bag", "\u{1F381} \u7EAA\u5FF5\u54C1", list.length + " \u4EF6");
+    if (list.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u6536\u85CF\u518C\u8FD8\u7A7A\u7740"));
+      return;
+    }
+    var grid = tileGrid();
+    var picked = null;
+    for (var s = 0; s < list.length; s += 1) {
+      (function(entry, index) {
+        var id = entry.key + "#" + index;
+        var active = ui.drill.pick === id;
+        if (active) picked = entry;
+        grid.appendChild(tile({
+          emoji: entry.emoji,
+          label: entry.label,
+          color: EXTRA.souvenir.color,
+          soft: true,
+          active,
+          note: entry.rarityEmoji + entry.rarityLabel,
+          data: { "data-souvenir": id },
+          onPick: function() {
+            ui.drill.pick = active ? null : id;
+            ui.renderContent();
+          }
+        }));
+      })(list[s], s);
+    }
+    ui.content.appendChild(grid);
+    if (picked === null) return;
+    var story = el("div", "dp-pick dp-tile-card");
+    story.appendChild(el("div", "dp-pick-head", picked.emoji + " " + picked.label + (picked.fromLabel === "" ? "" : " \xB7 " + picked.fromLabel)));
+    story.appendChild(el("div", null, picked.story === "" ? "\uFF08\u65E7\u7248\u672C\u5E26\u56DE\u6765\u7684\uFF0C\u6CA1\u6709\u6545\u4E8B\uFF09" : "\u300C" + picked.story + "\u300D"));
+    if (picked.price > 0) {
+      var sold = picked;
+      var sell = button("dp-mini", { "data-sell": sold.key }, function() {
+        ui.drill.pick = null;
+        ui.send("sell", { souvenir: sold.key });
+      });
+      sell.textContent = "\u5356\u6389 +" + sold.price + " \u{1FA99}";
+      sell.style.marginTop = "6px";
+      story.appendChild(sell);
+    }
+    ui.content.appendChild(story);
   }
 
   // src/client/tabs/dev.js
@@ -301,171 +638,6 @@
     ));
   }
 
-  // src/client/constants.js
-  var STATE_URL = "/dsh-pig/state";
-  var ART_URL = "/dsh-pig/art/";
-  var ACT_URL = "/dsh-pig/act";
-  var POLL_MS = 4e3;
-  var IDLE_CHAT_MINUTES = { min: 20, max: 40 };
-  var GREET_DELAY_MS = 1500;
-  var MOUNTED = "data-dsh-pig";
-  var OPEN_KEY = "dsh-pig:open";
-  var POSITION_KEY = "dsh-pig:position";
-  var PANEL_WIDTH = 292;
-  var PANEL_GAP = 8;
-  var PANEL_MARGIN = 10;
-  var PANEL_MIN_HEIGHT = 120;
-  var SCENE_RESERVE = 132;
-  var PIG_PADDING_X = 6;
-  var TABS = [
-    { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
-    { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
-    { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
-    { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
-    { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
-    { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" }
-  ];
-  var DEV_KEY = "dsh-pig:dev";
-  var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
-  var PET_LINES = [
-    "\u597D\u8212\u670D\u2026",
-    "\u518D\u6478\u6478\uFF5E",
-    "\u563F\u563F",
-    "\u547C\u565C\u547C\u565C\u2026",
-    "\u8FD9\u91CC\u8FD9\u91CC\uFF01",
-    "\uFF08\u772F\u8D77\u773C\u775B\uFF09",
-    "\u4ECA\u5929\u5FC3\u60C5\u4E0D\u9519",
-    "\u5514\u2026\u597D\u75D2",
-    "\u4F60\u5728\u5FD9\u4EC0\u4E48\u5440",
-    "\u518D\u591A\u5F85\u4E00\u4F1A\u513F"
-  ];
-  var MODES = ["feed", "bathe", "play", "pet"];
-  var CARE_LABEL = { feed: ["\u5582\u98DF", "\u{1F34E}"], bathe: ["\u6D17\u6FA1", "\u{1F6C1}"], play: ["\u73A9\u800D", "\u{1F3BE}"], pet: ["\u6478\u6478", "\u2764\uFE0F"] };
-  var BOX_POKES_TO_OPEN = 3;
-  var BOX_POKE_LINES = [
-    "\u91CC\u9762\u597D\u50CF\u6709\u4E1C\u897F\u2026",
-    "\u52A8\u4E86\uFF01\u518D\u6233\u4E00\u4E0B\uFF01"
-  ];
-  var NO_ITEM_LINE = {
-    food: "\u6CA1\u6709\u5403\u7684\u5566\uFF0C\u5FEB\u53BB\u4E70\u4E00\u70B9 \u{1F34E}",
-    bath: "\u6CA1\u6709\u6D17\u6D74\u7528\u54C1\u4E86\uFF0C\u53BB\u4E70\u70B9\u5427 \u{1F9FC}",
-    toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
-  };
-  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B" };
-  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive"];
-  var STAGES = [
-    { key: "preschool", label: "\u5E7C\u513F\u56ED" },
-    { key: "extracurricular", label: "\u8BFE\u5916" },
-    { key: "primary", label: "\u5C0F\u5B66" },
-    { key: "middle", label: "\u4E2D\u5B66" },
-    { key: "high", label: "\u9AD8\u4E2D" },
-    { key: "college", label: "\u5927\u5B66" },
-    { key: "graduate", label: "\u7814\u7A76\u751F" }
-  ];
-
-  // src/client/tabs/shop.js
-  function renderShopTab(ui) {
-    if (ui.view.shop.length === 0) {
-      ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8D27\u67B6\u3002"));
-      return;
-    }
-    var head = el("div", "dp-title");
-    head.appendChild(el("b", null, "\u{1F6D2} \u5546\u5E97"));
-    head.appendChild(el("span", null, "\u{1FA99} " + ui.view.pig.coins));
-    ui.content.appendChild(head);
-    var list = el("div", "dp-shopgrid");
-    var shelf = "";
-    var ordered = ui.view.shop.slice().sort(
-      (a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind)
-    );
-    for (var i = 0; i < ordered.length; i += 1) {
-      (function(item) {
-        if (item.kind !== shelf) {
-          shelf = item.kind;
-          list.appendChild(el("div", "dp-shelf", KIND_TITLE[shelf] ?? shelf));
-        }
-        var cell = button(
-          "dp-cell" + (item.needed ? " dp-wanted" : "") + (item.kind === "dress" ? " dp-cell-dress" : item.affordable ? "" : " dp-poor") + (item.owned ? " dp-owned" : ""),
-          { "data-buy": item.key },
-          function() {
-            ui.send("buy", { item: item.key });
-          }
-        );
-        cell.appendChild(el("span", "dp-cell-e", item.emoji));
-        cell.appendChild(el("span", "dp-cell-n", item.label));
-        if (item.owned) {
-          cell.appendChild(el("span", "dp-cell-p", "\u5DF2\u62E5\u6709"));
-          cell.disabled = true;
-        } else if (item.kind === "dress" && item.unlocked === false) {
-          cell.appendChild(el("span", "dp-cell-p", "\u{1F512} Lv." + item.level));
-        } else {
-          cell.appendChild(el("span", "dp-cell-p", item.price + " \u{1FA99}"));
-        }
-        var owned = num(ui.view.inventory[item.key], 0);
-        if (owned > 0) cell.appendChild(el("b", "dp-cell-c", "\xD7" + owned));
-        if (item.needed) cell.appendChild(el("b", "dp-cell-tag", "\u9700\u8981"));
-        if (item.owned && item.worn) cell.appendChild(el("b", "dp-cell-tag", "\u7A7F\u7740"));
-        list.appendChild(cell);
-      })(ordered[i]);
-    }
-    ui.content.appendChild(list);
-  }
-
-  // src/client/widgets.js
-  function labelledBar(ui, label, value, valueText, variant) {
-    var row = el("div", "dp-row");
-    row.appendChild(el("span", null, label));
-    row.appendChild(el("b", null, valueText));
-    ui.content.appendChild(row);
-    ui.content.appendChild(meter(value, variant));
-  }
-  function pickerPanel(ui, action) {
-    var wrap = el("div", "dp-pick");
-    var asks = { feed: "\u5582\u70B9\u4EC0\u4E48\uFF1F", bathe: "\u7528\u54EA\u4E2A\u6D17\u6FA1\uFF1F", play: "\u62FF\u54EA\u4E2A\u73A9\u5177\uFF1F" };
-    wrap.appendChild(el("div", "dp-pick-head", asks[action] ?? "\u7528\u54EA\u4E2A\uFF1F"));
-    var list = el("div", "dp-list");
-    var shelf = ui.view.care[action] ?? [];
-    for (var i = 0; i < shelf.length; i += 1) {
-      (function(item) {
-        var row = el("div", "dp-item");
-        row.appendChild(el("span", null, item.emoji));
-        var grow = el("div", "dp-grow");
-        grow.appendChild(el("div", null, item.label + (item.default ? "\uFF08\u81EA\u5E26\uFF09" : " \xD7" + num(item.count, 0))));
-        grow.appendChild(el("div", "dp-dim", careEffectLine(action, item)));
-        row.appendChild(grow);
-        var use = button("dp-mini", { "data-care": action + ":" + item.key }, function() {
-          ui.picker = null;
-          ui.send(action, { item: item.key });
-        });
-        use.textContent = "\u7528";
-        row.appendChild(use);
-        list.appendChild(row);
-      })(shelf[i]);
-    }
-    wrap.appendChild(list);
-    var cancel = button("dp-cancel", {}, function() {
-      ui.picker = null;
-      ui.renderContent();
-    });
-    cancel.textContent = "\u7B97\u4E86";
-    wrap.appendChild(cancel);
-    return wrap;
-  }
-  function careEffectLine(action, item) {
-    var parts = [];
-    if (action === "feed") {
-      parts.push("\u9971\u98DF +" + item.satiety);
-      if (item.happiness) parts.push("\u5FC3\u60C5 +" + item.happiness);
-    } else if (action === "bathe") {
-      parts.push("\u6E05\u6D01 +" + item.cleanliness);
-      if (item.happiness) parts.push("\u5FC3\u60C5 +" + item.happiness);
-    } else {
-      parts.push("\u5FC3\u60C5 +" + item.happiness);
-      if (item.satiety) parts.push("\u9971\u98DF " + item.satiety);
-    }
-    return parts.join(" \xB7 ");
-  }
-
   // src/client/tabs/status.js
   function renderStatusTab(ui) {
     var p = ui.view.pig;
@@ -588,6 +760,9 @@
 
   // src/client/tabs/study.js
   var INTEREST_TAB = "interest";
+  var STAGE_COLOR = { primary: "yellow", middle: "teal", college: "blue", graduate: "purple", beyond: "pink" };
+  var INTEREST_COLOR = "orange";
+  var FALLBACK_COLORS = ["yellow", "teal", "blue", "purple", "pink", "green", "lime"];
   function standing(sub, stage) {
     if (stage === null || sub.stageKey === "") return "current";
     if (sub.stageKey === stage.key) return "current";
@@ -599,107 +774,127 @@
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8BFE\u7A0B\u8868\u3002"));
       return;
     }
-    var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES;
-    var seg = el("div", "dp-seg");
-    for (var s = 0; s < stageList.length; s += 1) {
-      (function(entry) {
-        var detail2 = null;
-        for (var k = 0; k < ui.view.stages.length; k += 1) if (ui.view.stages[k].key === entry.key) detail2 = ui.view.stages[k];
-        var locked = detail2 !== null && detail2.unlocked === false;
-        var btn = button(null, { "data-stage": entry.key }, function() {
-          ui.stage = entry.key;
-          ui.stagePicked = true;
-          ui.renderContent();
-        });
-        btn.textContent = entry.label;
-        btn.setAttribute("data-active", entry.key === ui.stage ? "true" : "false");
-        btn.setAttribute("data-locked", locked ? "true" : "false");
-        seg.appendChild(btn);
-      })(stageList[s]);
-    }
-    if (ui.view.interests.length > 0) {
-      var interestBtn = button(null, { "data-stage": INTEREST_TAB }, function() {
-        ui.stage = INTEREST_TAB;
-        ui.stagePicked = true;
-        ui.renderContent();
-      });
-      interestBtn.textContent = "\u{1F3AF} \u5174\u8DA3";
-      interestBtn.setAttribute("data-active", ui.stage === INTEREST_TAB ? "true" : "false");
-      interestBtn.setAttribute("data-locked", "false");
-      seg.appendChild(interestBtn);
-    }
-    ui.content.appendChild(seg);
-    if (ui.stage === INTEREST_TAB && ui.view.interests.length > 0) {
+    var open = ui.drill.study;
+    if (open === INTEREST_TAB && ui.view.interests.length > 0) {
       renderInterests(ui);
       return;
     }
-    var detail = null;
-    for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === ui.stage) detail = ui.view.stages[d];
-    if (detail !== null) {
-      var span = detail.upTo !== null ? "\u7B2C " + (detail.from + 1) + "\u2013" + detail.upTo + " \u8282" : "\u7B2C " + (detail.from + 1) + " \u8282\u8D77";
-      var note = el("div", "dp-empty", span + " \xB7 " + detail.minutes + " \u5206\u949F \xB7 \u5B66\u8D39 " + detail.tuition + " \u{1FA99} \xB7 \u5C5E\u6027 +" + detail.gain);
-      note.style.marginBottom = "7px";
-      note.style.marginTop = "0";
-      ui.content.appendChild(note);
-      if (detail.unlocked === false && detail.progress !== null) {
-        ui.content.appendChild(el(
-          "div",
-          "dp-locked",
-          "\u{1F512} \u8981\u5148" + detail.progress.label + "\uFF08\u73B0\u5728\u6700\u591A " + detail.progress.done + " \u8282\uFF09"
-        ));
-      }
+    var stage = null;
+    for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === open) stage = ui.view.stages[d];
+    if (stage === null) {
+      renderStages(ui);
+      return;
     }
-    var grid = el("div", "dp-grid");
+    renderSubjects(ui, stage);
+  }
+  function renderStages(ui) {
+    var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES;
+    var head = el("div", "dp-title");
+    head.appendChild(el("b", null, "\u{1F4DA} \u5B66\u4E60"));
+    ui.content.appendChild(head);
+    var grid = tileGrid();
+    for (var s = 0; s < stageList.length; s += 1) {
+      (function(entry, index) {
+        var locked = entry.unlocked === false;
+        var finished = entry.upTo === null || entry.upTo === void 0 ? 0 : ui.view.subjects.filter(function(sub) {
+          return sub.lessons >= entry.upTo;
+        }).length;
+        grid.appendChild(tile({
+          emoji: entry.emoji || "\u{1F4DA}",
+          label: entry.label,
+          color: STAGE_COLOR[entry.key] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+          locked,
+          tag: locked ? "\u{1F512}" : "",
+          badge: finished > 0 ? "\u2713" + finished : "",
+          data: { "data-stage": entry.key },
+          onPick: function() {
+            drillTo(ui, "study", entry.key);
+          }
+        }));
+      })(stageList[s], s);
+    }
+    if (ui.view.interests.length > 0) {
+      var certified = ui.view.interests.filter(function(entry) {
+        return entry.certified;
+      }).length;
+      grid.appendChild(tile({
+        emoji: "\u{1F3AF}",
+        label: "\u5174\u8DA3",
+        color: INTEREST_COLOR,
+        badge: certified > 0 ? "\u{1F4DC}" + certified : "",
+        data: { "data-stage": INTEREST_TAB },
+        onPick: function() {
+          drillTo(ui, "study", INTEREST_TAB);
+        }
+      }));
+    }
+    ui.content.appendChild(grid);
+  }
+  function renderSubjects(ui, stage) {
+    drillHeader(
+      ui,
+      "study",
+      stage.emoji + " " + stage.label,
+      stage.minutes + " \u5206\u949F \xB7 " + stage.tuition + " \u{1FA99} \xB7 +" + stage.gain
+    );
+    var color = STAGE_COLOR[stage.key] ?? FALLBACK_COLORS[Math.max(0, ui.view.stages.indexOf(stage)) % FALLBACK_COLORS.length];
+    var grid = tileGrid();
     for (var i = 0; i < ui.view.subjects.length; i += 1) {
       (function(sub) {
-        var where = standing(sub, detail);
-        var btn = button("dp-item", { "data-subject": sub.key }, function() {
-          ui.send("study", { subject: sub.key });
-        });
-        btn.disabled = where !== "current" || !ui.view.canGoOut || !sub.affordable;
-        btn.style.cursor = "pointer";
-        btn.style.textAlign = "left";
-        btn.appendChild(el("span", null, sub.emoji));
-        var grow = el("div", "dp-grow");
-        grow.appendChild(el("div", null, sub.label));
-        var line;
-        if (where === "done") line = "\u2713 \u5DF2\u6BD5\u4E1A";
-        else if (where === "ahead") line = "\u{1F512} \u8FD8\u5728" + (sub.stageLabel || "\u4E0B\u4E00\u6BB5");
-        else if (detail !== null && detail.upTo !== null) line = sub.traitLabel + " \xB7 " + (sub.lessons - detail.from) + "/" + (detail.upTo - detail.from) + " \u8282";
-        else line = sub.traitLabel + " \xB7 \u4E0A\u8FC7 " + sub.lessons + " \u8282";
-        grow.appendChild(el("div", "dp-dim", line));
-        btn.appendChild(grow);
-        grid.appendChild(btn);
+        var where = standing(sub, stage);
+        var note;
+        if (where === "done") note = "\u2713 \u6BD5\u4E1A";
+        else if (where === "ahead") note = "\u{1F512} " + (sub.stageLabel || "\u6CA1\u5230");
+        else if (stage.upTo !== null) note = sub.lessons - stage.from + "/" + (stage.upTo - stage.from) + " \u8282";
+        else note = sub.lessons + " \u8282";
+        grid.appendChild(tile({
+          emoji: sub.emoji,
+          label: sub.label,
+          color,
+          soft: true,
+          note,
+          disabled: where !== "current" || !ui.view.canGoOut,
+          dim: where === "current" && !sub.affordable,
+          data: { "data-subject": sub.key },
+          onPick: function() {
+            ui.send("study", { subject: sub.key });
+          }
+        }));
       })(ui.view.subjects[i]);
     }
     ui.content.appendChild(grid);
   }
   function renderInterests(ui) {
     var after = ui.view.interests[0].certificateAfter;
-    var note = el("div", "dp-empty", after > 0 ? "\u968F\u65F6\u80FD\u5B66 \xB7 \u540C\u4E00\u95E8\u4E0A\u6EE1 " + after + " \u6B21\u62FF\u8BC1" : "\u968F\u65F6\u80FD\u5B66");
-    note.style.marginBottom = "7px";
-    note.style.marginTop = "0";
-    ui.content.appendChild(note);
-    var ilist = el("div", "dp-list");
+    drillHeader(ui, "study", "\u{1F3AF} \u5174\u8DA3", after > 0 ? "\u4E0A\u6EE1 " + after + " \u6B21\u62FF\u8BC1" : "");
+    var grid = tileGrid();
     for (var n = 0; n < ui.view.interests.length; n += 1) {
       (function(entry) {
-        var row = el("div", "dp-item");
-        row.appendChild(el("span", null, entry.emoji));
-        var grow = el("div", "dp-grow");
-        grow.appendChild(el("div", null, entry.label));
-        var progress = entry.certificate === "" ? entry.times > 0 ? " \xB7 \u5B66\u8FC7 " + entry.times + " \u6B21" : "" : entry.certified ? " \xB7 \u{1F4DC} \u6709\u8BC1" : " \xB7 \u{1F4DC} " + entry.times + "/" + entry.certificateAfter;
-        grow.appendChild(el("div", "dp-dim", entry.minutes + " \u5206\u949F \xB7 " + entry.cost + " \u{1FA99} \xB7 " + entry.traitEmoji + entry.traitLabel + " +" + entry.gain + progress));
-        row.appendChild(grow);
-        var go = button("dp-mini", { "data-interest": entry.key }, function() {
-          ui.send("interest", { interest: entry.key });
-        });
-        go.textContent = entry.times > 0 ? "\u518D\u5B66" : "\u53BB\u5B66";
-        go.disabled = !ui.view.canGoOut || !entry.affordable;
-        row.appendChild(go);
-        ilist.appendChild(row);
+        var note = entry.certificate === "" ? entry.cost + " \u{1FA99}" : entry.certified ? "\u{1F4DC} \u6709\u8BC1" : "\u{1F4DC} " + entry.times + "/" + entry.certificateAfter;
+        grid.appendChild(tile({
+          emoji: entry.emoji,
+          label: entry.label,
+          color: INTEREST_COLOR,
+          soft: true,
+          note,
+          disabled: !ui.view.canGoOut,
+          dim: !entry.affordable,
+          data: { "data-interest": entry.key },
+          onPick: function() {
+            ui.send("interest", { interest: entry.key });
+          }
+        }));
       })(ui.view.interests[n]);
     }
-    ui.content.appendChild(ilist);
+    ui.content.appendChild(grid);
+  }
+
+  // src/client/format.js
+  function formatMinutes(minutes) {
+    if (minutes < 60) return minutes + " \u5206\u949F";
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return rest === 0 ? hours + " \u5C0F\u65F6" : hours + " \u5C0F\u65F6" + rest + " \u5206";
   }
 
   // src/client/css-base.js
@@ -892,37 +1087,12 @@
     "[data-dsh-pig][data-poke] .dp-pig{animation-name:dp-poke-shake}",
     '[data-dsh-pig][data-poke="2"] .dp-pig{animation-duration:.28s}',
     "@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}",
-    "50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}",
-    /* ---------- shop: a grid of tiles, three to a row ---------- */
-    ".dp-shopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}",
-    // The shelf heading is a grid child too, so it has to span the whole row.
-    ".dp-shopgrid .dp-shelf{grid-column:1/-1;margin:5px 0 0}",
-    ".dp-shopgrid .dp-shelf:first-child{margin-top:0}",
-    ".dp-cell{position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;",
-    "padding:7px 3px 6px;border:1.5px solid var(--ac-border-light);border-radius:12px;"
+    "50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}"
+    // The shop's tiles live in css-tiles.js since B8.
   ].join("");
 
   // src/client/css-tabs.js
   var CSS_TABS = [
-    "background:var(--ac-bg);cursor:pointer;font-family:inherit;text-align:center;",
-    "transition:transform .12s var(--ac-ease),box-shadow .12s var(--ac-ease)}",
-    ".dp-cell:hover{transform:translateY(-1px);box-shadow:0 3px 0 rgba(61,52,40,.14)}",
-    ".dp-cell:active{transform:translateY(1px)}",
-    ".dp-cell-e{font-size:22px;line-height:1.15}",
-    ".dp-cell-n{font-size:10px;font-weight:700;color:var(--ac-text);line-height:1.2;",
-    "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}",
-    ".dp-cell-p{font-size:9.5px;font-weight:600;color:var(--ac-text-2)}",
-    // Owned count and the "needed" flag are badges so they cost no extra row.
-    ".dp-cell-c{position:absolute;top:3px;right:4px;font-size:9px;font-weight:800;",
-    "color:#fff;background:var(--ac-primary);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}",
-    ".dp-cell-tag{position:absolute;top:3px;left:4px;font-size:8px;font-weight:800;",
-    "color:#7a5a12;background:var(--ac-warning);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}",
-    // Affordable is colour; unaffordable is faded but still clickable, so a
-    // tap can explain how much is missing instead of doing nothing.
-    ".dp-cell.dp-poor{opacity:.45}",
-    // 家当 already owned: not for sale, but not "unaffordable" either.
-    ".dp-cell.dp-owned{opacity:.6;border-style:dashed}",
-    ".dp-cell.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
     /* ---------- developer tab ---------- */
     ".dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}",
     ".dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}",
@@ -962,17 +1132,22 @@
     // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
     // 挂在场景**上方**（不是 top 边缘）：折叠时场景就是猪本身，用 top:-6px
     // 会让气泡叠在猪头上（用户反馈 #6）。
-    ".dp-daily{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);",
-    "font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;",
+    ".dp-daily{position:absolute;bottom:calc(100% + 7px);left:50%;width:36px;margin-left:-18px;",
+    "font:inherit;font-size:15px;line-height:1;padding:3px 0;cursor:pointer;text-align:center;",
     "border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);",
     "box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-daily-bob 2.4s var(--ac-ease) infinite}",
     // 折叠时场景就剩猪本身（而且它还在上下浮动 ±7px），再多让开一点。
     '[data-dsh-pig][data-open="false"] .dp-daily{bottom:calc(100% + 16px)}',
+    // 展开时场景有面板那么宽、那么高，挂在场景上方会压到图标栏（B8 截图里压在「商店」上）：
+    // 改成蹲在猪左边、贴着猪身子（再高会碰到左边的名字框）。
+    '[data-dsh-pig][data-open="true"] .dp-daily{left:auto;margin-left:0;',
+    "right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + 4px)}",
     ".dp-daily:hover{border-color:var(--ac-border-hover)}",
     ".dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
     // 名字必须独占：叫 dp-bob 会覆盖猪的待机动画（css-base.js），
     // 而那个动画的 transform 一被替掉，猪就会横跳半个身位。
-    "@keyframes dp-daily-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}",
+    // 只上下浮：横向居中改用 margin，展开时才能挪到猪旁边。
+    "@keyframes dp-daily-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}",
     // 日记：折叠时只有首句，展开是全文。
     ".dp-diary{cursor:pointer}",
     '.dp-diary[data-open="true"] .dp-diary-full{display:block}',
@@ -1144,8 +1319,69 @@
     "82%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}"
   ].join("");
 
+  // src/client/css-tiles.js
+  var CSS_TILES = [
+    "[data-dsh-pig]{--tile-pink:#f8a6b2;--tile-purple:#b77dee;--tile-blue:#889df0;",
+    "--tile-yellow:#f7cd67;--tile-orange:#e59266;--tile-teal:#82d5bb;--tile-green:#8ac68a;",
+    "--tile-red:#fc736d;--tile-lime:#d1da49;--tile-peach:#e18c6f;--tile-brown:#9a835a}",
+    '.dp-tile[data-color="pink"]{--tile-c:var(--tile-pink)}',
+    '.dp-tile[data-color="purple"]{--tile-c:var(--tile-purple)}',
+    '.dp-tile[data-color="blue"]{--tile-c:var(--tile-blue)}',
+    '.dp-tile[data-color="yellow"]{--tile-c:var(--tile-yellow)}',
+    '.dp-tile[data-color="orange"]{--tile-c:var(--tile-orange)}',
+    '.dp-tile[data-color="teal"]{--tile-c:var(--tile-teal)}',
+    '.dp-tile[data-color="green"]{--tile-c:var(--tile-green)}',
+    '.dp-tile[data-color="red"]{--tile-c:var(--tile-red)}',
+    '.dp-tile[data-color="lime"]{--tile-c:var(--tile-lime)}',
+    '.dp-tile[data-color="peach"]{--tile-c:var(--tile-peach)}',
+    '.dp-tile[data-color="brown"]{--tile-c:var(--tile-brown)}',
+    // The grid: three columns that can never be widened by their content.
+    ".dp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 8px;padding:4px 2px 2px}",
+    // A tile is a column: the coloured square, then its name, then a note.
+    ".dp-tile{font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;",
+    "padding:0;margin:0;border:0;background:none;cursor:pointer;color:var(--ac-text)}",
+    ".dp-tile-icon{position:relative;display:flex;align-items:center;justify-content:center;",
+    "width:62px;height:62px;border-radius:18px;background:var(--tile-c,var(--ac-bg-content));",
+    "box-shadow:0 3px 0 rgba(61,52,40,.16);transition:transform .15s var(--ac-ease),box-shadow .15s var(--ac-ease)}",
+    ".dp-tile-e{font-size:30px;line-height:1;filter:drop-shadow(0 1px 1px rgba(61,52,40,.18))}",
+    ".dp-tile:hover:not(:disabled) .dp-tile-icon{transform:translateY(-2px);box-shadow:0 5px 0 rgba(61,52,40,.16)}",
+    ".dp-tile:active:not(:disabled) .dp-tile-icon{transform:translateY(2px);box-shadow:0 1px 0 rgba(61,52,40,.16)}",
+    ".dp-tile:focus-visible{outline:none}",
+    ".dp-tile:focus-visible .dp-tile-icon{outline:2px solid var(--ac-primary);outline-offset:2px}",
+    // One line each, never wrapping: every tile in a row stays the same height.
+    ".dp-tile-n,.dp-tile-note{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.25}",
+    ".dp-tile-n{font-size:10.5px;font-weight:700}",
+    ".dp-tile-note{font-size:9.5px;font-weight:600;color:var(--ac-text-2);margin-top:-2px}",
+    // Corner marks on the square: a count top-right, a word top-left.
+    ".dp-tile-badge,.dp-tile-tag{position:absolute;top:-5px;font-size:9px;font-weight:800;line-height:1;",
+    "padding:3px 5px;border-radius:var(--ac-pill);white-space:nowrap;border:2px solid var(--ac-bg)}",
+    ".dp-tile-badge{right:-6px;background:var(--ac-primary);color:#fff}",
+    ".dp-tile-tag{left:-6px;background:var(--ac-warning);color:var(--ac-text)}",
+    // Second layer: the same colour, a shade paler and a little smaller.
+    ".dp-tile-soft .dp-tile-icon{width:54px;height:54px;border-radius:16px;",
+    "background:color-mix(in srgb,var(--tile-c) 42%,#fffbe7)}",
+    ".dp-tile-soft .dp-tile-e{font-size:26px}",
+    // Locked: greyed but still openable (a stage can be looked into before it opens).
+    '.dp-tile[data-locked="true"] .dp-tile-icon{filter:grayscale(.75);opacity:.6}',
+    '.dp-tile[data-dim="true"] .dp-tile-icon,.dp-tile:disabled .dp-tile-icon{opacity:.45;box-shadow:none}',
+    '.dp-tile[data-dim="true"] .dp-tile-n,.dp-tile:disabled .dp-tile-n{color:var(--ac-text-2)}',
+    ".dp-tile:disabled{cursor:default}",
+    '.dp-tile[data-active="true"] .dp-tile-icon{outline:3px solid var(--ac-active);outline-offset:2px}',
+    // The second layer's top row: back, title, one grey line.
+    ".dp-drill{display:flex;align-items:center;gap:7px;margin:0 0 10px}",
+    ".dp-drill-back{font:inherit;font-size:16px;font-weight:800;line-height:1;width:26px;height:26px;",
+    "flex:none;cursor:pointer;color:var(--ac-text);border-radius:50%;",
+    "border:2px solid var(--ac-border-light);background:var(--ac-bg-input)}",
+    ".dp-drill-back:hover{border-color:var(--ac-border-hover)}",
+    ".dp-drill-title{font-size:12px;font-weight:800;color:var(--ac-text);white-space:nowrap}",
+    ".dp-drill-info{flex:1;min-width:0;text-align:right;font-size:10px;font-weight:600;",
+    "color:var(--ac-text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    // A picked tile's details (a diary page, a souvenir's story) sit under the grid.
+    ".dp-tile-card{margin-top:12px}"
+  ].join("");
+
   // src/client/styles.js
-  var CSS = CSS_BASE + CSS_TABS;
+  var CSS = CSS_BASE + CSS_TABS + CSS_TILES;
 
   // src/client/tabs/travel.js
   function renderTravelTab(ui) {
@@ -1901,6 +2137,10 @@
     function select(next) {
       ctx.tab = next;
       ctx.picker = null;
+      if (next in ctx.drill) {
+        ctx.drill[next] = null;
+        ctx.drill.pick = null;
+      }
       renderContent();
       for (var k in ctx.icons) ctx.icons[k].setAttribute("data-active", k === ctx.tab ? "true" : "false");
     }
@@ -2284,6 +2524,7 @@
         var tab = "status";
         var stage = "primary";
         var stagePicked = false;
+        var drill = { study: null, shop: null, bag: null, pick: null };
         var souvenirPick = null;
         var picker = null;
         var ownerEdit = null;
@@ -2360,6 +2601,9 @@
           },
           set stagePicked(next) {
             stagePicked = next;
+          },
+          get drill() {
+            return drill;
           },
           get picker() {
             return picker;

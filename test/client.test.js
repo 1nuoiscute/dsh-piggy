@@ -44,7 +44,7 @@ const readModule = name => readFile(new URL('../src/client/' + name, import.meta
 
 async function readCss() {
   const dir = new URL('../src/client/', import.meta.url)
-  const modules = ['css-base.js', 'css-tabs.js']
+  const modules = ['css-base.js', 'css-tabs.js', 'css-tiles.js']
   const sources = await Promise.all(modules.map(name => readFile(new URL(name, dir), 'utf8')))
   let css = ''
   for (const source of sources) {
@@ -231,6 +231,12 @@ const findByAttr = (root, attr, value) => {
   const found = []
   root.walk(node => { if (node.attributes?.[attr] === value) found.push(node) })
   return found[0]
+}
+/** Tap a tile (or any element) in the panel body by one of its data attributes. */
+const tap = (dom, attr, value) => {
+  const node = findByAttr(contentOf(dom), attr, value)
+  assert.notEqual(node, undefined, `nothing with ${attr}="${value}" in: ${contentOf(dom).allText()}`)
+  node.fire('click')
 }
 const findByClass = (root, className) => {
   const found = []
@@ -705,7 +711,7 @@ test('each @keyframes is defined once, and the pig idles in place', async () => 
   assert.ok(!/translateX/.test(idle[1]), 'the idle bob must not shift the pig sideways')
 })
 
-test('a stage the user picked survives the next poll', async () => {
+test('a stage the user opened survives the next poll', async () => {
   // The panel used to yank the selection back to the first unlocked stage on
   // every render, so picking a locked stage and scrolling down bounced you to
   // 小学 four seconds later (user report).
@@ -720,16 +726,14 @@ test('a stage the user picked survives the next poll', async () => {
     await settle()
     openPanel(dom)
     pickTab(dom, 'study')
-    findByAttr(contentOf(dom), 'data-stage', 'college').fire('click')
-    assert.equal(findByAttr(contentOf(dom), 'data-stage', 'college').attributes['data-active'], 'true')
+    // B8: a locked stage is greyed but can still be opened to look inside.
+    tap(dom, 'data-stage', 'college')
+    assert.notEqual(findByAttr(contentOf(dom), 'data-back', 'study'), undefined, 'inside 大学')
 
     await poll()
     await settle()
-    assert.equal(
-      findByAttr(contentOf(dom), 'data-stage', 'college').attributes['data-active'],
-      'true',
-      'a poll must not take the user\'s stage away',
-    )
+    assert.notEqual(findByAttr(contentOf(dom), 'data-back', 'study'), undefined, 'a poll must not take the user back out')
+    assert.ok(contentOf(dom).allText().includes('大学'), contentOf(dom).allText())
   } finally {
     globalThis.window.setInterval = realSetInterval
   }
@@ -848,20 +852,21 @@ test('the bag tab lists the diary newest-first, folded until tapped', async () =
   await settle()
   openPanel(dom)
   pickTab(dom, 'bag')
+  tap(dom, 'data-bag', 'diary')
 
-  const rows = []
-  contentOf(dom).walk(node => { if (node.attributes?.['data-diary'] !== undefined) rows.push(node) })
-  assert.equal(rows.length, 2)
-  assert.equal(rows[0].attributes['data-diary'], '2026-10-02', 'newest first')
-  const full = findByClass(rows[0], 'dp-diary-full')
-  assert.notEqual(full, undefined)
-  assert.ok(rows[0].allText().includes('今天吃了 2 顿'), 'the first sentence shows')
-  assert.equal(full.hidden, true, 'the rest starts folded')
-  assert.equal(rows[0].attributes['data-open'], 'false')
+  const tiles = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-diary'] !== undefined) tiles.push(node) })
+  assert.equal(tiles.length, 2)
+  assert.equal(tiles[0].attributes['data-diary'], '2026-10-02', 'newest first')
+  assert.ok(tiles[0].allText().includes('10-02'))
+  assert.equal(findByClass(contentOf(dom), 'dp-diary-page'), undefined, 'pages start closed')
 
-  rows[0].fire('click')
-  assert.equal(rows[0].attributes['data-open'], 'true')
-  assert.equal(full.hidden, false, 'and unfolds on a tap')
+  tap(dom, 'data-diary', '2026-10-02')
+  const page = findByClass(contentOf(dom), 'dp-diary-page')
+  assert.notEqual(page, undefined, 'a tap opens the page')
+  assert.ok(page.allText().includes('今天吃了 2 顿，主人喂的，好饱。洗完澡香香的。'), page.allText())
+  tap(dom, 'data-diary', '2026-10-02')
+  assert.equal(findByClass(contentOf(dom), 'dp-diary-page'), undefined, 'and a second tap closes it')
 })
 
 // ===========================================================================
@@ -878,6 +883,7 @@ test('a worn dress says so in the shop', async () => {
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
+  tap(dom, 'data-shelf', 'dress')
   assert.ok(contentOf(dom).allText().includes('穿着'), contentOf(dom).allText())
 })
 
@@ -887,6 +893,7 @@ test('the shop shows how many of a consumable the pig already has', async () => 
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
+  tap(dom, 'data-shelf', 'food')
   // The snapshot has no per-shelf count: the inventory map is the real source.
   assert.ok(contentOf(dom).allText().includes('×2'), contentOf(dom).allText())
 })
@@ -972,19 +979,21 @@ test('the shop marks 家当 as 已拥有 or level-locked, and the bag can wear i
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
+  assert.ok(contentOf(dom).allText().includes('装扮'), 'the 装扮 shelf is a tile on the top layer')
+  tap(dom, 'data-shelf', 'dress')
 
   const shopText = contentOf(dom).allText()
-  assert.ok(shopText.includes('装扮'), shopText)
   assert.ok(shopText.includes('已拥有'), shopText)
   assert.ok(shopText.includes('🔒 Lv.13'), shopText)
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'scarf').disabled, true, 'owned 家当 is not for sale again')
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'crown').disabled, false, 'a locked item still explains itself when tapped')
 
   pickTab(dom, 'bag')
+  tap(dom, 'data-bag', 'dress')
   const bagText = contentOf(dom).allText()
-  assert.ok(bagText.includes('👕 家当'), bagText)
-  assert.ok(bagText.includes('脖子上暖乎乎的'), bagText)
-  findByAttr(contentOf(dom), 'data-wear', 'scarf').fire('click')
+  assert.ok(bagText.includes('👕 装扮'), bagText)
+  assert.ok(bagText.includes('红围巾'), bagText)
+  tap(dom, 'data-wear', 'scarf')
   await settle()
   await settle()
   const post = net.calls.find(call => call.method === 'POST')
@@ -1086,14 +1095,14 @@ test('interest courses live in the study tab, not in a new stat panel', async ()
   await settle()
   openPanel(dom)
   pickTab(dom, 'study')
-  assert.ok(contentOf(dom).allText().includes('🎯 兴趣'), 'the interest button sits with the stage buttons')
-  // 兴趣 is a button beside the stages now; the list shows once it is picked.
-  findByAttr(contentOf(dom), 'data-stage', 'interest').fire('click')
+  assert.ok(contentOf(dom).allText().includes('兴趣'), 'the interest tile sits with the stage tiles')
+  // 兴趣 is a tile beside the stages; its courses are tiles inside it.
+  tap(dom, 'data-stage', 'interest')
 
   const text = contentOf(dom).allText()
   assert.ok(text.includes('摄影'), text)
-  assert.ok(text.includes('智力 +2'), text)
-  assert.ok(text.includes('学过 3 次'), 'a repeatable course shows how often it has been taken')
+  assert.ok(text.includes('健身'), text)
+  assert.ok(text.includes('35 🪙'), 'an interest without a certificate shows its price')
   // 兴趣 pays into the three existing traits — no new bars, no percentages.
   pickTab(dom, 'status')
   const status = contentOf(dom).allText()
@@ -1102,9 +1111,8 @@ test('interest courses live in the study tab, not in a new stat panel', async ()
   assert.ok(!status.includes('undefined'), status)
 
   pickTab(dom, 'study')
-  const interestButtons = []
-  contentOf(dom).walk(node => { if (node.attributes?.['data-interest'] === 'fitness') interestButtons.push(node) })
-  interestButtons.at(-1).fire('click')
+  tap(dom, 'data-stage', 'interest')
+  tap(dom, 'data-interest', 'fitness')
   await settle()
   await settle()
   const post = net.calls.find(call => call.method === 'POST')
@@ -1165,17 +1173,23 @@ test('the shop tab is a grid that fades what the pig cannot afford and flags the
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
+  // The top layer is shelf tiles; the one holding the needed medicine says so.
+  assert.notEqual(findByClass(contentOf(dom), 'dp-tiles'), undefined, 'the shop renders as tiles')
+  assert.ok(findByAttr(contentOf(dom), 'data-shelf', 'medicine').allText().includes('需要'))
 
   // Tiles are never disabled: a tap on one it cannot afford should explain how
-  // much is missing rather than doing nothing.
+  // much is missing rather than doing nothing. Unaffordable is faded.
+  tap(dom, 'data-shelf', 'revive')
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').disabled, false)
-  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').className.includes('dp-poor'), true)
-  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'apple').className.includes('dp-poor'), false)
-  // The "needed" flag is a badge on the tile now, not a line of text.
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').attributes['data-dim'], 'true')
+  tap(dom, 'data-back', 'shop')
+  tap(dom, 'data-shelf', 'medicine')
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'med1').allText().includes('需要'), true)
-  assert.equal(findByClass(contentOf(dom), 'dp-shopgrid') !== undefined, true, 'the shop renders as a grid')
+  tap(dom, 'data-back', 'shop')
+  tap(dom, 'data-shelf', 'food')
+  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'apple').attributes['data-dim'], undefined)
 
-  findByAttr(contentOf(dom), 'data-buy', 'apple').fire('click')
+  tap(dom, 'data-buy', 'apple')
   await settle()
   await settle()
   const post = net.calls.find(call => call.method === 'POST')
@@ -1257,13 +1271,18 @@ test('the bag tab lists owned items with a use button', async () => {
   await settle()
   openPanel(dom)
   pickTab(dom, 'bag')
+  tap(dom, 'data-bag', 'food')
 
   const text = contentOf(dom).allText()
   assert.ok(text.includes('苹果'), text)
   assert.ok(text.includes('×2'), text)
+  tap(dom, 'data-back', 'bag')
+  tap(dom, 'data-bag', 'medicine')
   assert.equal(findByAttr(contentOf(dom), 'data-use', 'med1'), undefined, 'zero-count items are hidden')
+  tap(dom, 'data-back', 'bag')
+  tap(dom, 'data-bag', 'food')
 
-  findByAttr(contentOf(dom), 'data-use', 'apple').fire('click')
+  tap(dom, 'data-use', 'apple')
   await settle()
   await settle()
   const post = net.calls.find(call => call.method === 'POST')
@@ -1278,7 +1297,10 @@ test('an empty bag says so instead of showing nothing', async () => {
   await settle()
   openPanel(dom)
   pickTab(dom, 'bag')
-  assert.ok(contentOf(dom).allText().includes('背包空空的'))
+  // Every category is still a tile, faded when empty, and says so inside.
+  assert.equal(findByAttr(contentOf(dom), 'data-bag', 'food').attributes['data-dim'], 'true')
+  tap(dom, 'data-bag', 'food')
+  assert.ok(contentOf(dom).allText().includes('空的'), contentOf(dom).allText())
 })
 
 // ===========================================================================
@@ -1781,7 +1803,7 @@ test('right-click opens the menu and left-click only pats the pig', async () => 
   assert.match(sceneOf(dom).title, /右键/, 'the pig must say how to open the menu')
 })
 
-test('the study tab keeps its stage tabs; each subject shows where it stands in that stage (B4)', async () => {
+test('the study tab is stage tiles; inside one, each subject shows where it stands (B4, B8)', async () => {
   const subject = (key, label, emoji, lessons, stageKey, stageLabel) => ({
     key, label, emoji, traitLabel: '智力', traitEmoji: '🧠', lessons,
     stage: { key: stageKey, label: stageLabel, emoji: '📚' }, nextGraduation: null,
@@ -1806,21 +1828,23 @@ test('the study tab keeps its stage tabs; each subject shows where it stands in 
   openPanel(dom)
   pickTab(dom, 'study')
   let text = contentOf(dom).allText()
-  assert.ok(text.includes('小学') && text.includes('中学') && text.includes('大学'), 'the stage tabs are back')
-  assert.equal(findByAttr(contentOf(dom), 'data-stage', 'college').attributes['data-locked'], 'true', 'locked by style, not a padlock in the label')
-  assert.ok(text.includes('✓ 已毕业'), `语文 has finished 小学: ${text}`)
+  assert.ok(text.includes('小学') && text.includes('中学') && text.includes('大学'), 'one tile per stage')
+  assert.equal(findByAttr(contentOf(dom), 'data-stage', 'college').attributes['data-locked'], 'true', 'a locked stage is greyed')
+  assert.equal(findByAttr(contentOf(dom), 'data-subject', 'chinese'), undefined, 'subjects live inside a stage')
+
+  tap(dom, 'data-stage', 'primary')
+  text = contentOf(dom).allText()
+  assert.ok(text.includes('✓ 毕业'), `语文 has finished 小学: ${text}`)
   assert.ok(text.includes('0/9 节'), `数学 is in 小学: ${text}`)
 
-  findByAttr(contentOf(dom), 'data-stage', 'middle').fire('click')
+  tap(dom, 'data-back', 'study')
+  tap(dom, 'data-stage', 'middle')
   text = contentOf(dom).allText()
   assert.ok(text.includes('3/11 节'), `语文 is 3 lessons into 中学: ${text}`)
-  assert.ok(text.includes('🔒 还在小学'), `数学 has not reached 中学: ${text}`)
-  // The fake DOM keeps nodes a repaint dropped, so read the newest button.
-  const mathButtons = []
-  contentOf(dom).walk(node => { if (node.attributes?.['data-subject'] === 'mathematics') mathButtons.push(node) })
-  assert.equal(mathButtons.at(-1).disabled, true, 'a subject that has not reached 中学 cannot be taken there')
+  assert.ok(text.includes('🔒 小学'), `数学 has not reached 中学: ${text}`)
+  assert.equal(findByAttr(contentOf(dom), 'data-subject', 'mathematics').disabled, true, 'a subject that has not reached 中学 cannot be taken there')
 
-  findByAttr(contentOf(dom), 'data-subject', 'chinese').fire('click')
+  tap(dom, 'data-subject', 'chinese')
   await settle()
   const post = JSON.parse(String(net.calls.filter(c => c.method === 'POST').at(-1).body))
   assert.equal(post.action, 'study')
@@ -1858,13 +1882,54 @@ test('装扮 cells in the shop are clickable: they must not wear the pig overlay
   // `.dp-dress` is the pig's dress-up layer (absolute, pointer-events:none).
   // The shop gave its 装扮 cells the same class, so a real mouse click went
   // straight through them and nothing could be bought (2026-10-01).
-  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT } })
+  const hat = { key: 'strawhat', label: '草帽', emoji: '👒', price: 150, kind: 'dress', level: 3, owned: false, worn: false, unlocked: true, affordable: true }
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, shop: [...SNAPSHOT.shop, hat] } })
   registration.factory(() => {}).apply({})
   await settle()
   openPanel(dom)
   pickTab(dom, 'shop')
   const cells = []
-  contentOf(dom).walk(node => { if (node.attributes?.['data-buy'] !== undefined) cells.push(node) })
+  for (const shelf of ['food', 'dress']) {
+    tap(dom, 'data-shelf', shelf)
+    contentOf(dom).walk(node => { if (node.attributes?.['data-buy'] !== undefined) cells.push(node) })
+    tap(dom, 'data-back', 'shop')
+  }
   assert.ok(cells.length > 0)
   for (const cell of cells) assert.equal(cell.className.split(/\s+/).includes('dp-dress'), false, cell.attributes['data-buy'])
+})
+
+test('tile tabs: coloured top layer, back returns, a poll keeps you inside, a new visit starts at the top (B8)', async () => {
+  const { registration, dom } = await loadClient()
+  let poll = null
+  const realSetInterval = globalThis.window.setInterval
+  globalThis.window.setInterval = fn => { poll = fn; return 1 }
+  try {
+    registration.factory(() => {}).apply({})
+    await settle()
+    openPanel(dom)
+    for (const [tab, attr] of [['shop', 'data-shelf'], ['bag', 'data-bag'], ['study', 'data-stage']]) {
+      pickTab(dom, tab)
+      const tiles = []
+      contentOf(dom).walk(node => { if (node.attributes?.[attr] !== undefined) tiles.push(node) })
+      assert.ok(tiles.length >= 3, `${tab}: a grid of category tiles`)
+      const colours = new Set(tiles.map(node => node.attributes['data-color']))
+      assert.equal(colours.has(undefined), false, `${tab}: every tile has a colour`)
+      assert.ok(colours.size >= 3, `${tab}: the categories are told apart by colour`)
+    }
+
+    pickTab(dom, 'shop')
+    tap(dom, 'data-shelf', 'food')
+    await poll()
+    await settle()
+    assert.notEqual(findByAttr(contentOf(dom), 'data-buy', 'apple'), undefined, 'a poll keeps the shelf open')
+    tap(dom, 'data-back', 'shop')
+    assert.notEqual(findByAttr(contentOf(dom), 'data-shelf', 'food'), undefined, 'back to the shelves')
+
+    tap(dom, 'data-shelf', 'food')
+    pickTab(dom, 'bag')
+    pickTab(dom, 'shop')
+    assert.notEqual(findByAttr(contentOf(dom), 'data-shelf', 'food'), undefined, 'coming back to the tab starts at its top layer')
+  } finally {
+    globalThis.window.setInterval = realSetInterval
+  }
 })

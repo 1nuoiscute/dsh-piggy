@@ -9,26 +9,6 @@
 import { button, meter } from './dom.js'
 
 export const CSS_TABS = [
-  'background:var(--ac-bg);cursor:pointer;font-family:inherit;text-align:center;',
-  'transition:transform .12s var(--ac-ease),box-shadow .12s var(--ac-ease)}',
-  '.dp-cell:hover{transform:translateY(-1px);box-shadow:0 3px 0 rgba(61,52,40,.14)}',
-  '.dp-cell:active{transform:translateY(1px)}',
-  '.dp-cell-e{font-size:22px;line-height:1.15}',
-  '.dp-cell-n{font-size:10px;font-weight:700;color:var(--ac-text);line-height:1.2;',
-  'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}',
-  '.dp-cell-p{font-size:9.5px;font-weight:600;color:var(--ac-text-2)}',
-  // Owned count and the "needed" flag are badges so they cost no extra row.
-  '.dp-cell-c{position:absolute;top:3px;right:4px;font-size:9px;font-weight:800;',
-  'color:#fff;background:var(--ac-primary);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}',
-  '.dp-cell-tag{position:absolute;top:3px;left:4px;font-size:8px;font-weight:800;',
-  'color:#7a5a12;background:var(--ac-warning);border-radius:var(--ac-pill);padding:0 4px;line-height:13px}',
-  // Affordable is colour; unaffordable is faded but still clickable, so a
-  // tap can explain how much is missing instead of doing nothing.
-  '.dp-cell.dp-poor{opacity:.45}',
-  // 家当 already owned: not for sale, but not "unaffordable" either.
-  '.dp-cell.dp-owned{opacity:.6;border-style:dashed}',
-  '.dp-cell.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}',
-
   /* ---------- developer tab ---------- */
   '.dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}',
   '.dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}',
@@ -71,17 +51,22 @@ export const CSS_TABS = [
   // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
   // 挂在场景**上方**（不是 top 边缘）：折叠时场景就是猪本身，用 top:-6px
   // 会让气泡叠在猪头上（用户反馈 #6）。
-  '.dp-daily{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);',
-  'font:inherit;font-size:15px;line-height:1;padding:3px 7px;cursor:pointer;',
+  '.dp-daily{position:absolute;bottom:calc(100% + 7px);left:50%;width:36px;margin-left:-18px;',
+  'font:inherit;font-size:15px;line-height:1;padding:3px 0;cursor:pointer;text-align:center;',
   'border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);',
   'box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-daily-bob 2.4s var(--ac-ease) infinite}',
   // 折叠时场景就剩猪本身（而且它还在上下浮动 ±7px），再多让开一点。
   '[data-dsh-pig][data-open="false"] .dp-daily{bottom:calc(100% + 16px)}',
+  // 展开时场景有面板那么宽、那么高，挂在场景上方会压到图标栏（B8 截图里压在「商店」上）：
+  // 改成蹲在猪左边、贴着猪身子（再高会碰到左边的名字框）。
+  '[data-dsh-pig][data-open="true"] .dp-daily{left:auto;margin-left:0;',
+  'right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + 4px)}',
   '.dp-daily:hover{border-color:var(--ac-border-hover)}',
   '.dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',
   // 名字必须独占：叫 dp-bob 会覆盖猪的待机动画（css-base.js），
   // 而那个动画的 transform 一被替掉，猪就会横跳半个身位。
-  '@keyframes dp-daily-bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}',
+  // 只上下浮：横向居中改用 margin，展开时才能挪到猪旁边。
+  '@keyframes dp-daily-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}',
   // 日记：折叠时只有首句，展开是全文。
   '.dp-diary{cursor:pointer}',
   '.dp-diary[data-open="true"] .dp-diary-full{display:block}',

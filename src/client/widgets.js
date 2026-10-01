@@ -61,3 +61,66 @@ export function careEffectLine(action, item) {
   }
   return parts.join(' · ')
 }
+
+// ---------------------------------------------------------------------------
+// 方块（动森手机那种）：学习 / 商店 / 背包的两层都用它（B8，用户 2026-10-01）。
+// 第一层是彩色大方块；点进去整屏换成第二层，左上角「‹ 返回」。
+// ---------------------------------------------------------------------------
+
+/** The grid tiles sit in: always three columns. */
+export function tileGrid() {
+  return el('div', 'dp-tiles')
+}
+
+/**
+ * One tile: a coloured rounded square with a big emoji, one short line under
+ * it, an optional second line, a count in the top-right corner and a small
+ * tag in the top-left. `soft` is the paler second-layer look.
+ * @param {{ emoji: string, label: string, color: string, note?: string, badge?: string, tag?: string,
+ *   soft?: boolean, locked?: boolean, dim?: boolean, disabled?: boolean, active?: boolean,
+ *   data?: Record<string, string>, onPick: () => void }} spec
+ */
+export function tile(spec) {
+  var node = button('dp-tile' + (spec.soft ? ' dp-tile-soft' : ''), spec.data ?? {}, function () { spec.onPick() })
+  node.setAttribute('data-color', spec.color)
+  if (spec.locked) node.setAttribute('data-locked', 'true')
+  if (spec.dim) node.setAttribute('data-dim', 'true')
+  if (spec.active) node.setAttribute('data-active', 'true')
+  if (spec.disabled === true) node.disabled = true
+  var icon = el('span', 'dp-tile-icon')
+  icon.appendChild(el('span', 'dp-tile-e', spec.emoji))
+  if (spec.badge) icon.appendChild(el('b', 'dp-tile-badge', spec.badge))
+  if (spec.tag) icon.appendChild(el('b', 'dp-tile-tag', spec.tag))
+  node.appendChild(icon)
+  node.appendChild(el('span', 'dp-tile-n', spec.label))
+  if (spec.note) node.appendChild(el('span', 'dp-tile-note', spec.note))
+  return node
+}
+
+/**
+ * Open a category (or go back with `key` null). The new layer starts at the
+ * top: the old scroll offset belonged to a different screen.
+ * @param {object} ui
+ * @param {'study'|'shop'|'bag'} tab
+ * @param {string|null} key
+ */
+export function drillTo(ui, tab, key) {
+  ui.drill[tab] = key
+  ui.drill.pick = null
+  ui.renderContent()
+  ui.content.scrollTop = 0
+}
+
+/**
+ * The second layer's top row: 「‹」 back, the category's name, and one grey
+ * line of what is true for everything in it (so no tile has to repeat it).
+ */
+export function drillHeader(ui, tab, title, info) {
+  var row = el('div', 'dp-drill')
+  var back = button('dp-drill-back', { 'data-back': tab }, function () { drillTo(ui, tab, null) })
+  back.textContent = '‹'
+  row.appendChild(back)
+  row.appendChild(el('b', 'dp-drill-title', title))
+  if (info) row.appendChild(el('span', 'dp-drill-info', info))
+  ui.content.appendChild(row)
+}

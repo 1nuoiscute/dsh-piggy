@@ -103,6 +103,8 @@ import { arr, num, obj, str } from './values.js'
       var stage = 'primary'
       // 用户自己点过学段之后，轮询就不许再替他改（B1 的「默认学段」只在没选过时生效）。
       var stagePicked = false
+      // B8: which category each tile tab is opened into (null = the top layer), and a picked tile inside it.
+      var drill = { study: null, shop: null, bag: null, pick: null }
       // Which souvenir's story card is open in the travel tab, if any.
       var souvenirPick = null
       // Which care action's item picker is open, if any.
@@ -164,6 +166,7 @@ import { arr, num, obj, str } from './values.js'
         get tab() { return tab }, set tab(next) { tab = next },
         get stage() { return stage }, set stage(next) { stage = next },
         get stagePicked() { return stagePicked }, set stagePicked(next) { stagePicked = next },
+        get drill() { return drill },
         get picker() { return picker }, set picker(next) { picker = next },
         get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
         get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },

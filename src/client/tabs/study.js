@@ -1,18 +1,25 @@
 // @ts-check
 /**
- * 学习页签。
+ * 学习页签（B8：动森手机式方块）。
  *
- * 学段按钮、九门科目与兴趣课 —— 排版沿用 B4 以前的样子（用户喜欢这个）。
- * B4 起每门课各算各的课时，所以同一个学段里，每门课的状态可能不同：
- * 正在这个学段的能上，已经念完的打勾，还没念到的上锁。
+ * 第一层：学段方块（小学 … 学无止境）+ 兴趣。锁住的学段变灰，但点得进去看。
+ * 第二层：学段里是九门课的方块，点一下就去上这一节；兴趣里是兴趣课方块，点一下就去学。
+ * B4 起每门课各算各的课时：同一个学段里，正在这一段的能上，念完的打勾，还没到的上锁。
  * @module dsh-pig/client/tabs/study
  */
 
 import { STAGES } from '../constants.js'
-import { button, el } from '../dom.js'
+import { el } from '../dom.js'
+import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
 
-/** The seg key that shows the interest list instead of a stage. */
+/** The drill key that opens the interest courses instead of a stage. */
 export const INTEREST_TAB = 'interest'
+
+/** One colour per stage, so the inner layer still says which stage it is. */
+var STAGE_COLOR = { primary: 'yellow', middle: 'teal', college: 'blue', graduate: 'purple', beyond: 'pink' }
+var INTEREST_COLOR = 'orange'
+/** Stages this client does not know (an older host's ladder) take colours in turn. */
+var FALLBACK_COLORS = ['yellow', 'teal', 'blue', 'purple', 'pink', 'green', 'lime']
 
 /** Where a subject stands relative to one stage: 'current' | 'done' | 'ahead'. */
 function standing(sub, stage) {
@@ -27,122 +34,98 @@ export function renderStudyTab(ui) {
     ui.content.appendChild(el('div', 'dp-empty', '宿主还没提供课程表。'))
     return
   }
-  // Prefer the host's own ladder: a client that hard-codes the stages would
-  // keep offering one the host has never heard of.
-  var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES
-  var seg = el('div', 'dp-seg')
-  for (var s = 0; s < stageList.length; s += 1) {
-    (function (entry) {
-      var detail = null
-      for (var k = 0; k < ui.view.stages.length; k += 1) if (ui.view.stages[k].key === entry.key) detail = ui.view.stages[k]
-      var locked = detail !== null && detail.unlocked === false
-      // Tuition lives in the note below rather than in the button: the stages
-      // do not fit in a 292px panel with a price glued to each.
-      var btn = button(null, { 'data-stage': entry.key }, function () {
-        ui.stage = entry.key
-        // 用户自己选过之后，轮询就不许再替他改（见 panel.js 的归位逻辑）。
-        ui.stagePicked = true
-        ui.renderContent()
-      })
-      // Locked is shown by the button's own dashed style, not a padlock in the
-      // label: 「学无止境」 plus a padlock wrapped and stood taller than its neighbours.
-      btn.textContent = entry.label
-      btn.setAttribute('data-active', entry.key === ui.stage ? 'true' : 'false')
-      btn.setAttribute('data-locked', locked ? 'true' : 'false')
-      seg.appendChild(btn)
-    })(stageList[s])
-  }
-  // 兴趣 sits beside the stages as one more button (the owner asked for it):
-  // it swaps the subject grid for the interest list.
-  if (ui.view.interests.length > 0) {
-    var interestBtn = button(null, { 'data-stage': INTEREST_TAB }, function () {
-      ui.stage = INTEREST_TAB
-      ui.stagePicked = true
-      ui.renderContent()
-    })
-    interestBtn.textContent = '🎯 兴趣'
-    interestBtn.setAttribute('data-active', ui.stage === INTEREST_TAB ? 'true' : 'false')
-    interestBtn.setAttribute('data-locked', 'false')
-    seg.appendChild(interestBtn)
-  }
-  ui.content.appendChild(seg)
-
-  if (ui.stage === INTEREST_TAB && ui.view.interests.length > 0) {
+  var open = ui.drill.study
+  if (open === INTEREST_TAB && ui.view.interests.length > 0) {
     renderInterests(ui)
     return
   }
-
-  var detail = null
-  for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === ui.stage) detail = ui.view.stages[d]
-  if (detail !== null) {
-    var span = detail.upTo !== null ? '第 ' + (detail.from + 1) + '–' + detail.upTo + ' 节' : '第 ' + (detail.from + 1) + ' 节起'
-    var note = el('div', 'dp-empty', span + ' · ' + detail.minutes + ' 分钟 · 学费 ' + detail.tuition + ' 🪙 · 属性 +' + detail.gain)
-    note.style.marginBottom = '7px'
-    note.style.marginTop = '0'
-    ui.content.appendChild(note)
-    // A gated stage says exactly what it is waiting for.
-    if (detail.unlocked === false && detail.progress !== null) {
-      ui.content.appendChild(el('div', 'dp-locked',
-        '🔒 要先' + detail.progress.label + '（现在最多 ' + detail.progress.done + ' 节）'))
-    }
+  var stage = null
+  for (var d = 0; d < ui.view.stages.length; d += 1) if (ui.view.stages[d].key === open) stage = ui.view.stages[d]
+  if (stage === null) {
+    renderStages(ui)
+    return
   }
+  renderSubjects(ui, stage)
+}
 
-  var grid = el('div', 'dp-grid')
+/** The top layer: one tile per stage, then 兴趣. */
+function renderStages(ui) {
+  // Prefer the host's own ladder: a client that hard-codes the stages would
+  // keep offering one the host has never heard of.
+  var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES
+  var head = el('div', 'dp-title')
+  head.appendChild(el('b', null, '📚 学习'))
+  ui.content.appendChild(head)
+  var grid = tileGrid()
+  for (var s = 0; s < stageList.length; s += 1) {
+    (function (entry, index) {
+      var locked = entry.unlocked === false
+      var finished = entry.upTo === null || entry.upTo === undefined ? 0
+        : ui.view.subjects.filter(function (sub) { return sub.lessons >= entry.upTo }).length
+      grid.appendChild(tile({
+        emoji: entry.emoji || '📚', label: entry.label,
+        color: STAGE_COLOR[entry.key] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+        locked: locked, tag: locked ? '🔒' : '', badge: finished > 0 ? '✓' + finished : '',
+        data: { 'data-stage': entry.key },
+        onPick: function () { drillTo(ui, 'study', entry.key) },
+      }))
+    })(stageList[s], s)
+  }
+  if (ui.view.interests.length > 0) {
+    var certified = ui.view.interests.filter(function (entry) { return entry.certified }).length
+    grid.appendChild(tile({
+      emoji: '🎯', label: '兴趣', color: INTEREST_COLOR,
+      badge: certified > 0 ? '📜' + certified : '',
+      data: { 'data-stage': INTEREST_TAB },
+      onPick: function () { drillTo(ui, 'study', INTEREST_TAB) },
+    }))
+  }
+  ui.content.appendChild(grid)
+}
+
+/** Inside a stage: the nine subjects. Tap one that is at this stage to go to class. */
+function renderSubjects(ui, stage) {
+  drillHeader(ui, 'study', stage.emoji + ' ' + stage.label,
+    stage.minutes + ' 分钟 · ' + stage.tuition + ' 🪙 · +' + stage.gain)
+  var color = STAGE_COLOR[stage.key] ?? FALLBACK_COLORS[Math.max(0, ui.view.stages.indexOf(stage)) % FALLBACK_COLORS.length]
+  var grid = tileGrid()
   for (var i = 0; i < ui.view.subjects.length; i += 1) {
     (function (sub) {
-      var where = standing(sub, detail)
-      var btn = button('dp-item', { 'data-subject': sub.key }, function () {
-        ui.send('study', { subject: sub.key })
-      })
-      btn.disabled = where !== 'current' || !ui.view.canGoOut || !sub.affordable
-      btn.style.cursor = 'pointer'
-      btn.style.textAlign = 'left'
-      btn.appendChild(el('span', null, sub.emoji))
-      var grow = el('div', 'dp-grow')
-      grow.appendChild(el('div', null, sub.label))
-      // Two short lines, as before: two columns of 292px do not fit more.
-      var line
-      if (where === 'done') line = '✓ 已毕业'
-      else if (where === 'ahead') line = '🔒 还在' + (sub.stageLabel || '下一段')
-      else if (detail !== null && detail.upTo !== null) line = sub.traitLabel + ' · ' + (sub.lessons - detail.from) + '/' + (detail.upTo - detail.from) + ' 节'
-      else line = sub.traitLabel + ' · 上过 ' + sub.lessons + ' 节'
-      grow.appendChild(el('div', 'dp-dim', line))
-      btn.appendChild(grow)
-      grid.appendChild(btn)
+      var where = standing(sub, stage)
+      var note
+      if (where === 'done') note = '✓ 毕业'
+      else if (where === 'ahead') note = '🔒 ' + (sub.stageLabel || '没到')
+      else if (stage.upTo !== null) note = (sub.lessons - stage.from) + '/' + (stage.upTo - stage.from) + ' 节'
+      else note = sub.lessons + ' 节'
+      grid.appendChild(tile({
+        emoji: sub.emoji, label: sub.label, color: color, soft: true, note: note,
+        disabled: where !== 'current' || !ui.view.canGoOut,
+        dim: where === 'current' && !sub.affordable,
+        data: { 'data-subject': sub.key },
+        onPick: function () { ui.send('study', { subject: sub.key }) },
+      }))
     })(ui.view.subjects[i])
   }
   ui.content.appendChild(grid)
 }
 
-/** The interest list, shown when the 兴趣 button is selected. */
+/** Inside 兴趣: every interest course; tap to go. Five of one earns its certificate. */
 function renderInterests(ui) {
-  // Same note line as a stage: what this list is about, in one short row.
   var after = ui.view.interests[0].certificateAfter
-  var note = el('div', 'dp-empty', after > 0 ? '随时能学 · 同一门上满 ' + after + ' 次拿证' : '随时能学')
-  note.style.marginBottom = '7px'
-  note.style.marginTop = '0'
-  ui.content.appendChild(note)
-  var ilist = el('div', 'dp-list')
+  drillHeader(ui, 'study', '🎯 兴趣', after > 0 ? '上满 ' + after + ' 次拿证' : '')
+  var grid = tileGrid()
   for (var n = 0; n < ui.view.interests.length; n += 1) {
     (function (entry) {
-      var row = el('div', 'dp-item')
-      row.appendChild(el('span', null, entry.emoji))
-      var grow = el('div', 'dp-grow')
-      grow.appendChild(el('div', null, entry.label))
-      var progress = entry.certificate === ''
-        ? (entry.times > 0 ? ' · 学过 ' + entry.times + ' 次' : '')
-        : (entry.certified ? ' · 📜 有证' : ' · 📜 ' + entry.times + '/' + entry.certificateAfter)
-      grow.appendChild(el('div', 'dp-dim', entry.minutes + ' 分钟 · ' + entry.cost + ' 🪙 · '
-        + entry.traitEmoji + entry.traitLabel + ' +' + entry.gain + progress))
-      row.appendChild(grow)
-      var go = button('dp-mini', { 'data-interest': entry.key }, function () {
-        ui.send('interest', { interest: entry.key })
-      })
-      go.textContent = entry.times > 0 ? '再学' : '去学'
-      go.disabled = !ui.view.canGoOut || !entry.affordable
-      row.appendChild(go)
-      ilist.appendChild(row)
+      var note = entry.certificate === '' ? entry.cost + ' 🪙'
+        : (entry.certified ? '📜 有证' : '📜 ' + entry.times + '/' + entry.certificateAfter)
+      grid.appendChild(tile({
+        emoji: entry.emoji, label: entry.label, color: INTEREST_COLOR, soft: true, note: note,
+        disabled: !ui.view.canGoOut,
+        dim: !entry.affordable,
+        data: { 'data-interest': entry.key },
+        onPick: function () { ui.send('interest', { interest: entry.key }) },
+      }))
     })(ui.view.interests[n])
   }
-  ui.content.appendChild(ilist)
+  ui.content.appendChild(grid)
 }

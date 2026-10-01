@@ -1,67 +1,81 @@
 // @ts-check
 /**
- * 商店页签。
+ * 商店页签（B8：动森手机式方块）。
  *
- * 按类别分组的货架。
+ * 第一层：六个货架方块。第二层：这个货架的货，点方块就是买。
  * @module dsh-pig/client/tabs/shop
  */
 
 import { KIND_ORDER, KIND_TITLE } from '../constants.js'
-import { button, el } from '../dom.js'
+import { el } from '../dom.js'
 import { num } from '../values.js'
+import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
+
+/** One colour per shelf, so the inner layer still says which shelf it is. */
+export var SHELF_COLOR = { food: 'red', bath: 'teal', toy: 'yellow', dress: 'pink', medicine: 'green', revive: 'purple' }
+
+/** A shelf title 「<emoji> 食物」 split into its emoji and its name. */
+export function shelfParts(kind) {
+  var title = KIND_TITLE[kind] ?? kind
+  var space = title.indexOf(' ')
+  return space < 0 ? ['🛒', title] : [title.slice(0, space), title.slice(space + 1)]
+}
 
 export function renderShopTab(ui) {
   if (ui.view.shop.length === 0) {
     ui.content.appendChild(el('div', 'dp-empty', '宿主还没提供货架。'))
     return
   }
+  var coins = '🪙 ' + ui.view.pig.coins
+  var shelf = ui.drill.shop
+  if (shelf === null || KIND_ORDER.indexOf(shelf) < 0) {
+    renderShelves(ui, coins)
+    return
+  }
+  var parts = shelfParts(shelf)
+  drillHeader(ui, 'shop', parts[0] + ' ' + parts[1], coins)
+  var grid = tileGrid()
+  var items = ui.view.shop.filter(function (item) { return item.kind === shelf })
+  for (var i = 0; i < items.length; i += 1) grid.appendChild(itemTile(ui, items[i], SHELF_COLOR[shelf]))
+  ui.content.appendChild(grid)
+}
+
+function renderShelves(ui, coins) {
   var head = el('div', 'dp-title')
   head.appendChild(el('b', null, '🛒 商店'))
-  head.appendChild(el('span', null, '🪙 ' + ui.view.pig.coins))
+  head.appendChild(el('span', null, coins))
   ui.content.appendChild(head)
-  var list = el('div', 'dp-shopgrid')
-  var shelf = ''
-  // The host sends the shop in shelf order, but sort defensively so a
-  // reordered table cannot produce duplicate headers.
-  var ordered = ui.view.shop.slice().sort(
-    (a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind),
-  )
-  for (var i = 0; i < ordered.length; i += 1) {
-    (function (item) {
-      // Shelves, so 21 items read as five short lists instead of one long one.
-      if (item.kind !== shelf) {
-        shelf = item.kind
-        list.appendChild(el('div', 'dp-shelf', KIND_TITLE[shelf] ?? shelf))
-      }
-      // A grid cell, not a list row: 45 items in a 292px column meant
-      // endless scrolling and you could never see a shelf at a glance.
-      var cell = button('dp-cell'
-        + (item.needed ? ' dp-wanted' : '')
-        // Not `dp-dress`: that class is the pig's dress-up overlay (absolute,
-        // pointer-events:none), and sharing it made every 装扮 cell unclickable.
-        + (item.kind === 'dress' ? ' dp-cell-dress' : (item.affordable ? '' : ' dp-poor'))
-        + (item.owned ? ' dp-owned' : ''),
-        { 'data-buy': item.key }, function () { ui.send('buy', { item: item.key }) })
-      cell.appendChild(el('span', 'dp-cell-e', item.emoji))
-      cell.appendChild(el('span', 'dp-cell-n', item.label))
-      // 家当 has no count and no repeat purchase: it says "已拥有", or the
-      // level it is waiting for — never a price the pig cannot use.
-      if (item.owned) {
-        cell.appendChild(el('span', 'dp-cell-p', '已拥有'))
-        cell.disabled = true
-      } else if (item.kind === 'dress' && item.unlocked === false) {
-        cell.appendChild(el('span', 'dp-cell-p', '🔒 Lv.' + item.level))
-      } else {
-        cell.appendChild(el('span', 'dp-cell-p', item.price + ' 🪙'))
-      }
-      // The shop listing has no count of its own; the inventory map is where
-      // "how many do I have" actually lives (same source as the bag tab).
-      var owned = num(ui.view.inventory[item.key], 0)
-      if (owned > 0) cell.appendChild(el('b', 'dp-cell-c', '×' + owned))
-      if (item.needed) cell.appendChild(el('b', 'dp-cell-tag', '需要'))
-      if (item.owned && item.worn) cell.appendChild(el('b', 'dp-cell-tag', '穿着'))
-      list.appendChild(cell)
-    })(ordered[i])
+  var grid = tileGrid()
+  for (var k = 0; k < KIND_ORDER.length; k += 1) {
+    (function (kind) {
+      var items = ui.view.shop.filter(function (item) { return item.kind === kind })
+      if (items.length === 0) return
+      var parts = shelfParts(kind)
+      var needed = items.some(function (item) { return item.needed })
+      grid.appendChild(tile({
+        emoji: parts[0], label: parts[1], color: SHELF_COLOR[kind] ?? 'blue',
+        tag: needed ? '需要' : '',
+        data: { 'data-shelf': kind },
+        onPick: function () { drillTo(ui, 'shop', kind) },
+      }))
+    })(KIND_ORDER[k])
   }
-  ui.content.appendChild(list)
+  ui.content.appendChild(grid)
+}
+
+/** A thing on the shelf: tap to buy. 家当 says 已拥有 or the level it waits for. */
+function itemTile(ui, item, color) {
+  var owned = num(ui.view.inventory[item.key], 0)
+  var note = item.price + ' 🪙'
+  if (item.owned) note = '已拥有'
+  else if (item.kind === 'dress' && item.unlocked === false) note = '🔒 Lv.' + item.level
+  return tile({
+    emoji: item.emoji, label: item.label, color: color, soft: true, note: note,
+    badge: owned > 0 ? '×' + owned : '',
+    tag: item.needed ? '需要' : (item.owned && item.worn ? '穿着' : ''),
+    dim: !item.owned && (!item.affordable || (item.kind === 'dress' && item.unlocked === false)),
+    disabled: item.owned === true,
+    data: { 'data-buy': item.key },
+    onPick: function () { ui.send('buy', { item: item.key }) },
+  })
 }

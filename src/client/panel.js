@@ -60,6 +60,8 @@ export function createPanel(ctx) {
       function select(next) {
         ctx.tab = next
         ctx.picker = null
+        // Opening a tile tab always starts at its top layer.
+        if (next in ctx.drill) { ctx.drill[next] = null; ctx.drill.pick = null }
         renderContent()
         for (var k in ctx.icons) ctx.icons[k].setAttribute('data-active', k === ctx.tab ? 'true' : 'false')
       }
