@@ -427,3 +427,13 @@ Windows 测试包：走 CI 推标签的方式，需要用户批准，等上面�
 - ❌ **新 bug：桌面版拖猪，窗口不动**（已确认）。`shell.js` 先 `apply()` 挂猪（第 33 行），再 `start()` 设置 `window.__dshPiggyShell`（第 34/188 行）；`index.js:70` 只在挂载时判断一次 `deskShell`，那时还是 `undefined` → 桌面版被当成网页版：拖动在小窗口里挪猪（会被裁掉）、窗口不跟、还会读网页版的 `POSITION_KEY`。以前是 `moveChannel` 盖住了这个问题，这次把它删了就露出来了。模拟里按住猪拖 10px，`moveBy` 调用 0 次。
   修法：`__dshPiggyShell` 在 `apply()` **之前**就挂好（`room()` 里拿不到几何时返回 null 就行），或者 `index.js` 每次用时现取。补一个按**真实加载顺序**跑的测试：加载 `renderer/index.html` + `shell.js` + `client.js`，按住猪拖动，断言 `moveBy` 被调用且累计位移 = 鼠标屏幕位移，页面里猪的位置不变。现有测试是先设好外壳再挂载，和真实顺序相反，所以测不出来。
 - 第 2、3 条（X11 实机真拖 300px、左上角展开）仍需实测数据，写进记录。
+
+### D1 返工 2（Claude，2026-10-01）：第 1、2 条通过；第 3 条根因已定位
+- ✅ 加载顺序（外壳先挂好 + 每次现取）、拖动用屏幕坐标、删掉重复的 `moveChannel`、订阅 `piggy:geometry`：都对。X11 拖动数据（往返 4 次误差 0）认可；第 1 次 +36px 是起点离右缘 27px 被夹住，属正常。
+- ❌ 第 3 条（左上角展开猪横移 +207）根因：**老 CSS 让面板打开时猪永远靠右**。`css-base.js:98` `[data-open="true"] .dp-scene{width:var(--panel-width)}` 把场景撑到 292px，`css-base.js:91` 又是 `justify-content:flex-end` → 面板一开，猪在 host 里从左端跑到右端，位移 = 292 − 猪宽 − 留白 ≈ 207，跟你量到的一致。于是客户端想「朝右开」（`card.left=0`），可猪已经在右端，`sides()` 看到面板中心在猪左边 → 钉右 → 主进程倒推出负 x → 被左缘夹回 0 → 猪跳。三段逻辑各自都没错，错在场景排版没跟面板方向走。
+  修法：
+  1. `fitPanel` 桌面分支决定 `opensRight` 时，在 host 上写 `data-panel-side="right"`/`"left"`（网页版不写，保持现状）。
+  2. CSS：`[data-dsh-pig][data-panel-side="right"] .dp-scene{justify-content:flex-start}`，让猪待在场景左端；HUD 卡片同时换到猪的右边（现在是 `ctx.hud.style.left='9px'` 写死，改成按方向设 left/right）。
+  3. 番茄角标、气泡、打工道具（`.dp-prop`）、装扮点位这些相对猪定位的东西，在朝右开时检查一遍不跑偏。
+  4. 测试：桌面版四个角（左上、右上、左下、右下）各展开、收起一次，断言**猪的布局框在窗口内的位置**和外壳钉的边一致、猪屏幕坐标前后差 ≤ 4px；网页版快照不变。
+  5. X11 实机重测左上角，数据写进记录。
