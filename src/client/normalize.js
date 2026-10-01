@@ -312,6 +312,9 @@ export function normalize(raw) {
         var f = obj(raw)
         return {
           key: str(f.key, ''), label: str(f.label, ''), emoji: str(f.emoji, '👑'), art: str(f.art, ''),
+          stage: str(f.stage, ''),
+          // 老宿主不发 fromLevel：给 1，等于「不用拉等级」。
+          fromLevel: num(f.fromLevel, 1),
           current: f.current === true, ready: f.ready === true,
           requirements: arr(f.requirements).map(function (row) {
             var r = obj(row)

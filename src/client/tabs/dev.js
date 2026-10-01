@@ -21,22 +21,18 @@ export function renderDevTab(ui) {
       '⚠️ 年龄是调试改的（HUD 上有 🔧）—— 按「⏪ 年龄归零」才会重新按真实时间算'))
   }
 
-  var p = ui.view.pig
-  if (p === null) {
-    ui.content.appendChild(el('div', 'dp-empty', '还没有猪。先「拆开纸盒」再调。'))
-    return
-  }
-
-  /** A row of small buttons under a caption. */
-  function group(title, entries) {
+  /** A row of small buttons under a caption. `off` greys one out, `note` explains why. */
+  function group(title, entries, note) {
     var head = el('div', 'dp-title')
     head.appendChild(el('b', null, title))
     ui.content.appendChild(head)
+    if (note !== undefined && note !== '') ui.content.appendChild(el('div', 'dp-dev-note', note))
     var wrap = el('div', 'dp-dev-row')
     for (var i = 0; i < entries.length; i += 1) {
       (function (entry) {
         var btn = button('dp-mini dp-dev-btn', { 'data-dev': entry.key }, function () { entry.run() })
         btn.textContent = entry.label
+        if (entry.off === true) btn.disabled = true
         wrap.appendChild(btn)
       })(entries[i])
     }
@@ -45,17 +41,36 @@ export function renderDevTab(ui) {
 
   var patch = function (body) { ui.send('dev', { patch: body }) }
 
-  // 形态（C1）：调试页要能一键变成每一种形态，不看条件；再加一条「恢复普通」。
+  // 形态（C1）：一键变成每一种形态，不看条件。等级不够就**同一次补丁里**把等级顶到
+  // 这一形态所在阶段的起始等级 —— 不然换了形态立绘也不动（formStageView 只在该阶段画）。
+  // 起始等级由宿主从 data/life.js 发下来，这里不写死数字。
+  // 这一组放在「还没有猪」之前：纸盒也要看得到，才知道该先做什么。
+  var boxed = ui.view.hatched !== true || ui.view.pig === null
+  var dead = ui.view.dead === true
+  var why = boxed ? '先孵化' : (dead ? '先复活' : '')
   var forms = ui.view.forms === null ? [] : ui.view.forms.forms
   var formEntries = forms.map(function (form) {
     return {
       key: 'form:' + form.key,
       label: form.emoji + ' ' + form.label,
-      run: function () { patch({ form: form.key }) },
+      off: boxed || dead,
+      run: function () {
+        var body = { form: form.key }
+        var level = ui.view.pig === null ? 0 : ui.view.pig.level.level
+        if (level < form.fromLevel) body.level = form.fromLevel
+        patch(body)
+      },
     }
   })
   formEntries.push({ key: 'form:none', label: '🐖 恢复普通', run: function () { patch({ form: null }) } })
-  group('形态', formEntries)
+  group('形态', formEntries, why)
+
+  // 形态组之后才管「有没有猪」：纸盒也要看到上面那排（置灰 + 原因）。
+  var p = ui.view.pig
+  if (p === null) {
+    ui.content.appendChild(el('div', 'dp-empty', '还没有猪。先「拆开纸盒」再调。'))
+    return
+  }
 
   group('状态', [
     { key: 'full', label: '😊 满状态', run: function () { patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 }) } },

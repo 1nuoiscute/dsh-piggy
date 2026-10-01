@@ -502,15 +502,11 @@
         "\u26A0\uFE0F \u5E74\u9F84\u662F\u8C03\u8BD5\u6539\u7684\uFF08HUD \u4E0A\u6709 \u{1F527}\uFF09\u2014\u2014 \u6309\u300C\u23EA \u5E74\u9F84\u5F52\u96F6\u300D\u624D\u4F1A\u91CD\u65B0\u6309\u771F\u5B9E\u65F6\u95F4\u7B97"
       ));
     }
-    var p = ui.view.pig;
-    if (p === null) {
-      ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u732A\u3002\u5148\u300C\u62C6\u5F00\u7EB8\u76D2\u300D\u518D\u8C03\u3002"));
-      return;
-    }
-    function group(title, entries) {
+    function group(title, entries, note) {
       var head = el("div", "dp-title");
       head.appendChild(el("b", null, title));
       ui.content.appendChild(head);
+      if (note !== void 0 && note !== "") ui.content.appendChild(el("div", "dp-dev-note", note));
       var wrap = el("div", "dp-dev-row");
       for (var i = 0; i < entries.length; i += 1) {
         (function(entry) {
@@ -518,6 +514,7 @@
             entry.run();
           });
           btn.textContent = entry.label;
+          if (entry.off === true) btn.disabled = true;
           wrap.appendChild(btn);
         })(entries[i]);
       }
@@ -526,20 +523,32 @@
     var patch = function(body) {
       ui.send("dev", { patch: body });
     };
+    var boxed = ui.view.hatched !== true || ui.view.pig === null;
+    var dead = ui.view.dead === true;
+    var why = boxed ? "\u5148\u5B75\u5316" : dead ? "\u5148\u590D\u6D3B" : "";
     var forms = ui.view.forms === null ? [] : ui.view.forms.forms;
     var formEntries = forms.map(function(form) {
       return {
         key: "form:" + form.key,
         label: form.emoji + " " + form.label,
+        off: boxed || dead,
         run: function() {
-          patch({ form: form.key });
+          var body = { form: form.key };
+          var level = ui.view.pig === null ? 0 : ui.view.pig.level.level;
+          if (level < form.fromLevel) body.level = form.fromLevel;
+          patch(body);
         }
       };
     });
     formEntries.push({ key: "form:none", label: "\u{1F416} \u6062\u590D\u666E\u901A", run: function() {
       patch({ form: null });
     } });
-    group("\u5F62\u6001", formEntries);
+    group("\u5F62\u6001", formEntries, why);
+    var p = ui.view.pig;
+    if (p === null) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u732A\u3002\u5148\u300C\u62C6\u5F00\u7EB8\u76D2\u300D\u518D\u8C03\u3002"));
+      return;
+    }
     group("\u72B6\u6001", [
       { key: "full", label: "\u{1F60A} \u6EE1\u72B6\u6001", run: function() {
         patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 });
@@ -2294,6 +2303,9 @@
             label: str(f.label, ""),
             emoji: str(f.emoji, "\u{1F451}"),
             art: str(f.art, ""),
+            stage: str(f.stage, ""),
+            // 老宿主不发 fromLevel：给 1，等于「不用拉等级」。
+            fromLevel: num(f.fromLevel, 1),
             current: f.current === true,
             ready: f.ready === true,
             requirements: arr(f.requirements).map(function(row) {

@@ -14,6 +14,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { FORMS } from '../packages/pet-core/src/data/evolution.js'
+import { lifeStageByKey } from '../packages/pet-core/src/data/life.js'
+import { renderDevTab } from '../src/client/tabs/dev.js'
 import { applyDevPatch, layEgg } from '../packages/pet-core/src/core.js'
 
 // ---------------------------------------------------------------------------
@@ -88,6 +90,9 @@ function fakeDom() {
   return { document, head, body, FakeElement }
 }
 
+/** 形态所在阶段的起始等级，测试里从数据表取（和宿主同源，不写死数字）。 */
+const LIFE_FROM_LEVEL = Object.fromEntries(FORMS.map(form => [form.stage, lifeStageByKey(form.stage).fromLevel]))
+
 const PIG = {
   name: '大花',
   stage: { key: 'middle', label: '中年猪', emoji: '🐖', size: 62, line: '很有分量' },
@@ -96,6 +101,7 @@ const PIG = {
   satiety: 62, happiness: 74, cleanliness: 41,
   health: 4, healthPercent: 80,
   weight: '8.4 kg', xp: 168, xpToNext: 232, coins: 88,
+  levelInfo: { level: 2, percent: 12, toNext: 30, maxed: false, title: { label: '新来的', emoji: '🌱' } },
   traits: { intel: 5, charm: 3, strong: 2 },
   courses: { chinese: 2 }, souvenirs: ['贝壳', '松果'],
   illness: null, stageLine: '圆滚滚的，走路会晃',
@@ -119,6 +125,7 @@ const SNAPSHOT = {
     current: null,
     forms: FORMS.map(form => ({
       key: form.key, label: form.label, emoji: form.emoji, art: form.art,
+      stage: form.stage, fromLevel: LIFE_FROM_LEVEL[form.stage],
       current: false, ready: false, requirements: [],
     })),
   },
@@ -155,7 +162,8 @@ async function mount(options = {}) {
   globalThis.document = dom.document
   globalThis.fetch = async (url, opts) => {
     calls.push({ url, method: opts?.method ?? 'GET', body: opts?.body })
-    return { ok: true, status: 200, async json() { return options.status ?? SNAPSHOT } }
+    const payload = (opts?.method ?? 'GET') === 'POST' ? (options.actResult ?? options.status ?? SNAPSHOT) : (options.status ?? SNAPSHOT)
+    return { ok: true, status: 200, async json() { return payload } }
   }
   globalThis.getComputedStyle = element => ({
     right: element?.style?.right || '18px',
@@ -332,9 +340,9 @@ test('调试页顶部有「关闭调试」，点了就关，而且是内存态�
 // 覆盖：调试页要能进每一种形态（以后还有皮肤、鱼）
 // ---------------------------------------------------------------------------
 
-/** 解锁并停在调试页。 */
-async function openDevTab() {
-  const mounted = await mount()
+/** 解锁并停在调试页（可指定快照 / POST 返回）。 */
+async function openDevTab(options) {
+  const mounted = await mount(options ?? {})
   const realNow = Date.now
   let now = 5_000_000
   Date.now = () => now
@@ -349,6 +357,9 @@ async function openDevTab() {
   }
   return mounted
 }
+
+/** 老名字，保持既有调用不变。 */
+const openDevTabWith = openDevTab
 
 test('每种形态在调试页都有一个入口，外加「恢复普通」', async () => {
   const { dom } = await openDevTab()
@@ -397,4 +408,99 @@ test('调试补丁能直接设形态，也能恢复普通（核心侧）', () =>
   assert.equal(state.form, null, '恢复普通')
   applyDevPatch(state, { form: 'nope' }, 0)
   assert.equal(state.form, null, '不认识的形态键忽略掉')
+})
+
+// ---------------------------------------------------------------------------
+// C1 尾巴：形态按钮顺手把等级拉到该形态所在阶段
+// ---------------------------------------------------------------------------
+
+/** 打开调试页并点一个形态按钮，返回最后一条 dev patch。 */
+async function tapForm(key, status) {
+  const mounted = await mount({ status })
+  const realNow = Date.now
+  let now = 9_000_000
+  Date.now = () => now
+  try {
+    openPanel(mounted.dom)
+    for (let i = 0; i < 7; i += 1) { now += 100; tapVersion(mounted.dom) }
+    const home = findByAttr(contentOf(mounted.dom), 'data-home', 'true')
+    if (home !== undefined) home.fire('click')
+    findByAttr(contentOf(mounted.dom), 'data-app', 'dev').fire('click')
+    const button = findByAttr(contentOf(mounted.dom), 'data-dev', 'form:' + key)
+    assert.notEqual(button, undefined, `调试页没有 ${key} 入口`)
+    button.fire('click')
+  } finally {
+    Date.now = realNow
+  }
+  const post = mounted.calls.filter(call => call.method === 'POST').at(-1)
+  assert.notEqual(post, undefined, '点了形态按钮却没有发请求')
+  return { body: JSON.parse(String(post.body)), dom: mounted.dom }
+}
+
+test('幼年猪点猪猪王：同一次补丁里把等级拉到该阶段起始等级', async () => {
+  const want = lifeStageByKey(FORMS[0].stage).fromLevel
+  const { body } = await tapForm(FORMS[0].key)
+  assert.equal(body.action, 'dev')
+  assert.equal(body.patch.form, FORMS[0].key, '形态要设上')
+  assert.equal(body.patch.level, want, `等级要拉到 ${FORMS[0].stage} 的起始等级 ${want}（从 data/life.js 读）`)
+})
+
+test('等级已经够就只改形态，不动等级', async () => {
+  const want = lifeStageByKey(FORMS[0].stage).fromLevel
+  const status = { ...SNAPSHOT, pig: { ...PIG, levelInfo: { ...PIG.levelInfo, level: want + 5 } } }
+  const { body } = await tapForm(FORMS[0].key, status)
+  assert.equal(body.patch.form, FORMS[0].key)
+  assert.equal(body.patch.level, undefined, '等级够了就不该出现在补丁里')
+})
+
+test('纸盒的猪：形态按钮置灰并写明「先孵化」，恢复普通照旧能用', async () => {
+  // 纸盒存档在真机上根本进不到调试页（面板整屏是纸盒页），所以这条直接渲染调试页
+  // 验证置灰逻辑：只要视图说没孵化，形态按钮就点不动，并且旁边写明原因。
+  const { document } = fakeDom()
+  globalThis.document = document
+  const content = document.createElement('div')
+  const ui = {
+    content: content,
+    view: { version: '0.25.1', hatched: false, dead: false, pig: null, forms: SNAPSHOT.forms, maxHealth: 5 },
+    send() {}, devOff() {}, setOpen() {}, host: { getAttribute: () => 'false' },
+  }
+  renderDevTab(ui)
+  for (const form of FORMS) {
+    const button = findByAttr(content, 'data-dev', 'form:' + form.key)
+    assert.notEqual(button, undefined, `纸盒也该看到形态按钮 ${form.key}`)
+    assert.equal(button.disabled, true, '纸盒时形态按钮要置灰')
+  }
+  assert.ok(content.allText().includes('先孵化'), content.allText())
+  assert.equal(findByAttr(content, 'data-dev', 'form:none').disabled, false, '恢复普通不受影响')
+})
+
+test('直接渲染调试页：幼年猪点形态会把等级拉到起始等级', () => {
+  const { document } = fakeDom()
+  globalThis.document = document
+  const content = document.createElement('div')
+  const sent = []
+  const ui = {
+    content: content,
+    view: {
+      version: '0.25.1', hatched: true, dead: false, forms: SNAPSHOT.forms, maxHealth: 5,
+      pig: { ...PIG, level: { level: 2 } },
+    },
+    send(action, payload) { sent.push({ action, payload }) },
+    devOff() {}, setOpen() {}, host: { getAttribute: () => 'false' },
+  }
+  renderDevTab(ui)
+  findByAttr(content, 'data-dev', 'form:' + FORMS[0].key).fire('click')
+  const patch = sent.at(-1).payload.patch
+  assert.equal(patch.form, FORMS[0].key)
+  assert.equal(patch.level, lifeStageByKey(FORMS[0].stage).fromLevel)
+})
+
+test('死了的猪：形态按钮置灰并写明「先复活」', async () => {
+  const status = { ...SNAPSHOT, dead: true, pig: { ...PIG, soul: true } }
+  const { dom } = await openDevTab({ status })
+  for (const form of FORMS) {
+    assert.equal(findByAttr(contentOf(dom), 'data-dev', 'form:' + form.key).disabled, true, '死了不能变形态')
+  }
+  assert.ok(contentOf(dom).allText().includes('先复活'), contentOf(dom).allText())
+  assert.equal(findByAttr(contentOf(dom), 'data-dev', 'form:none').disabled, false)
 })

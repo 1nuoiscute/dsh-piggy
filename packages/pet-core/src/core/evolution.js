@@ -7,7 +7,7 @@
  * @module dsh-piggy/core/evolution
  */
 
-import { DEFAULT_FORM, FORMS, LIFE_STAGES, TRAITS, formByKey } from '../data.js'
+import { DEFAULT_FORM, FORMS, LIFE_STAGES, TRAITS, formByKey, lifeStageByKey } from '../data.js'
 import { levelFor, lifeStageFor } from './clock.js'
 import { announce, remember } from './effects.js'
 import { decay } from './settlement.js'
@@ -37,14 +37,19 @@ function requirementsFor(state, form) {
  * @returns {{ current: string | null, forms: object[] } | null}
  */
 export function formsView(state) {
-  if (state === null || state.hatched !== true) return null
-  const alive = state.dead !== true
+  if (state === null) return null
+  // 纸盒也把形态表发下来（C1）：调试页要能显示"先孵化"，加冕页也要能说清条件；
+  // `ready` 在没孵化时恒为 false。
+  const alive = state.hatched === true && state.dead !== true
   return {
     current: formByKey(state.form)?.key ?? null,
     forms: FORMS.map(form => {
       const requirements = requirementsFor(state, form)
       return {
         key: form.key, label: form.label, emoji: form.emoji, art: form.art,
+        // 这一形态挂在哪个人生阶段、那个阶段几级开始（调试页要按它拉等级）。
+        stage: form.stage,
+        fromLevel: lifeStageByKey(form.stage)?.fromLevel ?? 1,
         current: state.form === form.key,
         ready: alive && state.form !== form.key && requirements.every(row => row.met),
         requirements,
