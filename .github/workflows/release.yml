@@ -16,8 +16,8 @@ jobs:
   game:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 22 }
       - name: 标签要和 package.json 的版本一致
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
@@ -48,8 +48,8 @@ jobs:
     defaults:
       run: { working-directory: apps/desktop }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 22 }
       - name: 装依赖
         run: npm ci
@@ -61,4 +61,7 @@ jobs:
       - name: 上传安装包
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}' }
-        run: gh release upload "$GITHUB_REF_NAME" $(ls dist/*.AppImage dist/*.exe 2>/dev/null) --clobber
+        run: |
+          shopt -s nullglob
+          files=(dist/*.AppImage dist/*.exe)
+          gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber

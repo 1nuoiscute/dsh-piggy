@@ -41,7 +41,8 @@
         "AppImage"
       ],
       "category": "Game",
-      "icon": "build/icon.png"
+      "icon": "build/icon.png",
+      "artifactName": "dsh-piggy-${version}.${ext}"
     },
     "win": {
       "target": [
@@ -52,7 +53,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "dsh-piggy-setup-${version}.${ext}"
     },
     "publish": [
       {
@@ -60,7 +62,10 @@
         "owner": "CLICGGER-TYPES",
         "repo": "dsh-piggy"
       }
-    ]
+    ],
+    "portable": {
+      "artifactName": "dsh-piggy-portable-${version}.${ext}"
+    }
   },
   "allowScripts": {
     "electron@44.5.1": true
