@@ -562,3 +562,9 @@ DSH 的判断方向对：剩下的 13/25 DIP 是「翻锚边」那一步没被�
 1. 主进程照现在的算法先 `setBounds`（大小对了就行）。
 2. 页面在下一帧量出猪在**窗口坐标**里的真实位置（直接用 `layoutBox(.dp-pig)`，不减 content 原点），报给主进程；主进程算「猪现在的屏幕坐标 − 展开前记下的猪屏幕坐标」，差值不为 0 就再平移一次窗口（夹进 workArea）。只在面板展开/收起、内容尺寸变化时做，闲着时不触发。
 测试：四个角展开/收起后，猪的屏幕坐标差 ≤ 4px；X11 实机左上角重测。
+
+### D1 返工 3（Claude，2026-10-01）：✅ 通过
+- 77b918f：两步收敛（先改大小，下一帧按猪的窗口坐标补平移）；X11 实机四个角展开/收起位移都是 0.0 DIP，主进程日志能看到 content → anchor 两步；383 + 桌面 21 项测试全过。
+- C3 由 Claude 代为 rebase 到 17b4174（无冲突，重建 client.js 无差异，400 + 21 全过）并快进合入 main（28d8fc4）。
+- Linux 测试包：Claude 在 `dsh-pig-claude` 工作区从 28d8fc4 打出 `apps/desktop/dist/dsh-piggy-0.25.2-test.AppImage`（打包时用 `extraMetadata.version` 标成 0.25.2-test，仓库版本号没改）；包内 `resources/game/client.js` 与 main 逐字节一致。
+- Windows 包仍待：推 tag 走 CI，需要用户批准。
