@@ -5,6 +5,12 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [Unreleased]
+
+### Added
+- 可选恶魔猪形态：Lv40 起，武力、魅力各至少 20，本代完成玩耍至少 20 次后主动选择；沿用加冕入口，心情下降不会退化。
+- 恶魔猪九种日常与互动立绘、额外飞行姿态以及独立动作预览页。
+
 ## [0.25.1] — 2026-10-01 · 桌面版退出与托盘
 
 ### Fixed

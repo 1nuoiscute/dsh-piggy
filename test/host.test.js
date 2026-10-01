@@ -837,3 +837,32 @@ test('加冕 works from the slash command and over HTTP, and the snapshot carrie
     app.cleanup()
   }
 })
+
+test('devil coronation uses real HTTP snapshots and accepts the Chinese command name', async () => {
+  for (const plays of [19, 20]) {
+    const app = boot(nowMs => {
+      const state = hatchEgg(nowMs)
+      Object.assign(state, { xp: xpForLevel(40), traits: { intel: 0, strong: 20, charm: 20 }, happiness: 10 })
+      state.stats.plays = plays
+      return state
+    })
+    try {
+      const before = await app.get()
+      const form = before.forms.forms.find(entry => entry.key === 'devil')
+      assert.equal(form.ready, plays === 20)
+      assert.equal(form.requirements.find(row => row.key === 'plays').label, '本代玩耍')
+      const result = await app.post({ action: 'crown', form: 'devil' })
+      assert.equal(result.ok, plays === 20)
+      if (plays === 19) {
+        assert.equal(result.forms.current, null)
+        assert.deepEqual(result.missing.map(row => row.key), ['plays'])
+        assert.match(app.command.handler({ rawInput: 'crown 恶魔猪' }).text, /本代玩耍 19\/20/)
+      } else {
+        assert.equal(result.forms.current, 'devil')
+        assert.equal(result.pig.stage.art, 'pig-devil')
+        assert.equal(result.pig.stage.actionArt, true)
+        assert.match(app.command.handler({ rawInput: 'crown 恶魔猪' }).text, /恶魔猪/)
+      }
+    } finally { app.cleanup() }
+  }
+})
