@@ -17,6 +17,7 @@ import { ensureDialogue } from './lines.js'
 import { ensureProfile } from './profile.js'
 import { isSeed, seedFor } from './random.js'
 import { applyUpgrades } from './upgrades.js'
+import { ensureBodyWeight } from './weight.js'
 
 /** Fill in anything a hand-edited or older save is missing. */
 export function migrate(input, nowMs) {
@@ -83,6 +84,7 @@ export function migrate(input, nowMs) {
   ensureDaily(state)
   ensureDiary(state)
   ensurePomodoro(state)
+  ensureBodyWeight(state)
   return state
 }
 

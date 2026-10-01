@@ -59,6 +59,14 @@ export function normalize(raw) {
       healthPercent: num(pig.healthPercent, 100),
       coins: num(pig.coins, 0),
       weight: str(pig.weight, '—'),
+      bodyWeight: isObj(pig.bodyWeight) ? {
+        isFat: obj(pig.bodyWeight).isFat === true,
+        visible: obj(pig.bodyWeight).visible === true,
+        ideal: str(obj(pig.bodyWeight).ideal, '—'),
+        fatAt: str(obj(pig.bodyWeight).fatAt, '—'),
+        restoreAt: str(obj(pig.bodyWeight).restoreAt, '—'),
+        playsLeft: Math.round(num(obj(pig.bodyWeight).playsLeft, 0)),
+      } : null,
       xp: num(pig.xp, 0),
       // Level is driven by growth and decides the body (B2).
       level: (function (info) {

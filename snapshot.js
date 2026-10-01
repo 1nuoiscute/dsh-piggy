@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs'
 
-import { ACTIONS, ACTION_ORDER, doctorFee, profileView, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, formStageView, formsView, awayBlockedReason, careView, courseView, currentIllness, dailyView, daysToNextStage, diaryView, dressView, formatWeight, pomodoroView, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
+import { ACTIONS, ACTION_ORDER, doctorFee, profileView, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, bodyWeightView, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, formStageView, formsView, awayBlockedReason, careView, courseView, currentIllness, dailyView, daysToNextStage, diaryView, dressView, formatWeight, pomodoroView, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
 import { CERTIFICATE_AFTER, DEFAULT_OWNER_NAME, INTERESTS, SIGN_IN_CYCLE, SEXES, jobChecklist, jobRequirement, rarityByKey, traitBonus } from './data.js'
 
 /** The stage the panel shows before there is a pig: the cardboard box. */
@@ -150,6 +150,7 @@ export function snapshot(store, options = {}) {
       health: state.health,
       healthPercent: healthPercent(state),
       weight: formatWeight(state.weightG),
+      bodyWeight: bodyWeightView(state, nowMs),
       xp: state.xp,
       levelInfo: levelProgress(state.xp),
       coins: state.coins,

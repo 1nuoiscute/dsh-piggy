@@ -94,3 +94,4 @@ export { JOBS, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, THRESHOLDS, TRAI
 export { GRAVE, LIFE_STAGES, MAX_LEVEL, SOUL, SOUL_AFTER_DAYS } from './data.js'
 export { DIET } from './core/constants.js'
 export { abandonPomodoro, awayFromPomodoro, emptyPomodoro, ensurePomodoro, pomodoroRunning, pomodoroView, rollPomodoroDay, settlePomodoro, startPomodoro } from './core/pomodoro.js'
+export { bodyWeightView, idealWeightG } from './core/weight.js'

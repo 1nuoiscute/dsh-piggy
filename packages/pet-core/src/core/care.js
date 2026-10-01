@@ -1,4 +1,5 @@
 // @ts-check
+import { reducePlayWeight } from './weight.js'
 /**
  * 照护动作（喂食/洗澡/玩耍）。
  *
@@ -96,6 +97,7 @@ export function act(state, action, nowMs, itemKey) {
 
   const satietyBefore = state.satiety
   applyEffects(state, careEffects(item, spec), nowMs)
+  if (action === 'play') reducePlayWeight(state, nowMs)
   remember(state, item === null ? spec.verb : `${item.emoji} ${spec.label}用了「${item.label}」`, nowMs)
   if (action === 'feed') rollForOverfeeding(state, satietyBefore, nowMs)
   // Feeding a pig that was already stuffed gets a different complaint.

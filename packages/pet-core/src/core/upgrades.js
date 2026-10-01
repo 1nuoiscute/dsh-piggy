@@ -170,6 +170,13 @@ export const UPGRADES = Object.freeze([
       return next
     },
   }),
+  Object.freeze({
+    to: 13,
+    why: '保存肥猪体型的恢复门槛与每日玩耍减重次数',
+    up(raw) {
+      return { ...raw, version: 13, bodyWeight: raw.bodyWeight ?? { isFat: false, playDay: '', plays: 0 } }
+    },
+  }),
 ])
 
 /** The oldest version the step table starts from; earlier saves are cleaned by migrate() alone. */

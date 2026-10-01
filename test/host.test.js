@@ -887,3 +887,25 @@ test('the devil is signed for, not crowned: 加冕 refuses it and the contract d
     } finally { app.cleanup() }
   }
 })
+
+
+test('fat body is exposed through real host snapshots and a play POST reduces weight', async () => {
+  const { idealWeightG } = await import('../core.js')
+  const app = boot(now => {
+    const state = hatchEgg(now)
+    state.xp = xpForLevel(40)
+    state.weightG = idealWeightG(state) * 1.61
+    return state
+  })
+  try {
+    const before = await app.get()
+    assert.equal(before.pig.stage.art, 'pig-fat')
+    assert.equal(before.pig.stage.size, 102)
+    assert.equal(before.pig.bodyWeight.playsLeft, 10)
+    const played = await app.post({ action: 'play' })
+    assert.equal(played.ok, true)
+    const after = await app.get()
+    assert.equal(after.pig.bodyWeight.playsLeft, 9)
+    assert.ok(parseFloat(after.pig.weight) < parseFloat(before.pig.weight))
+  } finally { app.cleanup() }
+})

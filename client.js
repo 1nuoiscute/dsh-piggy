@@ -709,6 +709,7 @@
     info.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD " + p.weight));
     info.appendChild(el("b", null, "\u{1FA99} " + p.coins));
     ui.content.appendChild(info);
+    if (p.bodyWeight !== null) renderWeightInfo(ui, p.bodyWeight);
     var daily = ui.view.daily;
     var dailyLine = el("div", "dp-row");
     dailyLine.appendChild(el("span", null, "\u{1F4C5} \u7B7E\u5230"));
@@ -879,6 +880,16 @@
       wrap.appendChild(call);
       ui.content.appendChild(wrap);
     }
+  }
+  function renderWeightInfo(ui, weight) {
+    var label = weight.isFat ? weight.visible ? "\u80A5\u732A" : "\u4F53\u91CD\u504F\u9AD8" : "\u666E\u901A\u4F53\u578B";
+    var line = el("div", "dp-row");
+    line.appendChild(el("span", null, label + " \xB7 \u53C2\u8003 " + weight.ideal));
+    line.appendChild(el("span", null, weight.isFat ? "\u51CF\u5230 " + weight.restoreAt + " \u6062\u590D" : weight.fatAt + " \u53D8\u80D6"));
+    ui.content.appendChild(line);
+    var exercise = el("div", "dp-row");
+    exercise.appendChild(el("span", null, "\u4ECA\u65E5\u73A9\u800D\u51CF\u91CD\u5269\u4F59 " + weight.playsLeft + " \u6B21"));
+    ui.content.appendChild(exercise);
   }
 
   // src/client/tabs/study.js
@@ -2310,6 +2321,14 @@
         healthPercent: num(pig.healthPercent, 100),
         coins: num(pig.coins, 0),
         weight: str(pig.weight, "\u2014"),
+        bodyWeight: isObj(pig.bodyWeight) ? {
+          isFat: obj(pig.bodyWeight).isFat === true,
+          visible: obj(pig.bodyWeight).visible === true,
+          ideal: str(obj(pig.bodyWeight).ideal, "\u2014"),
+          fatAt: str(obj(pig.bodyWeight).fatAt, "\u2014"),
+          restoreAt: str(obj(pig.bodyWeight).restoreAt, "\u2014"),
+          playsLeft: Math.round(num(obj(pig.bodyWeight).playsLeft, 0))
+        } : null,
         xp: num(pig.xp, 0),
         // Level is driven by growth and decides the body (B2).
         level: (function(info) {

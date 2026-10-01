@@ -29,6 +29,8 @@ export function renderStatusTab(ui) {
   info.appendChild(el('span', null, '⚖️ 体重 ' + p.weight))
   info.appendChild(el('b', null, '🪙 ' + p.coins))
   ui.content.appendChild(info)
+  if (p.bodyWeight !== null) renderWeightInfo(ui, p.bodyWeight)
+
 
   // 签到进度：一行小字，不抢注意力（礼包攒着的时候顺带说一句）。
   var daily = ui.view.daily
@@ -229,4 +231,16 @@ function renderBanners(ui) {
     wrap.appendChild(call)
     ui.content.appendChild(wrap)
   }
+}
+
+/** Body targets come from the core; this tab only presents them. */
+function renderWeightInfo(ui, weight) {
+  var label = weight.isFat ? (weight.visible ? '肥猪' : '体重偏高') : '普通体型'
+  var line = el('div', 'dp-row')
+  line.appendChild(el('span', null, label + ' · 参考 ' + weight.ideal))
+  line.appendChild(el('span', null, weight.isFat ? '减到 ' + weight.restoreAt + ' 恢复' : weight.fatAt + ' 变胖'))
+  ui.content.appendChild(line)
+  var exercise = el('div', 'dp-row')
+  exercise.appendChild(el('span', null, '今日玩耍减重剩余 ' + weight.playsLeft + ' 次'))
+  ui.content.appendChild(exercise)
 }

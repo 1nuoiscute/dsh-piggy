@@ -15,6 +15,7 @@ import { advanceIllness, noteOuting, restAtHome, rollForIllness } from './illnes
 import { say } from './lines.js'
 import { rollerFor } from './random.js'
 import { noteToday } from './diary.js'
+import { reduceWorkWeight, settleWeight } from './weight.js'
 
 export { currentIllness, die } from './illness.js'
 
@@ -155,6 +156,7 @@ function growOlder(state, elapsedMs, atMs) {
     ? state.timeScale
     : DEFAULT_TIME_SCALE
   const pigMs = elapsedMs * scale
+  settleWeight(state, pigMs)
   state.ageMs += pigMs
   if (state.hatched === true) growWithTime(state, pigMs, atMs)
 }
@@ -216,6 +218,7 @@ export function finishWork(state, activity, nowMs, next = rollerFor(state)) {
     state.satiety = clamp100(state.satiety + job.satiety)
     state.cleanliness = clamp100(state.cleanliness + job.cleanliness)
   }
+  reduceWorkWeight(state, Math.max(0, (activity.endsAt - activity.startedAt) / 60000))
   state.stats.jobs += 1
   state.stats.coinsEarned += coins
   noteToday(state, 'work')

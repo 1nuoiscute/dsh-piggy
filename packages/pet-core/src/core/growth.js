@@ -23,6 +23,7 @@ import { dayKeyFor, levelFor, levelTitle, lifeStageFor } from './clock.js'
 import { announce, remember } from './effects.js'
 import { say } from './lines.js'
 import { noteToday } from './diary.js'
+import { updateBodyWeight } from './weight.js'
 
 /**
  * How fast the pig is growing right now, as a multiplier on the base rate.
@@ -54,6 +55,7 @@ export function grow(state, amount, nowMs) {
   const before = levelFor(state.xp)
   const stageBefore = state.stage
   state.xp = (Number.isFinite(state.xp) ? state.xp : 0) + amount
+  updateBodyWeight(state)
   const after = levelFor(state.xp)
   if (after > before) announceLevelUp(state, before, after, nowMs)
   const stage = lifeStageFor(state, nowMs)

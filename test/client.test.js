@@ -74,7 +74,7 @@ function fakeDom() {
     constructor(tagName) {
       this.tagName = tagName
       this.children = []
-      this.style = { setProperty() {}, removeProperty() {} }
+      this.style = { setProperty(name, value) { this[name] = String(value) }, removeProperty(name) { delete this[name] }, getPropertyValue(name) { return this[name] ?? '' } }
       this.attributes = {}
       this.className = ''
       this._text = ''
@@ -2240,4 +2240,34 @@ test('C3 transformation announcement creates one full-screen emoji effect and cl
   assert.match(overlay.allText(), /✨/)
   dispose()
   assert.equal(findByClass(dom.body, 'dp-transform'), undefined)
+})
+
+
+test('fat snapshot renders the larger sprite, target weights and actual care action art', async () => {
+  const { hatchEgg } = await import('../core.js')
+  const { snapshot } = await import('../index.js')
+  const { xpForLevel } = await import('../data.js')
+  const { idealWeightG } = await import('../core.js')
+  const now = Date.now()
+  const state = hatchEgg(now)
+  state.xp = xpForLevel(40)
+  state.weightG = idealWeightG(state) * 1.6
+  const status = snapshot({ freshen: () => state }, { drain: false })
+  const { registration, dom, net } = await loadClient({ status, actResult: status })
+  const dispose = registration.factory(() => {}).apply({})
+  await settle()
+  const host = hostOf(dom)
+  assert.equal(host.style.getPropertyValue('--pig-size'), '102px')
+  const sprite = findByClass(host, 'dp-pig-img')
+  assert.match(sprite.src, /pig-fat\.svg$/)
+  openPanel(dom, 'status')
+  assert.match(contentOf(dom).allText(), /参考 39\.7 kg/)
+  assert.match(contentOf(dom).allText(), /53\.6 kg 恢复/)
+  assert.match(contentOf(dom).allText(), /今日玩耍减重剩余 10 次/)
+  tap(dom, 'data-action', 'play')
+  tap(dom, 'data-care', 'play:ball')
+  await settle()
+  assert.equal(JSON.parse(net.calls.find(call => call.method === 'POST').body).action, 'play')
+  assert.match(sprite.src, /pig-fat-play\.svg$/)
+  dispose()
 })

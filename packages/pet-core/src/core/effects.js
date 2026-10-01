@@ -8,6 +8,7 @@
 
 import { MAX } from '../data.js'
 import { MEMORY_LIMIT, PENDING_LIMIT } from './constants.js'
+import { updateBodyWeight } from './weight.js'
 
 export const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
@@ -77,6 +78,7 @@ export function applyEffects(state, effects, nowMs) {
   if (effects.weightG) state.weightG = Math.max(400, state.weightG + effects.weightG)
   if (effects.health) state.health = clamp(Math.round(state.health + effects.health), 0, MAX.health)
   state.lastActiveAt = nowMs
+  updateBodyWeight(state)
 }
 
 // ---------------------------------------------------------------------------
