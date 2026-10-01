@@ -64,6 +64,8 @@ const OPERATIONS = {
   // 居民卡: the catchphrase and the motto.
   catchphrase: (store, body) => store.setCatchphrase(str(body.text)),
   motto: (store, body) => store.setMotto(str(body.text)),
+  // 加冕: `form` picks which one (empty = the first).
+  crown: (store, body) => store.crown(str(body.form)),
   // 改猪的名字（和斜杠命令 /pig name 同一条路）。
   name: (store, body) => ({ ok: Boolean(store.rename(str(body.name))), name: true }),
   work: (store, body) => store.startWork(str(body.job)),

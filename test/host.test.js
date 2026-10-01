@@ -17,7 +17,7 @@ import { test } from 'node:test'
 import { apply, dispatch, snapshot } from '../index.js'
 import { registerRoutes } from '../routes.js'
 import { JOBS, SHOP, hatchEgg, layEgg } from '../core.js'
-import { DEFAULT_TOY } from '../data.js'
+import { DEFAULT_TOY, xpForLevel } from '../data.js'
 
 const MIN = 60_000
 
@@ -802,4 +802,38 @@ test('a tombstone reports how long the pig lived, not when it hatched', () => {
   // And a living pig still counts up from birth.
   const alive = hatchEgg(now - 5 * HOUR)
   assert.equal(snapshot(store(alive), { drain: false }).pig.ageLabel, '今天刚到家')
+})
+
+test('加冕 works from the slash command and over HTTP, and the snapshot carries the form', async () => {
+  const ready = nowMs => {
+    const pig = hatchEgg(nowMs)
+    Object.assign(pig, { xp: xpForLevel(40), traits: { intel: 20, charm: 20, strong: 20 }, satiety: 90, cleanliness: 90, happiness: 90 })
+    pig.stats.jobs = 10
+    return pig
+  }
+  const early = boot(nowMs => hatchEgg(nowMs))
+  try {
+    const refused = early.command.handler({ rawInput: 'crown' })
+    assert.equal(refused.kind, 'error')
+    assert.match(refused.text, /还差一点：等级 1\/40/)
+    assert.match(early.command.handler({ rawInput: 'crown 恐龙' }).text, /没有这种形态/)
+  } finally {
+    early.cleanup()
+  }
+  const app = boot(ready)
+  try {
+    const before = await app.get()
+    assert.equal(before.forms.current, null)
+    assert.equal(before.forms.forms[0].ready, true)
+    const crowned = await app.post({ action: 'crown', form: 'king' })
+    assert.equal(crowned.ok, true)
+    const after = await app.get()
+    assert.equal(after.forms.current, 'king')
+    assert.equal(after.pig.stage.label, '猪猪王')
+    assert.equal(after.pig.stage.art, 'pig-king')
+    assert.equal(after.pig.stage.actionArt, true)
+    assert.match(app.command.handler({ rawInput: 'crown 猪猪王' }).text, /猪猪王/)
+  } finally {
+    app.cleanup()
+  }
 })

@@ -6,7 +6,7 @@
  * @module dsh-pig/core/migrate
  */
 
-import { ILLNESS_CHAINS, INTERESTS, MAX, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, interestByKey, itemByKey, jobByKey, schoolStageByKey, subjectByKey, tripByKey } from '../data.js'
+import { ILLNESS_CHAINS, INTERESTS, formByKey, MAX, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, interestByKey, itemByKey, jobByKey, schoolStageByKey, subjectByKey, tripByKey } from '../data.js'
 import { MEMORY_LIMIT, STATE_VERSION } from './constants.js'
 import { clamp, clamp100 } from './effects.js'
 import { layEgg, pickSex } from './egg.js'
@@ -26,7 +26,9 @@ export function migrate(input, nowMs) {
   const egg = layEgg(typeof raw.bornAt === 'number' ? raw.bornAt : nowMs)
   const state = { ...egg, ...raw }
   state.version = STATE_VERSION
+  state.form = formByKey(raw.form)?.key ?? null
   state.stats = { ...egg.stats, ...(asObject(raw.stats) ?? {}) }
+  state.stats.jobs = Number.isFinite(state.stats.jobs) ? Math.max(0, Math.floor(state.stats.jobs)) : 0
   state.cooldowns = { ...(asObject(raw.cooldowns) ?? {}) }
   state.inventory = sanitizeInventory(raw.inventory)
   state.dress = sanitizeDressList(raw.dress)

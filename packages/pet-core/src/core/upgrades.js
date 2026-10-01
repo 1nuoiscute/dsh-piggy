@@ -160,6 +160,16 @@ export const UPGRADES = Object.freeze([
       return next
     },
   }),
+  Object.freeze({
+    to: 12,
+    why: '加冕形态单独存成 form（普通猪是 null）；PR #2 早期版本存的 finalForm 改名过来',
+    up(raw) {
+      const next = { ...raw, version: 12 }
+      next.form = typeof raw.form === 'string' ? raw.form : typeof raw.finalForm === 'string' ? raw.finalForm : null
+      delete next.finalForm
+      return next
+    },
+  }),
 ])
 
 /** The oldest version the step table starts from; earlier saves are cleaned by migrate() alone. */

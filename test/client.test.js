@@ -1974,3 +1974,64 @@ test('banners live on the status tab only; the home screen flags the status tile
   tap(dom, 'data-app', 'status')
   assert.ok(contentOf(dom).allText().includes('在外面：打零工'), 'the status tab has it')
 })
+
+// ===========================================================================
+// 加冕（居民卡底下）
+// ===========================================================================
+
+const PROFILE = {
+  personality: { label: '悠闲', emoji: '😌' }, catchphrase: '噜噜', motto: '吃饱饱',
+  birthday: '9 月 30 日', zodiac: { label: '天秤座', emoji: '♎' },
+  counts: { days: 1, certificates: 0, souvenirs: 0, graduations: 0 },
+}
+const kingForm = (patch = {}) => ({
+  key: 'king', label: '猪猪王', emoji: '👑', art: 'pig-king', current: false, ready: false,
+  requirements: [
+    { key: 'level', label: '等级', have: 41, need: 40, met: true },
+    { key: 'charm', label: '魅力', have: 12, need: 20, met: false },
+  ],
+  ...patch,
+})
+
+test('the card shows how close the pig is to 加冕, and the button waits until every box is ticked', async () => {
+  const { registration, dom, net } = await loadClient({
+    status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [kingForm()] } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'card')
+  const block = findByAttr(contentOf(dom), 'data-form', 'king')
+  assert.notEqual(block, undefined)
+  assert.match(block.allText(), /✓ 等级 40\/40/)
+  assert.match(block.allText(), /✗ 魅力 12\/20/)
+  assert.equal(findByAttr(block, 'data-crown', 'king').disabled, true)
+  assert.equal(net.calls.filter(call => call.method === 'POST').length, 0)
+})
+
+test('a ready pig can be crowned from its card', async () => {
+  const ready = kingForm({ ready: true, requirements: [{ key: 'level', label: '等级', have: 40, need: 40, met: true }] })
+  const { registration, dom, net } = await loadClient({
+    status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [ready] } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'card')
+  const go = findByAttr(contentOf(dom), 'data-crown', 'king')
+  assert.equal(go.disabled, false)
+  go.fire('click')
+  await settle()
+  const posted = net.calls.filter(call => call.method === 'POST')
+  assert.equal(posted.length, 1)
+  assert.deepEqual(JSON.parse(posted[0].body), { action: 'crown', form: 'king' })
+})
+
+test('once crowned the card says which form, and the block goes away', async () => {
+  const { registration, dom } = await loadClient({
+    status: { ...SNAPSHOT, profile: PROFILE, forms: { current: 'king', forms: [kingForm({ current: true })] } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'card')
+  assert.match(contentOf(dom).allText(), /形态：\s*👑 猪猪王/)
+  assert.equal(findByAttr(contentOf(dom), 'data-form', 'king'), undefined)
+})

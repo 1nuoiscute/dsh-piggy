@@ -39,6 +39,9 @@ export function normalize(raw) {
         line: str(obj(pig.stage).line, ''),
         art: typeof obj(pig.stage).art === 'string' && obj(pig.stage).art !== '' ? obj(pig.stage).art : null,
         faded: obj(pig.stage).faded === true,
+        // 加冕后的形态：有没有动作立绘、盖住哪些装扮位置。
+        actionArt: obj(pig.stage).actionArt === true,
+        hides: arr(obj(pig.stage).hides).map(function (slot) { return str(slot, '') }),
       },
       // Older hosts send no sex; the HUD then simply shows none.
       sex: isObj(pig.sex) ? { key: str(pig.sex.key, ''), label: str(pig.sex.label, ''), symbol: str(pig.sex.symbol, '') } : null,
@@ -301,6 +304,21 @@ export function normalize(raw) {
         souvenirs: num(obj(d.profile.counts).souvenirs, 0),
         graduations: num(obj(d.profile.counts).graduations, 0),
       },
+    } : null,
+    // 加冕: the forms and how close the pig is. Older hosts send none.
+    forms: isObj(d.forms) ? {
+      current: typeof d.forms.current === 'string' ? d.forms.current : null,
+      forms: arr(d.forms.forms).map(function (raw) {
+        var f = obj(raw)
+        return {
+          key: str(f.key, ''), label: str(f.label, ''), emoji: str(f.emoji, '👑'), art: str(f.art, ''),
+          current: f.current === true, ready: f.ready === true,
+          requirements: arr(f.requirements).map(function (row) {
+            var r = obj(row)
+            return { key: str(r.key, ''), label: str(r.label, ''), have: num(r.have, 0), need: num(r.need, 0), met: r.met === true }
+          }),
+        }
+      }),
     } : null,
     // B6: what the pig calls its owner, and 免打扰. Older hosts send neither.
     dialogue: {

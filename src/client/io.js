@@ -48,6 +48,7 @@ export function createIo(ctx) {
             }
             var reasons = {
               box: '先把纸盒拆开',
+              'coronation-ineligible': '加冕条件还没齐',
               cooldown: '还要等 ' + num(next.wait, 0) + ' 秒',
               poor: '钱不够',
               away: '它在外面',

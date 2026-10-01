@@ -5,7 +5,8 @@
  * 只通过 ctx 读写外壳的状态与元素（getter/setter 转发），不直接碰全局。
  * @module dsh-pig/client/panel
  */
-import { ART_URL, DEV_TAB, OPEN_KEY, TABS } from './constants.js'
+import { syncPigArt } from './art.js'
+import { DEV_TAB, OPEN_KEY, TABS } from './constants.js'
 import { button, el } from './dom.js'
 import { normalize } from './normalize.js'
 import { writeStore } from './storage.js'
@@ -183,16 +184,21 @@ export function createPanel(ctx) {
           const pigStage = ctx.view.pig.stage
           // A drawn stage shows its sprite; everything else is the emoji.
           if (pigStage.art !== null) {
-            ctx.pigArt.src = ART_URL + pigStage.art + '.svg'
             ctx.pigArt.hidden = false
             ctx.pigEmoji.hidden = true
             ctx.pig.setAttribute('data-art', pigStage.art)
+            ctx.pig.setAttribute('data-art-actions', pigStage.actionArt ? 'true' : 'false')
+            ctx.host.setAttribute('data-art-actions', pigStage.actionArt ? 'true' : 'false')
+            ctx.pig.setAttribute('data-activity', ctx.view.activity === null ? '' : ctx.view.activity.kind)
+            syncPigArt(ctx.pig, ctx.pigArt)
           } else {
             ctx.pigArt.hidden = true
             ctx.pigArt.removeAttribute('src')
             ctx.pigEmoji.hidden = false
             ctx.pigEmoji.textContent = pigStage.emoji
             ctx.pig.removeAttribute('data-art')
+            ctx.pig.removeAttribute('data-art-actions')
+            ctx.host.removeAttribute('data-art-actions')
           }
           // Literally grows up: the stage carries its own size.
           ctx.host.style.setProperty('--pig-size', pigStage.size + 'px')
@@ -209,6 +215,8 @@ export function createPanel(ctx) {
           for (var wd = 0; wd < ctx.view.dress.length; wd += 1) {
             var piece = ctx.view.dress[wd]
             if (!piece.worn || piece.slot === '') continue
+            // 加冕后的样子自带王冠披风，盖住的位置不挂装扮（东西还在背包里）。
+            if (pigStage.hides.indexOf(piece.slot) >= 0) continue
             var node = el('span', 'dp-slot', piece.emoji)
             node.setAttribute('data-slot', piece.slot)
             ctx.dressSlots.appendChild(node)
@@ -278,7 +286,8 @@ export function createPanel(ctx) {
           // 免打扰: routine news stays quiet; illness and death still speak.
           if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue
           ctx.toast(str(event.text, '猪有新消息'))
-          if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
+          if (event.kind === 'coronation') { ctx.react('levelup', 950); ctx.burst(['👑', '✨'], 3) }
+          else if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
           else if (event.kind === 'cured') { ctx.react('cure', 900); ctx.burst(['💚', '✨'], 3) }
           else if (event.kind === 'death') ctx.react('refuse', 700)
           else if (event.kind === 'work') { ctx.react('away', 900); ctx.burst(['🪙', '💰'], 3) }

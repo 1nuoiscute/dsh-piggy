@@ -7,7 +7,7 @@
  */
 
 import { ACTIONS, JOBS, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRAIT_ORDER, TRIPS, buy, feed, hatch } from './core.js'
-import { INTERESTS, jobByKey, stageForNextLesson } from './data.js'
+import { FORMS, INTERESTS, formByKey, jobByKey, stageForNextLesson } from './data.js'
 import { renderAbout, renderAction, renderBuy, renderHatch, renderNoPig, renderStatus, renderStudyReport, renderTooSoon, renderTripReport, renderUse, renderWeigh, renderWorkRefusal, renderWorkReport } from './render.js'
 
 const str = value => (typeof value === 'string' ? value : '')
@@ -172,13 +172,25 @@ export function dispatch(store, commandName, rawInput) {
       if (cleaned === null) return { kind: 'error', text: `用法：/${commandName} name <名字>（16 字以内）` }
       return { kind: 'success', text: `从今天起，它叫「${cleaned}」🐖` }
     }
+    case 'crown': {
+      if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
+      const wanted = argument === '' ? undefined : (FORMS.find(form => form.label === argument || form.key === argument)?.key ?? argument)
+      const result = store.crown(wanted)
+      if (result.ok) return { kind: 'success', text: `👑 ${state.name} 现在是${formByKey(result.form)?.label ?? ''}了。\n` + renderStatus(store.freshen(), nowMs) }
+      if (result.reason === 'coronation-ineligible') {
+        const rows = result.missing.map(row => `${row.label} ${row.have}/${row.need}`).join(' · ')
+        return { kind: 'error', text: `还差一点：${rows}` }
+      }
+      if (result.reason === 'unknown') return { kind: 'error', text: `没有这种形态。可选：${FORMS.map(form => form.label).join(' · ')}` }
+      return { kind: 'error', text: refusalText(result, state) }
+    }
     case 'about':
     case 'help':
       return { kind: 'success', text: renderAbout(commandName) }
     default:
       return {
         kind: 'error',
-        text: `不认识「${sub}」。可用：/${commandName} · hatch · adopt · feed · bathe · play · pet · study · interest · work · trip · calloff · shop · buy · use · sell · wear · weigh · name · reply · about`,
+        text: `不认识「${sub}」。可用：/${commandName} · hatch · adopt · feed · bathe · play · pet · study · interest · work · trip · calloff · shop · buy · use · sell · wear · crown · weigh · name · reply · about`,
       }
   }
 }

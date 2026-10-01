@@ -28,7 +28,7 @@ import {
   formatWeight,
   healthPercent,
   levelProgress,
-  lifeStageFor,
+  formStageView,
   mood,
   outingGrowth,
   traitView,
@@ -107,7 +107,7 @@ function memoriesBlock(state) {
 
 /** The full `/pig` card. */
 export function renderStatus(state, nowMs) {
-  const stage = lifeStageFor(state, nowMs)
+  const stage = formStageView(state, nowMs)
   const current = mood(state, nowMs)
   const special = statusLine(state, nowMs)
   const days = (nowMs - state.bornAt) / 86_400_000
@@ -138,7 +138,7 @@ export function renderStatus(state, nowMs) {
 
 /** The hatching ceremony. */
 export function renderHatch(state, nowMs) {
-  const stage = lifeStageFor(state, nowMs)
+  const stage = formStageView(state, nowMs)
   return [
     '   纸盒打开了 ——',
     '',
@@ -160,7 +160,7 @@ export function renderAction(state, nowMs, action, crossed) {
   const lines = [
     `${state.name} ${spec.verb}`,
     '',
-    ...portrait(lifeStageFor(state, nowMs), current),
+    ...portrait(formStageView(state, nowMs), current),
     '',
     `🍚 饱食  ${bar(state.satiety)}  ${Math.round(state.satiety)}`,
     `❤️  心情  ${bar(state.happiness)}  ${Math.round(state.happiness)}`,
@@ -290,7 +290,7 @@ export function renderUse(state, result, item) {
 
 /** The scales. */
 export function renderWeigh(state, nowMs) {
-  const stage = lifeStageFor(state, nowMs)
+  const stage = formStageView(state, nowMs)
   const kilos = state.weightG / 1000
   let verdict = '还算苗条，继续保持'
   if (kilos >= 40) verdict = '这已经是一头正经的猪了'
@@ -344,7 +344,7 @@ export function renderAbout(commandName) {
     `/${commandName} study <科目> <小学|大学|研究生>`,
     `/${commandName} work <odd|site|office> · trip <suburb|mountain|sea|abroad> · calloff`,
     `/${commandName} shop · buy <物品> · use <物品>`,
-    `/${commandName} weigh · name <名字> · about`,
+    `/${commandName} crown [形态]（长成后加冕）· weigh · name <名字> · about`,
     RULE,
     '它不调用模型、不注入上下文、不花一个 token。',
     '存档在 $DSH_HOME/dsh-pig/state.json。',

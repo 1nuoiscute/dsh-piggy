@@ -1108,6 +1108,15 @@
     '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
     '[data-dsh-pig][data-away="interest"] .dp-scene,',
     '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
+    // 加冕后的形态有动作立绘（桌子、书、行李都画在图里）：不再摆 emoji 道具，
+    // 动作也收小，免得把画里的东西甩来甩去（立绘与动作来自 PR #2）。
+    '[data-dsh-pig][data-art-actions="true"] .dp-prop{display:none}',
+    '.dp-pig[data-art-actions="true"][data-mood="working"]:not([data-react]){animation:dp-king-work 1.4s ease-in-out infinite}',
+    '.dp-pig[data-art-actions="true"][data-mood="studying"]:not([data-react]){animation:dp-king-study 2.4s ease-in-out infinite}',
+    '.dp-pig[data-art-actions="true"][data-mood="traveling"]:not([data-react]){animation:dp-king-walk .8s ease-in-out infinite}',
+    "@keyframes dp-king-work{0%,100%{transform:translateY(0)}50%{transform:translateY(1px) rotate(1deg)}}",
+    "@keyframes dp-king-study{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}",
+    "@keyframes dp-king-walk{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}",
     /* ---------- hud: a cream tag beside the pig ---------- */
     ".dp-hud{position:absolute;left:9px;top:7px;display:flex;flex-direction:column;gap:1px;",
     "font-size:10.5px;font-weight:600;line-height:1.45;color:var(--ac-text);",
@@ -1481,7 +1490,15 @@
     ".dp-vcard-row .dp-mini{flex:none;padding:3px 9px;font-size:10px;box-shadow:none}",
     "[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}",
     ".dp-vcard-foot{margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--vc-line);",
-    "font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+    "font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    // 加冕: a cream box under the card, conditions as small chips.
+    ".dp-crown{margin-top:10px;padding:10px 12px;border-radius:16px;background:#fffbe7;border:2px dashed #e8c66a}",
+    ".dp-crown-head{font-size:12px;font-weight:800;color:var(--ac-text);margin-bottom:7px}",
+    ".dp-crown-reqs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px}",
+    ".dp-crown-req{padding:2px 8px;border-radius:var(--ac-pill);font-size:10px;font-weight:700;white-space:nowrap;",
+    "background:#f3ece0;color:var(--ac-text-2)}",
+    ".dp-crown-req.dp-crown-ok{background:#dff3e8;color:#3f8a62}",
+    ".dp-crown .dp-btn{width:100%}"
   ].join("");
 
   // src/client/styles.js
@@ -1655,6 +1672,21 @@
     return box;
   }
 
+  // src/client/art.js
+  var REACTION_ART = { feed: "eat", bathe: "bathe", play: "play", pet: "pet", cure: "relaxed", levelup: "relaxed" };
+  var ACTIVITY_ART = { work: "work", study: "study", interest: "study", trip: "trip" };
+  function syncPigArt(pig, image) {
+    var base = pig.getAttribute("data-art");
+    if (!base) return;
+    var art = base;
+    if (pig.getAttribute("data-art-actions") === "true") {
+      var action = REACTION_ART[pig.getAttribute("data-react")] || ACTIVITY_ART[pig.getAttribute("data-activity")];
+      if (action) art += "-" + action;
+    }
+    var src = ART_URL + art + ".svg";
+    if (image.getAttribute("src") !== src) image.src = src;
+  }
+
   // src/client/effects.js
   function createEffects(deps) {
     var scene = deps.scene;
@@ -1669,8 +1701,10 @@
       pig.removeAttribute("data-react");
       void pig.offsetWidth;
       pig.setAttribute("data-react", kind);
+      syncPigArt(pig, deps.pigArt);
       reactTimer = window.setTimeout(function() {
         pig.removeAttribute("data-react");
+        syncPigArt(pig, deps.pigArt);
         reactTimer = null;
       }, ms || 900);
     }
@@ -1804,6 +1838,7 @@
           }
           var reasons = {
             box: "\u5148\u628A\u7EB8\u76D2\u62C6\u5F00",
+            "coronation-ineligible": "\u52A0\u5195\u6761\u4EF6\u8FD8\u6CA1\u9F50",
             cooldown: "\u8FD8\u8981\u7B49 " + num(next.wait, 0) + " \u79D2",
             poor: "\u94B1\u4E0D\u591F",
             away: "\u5B83\u5728\u5916\u9762",
@@ -1937,7 +1972,12 @@
           size: num(obj(pig.stage).size, 56),
           line: str(obj(pig.stage).line, ""),
           art: typeof obj(pig.stage).art === "string" && obj(pig.stage).art !== "" ? obj(pig.stage).art : null,
-          faded: obj(pig.stage).faded === true
+          faded: obj(pig.stage).faded === true,
+          // 加冕后的形态：有没有动作立绘、盖住哪些装扮位置。
+          actionArt: obj(pig.stage).actionArt === true,
+          hides: arr(obj(pig.stage).hides).map(function(slot) {
+            return str(slot, "");
+          })
         },
         // Older hosts send no sex; the HUD then simply shows none.
         sex: isObj(pig.sex) ? { key: str(pig.sex.key, ""), label: str(pig.sex.label, ""), symbol: str(pig.sex.symbol, "") } : null,
@@ -2201,6 +2241,25 @@
           graduations: num(obj(d.profile.counts).graduations, 0)
         }
       } : null,
+      // 加冕: the forms and how close the pig is. Older hosts send none.
+      forms: isObj(d.forms) ? {
+        current: typeof d.forms.current === "string" ? d.forms.current : null,
+        forms: arr(d.forms.forms).map(function(raw2) {
+          var f = obj(raw2);
+          return {
+            key: str(f.key, ""),
+            label: str(f.label, ""),
+            emoji: str(f.emoji, "\u{1F451}"),
+            art: str(f.art, ""),
+            current: f.current === true,
+            ready: f.ready === true,
+            requirements: arr(f.requirements).map(function(row) {
+              var r = obj(row);
+              return { key: str(r.key, ""), label: str(r.label, ""), have: num(r.have, 0), need: num(r.need, 0), met: r.met === true };
+            })
+          };
+        })
+      } : null,
       // B6: what the pig calls its owner, and 免打扰. Older hosts send neither.
       dialogue: {
         ownerName: str(obj(d.dialogue).ownerName, "\u4E3B\u4EBA"),
@@ -2281,6 +2340,11 @@
     card.appendChild(field("\u751F\u65E5", profile.birthday));
     if (profile.zodiac !== null) card.appendChild(field("\u661F\u5EA7", profile.zodiac.emoji + " " + profile.zodiac.label));
     if (profile.personality !== null) card.appendChild(field("\u6027\u683C", profile.personality.emoji + " " + profile.personality.label));
+    var forms = ui.view.forms;
+    var worn = forms === null ? null : forms.forms.find(function(f2) {
+      return f2.current;
+    }) || null;
+    if (worn !== null) card.appendChild(field("\u5F62\u6001", worn.emoji + " " + worn.label));
     card.appendChild(editableField(ui, "catchphrase", "\u53E3\u5934\u7985", profile.catchphrase));
     card.appendChild(editableField(ui, "motto", "\u7B7E\u540D", profile.motto));
     var c = profile.counts;
@@ -2290,6 +2354,34 @@
       "\u517B\u4E86 " + c.days + " \u5929 \xB7 \u8BC1\u4E66 " + c.certificates + " \xB7 \u7EAA\u5FF5\u54C1 " + c.souvenirs + " \xB7 \u6BD5\u4E1A " + c.graduations
     ));
     ui.content.appendChild(card);
+    if (forms !== null && !ui.view.dead) {
+      for (var f = 0; f < forms.forms.length; f += 1) {
+        if (!forms.forms[f].current) ui.content.appendChild(crownBlock(ui, forms.forms[f]));
+      }
+    }
+  }
+  function crownBlock(ui, form) {
+    var box = el("div", "dp-crown");
+    box.setAttribute("data-form", form.key);
+    box.appendChild(el("div", "dp-crown-head", form.emoji + " \u52A0\u5195 \xB7 " + form.label));
+    var chips = el("div", "dp-crown-reqs");
+    for (var r = 0; r < form.requirements.length; r += 1) {
+      var row = form.requirements[r];
+      var chip = el(
+        "span",
+        row.met ? "dp-crown-req dp-crown-ok" : "dp-crown-req",
+        (row.met ? "\u2713 " : "\u2717 ") + row.label + " " + Math.min(row.have, row.need) + "/" + row.need
+      );
+      chips.appendChild(chip);
+    }
+    box.appendChild(chips);
+    var go = button("dp-btn dp-btn-wide", { "data-crown": form.key }, function() {
+      ui.send("crown", { form: form.key });
+    });
+    go.textContent = form.ready ? "\u{1F451} \u52A0\u5195" : "\u6761\u4EF6\u9F50\u4E86\u5C31\u80FD\u52A0\u5195";
+    go.disabled = !form.ready;
+    box.appendChild(go);
+    return box;
   }
   function field(label, value) {
     var row = el("div", "dp-vcard-row");
@@ -2529,16 +2621,21 @@
       } else {
         const pigStage = ctx.view.pig.stage;
         if (pigStage.art !== null) {
-          ctx.pigArt.src = ART_URL + pigStage.art + ".svg";
           ctx.pigArt.hidden = false;
           ctx.pigEmoji.hidden = true;
           ctx.pig.setAttribute("data-art", pigStage.art);
+          ctx.pig.setAttribute("data-art-actions", pigStage.actionArt ? "true" : "false");
+          ctx.host.setAttribute("data-art-actions", pigStage.actionArt ? "true" : "false");
+          ctx.pig.setAttribute("data-activity", ctx.view.activity === null ? "" : ctx.view.activity.kind);
+          syncPigArt(ctx.pig, ctx.pigArt);
         } else {
           ctx.pigArt.hidden = true;
           ctx.pigArt.removeAttribute("src");
           ctx.pigEmoji.hidden = false;
           ctx.pigEmoji.textContent = pigStage.emoji;
           ctx.pig.removeAttribute("data-art");
+          ctx.pig.removeAttribute("data-art-actions");
+          ctx.host.removeAttribute("data-art-actions");
         }
         ctx.host.style.setProperty("--pig-size", pigStage.size + "px");
         ctx.pig.setAttribute("data-mood", ctx.view.pig.mood);
@@ -2552,6 +2649,7 @@
         for (var wd = 0; wd < ctx.view.dress.length; wd += 1) {
           var piece = ctx.view.dress[wd];
           if (!piece.worn || piece.slot === "") continue;
+          if (pigStage.hides.indexOf(piece.slot) >= 0) continue;
           var node = el("span", "dp-slot", piece.emoji);
           node.setAttribute("data-slot", piece.slot);
           ctx.dressSlots.appendChild(node);
@@ -2597,7 +2695,10 @@
         }
         if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue;
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
-        if (event.kind === "levelup") {
+        if (event.kind === "coronation") {
+          ctx.react("levelup", 950);
+          ctx.burst(["\u{1F451}", "\u2728"], 3);
+        } else if (event.kind === "levelup") {
           ctx.react("levelup", 950);
           ctx.burst(["\u2728", "\u{1F389}"], 3);
         } else if (event.kind === "cured") {
@@ -2783,6 +2884,7 @@
         var fx = createEffects({
           scene,
           pig,
+          pigArt,
           card,
           bubble,
           isStopped: function() {

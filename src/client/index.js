@@ -124,7 +124,7 @@ import { arr, num, obj, str } from './values.js'
       var lastPendingId = 0
       var pollTimer = null
       var fx = createEffects({
-        scene: scene, pig: pig, card: card, bubble: bubble,
+        scene: scene, pig: pig, pigArt: pigArt, card: card, bubble: bubble,
         isStopped: function () { return stopped },
       })
       var react = fx.react, burst = fx.burst, flash = fx.flash

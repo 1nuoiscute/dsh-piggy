@@ -31,6 +31,7 @@ import {
   seeDoctor as coreSeeDoctor,
   setCatchphrase as coreSetCatchphrase,
   setMotto as coreSetMotto,
+  crown as coreCrown,
   setOwnerName as coreSetOwnerName,
   setQuiet as coreSetQuiet,
   sellSouvenir as coreSellSouvenir,
@@ -153,6 +154,9 @@ export function createApi(control) {
 
     /** The line on the pig's card (居民卡). */
     setMotto: text => mutate(live => coreSetMotto(live, text)),
+
+    /** 加冕: the owner picks a form the pig qualifies for. */
+    crown: formKey => mutate(live => coreCrown(live, now(), formKey || undefined)),
 
     /** What the pig calls its owner. */
     setOwnerName: name => mutate(live => coreSetOwnerName(live, name)),
