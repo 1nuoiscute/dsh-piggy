@@ -8,7 +8,8 @@
  * - 宿主是插件自己的 store.js + routes.js（lib/host.js），经 piggy:// 协议访问，不开端口。
  * - 存档在 userData/dsh-piggy/state.json，跟 DSH 里那只各养各的；托盘里可以导入。
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -20,10 +21,35 @@ import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
-// Wayland does not let a window place itself or cut its own shape; XWayland does.
-if (process.platform === 'linux' && process.env.PIGGY_WAYLAND !== '1') app.commandLine.appendSwitch('ozone-platform', 'x11')
-// A transparent always-on-top window needs no GPU tricks; this avoids black boxes on some drivers.
-app.commandLine.appendSwitch('disable-gpu-compositing')
+/** A small log next to the save, so a launch that shows nothing can still be diagnosed. */
+function log(...parts) {
+  const line = `[${new Date().toISOString()}] ${parts.join(' ')}\n`
+  if (process.env.PIGGY_CAPTURE) process.stdout.write(line)
+  try {
+    const file = join(app.getPath('userData'), 'piggy.log')
+    mkdirSync(dirname(file), { recursive: true })
+    appendFileSync(file, line)
+  } catch { /* logging must never break the pig */ }
+}
+
+/**
+ * Start again with `args`. Inside an AppImage the running copy is a temporary
+ * mount that vanishes with this process, so the AppImage file itself is relaunched.
+ */
+function relaunch(args = process.argv.slice(1)) {
+  app.relaunch(process.env.APPIMAGE ? { execPath: process.env.APPIMAGE, args } : { args })
+}
+
+// Wayland does not let a window stay on top or cut its own shape; XWayland does.
+// The platform is chosen before this file runs, so a Wayland start relaunches once under X11.
+const X11_FLAG = '--ozone-platform=x11'
+const needsX11 = process.platform === 'linux' && Boolean(process.env.WAYLAND_DISPLAY)
+  && process.env.PIGGY_WAYLAND !== '1' && !process.argv.includes(X11_FLAG)
+if (needsX11) {
+  // app.relaunch only fires on a normal quit, which never comes this early; start the copy by hand.
+  spawn(process.env.APPIMAGE ?? process.execPath, [...process.argv.slice(1), X11_FLAG], { detached: true, stdio: 'ignore' }).unref()
+  app.exit(0)
+}
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'piggy', privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -31,7 +57,7 @@ protocol.registerSchemesAsPrivileged([
 
 // Testing: keep a throwaway save and settings away from the real ones.
 if (process.env.PIGGY_USERDATA) app.setPath('userData', resolve(process.env.PIGGY_USERDATA))
-if (!app.requestSingleInstanceLock()) app.quit()
+if (!needsX11 && !app.requestSingleInstanceLock()) app.quit()
 
 /** The game shipped inside the app; downloaded versions live under userData (lib/versions.js). */
 function bundledGameDir() {
@@ -69,8 +95,13 @@ function registerProtocol(gameDir) {
   })
 }
 
+/** The screen the mouse is on when the pig starts: where you just double-clicked. */
+function pigDisplay() {
+  return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+}
+
 function createWindow() {
-  const area = screen.getPrimaryDisplay().workArea
+  const area = pigDisplay().workArea
   win = new BrowserWindow({
     x: area.x, y: area.y, width: area.width, height: area.height,
     transparent: true, frame: false, resizable: false, movable: false, hasShadow: false,
@@ -82,13 +113,17 @@ function createWindow() {
   // Until the page reports where the pig is, the window takes no clicks at all.
   win.setShape([])
   win.loadURL('piggy://app/index.html')
-  win.once('ready-to-show', () => win.showInactive())
+  win.once('ready-to-show', () => { log('ready-to-show'); win.showInactive(); log('shown', JSON.stringify(win.getBounds()), win.isVisible()) })
+  win.webContents.on('did-finish-load', () => log('page loaded'))
+  win.webContents.on('render-process-gone', (e, d) => log('renderer gone', JSON.stringify(d)))
+  win.webContents.on('console-message', (e, level, message) => { if (level >= 2) log('page:', message) })
   if (process.env.PIGGY_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
   if (process.env.PIGGY_CAPTURE) win.webContents.once('did-finish-load', () => { captureForCheck(process.env.PIGGY_CAPTURE) })
 }
 
 let lastShape = []
 ipcMain.on('piggy:shape', (event, rects) => {
+  if (lastShape.length === 0 && Array.isArray(rects) && rects.length > 0) log('first shape', JSON.stringify(rects))
   if (win === null || event.sender !== win.webContents || !Array.isArray(rects)) return
   lastShape = rects
   win.setShape(rects.slice(0, 64).map(r => ({
@@ -125,7 +160,7 @@ async function importFromDsh() {
   mkdirSync(dirname(target), { recursive: true })
   if (existsSync(target)) copyFileSync(target, `${target}.before-import-${new Date().toISOString().replace(/[:.]/g, '-')}`)
   copyFileSync(source, target)
-  app.relaunch()
+  relaunch()
   app.exit(0)
 }
 
@@ -172,7 +207,7 @@ function restartGame() {
   try { host?.dispose() } catch { /* best effort */ }
   // Testing runs one launch at a time; the next one is started by hand.
   if (process.env.PIGGY_CAPTURE) return app.exit(0)
-  app.relaunch()
+  relaunch()
   app.exit(0)
 }
 
@@ -216,6 +251,8 @@ ipcMain.handle('piggy:open', (event, url) => {
 })
 
 app.whenReady().then(async () => {
+  if (needsX11) return
+  log('start', app.getVersion(), process.platform, process.env.XDG_SESSION_TYPE ?? '')
   versions = createVersions({
     userData: app.getPath('userData'), bundledDir: bundledGameDir(), shellVersion: app.getVersion(),
     statePath: statePath(), releasesUrl: process.env.PIGGY_RELEASES_URL || undefined,
@@ -227,8 +264,8 @@ app.whenReady().then(async () => {
   registerProtocol(gameDir)
   createWindow()
   createTray(gameDir)
-  // The window follows the primary screen's work area when it changes (taskbar moved, screen added).
-  screen.on('display-metrics-changed', () => { if (win !== null) win.setBounds(screen.getPrimaryDisplay().workArea) })
+  // The window follows its screen's work area when it changes (taskbar moved, resolution changed).
+  screen.on('display-metrics-changed', () => { if (win !== null) win.setBounds(screen.getDisplayMatching(win.getBounds()).workArea) })
 })
 
 /**
