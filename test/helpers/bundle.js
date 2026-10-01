@@ -148,6 +148,8 @@ export async function mount(options = {}) {
       if (list) windowListeners[name] = list.filter(entry => entry !== fn)
     },
   }
+  // Extra window globals, e.g. the desktop shell seam (apps/desktop).
+  Object.assign(globalThis.window, options?.windowExtra ?? {})
   globalThis.document = dom.document
   globalThis.fetch = async (url, opts) => {
     calls.push({ url, method: opts?.method ?? 'GET', body: opts?.body })

@@ -2,9 +2,11 @@
 /**
  * dsh-piggy 桌面版的主进程。
  *
- * - 窗口铺满当前屏幕的工作区（不盖任务栏）、透明、置顶；页面里的猪和 DSH 网页里
- *   一模一样，拖动、展开、翻到下方都用插件自己的逻辑。窗口形状只包住猪、面板和
- *   气泡（setShape），其余地方的点击落到桌面上。
+ * - 窗口**只框住「猪 + 面板 + 气泡」的外接矩形**，四周留 16px（D1）。以前窗口铺满整个
+ *   工作区，Windows 上每帧都要合成一整块全屏透明层，整机都跟着卡。现在页面把内容框报上来
+ *   （布局盒，不受动画影响），这里用 lib/window-geometry.js 算窗口位置：以右下角为锚，
+ *   夹在工作区内；拖猪时页面只发鼠标增量，窗口跟着走。
+ * - 页面里的猪和 DSH 网页里一模一样；可点区域仍然只包住内容（setShape），其余点击落到桌面。
  * - 宿主是插件自己的 store.js + routes.js（lib/host.js），经 piggy:// 协议访问，不开端口。
  * - 存档在 userData/dsh-piggy/state.json，跟 DSH 里那只各养各的；托盘里可以导入。
  */
@@ -17,9 +19,15 @@ import { fileURLToPath } from 'node:url'
 import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, net, protocol, screen, shell } from 'electron'
 
 import { startHost } from './lib/host.js'
+import { WINDOW_PADDING, clampBounds, contentBounds, movedBounds } from './lib/window-geometry.js'
 import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
+
+/** Windows 上每帧合成整窗的代价高：30fps 足够猪动，CPU/GPU 掉一大截。 */
+const FRAME_RATE = 30
+/** 页面还没报内容框之前的兜底尺寸：折叠的猪 + 留白。 */
+const FALLBACK_CONTENT = { width: 132, height: 152 }
 
 /** A small log next to the save, so a launch that shows nothing can still be diagnosed. */
 function log(...parts) {
@@ -100,16 +108,75 @@ function pigDisplay() {
   return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
 }
 
+/** 上次把猪停在哪儿（窗口位置），下次开机照旧。 */
+function windowStatePath() {
+  return join(app.getPath('userData'), 'window.json')
+}
+
+function readWindowState() {
+  try {
+    const saved = JSON.parse(readFileSync(windowStatePath(), 'utf8'))
+    if (saved !== null && typeof saved === 'object' && Number.isFinite(saved.width) && Number.isFinite(saved.height)) return saved
+  } catch { /* 第一次运行没有这个文件 */ }
+  return null
+}
+
+/** 让窗口晚一点再写盘：拖动时 setBounds 会连发。 */
+let windowStateTimer = null
+function scheduleWindowStateSave() {
+  if (win === null) return
+  if (windowStateTimer !== null) clearTimeout(windowStateTimer)
+  windowStateTimer = setTimeout(() => {
+    windowStateTimer = null
+    if (win === null) return
+    try {
+      mkdirSync(dirname(windowStatePath()), { recursive: true })
+      writeFileSync(windowStatePath(), JSON.stringify(win.getBounds()))
+    } catch { /* 存不下就算了，下次用兜底位置 */ }
+  }, 800)
+}
+
+/** 这块窗口落在哪块屏上，就用那块屏的工作区。 */
+function workAreaFor(bounds) {
+  return screen.getDisplayMatching(bounds).workArea
+}
+
+/** 把窗口几何推给页面：面板要朝屏幕里侧开。 */
+function pushGeometry() {
+  if (win === null || win.isDestroyed()) return
+  const bounds = win.getBounds()
+  win.webContents.send('piggy:geometry', { window: bounds, workArea: workAreaFor(bounds) })
+}
+
+function applyBounds(next, why) {
+  if (win === null || win.isDestroyed()) return
+  const before = win.getBounds()
+  if (before.x === next.x && before.y === next.y && before.width === next.width && before.height === next.height) return
+  win.setBounds(next)
+  log('bounds', why, JSON.stringify(next))
+  scheduleWindowStateSave()
+  pushGeometry()
+}
+
 function createWindow() {
   const area = pigDisplay().workArea
+  const saved = readWindowState()
+  const width = saved === null ? FALLBACK_CONTENT.width + WINDOW_PADDING * 2 : saved.width
+  const height = saved === null ? FALLBACK_CONTENT.height + WINDOW_PADDING * 2 : saved.height
+  const anchorRight = saved === null ? 18 : null
+  const start = saved === null
+    ? clampBounds({ x: area.x + area.width - width - anchorRight, y: area.y + area.height - height - anchorRight, width, height }, area)
+    : clampBounds({ ...saved, width, height }, area)
   win = new BrowserWindow({
-    x: area.x, y: area.y, width: area.width, height: area.height,
+    ...start,
     transparent: true, frame: false, resizable: false, movable: false, hasShadow: false,
     alwaysOnTop: true, skipTaskbar: true, focusable: true, show: false,
     backgroundColor: '#00000000',
     webPreferences: { preload: join(HERE, 'preload.cjs'), contextIsolation: true, sandbox: true },
   })
   win.setAlwaysOnTop(true, 'floating')
+  // 30fps：猪的动画够看，整窗合成的次数砍一半（D1 第 3 条）。
+  win.webContents.setFrameRate(FRAME_RATE)
   // Until the page reports where the pig is, the window takes no clicks at all.
   win.setShape([])
   win.loadURL('piggy://app/index.html')
@@ -122,6 +189,32 @@ function createWindow() {
 }
 
 let lastShape = []
+/** 页面报来内容外接框：改窗口大小（锚在右下角），并抠出可点区域。 */
+ipcMain.on('piggy:content', (event, content) => {
+  if (win === null || event.sender !== win.webContents) return
+  const width = Number(content?.width)
+  const height = Number(content?.height)
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return
+  const bounds = win.getBounds()
+  applyBounds(contentBounds(bounds, { width, height }, workAreaFor(bounds)), 'content')
+  const shape = Array.isArray(content.shape) ? content.shape : []
+  win.setShape(shape.slice(0, 64).map(r => ({
+    x: Math.max(0, Math.round(Number(r.x) || 0)), y: Math.max(0, Math.round(Number(r.y) || 0)),
+    width: Math.max(0, Math.round(Number(r.width) || 0)), height: Math.max(0, Math.round(Number(r.height) || 0)),
+  })))
+  lastShape = shape
+})
+
+/** 拖动：窗口按屏幕坐标跟着鼠标走。 */
+ipcMain.on('piggy:move', (event, delta) => {
+  if (win === null || event.sender !== win.webContents) return
+  const dx = Number(delta?.dx)
+  const dy = Number(delta?.dy)
+  if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return
+  const bounds = win.getBounds()
+  applyBounds(movedBounds(bounds, dx, dy, workAreaFor(bounds)), 'move')
+})
+
 ipcMain.on('piggy:shape', (event, rects) => {
   if (lastShape.length === 0 && Array.isArray(rects) && rects.length > 0) log('first shape', JSON.stringify(rects))
   if (win === null || event.sender !== win.webContents || !Array.isArray(rects)) return
@@ -268,7 +361,16 @@ app.whenReady().then(async () => {
   createWindow()
   createTray(gameDir)
   // The window follows its screen's work area when it changes (taskbar moved, resolution changed).
-  screen.on('display-metrics-changed', () => { if (win !== null) win.setBounds(screen.getDisplayMatching(win.getBounds()).workArea) })
+  const reclamp = () => {
+    if (win === null || win.isDestroyed()) return
+    const bounds = win.getBounds()
+    applyBounds(clampBounds(bounds, workAreaFor(bounds)), 'display')
+  }
+  screen.on('display-metrics-changed', reclamp)
+  screen.on('display-added', reclamp)
+  screen.on('display-removed', reclamp)
+  win.webContents.on('did-finish-load', () => pushGeometry())
+  pushGeometry()
 })
 
 /**

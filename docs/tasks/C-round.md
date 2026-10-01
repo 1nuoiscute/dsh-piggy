@@ -254,6 +254,42 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
 - 改动文件：`packages/pet-core/src/core/pomodoro.js`、`src/client/scene.js`、`src/client/panel.js`、
   `src/client/effects.js`、`src/client/css-tiles.js`、`test/pomodoro.test.js`、README/CHANGELOG
 
+### D1 桌面版 Windows 卡顿（DSH agent，2026-10-01）
+
+**改了什么**
+
+1. **窗口改小**：主进程不再铺满工作区，只框住页面报上来的内容外接矩形 + 16px（`lib/window-geometry.js`，
+   纯函数可测）。以窗口**右下角**为锚：内容变大就往左上长，贴边时自动收进 `workArea`，多显示器按窗口所在的
+   那块屏算。页面把「猪 + 面板 + 气泡」的框报上来（`piggy:content`），拖猪改成把鼠标增量交给主进程
+   （`piggy:move`），页面自己不再改坐标；窗口位置存 `userData/window.json`。
+2. **量框不被动画带跑**：渲染层改用布局盒（`offsetLeft/offsetTop/offsetWidth/offsetHeight` 累加到 body），
+   再按 4px 取整比 key —— 呼吸/浮动只改 transform，猪闲着时一次都不上报。
+3. `win.webContents.setFrameRate(30)`。
+4. 阴影从做动画的 `.dp-pig` 挪到立绘（`.dp-pig-img`/`.dp-pig-emoji`）上；心情滤镜（脏/病/去世）同样挂在立绘上，
+   网页版视觉不变。
+5. Linux/macOS 没退化：X11 窗口形状照旧（可点区域仍是猪 + 面板两块），拖动、托盘、退出、更新 App 都没动。
+
+**验收**
+
+- 自动化：`apps/desktop/test/window.test.js` 7 条 + `test/desktop-shell.test.js` 3 条
+  - 猪闲着 10 秒（120ms × 83 次 tick）`setShape`/`setContent` **多调 0 次**（红测试：改之前会一直调）
+  - 拖猪时窗口跟着走（两次 pointermove → 两次 `moveBy`），页面坐标不写
+  - 桌面版面板按屏幕空间朝上开、横向不挪；网页版（没有外壳时）行为不变
+  - 几何：锚右下角、贴边收进 workArea、多显示器夹取、4px 取整
+- `npm run build && npm test`：**370 / 370 通过**；`npm run typecheck`：**0 错误**
+- **Linux 实机**（X11，本机 3840×2160 屏）：`apps/desktop` 用 electron 44.5.1 + `--ozone-platform=x11` 跑起来，
+  python-xlib 查 X 树里的真实窗口（不信 capturePage）：
+  - 收起：**117×114 DIP**（X 里 234×228 物理像素），停在工作区右下角；主进程日志 `bounds content 117x114` ✓
+  - 面板展开：**324×271 DIP**（X 里 648×542），正好是面板 292 + 32 留白 ✓
+  - 可点区域（`XShapeGetRectangles`）**2 块**：面板 (32,32,584,192) + 猪 (32,240,584,272) —— 空白角被抠掉，
+    点得到桌面 ✓
+- **Windows 测试包：本机打不出来**（`apps/desktop` 没装 electron-builder，机器上也没有 wine，NSIS 打不了；
+  `.github/workflows/release.yml` 是 `push: tags: v*` 触发的，还要标签与 `package.json` 版本一致）。
+  可选：① 推一个 `v0.25.2`（或 0.25.1 的补丁版）标签，CI 会产出
+  `dsh-piggy-portable-<版本>.exe`；② 在 Windows 机器上进 `apps/desktop` 跑 `npm install && npm run dist:win`。
+  要哪种我照做（推标签需要你点头）。
+- 截图/日志：`/zyx/DSH/workspaces/.piggy-desktop.log`、窗口日志在 `PIGGY_USERDATA/piggy.log`（临时目录，未入库）
+
 ## 疑问（数值/规则觉得不合理写这里，等用户定）
 
 - **C2 番茄钟**三条自己定的规则，等用户点头：

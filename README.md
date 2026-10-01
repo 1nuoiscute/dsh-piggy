@@ -82,7 +82,9 @@ dsh plugin --profile web add /path/to/dsh-piggy
 不装 DSH 也能养：[`apps/desktop/`](apps/desktop/) 是一个 Electron 小程序，双击就有一只猪趴在屏幕右下角，
 玩法、界面和 DSH 里完全一样（用的是同一份代码）。
 
-- 窗口铺满屏幕但只有猪、面板、气泡那几块接收点击，其余地方照常点桌面
+- 窗口就贴着猪那一小块（猪 + 面板 + 气泡的外接矩形，四周留 16px），拖猪＝拖窗口；
+  可点区域仍然只算猪和面板，空白角落的点击照常落到桌面。这样 Windows 上不用每帧合成整块全屏透明层
+  （以前开着猪整机会卡）
 - 存档和 DSH 里那只各养各的；托盘菜单「从 DSH 导入猪…」可以把那只接过来
 - 托盘菜单还有：藏起来 / 开机自启 / 退出；主屏也有「👋 退出」
 - Linux 的 GNOME 默认不显示托盘图标，要托盘的话装「AppIndicator and KStatusNotifierItem Support」扩展；不装也能用主屏的「退出」
@@ -97,6 +99,7 @@ npm run dist:win       # 打 Windows 安装包
 ```
 
 Linux 上默认走 XWayland（Wayland 不让窗口给自己裁形状）。
+窗口里的猪停在右下角 16px 处；位置（窗口坐标）记在 `userData/window.json`，下次开机照旧。
 
 **更新**：桌面版主屏多一个 🔄 更新 App ——
 

@@ -1096,8 +1096,11 @@
     // opening moves it by exactly zero pixels.
     '[data-dsh-pig][data-open="false"] .dp-scene{height:calc(var(--pig-size) + var(--pig-gap-below));',
     "cursor:pointer}",
+    // 阴影挂在立绘（不动的元素）上，而不是做 bob/breathe 的 .dp-pig 上：
+    // 动画只改 transform，滤镜跟着每帧重算在 Windows 上很贵（D1 第 4 条）。
     ".dp-pig{line-height:1;transform-origin:50% 85%;cursor:pointer;position:relative;",
-    "filter:drop-shadow(0 4px 6px rgba(61,52,40,.28));animation:dp-bob 1.8s ease-in-out infinite}",
+    "animation:dp-bob 1.8s ease-in-out infinite}",
+    ".dp-pig-img,.dp-pig-emoji{filter:drop-shadow(0 4px 6px rgba(61,52,40,.28))}",
     // 装扮点位：猪身上固定的几个锚点，每个点位挂一件。
     // 以后换真立绘时，只改这里的偏移/尺寸，逻辑和存档都不用动。
     ".dp-dress{position:absolute;inset:0;pointer-events:none;z-index:3}",
@@ -1126,8 +1129,10 @@
     '.dp-pig[data-mood="happy"]{animation-duration:1.15s}',
     '.dp-pig[data-mood="sleepy"]{animation-name:dp-breathe;animation-duration:3.6s}',
     '.dp-pig[data-mood="hungry"]{animation-name:dp-shake;animation-duration:2.4s}',
-    '.dp-pig[data-mood="dirty"]{animation-name:dp-breathe;animation-duration:2.6s;filter:sepia(.4) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
-    '.dp-pig[data-mood="sick"]{animation-name:dp-cough;animation-duration:2.2s;filter:hue-rotate(-28deg) saturate(.75) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
+    '.dp-pig[data-mood="dirty"]{animation-name:dp-breathe;animation-duration:2.6s}',
+    '.dp-pig[data-mood="dirty"] .dp-pig-img,.dp-pig[data-mood="dirty"] .dp-pig-emoji{filter:sepia(.4) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
+    '.dp-pig[data-mood="sick"]{animation-name:dp-cough;animation-duration:2.2s}',
+    '.dp-pig[data-mood="sick"] .dp-pig-img,.dp-pig[data-mood="sick"] .dp-pig-emoji{filter:hue-rotate(-28deg) saturate(.75) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
     // One pose per activity, so being away reads as a thing the pig is doing.
     "@keyframes dp-typing{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(-1.5deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-2px) rotate(1.5deg)}}",
     "@keyframes dp-reading{0%,100%{transform:translateY(0) rotate(0)}35%{transform:translateY(1px) rotate(-5deg)}70%{transform:translateY(1px) rotate(-2deg)}}",
@@ -1135,7 +1140,8 @@
     '.dp-pig[data-mood="working"]{animation-name:dp-typing;animation-duration:.7s}',
     '.dp-pig[data-mood="studying"]{animation-name:dp-reading;animation-duration:2.4s}',
     '.dp-pig[data-mood="traveling"]{animation-name:dp-walking;animation-duration:1s}',
-    '.dp-pig[data-mood="dead"]{animation:none;filter:grayscale(1)}',
+    '.dp-pig[data-mood="dead"]{animation:none}',
+    '.dp-pig[data-mood="dead"] .dp-pig-img,.dp-pig[data-mood="dead"] .dp-pig-emoji{filter:grayscale(1) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
     ".dp-pig[data-react]{animation-duration:.85s;animation-iteration-count:1}",
     '.dp-pig[data-react="feed"]{animation-name:dp-jump}',
     '.dp-pig[data-react="bathe"]{animation-name:dp-wobble;animation-duration:1.05s}',
@@ -1966,8 +1972,16 @@
   }
 
   // src/client/layout.js
+  function desktopShell() {
+    var shell = typeof window !== "undefined" ? (
+      /** @type {any} */
+      window.__dshPiggyShell
+    ) : null;
+    return shell !== null && typeof shell === "object" && typeof shell.room === "function" ? shell : null;
+  }
   function createLayout(ctx) {
     function clampPig() {
+      if (desktopShell() !== null) return;
       var vw = window.innerWidth || 0;
       var vh = window.innerHeight || 0;
       if (vw <= 0 || vh <= 0) return;
@@ -1982,6 +1996,25 @@
     }
     function fitPanel() {
       if (!ctx.isOpen) return;
+      var shell = desktopShell();
+      if (shell !== null) {
+        var room = shell.room();
+        if (room !== null) {
+          if (room.above >= room.below) {
+            ctx.card.style.top = "auto";
+            ctx.card.style.bottom = "calc(100% + " + PANEL_GAP + "px)";
+            ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.above)) + "px";
+          } else {
+            ctx.card.style.bottom = "auto";
+            ctx.card.style.top = "calc(100% + " + PANEL_GAP + "px)";
+            ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below)) + "px";
+          }
+          ctx.card.style.right = "0px";
+          ctx.card.style.maxWidth = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN)) + "px";
+          ctx.hud.style.left = "9px";
+          return;
+        }
+      }
       var vw = window.innerWidth || 0;
       var vh = window.innerHeight || 0;
       if (vw <= 0 || vh <= 0) return;
@@ -3303,7 +3336,13 @@
           bar,
           content
         } = parts;
-        var savedPos = readStore(POSITION_KEY);
+        var deskShell = typeof window !== "undefined" && /** @type {any} */
+        window.__dshPiggyShell && typeof /** @type {any} */
+        window.__dshPiggyShell.moveBy === "function" ? (
+          /** @type {any} */
+          window.__dshPiggyShell
+        ) : null;
+        var savedPos = deskShell === null ? readStore(POSITION_KEY) : null;
         var userRight = 18;
         var userBottom = 18;
         if (savedPos !== null) {
@@ -3531,6 +3570,8 @@
           drag = {
             x: event.clientX,
             y: event.clientY,
+            lastX: event.clientX,
+            lastY: event.clientY,
             right: parseFloat(getComputedStyle(host).right) || 18,
             bottom: parseFloat(getComputedStyle(host).bottom) || 18,
             moved: false
@@ -3543,6 +3584,14 @@
           var dx = event.clientX - drag.x;
           var dy = event.clientY - drag.y;
           if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
+          if (deskShell !== null) {
+            var stepX = event.clientX - drag.lastX;
+            var stepY = event.clientY - drag.lastY;
+            drag.lastX = event.clientX;
+            drag.lastY = event.clientY;
+            if (stepX !== 0 || stepY !== 0) deskShell.moveBy(stepX, stepY);
+            return;
+          }
           userRight = drag.right - dx;
           userBottom = drag.bottom - dy;
           clampPig();
@@ -3554,7 +3603,7 @@
           drag = null;
           scene.removeAttribute("data-dragging");
           clampPig();
-          writeStore(POSITION_KEY, JSON.stringify({ right: userRight, bottom: userBottom }));
+          if (deskShell === null) writeStore(POSITION_KEY, JSON.stringify({ right: userRight, bottom: userBottom }));
           fitPanel();
           return moved;
         }

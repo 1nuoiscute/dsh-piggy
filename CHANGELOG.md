@@ -5,6 +5,15 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [Unreleased] — D1 桌面版 Windows 卡顿
+
+### Fixed
+- **修复 Windows 上开着猪整机变卡**：桌面版窗口以前铺满整个工作区（透明 + 置顶），Windows 每帧都要
+  合成一整块全屏透明层；而且渲染层每 120ms 用 `getBoundingClientRect` 量一次框，呼吸动画让结果一直
+  在抖，`setShape`（Windows 上是 `SetWindowRgn`）每秒触发约 1.7 次。现在窗口只框住「猪 + 面板 + 气泡」
+  的外接矩形并四周留 16px（拖猪＝拖窗口，夹在工作区内），量框改用不受动画影响的布局盒 + 4px 取整
+  （猪闲着时一次都不调），帧率降到 30fps，滤镜阴影也从会动的元素上挪到了立绘上。
+
 ## [Unreleased] — C 批次
 
 ### Changed

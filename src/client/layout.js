@@ -8,8 +8,20 @@
 import { DEV_TAB, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PIG_PADDING_X, SCENE_RESERVE, TABS } from './constants.js'
 import { button, el } from './dom.js'
 
+/**
+ * 桌面版（apps/desktop）把窗口缩到猪身上，页面看到的 innerWidth 不再是屏幕。
+ * 外壳会挂一个 `__dshPiggyShell`，位置归窗口管、面板按屏幕坐标挑边。
+ * 网页版没有它，下面每条分支都走原路。
+ */
+function desktopShell() {
+  var shell = typeof window !== 'undefined' ? (/** @type {any} */ (window)).__dshPiggyShell : null
+  return shell !== null && typeof shell === 'object' && typeof shell.room === 'function' ? shell : null
+}
+
 export function createLayout(ctx) {
       function clampPig() {
+        // 桌面版：猪在窗口里的位置是固定的（外壳设好的内边距），拖动改的是窗口位置。
+        if (desktopShell() !== null) return
         var vw = window.innerWidth || 0
         var vh = window.innerHeight || 0
         if (vw <= 0 || vh <= 0) return
@@ -33,6 +45,27 @@ export function createLayout(ctx) {
 
       function fitPanel() {
         if (!ctx.isOpen) return
+        var shell = desktopShell()
+        if (shell !== null) {
+          // 桌面版：窗口就贴着猪，`innerWidth` 是窗口不是屏幕 —— 用外壳报来的屏幕几何
+          // 决定面板朝哪边开。窗口会自己长到装下面板，所以不需要横向挪。
+          var room = shell.room()
+          if (room !== null) {
+            if (room.above >= room.below) {
+              ctx.card.style.top = 'auto'
+              ctx.card.style.bottom = 'calc(100% + ' + PANEL_GAP + 'px)'
+              ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.above)) + 'px'
+            } else {
+              ctx.card.style.bottom = 'auto'
+              ctx.card.style.top = 'calc(100% + ' + PANEL_GAP + 'px)'
+              ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below)) + 'px'
+            }
+            ctx.card.style.right = '0px'
+            ctx.card.style.maxWidth = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN)) + 'px'
+            ctx.hud.style.left = '9px'
+            return
+          }
+        }
         var vw = window.innerWidth || 0
         var vh = window.innerHeight || 0
         if (vw <= 0 || vh <= 0) return

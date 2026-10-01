@@ -66,7 +66,11 @@ import { arr, num, obj, str } from './values.js'
       var { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop,
         progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content } = parts
 
-      var savedPos = readStore(POSITION_KEY)
+      // 桌面版外壳（apps/desktop）：窗口是贴着猪的小窗，位置由它管。
+      var deskShell = typeof window !== 'undefined' && (/** @type {any} */ (window)).__dshPiggyShell
+        && typeof (/** @type {any} */ (window)).__dshPiggyShell.moveBy === 'function'
+        ? (/** @type {any} */ (window)).__dshPiggyShell : null
+      var savedPos = deskShell === null ? readStore(POSITION_KEY) : null
       // The pig's position as the user set it, before any on-screen clamp.
       var userRight = 18
       var userBottom = 18
@@ -235,6 +239,7 @@ import { arr, num, obj, str } from './values.js'
         if (event.button !== 0) return
         drag = {
           x: event.clientX, y: event.clientY,
+          lastX: event.clientX, lastY: event.clientY,
           right: parseFloat(getComputedStyle(host).right) || 18,
           bottom: parseFloat(getComputedStyle(host).bottom) || 18,
           moved: false,
@@ -247,6 +252,15 @@ import { arr, num, obj, str } from './values.js'
         var dx = event.clientX - drag.x
         var dy = event.clientY - drag.y
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true
+        // 桌面版（D1）：窗口缩在猪身上，拖动＝把窗口按屏幕坐标挪走，页面里不动位置。
+        if (deskShell !== null) {
+          var stepX = event.clientX - drag.lastX
+          var stepY = event.clientY - drag.lastY
+          drag.lastX = event.clientX
+          drag.lastY = event.clientY
+          if (stepX !== 0 || stepY !== 0) deskShell.moveBy(stepX, stepY)
+          return
+        }
         userRight = drag.right - dx
         userBottom = drag.bottom - dy
         clampPig()
@@ -259,7 +273,8 @@ import { arr, num, obj, str } from './values.js'
         drag = null
         scene.removeAttribute('data-dragging')
         clampPig()
-        writeStore(POSITION_KEY, JSON.stringify({ right: userRight, bottom: userBottom }))
+        // 桌面版的位置归窗口管（主进程会存），页面不写自己的坐标。
+        if (deskShell === null) writeStore(POSITION_KEY, JSON.stringify({ right: userRight, bottom: userBottom }))
         fitPanel()
         return moved
       }
