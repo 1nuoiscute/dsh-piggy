@@ -84,6 +84,12 @@ export function renderDevTab(ui) {
     }
   }))
 
+  group('体重', [
+    { key: 'weight:normal', label: '⚖️ 正常', run: function () { patch({ weightClass: 'normal' }) } },
+    { key: 'weight:round', label: '🐷 圆润', run: function () { patch({ weightClass: 'round' }) } },
+    { key: 'weight:fat', label: '🐖 胖胖', run: function () { patch({ weightClass: 'fat' }) } },
+  ], '圆润暂用普通立绘；胖胖使用 PR #4 的动作立绘。')
+
   group('状态', [
     { key: 'full', label: '😊 满状态', run: function () { patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 }) } },
     { key: 'hungry', label: '🍎 饿', run: function () { patch({ satiety: 10 }) } },

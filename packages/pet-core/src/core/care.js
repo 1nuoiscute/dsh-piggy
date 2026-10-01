@@ -14,6 +14,7 @@ import { rollForOverfeeding } from './illness.js'
 import { say } from './lines.js'
 import { decay } from './settlement.js'
 import { noteToday } from './diary.js'
+import { reducePlayWeight } from './weight.js'
 
 /** Which line scene each care action makes the pig speak from. */
 const CARE_SCENE = Object.freeze({ feed: 'eat', bathe: 'bathe', play: 'play', pet: 'pet' })
@@ -96,6 +97,7 @@ export function act(state, action, nowMs, itemKey) {
 
   const satietyBefore = state.satiety
   applyEffects(state, careEffects(item, spec), nowMs)
+  if (action === 'play') reducePlayWeight(state, nowMs)
   remember(state, item === null ? spec.verb : `${item.emoji} ${spec.label}用了「${item.label}」`, nowMs)
   if (action === 'feed') rollForOverfeeding(state, satietyBefore, nowMs)
   // Feeding a pig that was already stuffed gets a different complaint.

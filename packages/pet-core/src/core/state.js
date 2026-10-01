@@ -16,6 +16,7 @@ import { say } from './lines.js'
 import { sanitizeIllness, sanitizeInventory, sanitizeTraits } from './migrate.js'
 import { decay, die } from './settlement.js'
 import { ensureDex, recordDex } from './dex.js'
+import { setBodyWeightClass } from './weight.js'
 
 /**
  * Wipe the pig and start from a fresh box, whatever state it was in.
@@ -146,6 +147,8 @@ export function applyDevPatch(state, patch, nowMs) {
   }
 
   // Age only counts days on the panel now; still jumpable for testing.
+  if (typeof patch.weightClass === 'string') setBodyWeightClass(state, patch.weightClass)
+
   if (typeof patch.ageDays === 'number' && Number.isFinite(patch.ageDays)) {
     // Age is accumulated pig time, so both have to move or the stage will not.
     const days = Math.max(0, patch.ageDays)

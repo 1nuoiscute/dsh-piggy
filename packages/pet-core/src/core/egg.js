@@ -27,6 +27,8 @@ export function layEgg(nowMs) {
     stage: 'box',
     /** 加冕选的形态（data/evolution.js 的 key），null 是普通的猪。 */
     form: null,
+    /** Optional daily exercise record; old saves get it through ensureBodyWeight. */
+    bodyWeight: { playDay: '', plays: 0 },
     /** Accumulated pig time in ms — age is this, not wall clock. */
     ageMs: 0,
     /** 1 = the stage table is real months. See DEFAULT_TIME_SCALE. */

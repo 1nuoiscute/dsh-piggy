@@ -18,6 +18,7 @@ import { ensureProfile } from './profile.js'
 import { isSeed, seedFor } from './random.js'
 import { applyUpgrades } from './upgrades.js'
 import { ensureDex } from './dex.js'
+import { ensureBodyWeight } from './weight.js'
 
 /** Fill in anything a hand-edited or older save is missing. */
 export function migrate(input, nowMs) {
@@ -85,6 +86,7 @@ export function migrate(input, nowMs) {
   ensureDiary(state)
   ensurePomodoro(state)
   ensureDex(state, nowMs)
+  ensureBodyWeight(state)
   return state
 }
 

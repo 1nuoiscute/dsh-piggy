@@ -7,7 +7,6 @@
  */
 import { MODES } from './constants.js'
 import { arr, isObj, num, obj, str } from './values.js'
-
 /**
  * Map any host payload — current, older, or truncated — onto the exact
  * shape the panel draws. Missing fields become defaults, never `undefined`.
@@ -17,7 +16,6 @@ export function normalize(raw) {
   var d = obj(raw)
   var pig = isObj(d.pig) ? d.pig : null
   var legacy = pig !== null && !('coins' in pig) && !('health' in pig)
-
   return {
     legacy: legacy,
     // Host build version, shown in the debug tab so a stale bundle is
@@ -59,6 +57,11 @@ export function normalize(raw) {
       healthPercent: num(pig.healthPercent, 100),
       coins: num(pig.coins, 0),
       weight: str(pig.weight, '—'),
+      bodyWeight: isObj(pig.bodyWeight) ? {
+        class: str(obj(pig.bodyWeight).class, 'normal'), label: str(obj(pig.bodyWeight).label, '正常'), visible: obj(pig.bodyWeight).visible === true,
+        idealG: Math.round(num(obj(pig.bodyWeight).idealG, 1360)), roundAtG: Math.round(num(obj(pig.bodyWeight).roundAtG, 1768)), fatAtG: Math.round(num(obj(pig.bodyWeight).fatAtG, 2176)),
+        ideal: str(obj(pig.bodyWeight).ideal, '—'), roundAt: str(obj(pig.bodyWeight).roundAt, '—'), fatAt: str(obj(pig.bodyWeight).fatAt, '—'), playsLeft: Math.round(num(obj(pig.bodyWeight).playsLeft, 0)),
+      } : null,
       xp: num(pig.xp, 0),
       // Level is driven by growth and decides the body (B2).
       level: (function (info) {
@@ -358,7 +361,6 @@ export function normalize(raw) {
     maxHealth: num(d.maxHealth, 5),
   }
 }
-
 function normalizeDex(raw) {
   const source = obj(raw)
   const out = {}

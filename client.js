@@ -563,6 +563,17 @@
         }
       };
     }));
+    group("\u4F53\u91CD", [
+      { key: "weight:normal", label: "\u2696\uFE0F \u6B63\u5E38", run: function() {
+        patch({ weightClass: "normal" });
+      } },
+      { key: "weight:round", label: "\u{1F437} \u5706\u6DA6", run: function() {
+        patch({ weightClass: "round" });
+      } },
+      { key: "weight:fat", label: "\u{1F416} \u80D6\u80D6", run: function() {
+        patch({ weightClass: "fat" });
+      } }
+    ], "\u5706\u6DA6\u6682\u7528\u666E\u901A\u7ACB\u7ED8\uFF1B\u80D6\u80D6\u4F7F\u7528 PR #4 \u7684\u52A8\u4F5C\u7ACB\u7ED8\u3002");
     group("\u72B6\u6001", [
       { key: "full", label: "\u{1F60A} \u6EE1\u72B6\u6001", run: function() {
         patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 });
@@ -709,6 +720,7 @@
     info.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD " + p.weight));
     info.appendChild(el("b", null, "\u{1FA99} " + p.coins));
     ui.content.appendChild(info);
+    if (p.bodyWeight !== null) renderWeightInfo(ui, p.bodyWeight);
     var daily = ui.view.daily;
     var dailyLine = el("div", "dp-row");
     dailyLine.appendChild(el("span", null, "\u{1F4C5} \u7B7E\u5230"));
@@ -879,6 +891,17 @@
       wrap.appendChild(call);
       ui.content.appendChild(wrap);
     }
+  }
+  function renderWeightInfo(ui, weight) {
+    var line = el("div", "dp-row");
+    line.appendChild(el("span", null, "\u4F53\u578B \xB7 " + weight.label));
+    var target = weight.class === "fat" ? "\u73A9\u800D\u51CF\u91CD\u5269 " + weight.playsLeft + " \u6B21" : weight.class === "round" ? weight.fatAt + " \u8FDB\u5165\u80D6\u80D6" : weight.roundAt + " \u8FDB\u5165\u5706\u6DA6";
+    line.appendChild(el("b", null, target));
+    ui.content.appendChild(line);
+    var reference = el("div", "dp-row");
+    reference.appendChild(el("span", null, "\u7406\u60F3\u4F53\u91CD"));
+    reference.appendChild(el("b", null, weight.ideal));
+    ui.content.appendChild(reference);
   }
 
   // src/client/tabs/study.js
@@ -2406,6 +2429,18 @@
         healthPercent: num(pig.healthPercent, 100),
         coins: num(pig.coins, 0),
         weight: str(pig.weight, "\u2014"),
+        bodyWeight: isObj(pig.bodyWeight) ? {
+          class: str(obj(pig.bodyWeight).class, "normal"),
+          label: str(obj(pig.bodyWeight).label, "\u6B63\u5E38"),
+          visible: obj(pig.bodyWeight).visible === true,
+          idealG: Math.round(num(obj(pig.bodyWeight).idealG, 1360)),
+          roundAtG: Math.round(num(obj(pig.bodyWeight).roundAtG, 1768)),
+          fatAtG: Math.round(num(obj(pig.bodyWeight).fatAtG, 2176)),
+          ideal: str(obj(pig.bodyWeight).ideal, "\u2014"),
+          roundAt: str(obj(pig.bodyWeight).roundAt, "\u2014"),
+          fatAt: str(obj(pig.bodyWeight).fatAt, "\u2014"),
+          playsLeft: Math.round(num(obj(pig.bodyWeight).playsLeft, 0))
+        } : null,
         xp: num(pig.xp, 0),
         // Level is driven by growth and decides the body (B2).
         level: (function(info) {

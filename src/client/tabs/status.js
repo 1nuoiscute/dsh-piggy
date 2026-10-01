@@ -29,6 +29,7 @@ export function renderStatusTab(ui) {
   info.appendChild(el('span', null, '⚖️ 体重 ' + p.weight))
   info.appendChild(el('b', null, '🪙 ' + p.coins))
   ui.content.appendChild(info)
+  if (p.bodyWeight !== null) renderWeightInfo(ui, p.bodyWeight)
 
   // 签到进度：一行小字，不抢注意力（礼包攒着的时候顺带说一句）。
   var daily = ui.view.daily
@@ -229,4 +230,20 @@ function renderBanners(ui) {
     wrap.appendChild(call)
     ui.content.appendChild(wrap)
   }
+}
+
+
+/** C7 current body class and the next exact threshold. */
+function renderWeightInfo(ui, weight) {
+  var line = el('div', 'dp-row')
+  line.appendChild(el('span', null, '体型 · ' + weight.label))
+  var target = weight.class === 'fat'
+    ? '玩耍减重剩 ' + weight.playsLeft + ' 次'
+    : (weight.class === 'round' ? weight.fatAt + ' 进入胖胖' : weight.roundAt + ' 进入圆润')
+  line.appendChild(el('b', null, target))
+  ui.content.appendChild(line)
+  var reference = el('div', 'dp-row')
+  reference.appendChild(el('span', null, '理想体重'))
+  reference.appendChild(el('b', null, weight.ideal))
+  ui.content.appendChild(reference)
 }
