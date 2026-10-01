@@ -32,6 +32,7 @@ export const DEFAULT_TOY = Object.freeze({
  * @property {string} [slot]
  * @property {number} [tier]
  * @property {boolean} [cureAll]
+ * @property {string} [form]   契约类道具：签下它换成哪个形态（data/evolution.js 的 key）
  * @property {string} [blurb]
  */
 /**
@@ -92,10 +93,19 @@ export const SHOP = Object.freeze([
   ...MEDICINES,
   // --- revive -------------------------------------------------------------
   REVIVE_ITEM,
+  // --- contract (契约) ------------------------------------------------------
+  // 形态的另一条入口：不是加冕（那是给王的动词），而是买一张契约，在背包里签。
+  // 条件与加冕一样从严（见 data/evolution.js 的 requires），这里只负责卖；
+  // 签约失败的拒绝发生在 useItem 里，条件不齐就不签，道具留在背包。
+  // 格子上的字放不下条件，所以只写它干什么；差哪一条由拒绝时的气泡说清。
+  Object.freeze({
+    key: 'contract', label: '恶魔契约', emoji: '😈', price: 6666, kind: 'contract', form: 'devil',
+    blurb: '签下变成恶魔猪',
+  }),
 ])
 
 /** Shop shelves, in the order the panel shows them. */
-export const KIND_ORDER = Object.freeze(['food', 'bath', 'toy', 'dress', 'medicine', 'revive'])
+export const KIND_ORDER = Object.freeze(['food', 'bath', 'toy', 'dress', 'medicine', 'revive', 'contract'])
 
 export const KIND_LABEL = Object.freeze({
   food: '食物',
@@ -104,6 +114,7 @@ export const KIND_LABEL = Object.freeze({
   dress: '装扮',
   medicine: '药品',
   revive: '复活',
+  contract: '契约',
 })
 
 /** Which care action spends which shelf. */

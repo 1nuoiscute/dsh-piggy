@@ -9,6 +9,7 @@
 import { DEFAULT_TOY, REVIVE_ITEM, SHOP, dressSlotByKey, itemByKey } from '../data.js'
 import { levelProgress } from './clock.js'
 import { applyEffects, remember } from './effects.js'
+import { signContract } from './evolution.js'
 import { medicate } from './illness.js'
 import { decay } from './settlement.js'
 import { revive } from './state.js'
@@ -170,6 +171,17 @@ export function useItem(state, itemKey, nowMs) {
   }
 
   if (state.activity !== null) return { ok: false, reason: 'away' }
+
+  // 契约: a form bought in the shop and signed here. Conditions are checked by
+  // signContract(); a refusal must leave the item in the bag — spending 6666
+  // coins to be told 「条件没齐」 would be a rotten deal.
+  if (item.kind === 'contract') {
+    const signed = signContract(state, item.form, nowMs)
+    if (!signed.ok) return signed
+    state.inventory[itemKey] = have - 1
+    return { ok: true, item, form: signed.form }
+  }
+
   state.inventory[itemKey] = have - 1
   applyEffects(state, item, nowMs)
   remember(state, `用了 ${item.emoji} ${item.label}`, nowMs)

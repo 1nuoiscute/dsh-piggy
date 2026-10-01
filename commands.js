@@ -176,7 +176,7 @@ export function dispatch(store, commandName, rawInput) {
       if (state === null) return { kind: 'error', text: renderNoPig(commandName) }
       const wanted = argument === '' ? undefined : (FORMS.find(form => form.label === argument || form.key === argument)?.key ?? argument)
       const result = store.crown(wanted)
-      if (result.ok) return { kind: 'success', text: `👑 ${state.name} 现在是${formByKey(result.form)?.label ?? ''}了。\n` + renderStatus(store.freshen(), nowMs) }
+      if (result.ok) return { kind: 'success', text: `${formByKey(result.form)?.emoji ?? '👑'} ${state.name} 现在是${formByKey(result.form)?.label ?? ''}了。\n` + renderStatus(store.freshen(), nowMs) }
       if (result.reason === 'coronation-ineligible') {
         const rows = result.missing.map(row => `${row.label} ${row.have}/${row.need}`).join(' · ')
         return { kind: 'error', text: `还差一点：${rows}` }
@@ -215,6 +215,7 @@ function refusalText(result, state) {
         : `要先念完${need.label}（${need.done}/${need.need}）。`
     }
     case 'box': return '先把纸盒拆开。'
+    case 'needs-contract': return `${state.name} 这种形态要签约，不是加冕 —— 去「商店」的契约货架看看。`
     case 'not-owned': return `${state.name} 还没有这件东西。`
     case 'owned': return `${state.name} 已经有这件了。`
     case 'low-level': return `等级不够（要 Lv.${result.need}，现在 Lv.${result.have}）。`

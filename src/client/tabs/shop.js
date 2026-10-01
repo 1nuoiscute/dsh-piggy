@@ -12,7 +12,7 @@ import { num } from '../values.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
 
 /** One colour per shelf, so the inner layer still says which shelf it is. */
-export var SHELF_COLOR = { food: 'red', bath: 'teal', toy: 'yellow', dress: 'pink', medicine: 'green', revive: 'purple' }
+export var SHELF_COLOR = { food: 'red', bath: 'teal', toy: 'yellow', dress: 'pink', medicine: 'green', revive: 'purple', contract: 'blue' }
 
 /** A shelf title 「<emoji> 食物」 split into its emoji and its name. */
 export function shelfParts(kind) {

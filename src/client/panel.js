@@ -300,6 +300,7 @@ export function createPanel(ctx) {
           if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue
           ctx.toast(str(event.text, '猪有新消息'))
           if (event.kind === 'coronation') { ctx.react('levelup', 950); ctx.burst(['👑', '✨'], 3) }
+          else if (event.kind === 'contract') { ctx.react('levelup', 950); ctx.burst(['😈', '📜'], 3) }
           else if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
           else if (event.kind === 'cured') { ctx.react('cure', 900); ctx.burst(['💚', '✨'], 3) }
           else if (event.kind === 'death') ctx.react('refuse', 700)

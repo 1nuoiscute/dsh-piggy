@@ -77,8 +77,8 @@ export const NO_ITEM_LINE = {
   bath: '没有洗浴用品了，去买点吧 🧼',
   toy: '没有玩具了，去商店看看 🪀',
 }
-export const KIND_TITLE = { food: '🍎 食物', bath: '🧼 洗浴', toy: '🪀 玩具', dress: '👕 装扮', medicine: '💊 药品', revive: '✨ 复活' }
-export const KIND_ORDER = ['food', 'bath', 'toy', 'dress', 'medicine', 'revive']
+export const KIND_TITLE = { food: '🍎 食物', bath: '🧼 洗浴', toy: '🪀 玩具', dress: '👕 装扮', medicine: '💊 药品', revive: '✨ 复活', contract: '📜 契约' }
+export const KIND_ORDER = ['food', 'bath', 'toy', 'dress', 'medicine', 'revive', 'contract']
 export const STAGES = [
   { key: 'preschool', label: '幼儿园' },
   { key: 'extracurricular', label: '课外' },
