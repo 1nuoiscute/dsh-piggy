@@ -5,6 +5,18 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [Unreleased] — C 批次
+
+### Changed
+- 调试模式改成「解锁才开」：`Ctrl+Shift+D` 和 `dshPigDev.on/toggle` 都撤掉了，改成主屏版本号
+  **3 秒内连点 7 次**（第 4 次起提示还差几下）解锁。只在内存里记，刷新/重启就关；老版本存在
+  localStorage 里的「已开」在启动时会被写掉。控制台只保留 `dshPigDev.off()` 救急。
+
+### Added
+- 调试页顶部「🔧 关闭调试」按钮。
+- 调试页新增「形态」组：一键变成猪猪王、一键恢复普通（不看等级和三维条件）——`applyDevPatch`
+  支持 `form` 字段（`null` 恢复普通）。以后每加一种形态/皮肤/鱼，调试页都会自动列出来。
+
 ## [0.25.1] — 2026-10-01 · 桌面版退出与托盘
 
 ### Fixed

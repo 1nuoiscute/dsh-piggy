@@ -9,6 +9,9 @@
  */
 
 export const CSS_TILES = [
+  // 主屏底部的版本号：一行灰字，不占格子（连点 7 次解锁调试模式，见 C1）。
+  '.dp-version{margin-top:8px;text-align:center;font-size:9.5px;font-weight:600;',
+  'color:var(--ac-text-muted);cursor:default;user-select:none}',
   '[data-dsh-pig]{--tile-pink:#f8a6b2;--tile-purple:#b77dee;--tile-blue:#889df0;',
   '--tile-yellow:#f7cd67;--tile-orange:#e59266;--tile-teal:#82d5bb;--tile-green:#8ac68a;',
   '--tile-red:#fc736d;--tile-lime:#d1da49;--tile-peach:#e18c6f;--tile-brown:#9a835a}',

@@ -46,7 +46,14 @@ export const TABS = [
   { key: 'bag', label: '背包', emoji: '🎒' },
 ]
 
-/** Developer mode: off unless asked for, and remembered across reloads. */
+// 调试模式（C1）：主屏版本号连点 7 次解锁，只在内存里记住 —— 刷新就关。
+// 原来靠 Ctrl+Shift+D + localStorage，用户看到的是「怎么关都关不掉」。
+export const DEV_TAPS_TO_UNLOCK = 7
+export const DEV_TAP_WINDOW_MS = 3000
+/** 从第几次开始提示还差几下（前三次纯属手滑，不打扰）。 */
+export const DEV_TAP_HINT_FROM = 4
+export const DEV_TAP_HINT_MS = 1200
+/** 启动时写死成 0：老版本存过的「已开」不能把调试模式带起来。 */
 export const DEV_KEY = 'dsh-piggy:dev'
 export const DEV_TAB = { key: 'dev', label: '调试', emoji: '🔧' }
 

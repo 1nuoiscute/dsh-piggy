@@ -9,7 +9,13 @@
 import { button, el } from '../dom.js'
 
 export function renderDevTab(ui) {
-  ui.content.appendChild(el('div', 'dp-dev-note', '🔧 开发者模式 · 构建 v' + (ui.view.version === '' ? '未知' : ui.view.version) + ' · Ctrl+Shift+D 关闭'))
+  // 关掉调试模式就靠这个按钮（C1：没有快捷键，也不写 localStorage）。
+  var topBar = el('div', 'dp-dev-row')
+  var off = button('dp-mini dp-dev-btn', { 'data-dev': 'devOff' }, function () { ui.devOff() })
+  off.textContent = '🔧 关闭调试'
+  topBar.appendChild(off)
+  ui.content.appendChild(topBar)
+  ui.content.appendChild(el('div', 'dp-dev-note', '🔧 开发者模式 · 构建 v' + (ui.view.version === '' ? '未知' : ui.view.version)))
   if (ui.view.pig !== null && ui.view.pig.ageForced) {
     ui.content.appendChild(el('div', 'dp-dev-note',
       '⚠️ 年龄是调试改的（HUD 上有 🔧）—— 按「⏪ 年龄归零」才会重新按真实时间算'))
@@ -38,6 +44,18 @@ export function renderDevTab(ui) {
   }
 
   var patch = function (body) { ui.send('dev', { patch: body }) }
+
+  // 形态（C1）：调试页要能一键变成每一种形态，不看条件；再加一条「恢复普通」。
+  var forms = ui.view.forms === null ? [] : ui.view.forms.forms
+  var formEntries = forms.map(function (form) {
+    return {
+      key: 'form:' + form.key,
+      label: form.emoji + ' ' + form.label,
+      run: function () { patch({ form: form.key }) },
+    }
+  })
+  formEntries.push({ key: 'form:none', label: '🐖 恢复普通', run: function () { patch({ form: null }) } })
+  group('形态', formEntries)
 
   group('状态', [
     { key: 'full', label: '😊 满状态', run: function () { patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 }) } },

@@ -26,9 +26,10 @@ import { createLayout } from './layout.js'
 import { createPanel } from './panel.js'
 import { createScene } from './scene.js'
 import { CSS } from './styles.js'
-import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_KEY, DEV_TAB, KIND_ORDER, KIND_TITLE, MOUNTED, MODES, NO_ITEM_LINE, OPEN_KEY, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PET_LINES, PIG_PADDING_X, GREET_DELAY_MS, IDLE_CHAT_MINUTES, POLL_MS, POSITION_KEY, SCENE_RESERVE, STAGES, STATE_URL, TABS } from './constants.js'
+import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_TAB, KIND_ORDER, KIND_TITLE, MOUNTED, MODES, NO_ITEM_LINE, OPEN_KEY, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PET_LINES, PIG_PADDING_X, GREET_DELAY_MS, IDLE_CHAT_MINUTES, POLL_MS, POSITION_KEY, SCENE_RESERVE, STAGES, STATE_URL, TABS } from './constants.js'
 import { button, el, meter } from './dom.js'
 import { normalize } from './normalize.js'
+import { createDevMode } from './dev-mode.js'
 import { readStore, writeStore } from './storage.js'
 import { arr, num, obj, str } from './values.js'
 
@@ -166,6 +167,8 @@ import { arr, num, obj, str } from './values.js'
         get tab() { return tab }, set tab(next) { tab = next },
         get stage() { return stage }, set stage(next) { stage = next },
         get stagePicked() { return stagePicked }, set stagePicked(next) { stagePicked = next },
+        get tapVersion() { return dev.tap },
+        get devOff() { return function () { dev.set(false) } },
         get drill() { return drill },
         get picker() { return picker }, set picker(next) { picker = next },
         get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
@@ -329,10 +332,10 @@ import { arr, num, obj, str } from './values.js'
       }
       window.addEventListener?.('resize', onResize)
 
-      // ---- developer mode: Ctrl+Shift+D ----
-      function setDevMode(on) {
-        devMode = on === true
-        writeStore(DEV_KEY, devMode ? '1' : '0')
+      // ---- developer mode (C1) ----
+      // 连点版本号解锁，只在内存里记住：见 dev-mode.js。
+      function applyDevMode(next) {
+        devMode = next
         host.setAttribute('data-dev', devMode ? 'true' : 'false')
         paintBar()
         if (devMode) {
@@ -340,39 +343,20 @@ import { arr, num, obj, str } from './values.js'
           select('dev')
           showBubble('🔧 开发者模式已开', 2000)
         } else {
-          if (tab === 'dev') select('status')
+          if (tab === 'dev') select('home')
           showBubble('开发者模式已关', 1600)
         }
       }
-
-      devMode = readStore(DEV_KEY) === '1'
-      host.setAttribute('data-dev', devMode ? 'true' : 'false')
-      if (devMode) paintBar()
-
-      function onKeyDown(event) {
-        if (event.ctrlKey && event.shiftKey && (event.key === 'D' || event.key === 'd')) {
-          event.preventDefault()
-          setDevMode(!devMode)
-        }
-      }
-      window.addEventListener?.('keydown', onKeyDown)
-
-      // Also reachable from the console, for when the panel is off screen.
-      try {
-        /** @type {any} */ (window).dshPigDev = {
-          on: function () { setDevMode(true) },
-          off: function () { setDevMode(false) },
-          toggle: function () { setDevMode(!devMode) },
-        }
-      } catch (error) { /* frozen window */ }
+      var dev = createDevMode(applyDevMode, function (text, ms) { showBubble(text, ms) })
+      devMode = false
+      dev.install()
 
       function dispose() {
         stopped = true
         window.removeEventListener?.('resize', onResize)
-        // #11: the dev shortcut and the console handle outlived the pig, so a
-        // reload could toggle a panel that had already been disposed.
-        window.removeEventListener?.('keydown', onKeyDown)
-        try { delete (/** @type {any} */ (window)).dshPigDev } catch (error) { /* frozen window */ }
+        // #11: the console handle outlived the pig, so a reload could toggle a
+        // panel that had already been disposed.
+        dev.dispose()
         if (pollTimer !== null) window.clearInterval(pollTimer)
         if (chatTimer !== null) window.clearTimeout(chatTimer)
         window.clearTimeout(greetTimer)

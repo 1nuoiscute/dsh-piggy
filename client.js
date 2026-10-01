@@ -26,6 +26,10 @@
     { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
     { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" }
   ];
+  var DEV_TAPS_TO_UNLOCK = 7;
+  var DEV_TAP_WINDOW_MS = 3e3;
+  var DEV_TAP_HINT_FROM = 4;
+  var DEV_TAP_HINT_MS = 1200;
   var DEV_KEY = "dsh-piggy:dev";
   var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
   var UPDATE_TAB = { key: "update", label: "\u66F4\u65B0", emoji: "\u{1F504}" };
@@ -483,7 +487,14 @@
 
   // src/client/tabs/dev.js
   function renderDevTab(ui) {
-    ui.content.appendChild(el("div", "dp-dev-note", "\u{1F527} \u5F00\u53D1\u8005\u6A21\u5F0F \xB7 \u6784\u5EFA v" + (ui.view.version === "" ? "\u672A\u77E5" : ui.view.version) + " \xB7 Ctrl+Shift+D \u5173\u95ED"));
+    var topBar = el("div", "dp-dev-row");
+    var off = button("dp-mini dp-dev-btn", { "data-dev": "devOff" }, function() {
+      ui.devOff();
+    });
+    off.textContent = "\u{1F527} \u5173\u95ED\u8C03\u8BD5";
+    topBar.appendChild(off);
+    ui.content.appendChild(topBar);
+    ui.content.appendChild(el("div", "dp-dev-note", "\u{1F527} \u5F00\u53D1\u8005\u6A21\u5F0F \xB7 \u6784\u5EFA v" + (ui.view.version === "" ? "\u672A\u77E5" : ui.view.version)));
     if (ui.view.pig !== null && ui.view.pig.ageForced) {
       ui.content.appendChild(el(
         "div",
@@ -515,6 +526,20 @@
     var patch = function(body) {
       ui.send("dev", { patch: body });
     };
+    var forms = ui.view.forms === null ? [] : ui.view.forms.forms;
+    var formEntries = forms.map(function(form) {
+      return {
+        key: "form:" + form.key,
+        label: form.emoji + " " + form.label,
+        run: function() {
+          patch({ form: form.key });
+        }
+      };
+    });
+    formEntries.push({ key: "form:none", label: "\u{1F416} \u6062\u590D\u666E\u901A", run: function() {
+      patch({ form: null });
+    } });
+    group("\u5F62\u6001", formEntries);
     group("\u72B6\u6001", [
       { key: "full", label: "\u{1F60A} \u6EE1\u72B6\u6001", run: function() {
         patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 });
@@ -1387,6 +1412,9 @@
 
   // src/client/css-tiles.js
   var CSS_TILES = [
+    // 主屏底部的版本号：一行灰字，不占格子（连点 7 次解锁调试模式，见 C1）。
+    ".dp-version{margin-top:8px;text-align:center;font-size:9.5px;font-weight:600;",
+    "color:var(--ac-text-muted);cursor:default;user-select:none}",
     "[data-dsh-pig]{--tile-pink:#f8a6b2;--tile-purple:#b77dee;--tile-blue:#889df0;",
     "--tile-yellow:#f7cd67;--tile-orange:#e59266;--tile-teal:#82d5bb;--tile-green:#8ac68a;",
     "--tile-red:#fc736d;--tile-lime:#d1da49;--tile-peach:#e18c6f;--tile-brown:#9a835a}",
@@ -2512,6 +2540,13 @@
       })(apps[i]);
     }
     ui.content.appendChild(grid);
+    var version = el("div", "dp-version", "v" + (ui.view.version === "" ? "\u672A\u77E5" : ui.view.version));
+    version.setAttribute("data-version", "true");
+    version.addEventListener("click", function(event) {
+      if (event && typeof event.stopPropagation === "function") event.stopPropagation();
+      ui.tapVersion();
+    });
+    ui.content.appendChild(version);
   }
   function alertFor(ui, key) {
     var p = ui.view.pig;
@@ -3033,6 +3068,52 @@
     return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
   }
 
+  // src/client/dev-mode.js
+  function createDevMode(applyOn, say) {
+    var on = false;
+    var taps = 0;
+    var startedAt = 0;
+    function set(next) {
+      var value = next === true;
+      if (value === on) return;
+      on = value;
+      taps = 0;
+      applyOn(on);
+    }
+    function tap() {
+      var at = Date.now();
+      if (taps === 0 || at - startedAt > DEV_TAP_WINDOW_MS) {
+        taps = 0;
+        startedAt = at;
+      }
+      taps += 1;
+      if (taps >= DEV_TAPS_TO_UNLOCK) {
+        set(true);
+        return;
+      }
+      if (taps >= DEV_TAP_HINT_FROM) say("\u518D\u70B9 " + (DEV_TAPS_TO_UNLOCK - taps) + " \u6B21", DEV_TAP_HINT_MS);
+    }
+    function install2() {
+      writeStore(DEV_KEY, "0");
+      try {
+        window.dshPigDev = { off: function() {
+          set(false);
+        } };
+      } catch (error) {
+      }
+    }
+    function dispose() {
+      try {
+        delete /** @type {any} */
+        window.dshPigDev;
+      } catch (error) {
+      }
+    }
+    return { isOn: function() {
+      return on;
+    }, set, tap, install: install2, dispose };
+  }
+
   // src/client/index.js
   window.__ModuleLoader__.load({
     id: "dsh-piggy",
@@ -3176,6 +3257,14 @@
           },
           set stagePicked(next) {
             stagePicked = next;
+          },
+          get tapVersion() {
+            return dev.tap;
+          },
+          get devOff() {
+            return function() {
+              dev.set(false);
+            };
           },
           get drill() {
             return drill;
@@ -3380,9 +3469,8 @@
           fitPanel();
         }
         window.addEventListener?.("resize", onResize);
-        function setDevMode(on) {
-          devMode = on === true;
-          writeStore(DEV_KEY, devMode ? "1" : "0");
+        function applyDevMode(next) {
+          devMode = next;
           host.setAttribute("data-dev", devMode ? "true" : "false");
           paintBar();
           if (devMode) {
@@ -3390,43 +3478,19 @@
             select("dev");
             showBubble("\u{1F527} \u5F00\u53D1\u8005\u6A21\u5F0F\u5DF2\u5F00", 2e3);
           } else {
-            if (tab === "dev") select("status");
+            if (tab === "dev") select("home");
             showBubble("\u5F00\u53D1\u8005\u6A21\u5F0F\u5DF2\u5173", 1600);
           }
         }
-        devMode = readStore(DEV_KEY) === "1";
-        host.setAttribute("data-dev", devMode ? "true" : "false");
-        if (devMode) paintBar();
-        function onKeyDown(event) {
-          if (event.ctrlKey && event.shiftKey && (event.key === "D" || event.key === "d")) {
-            event.preventDefault();
-            setDevMode(!devMode);
-          }
-        }
-        window.addEventListener?.("keydown", onKeyDown);
-        try {
-          window.dshPigDev = {
-            on: function() {
-              setDevMode(true);
-            },
-            off: function() {
-              setDevMode(false);
-            },
-            toggle: function() {
-              setDevMode(!devMode);
-            }
-          };
-        } catch (error) {
-        }
+        var dev = createDevMode(applyDevMode, function(text, ms) {
+          showBubble(text, ms);
+        });
+        devMode = false;
+        dev.install();
         function dispose() {
           stopped = true;
           window.removeEventListener?.("resize", onResize);
-          window.removeEventListener?.("keydown", onKeyDown);
-          try {
-            delete /** @type {any} */
-            window.dshPigDev;
-          } catch (error) {
-          }
+          dev.dispose();
           if (pollTimer !== null) window.clearInterval(pollTimer);
           if (chatTimer !== null) window.clearTimeout(chatTimer);
           window.clearTimeout(greetTimer);

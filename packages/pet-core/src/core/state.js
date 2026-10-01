@@ -6,7 +6,7 @@
  * @module dsh-piggy/core/state
  */
 
-import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, xpForLevel } from '../data.js'
+import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, formByKey, xpForLevel } from '../data.js'
 import { lifeStageFor } from './clock.js'
 import { MEMORY_LIMIT } from './constants.js'
 import { announce, clamp, remember } from './effects.js'
@@ -160,6 +160,10 @@ export function applyDevPatch(state, patch, nowMs) {
     state.diedAt = null
     state.stage = 'box'
   }
+
+  // 形态（C1）：调试页要能直接变成猪猪王 / 恶魔猪，条件不看。传 null 恢复普通。
+  if (patch.form === null) state.form = null
+  else if (typeof patch.form === 'string' && formByKey(patch.form) !== null) state.form = patch.form
 
   if (patch.activity === null) state.activity = null
   if (patch.outingStreak === 0) state.outingStreak = 0

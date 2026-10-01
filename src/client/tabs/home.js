@@ -33,6 +33,14 @@ export function renderHome(ui, apps) {
     })(apps[i])
   }
   ui.content.appendChild(grid)
+  // 版本号（C1）：一行小灰字，不占格子；3 秒内连点 7 次解锁调试模式。
+  var version = el('div', 'dp-version', 'v' + (ui.view.version === '' ? '未知' : ui.view.version))
+  version.setAttribute('data-version', 'true')
+  version.addEventListener('click', function (event) {
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation()
+    ui.tapVersion()
+  })
+  ui.content.appendChild(version)
 }
 
 /**

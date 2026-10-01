@@ -54,6 +54,15 @@ dsh plugin --profile web add /path/to/dsh-piggy
 
 所有 App 都是**先点大方块、再点小方块**，左上角「‹」一层层退回主屏。
 
+### 调试模式（藏起来的）
+
+主屏最底下那行版本号，**3 秒内连点 7 次**就解锁 🔧 调试 App（第 4 次起猪会告诉你还差几下）：
+改数值、跳等级、快进时间、一键拿齐，以及**一键换形态**（猪猪王 / 恢复普通，不看条件）。
+
+它只存在内存里 —— 刷新或重启就关掉了，调试页顶上还有「关闭调试」。控制台只保留了
+`dshPigDev.off()` 这一个开关；以前那个 Ctrl+Shift+D 和 localStorage 记忆已经撤掉了
+（用户反馈过「怎么关都关不掉」）。
+
 <p align="center">
   <img src="docs/screenshots/readme-status.png" width="200" alt="状态">
   <img src="docs/screenshots/readme-study.png" width="200" alt="学习">

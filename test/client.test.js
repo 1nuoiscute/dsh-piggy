@@ -621,17 +621,18 @@ test('the shop icon flags itself when the pig is sick', async () => {
   assert.equal(findByAttr(barOf(dom), 'data-tab', 'shop').attributes['data-alert'], 'true')
 })
 
-test('disposing also unhooks the dev shortcut and window.dshPigDev', async () => {
-  // #11: dispose() removed the pig but left the Ctrl+Shift+D listener and the
-  // console handle behind, so a reload could toggle a pig that no longer exists.
-  const { registration, dom, windowListeners } = await loadClient()
+test('disposing takes the dev console handle with it', async () => {
+  // #11: dispose() removed the pig but left the console handle behind, so a
+  // reload could toggle a pig that no longer exists. C1 dropped the Ctrl+Shift+D
+  // shortcut entirely — dev mode is unlocked by tapping the version line.
+  const { registration, windowListeners } = await loadClient()
   const dispose = registration.factory(() => {}).apply({})
   await settle()
-  assert.ok((windowListeners.keydown ?? []).length > 0, 'the shortcut starts hooked')
-  assert.notEqual(window.dshPigDev, undefined)
+  assert.deepEqual(windowListeners.keydown ?? [], [], 'there is no dev shortcut any more')
+  assert.equal(typeof window.dshPigDev?.off, 'function', 'the console keeps only the off switch')
+  assert.equal(window.dshPigDev.on, undefined)
 
   dispose()
-  assert.deepEqual(windowListeners.keydown ?? [], [], 'the shortcut must be unhooked')
   assert.equal(window.dshPigDev, undefined, 'and the console handle must go')
 })
 
@@ -921,16 +922,32 @@ test('the shop shows how many of a consumable the pig already has', async () => 
 })
 
 test('a render does not wipe the developer-mode highlight', async () => {
-  const { registration, dom, store } = await loadClient()
-  store.set('dsh-piggy:dev', '1')
-  registration.factory(() => {}).apply({})
-  await settle()
-  assert.equal(hostOf(dom).attributes['data-dev'], 'true')
-  openPanel(dom)
-  // Any action ends in render(); it used to hard-code data-dev back to "false".
-  findByAttr(contentOf(dom), 'data-action', 'pet').fire('click')
-  await settle()
-  assert.equal(hostOf(dom).attributes['data-dev'], 'true', 'dev mode survived a render')
+  // C1: dev mode is unlocked with seven taps on the version line and lives in
+  // memory only, so the test unlocks it the way a user does.
+  const realNow = Date.now
+  let now = 7_000_000
+  Date.now = () => now
+  const { registration, dom } = await loadClient()
+  try {
+    registration.factory(() => {}).apply({})
+    await settle()
+    // 版本号在主屏上，所以打开面板后要停在主屏（默认会点进状态页）。
+    openPanel(dom, 'home')
+    for (let i = 0; i < 7; i += 1) {
+      now += 100
+      findByAttr(contentOf(dom), 'data-version', 'true').fire('click')
+    }
+    assert.equal(hostOf(dom).attributes['data-dev'], 'true')
+    // 解锁后停在调试页，回主屏再点一次猪（任何动作都会走一遍 render）。
+    findByAttr(contentOf(dom), 'data-home', 'true').fire('click')
+    findByAttr(contentOf(dom), 'data-app', 'status').fire('click')
+    // Any action ends in render(); it used to hard-code data-dev back to "false".
+    findByAttr(contentOf(dom), 'data-action', 'pet').fire('click')
+    await settle()
+    assert.equal(hostOf(dom).attributes['data-dev'], 'true', 'dev mode survived a render')
+  } finally {
+    Date.now = realNow
+  }
 })
 
 test('the study icon lights up when there is a course to take', async () => {

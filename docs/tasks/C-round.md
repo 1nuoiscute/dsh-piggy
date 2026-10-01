@@ -165,6 +165,37 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
 
 ## 验证记录（各 agent 每卡完成后追加）
 
+### C1 调试模式（DSH agent，2026-10-01）
+
+- `npm run build && npm test`：**328 / 328 通过**（新增 `test/dev-coverage.test.js` 11 条，
+  改写 `test/client.test.js` 里 2 条 B1 时代的旧断言 —— 它们还在测 Ctrl+Shift+D）
+- `npm run typecheck`：**0 错误**
+- 真机验收（隔离实例 3082，`DSH_HOME=/zyx/DSH/workspaces/.dsh-home-test`，Playwright + `/usr/bin/chromium`）：
+
+  | 验收项 | 实测 |
+  |---|---|
+  | 刷新后无 🔧 | `data-dev="false"`、`[data-app="dev"]` 0 个 ✓ |
+  | 连点 6 次不开 / 7 次开 | 6 次后 `false`，第 7 次 `true` ✓ |
+  | 第 4 次起提示 | 气泡「再点 3 次」✓ |
+  | 刷新又关 | reload 后 `data-dev="false"` ✓ |
+  | 控制台 | `dshPigDev.on` / `.toggle` 都是 `undefined`，只有 `off` 是函数 ✓ |
+  | 调试页一键变形态 | 「形态」组有 猪猪王 / 恢复普通 ✓（截图里是调试页全貌） |
+
+- 截图：`docs/screenshots/c1-home-version.png`（主屏版本号）、`c1-tap-hint.png`（第 4 次提示）、
+  `c1-dev-tab.png`（解锁后直接落在调试页）、`c1-dev-app.png`（🔧 App 出现）、`c1-form-king.png`（调试页形态组）
+- 改动文件：`src/client/dev-mode.js`（新，连点解锁 + 控制台 off）、`src/client/index.js`（去掉
+  Ctrl+Shift+D 与 localStorage 记忆，接线给主屏与调试页）、`src/client/constants.js`（解锁参数）、
+  `src/client/tabs/home.js`（版本号）、`src/client/tabs/dev.js`（关闭调试 + 形态组）、
+  `src/client/css-tiles.js`（`.dp-version`）、`packages/pet-core/src/core/state.js`
+  （`applyDevPatch` 支持 `form`，`null` = 恢复普通）、测试两个、README、CHANGELOG
+
+
 ## 疑问（数值/规则觉得不合理写这里，等用户定）
+
+- **C1**：「形态」按钮按卡只改 `state.form`。而形态的立绘只在该形态对应的生活阶段才显示
+  （猪猪王要 `middle`/青年以后，见 `formStageView`），所以幼年猪点「猪猪王」看不到变化。
+  要不要让这个按钮顺手把等级顶到该形态所在的阶段（更好按着玩），还是保持"只改形态"？
+  现在是保持原样，验收时可以先点「等级 → 成年 Lv40」再点形态。
+
 
 ## 验收意见（Claude 写）
