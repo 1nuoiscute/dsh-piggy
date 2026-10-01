@@ -14,7 +14,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-import { WINDOW_PADDING, clampBounds, contentBounds, movedBounds, quantizeKey } from '../lib/window-geometry.js'
+import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, movedBounds, quantizeKey } from '../lib/window-geometry.js'
 
 const SHELL = readFileSync(new URL('../renderer/shell.js', import.meta.url), 'utf8')
 
@@ -186,6 +186,15 @@ test('面板展开 / 收起：内容框变了才上报', () => {
   assert.ok(page.window.__shellCalls.content.length > before, '面板出来要上报新尺寸')
   const box = page.window.__shellCalls.content.at(-1)
   assert.ok(box.height >= 300, `内容框要包住面板：${JSON.stringify(box)}`)
+})
+
+test('上报要带猪在窗口坐标里的位置（主进程第二步收敛靠它）', () => {
+  const page = fakePage()
+  page.run()
+  page.tick(false)
+  const box = page.window.__shellCalls.content.at(-1)
+  assert.equal(typeof box.pigWindow?.x, 'number', '要报 pigWindow.x')
+  assert.equal(typeof box.pigWindow?.y, 'number', '要报 pigWindow.y')
 })
 
 test('外壳要订阅几何并主动问一次（不然 room() 永远是 null）', () => {
@@ -381,4 +390,59 @@ test('4px 取整：动画级别的抖动不产生新 key，真变化仍然能看
   assert.equal(quantizeKey(base), quantizeKey({ x: 702, y: 501, width: 102, height: 121 }), '3px 内的抖动要算同一帧')
   assert.notEqual(quantizeKey(base), quantizeKey({ x: 708, y: 500, width: 100, height: 120 }), '真挪了位置要能看出来')
   assert.equal(WINDOW_PADDING, 16, '四周留 16px')
+})
+
+// ---------------------------------------------------------------------------
+// 两步收敛：面板展开/收起后，猪的屏幕坐标差 ≤ 4px（Claude 的 D1 返工 2）
+// ---------------------------------------------------------------------------
+
+/** 模拟页面布局：猪被钉在窗口的哪两条边（16px）。 */
+function pigWindowBox(windowSize, vertical, horizontal, pigSize = { width: 76, height: 61 }) {
+  return {
+    x: horizontal === 'left' ? WINDOW_PADDING : windowSize.width - WINDOW_PADDING - pigSize.width,
+    y: vertical === 'top' ? WINDOW_PADDING : windowSize.height - WINDOW_PADDING - pigSize.height,
+  }
+}
+
+test('四个角展开/收起：两步收敛后猪的屏幕坐标差 ≤ 4px', () => {
+  for (const corner of cornerStarts()) {
+    const vertical = corner.name.startsWith('top') ? 'below' : 'above'   // 面板朝哪边开
+    const horizontal = corner.name.endsWith('left') ? 'right' : 'left'
+    const open = openedContent(vertical, horizontal)
+    const openAnchor = { vertical: vertical === 'below' ? 'top' : 'bottom', horizontal: horizontal === 'right' ? 'left' : 'right' }
+    // 收起态：猪钉在右下角（外壳启动时的钉法）
+    const collapsedPigWindow = pigWindowBox(corner.start, 'bottom', 'right')
+    const target = { x: corner.start.x + collapsedPigWindow.x, y: corner.start.y + collapsedPigWindow.y }
+    const label = `${corner.name} / 面板朝${vertical === 'below' ? '下' : '上'}${horizontal === 'right' ? '右' : '左'}`
+
+    // 第一步：只改大小
+    const sized = contentBounds(corner.start, open, AREA)
+    assert.deepEqual({ width: sized.width, height: sized.height }, { width: open.width, height: open.height }, `${label}：大小要对`)
+    // 第二步：页面量到猪在窗口里的真实位置 → 平移一次
+    const openedPigWindow = pigWindowBox(sized, openAnchor.vertical, openAnchor.horizontal)
+    // 锚边没翻的时候本来就不用补（返回 null 就是「不动」）
+    const fixed = anchorCorrection(sized, openedPigWindow, target, AREA) ?? sized
+    const pigAfterOpen = { x: fixed.x + openedPigWindow.x, y: fixed.y + openedPigWindow.y }
+    assert.ok(Math.abs(pigAfterOpen.x - target.x) <= 4, `${label}：横坐标差 ${pigAfterOpen.x - target.x}`)
+    assert.ok(Math.abs(pigAfterOpen.y - target.y) <= 4, `${label}：纵坐标差 ${pigAfterOpen.y - target.y}`)
+    assert.ok(fixed.x >= AREA.x && fixed.y >= AREA.y && fixed.x + fixed.width <= AREA.x + AREA.width && fixed.y + fixed.height <= AREA.y + AREA.height, `${label}：窗口别出界`)
+
+    // 收起：同理反着来一次，回到原来的位置
+    const collapsedContentAgain = { ...corner.collapsed, anchor: open.anchor }
+    const sizedBack = contentBounds(fixed, collapsedContentAgain, AREA)
+    const collapsedPigWindowAgain = pigWindowBox(sizedBack, 'bottom', 'right')
+    const fixedBack = anchorCorrection(sizedBack, collapsedPigWindowAgain, pigAfterOpen, AREA)
+    const pigAfterClose = { x: (fixedBack ?? sizedBack).x + collapsedPigWindowAgain.x, y: (fixedBack ?? sizedBack).y + collapsedPigWindowAgain.y }
+    assert.ok(Math.abs(pigAfterClose.x - target.x) <= 4, `${label}：收起后横坐标差 ${pigAfterClose.x - target.x}`)
+    assert.ok(Math.abs(pigAfterClose.y - target.y) <= 4, `${label}：收起后纵坐标差 ${pigAfterClose.y - target.y}`)
+  }
+})
+
+test('收敛不折腾：差值在容差内就不动窗口', () => {
+  const win = { x: 500, y: 300, width: 324, height: 271 }
+  assert.equal(anchorCorrection(win, { x: 16, y: 16 }, { x: 516, y: 316 }, AREA), null)
+  assert.equal(ANCHOR_TOLERANCE, 1)
+  // 差 10px 才动，且正好补掉差值
+  const fixed = anchorCorrection(win, { x: 26, y: 16 }, { x: 516, y: 316 }, AREA)
+  assert.deepEqual({ x: fixed.x, y: fixed.y }, { x: 490, y: 300 })
 })

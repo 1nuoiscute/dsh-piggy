@@ -227,10 +227,14 @@
     return { vertical: lastVertical, horizontal: lastHorizontal }
   }
 
-  function keyOf(content, shape, pig) {
+  function keyOf(content, shape, pig, pigBox) {
     // 猪在内容框里的位置也算进去：面板从上方翻到下方时尺寸可能没变，
     // 但锚点换边了，主进程必须知道。
-    var parts = [content.width, content.height, pig.x, pig.y]
+    // 内容和猪在内容框里的位置按 4px 一档（动画抖动不算变化）；猪在**窗口坐标**里的
+    // 位置按 1px 一档 —— 主进程补平移之后要靠这次重报验证，粗了会漏掉 4px 以内的补正。
+    var parts = [Math.floor(content.width / STEP), Math.floor(content.height / STEP),
+      Math.floor(pig.x / STEP), Math.floor(pig.y / STEP),
+      Math.floor(pigBox.x), Math.floor(pigBox.y)]
     for (var i = 0; i < shape.length; i += 1) parts.push(shape[i].x, shape[i].y, shape[i].width, shape[i].height)
     // 4px 一档：动画抖几像素不会换 key。
     return parts.map(function (n) { return Math.floor(n / STEP) }).join(',')
@@ -248,10 +252,17 @@
     var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
     var side = sides(host)
     pinPig(side.vertical, side.horizontal, next.hostBox, next.pigBox)
-    var key = keyOf(next.content, next.shape, next.pig)
+    var key = keyOf(next.content, next.shape, next.pig, next.pigBox)
     if (key === lastKey) return
     lastKey = key
-    shell.setContent({ width: next.content.width, height: next.content.height, pig: next.pig, anchor: side, shape: next.shape })
+    shell.setContent({
+      width: next.content.width,
+      height: next.content.height,
+      pig: next.pig,
+      pigWindow: { x: next.pigBox.x, y: next.pigBox.y },
+      anchor: side,
+      shape: next.shape,
+    })
   }
 
   // ---------------------------------------------------------------------------

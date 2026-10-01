@@ -79,6 +79,37 @@ export function movedBounds(windowBounds, dx, dy, area) {
   }, area)
 }
 
+/** 收敛容差：猪的屏幕位置差这么点就不管了。 */
+export const ANCHOR_TOLERANCE = 1
+
+/**
+ * 第二步（收敛）：窗口大小已经改好，再照页面量到的**猪在窗口坐标里的真实位置**
+ * 把窗口平移一次，让猪的屏幕坐标和「展开前」一致。
+ *
+ * shell.js 报的 `pig` 是相对内容框原点的，而面板换方向时最左/最上的框会换人
+ * （HUD、面板、猪轮流当），那个原点差值就是残余的十几、二十几像素。
+ * 直接用 `pigWindow`（layoutBox(.dp-pig)，不减内容原点）就没有这个问题。
+ *
+ * @param {{x: number, y: number, width: number, height: number}} windowBounds - 已经改好大小的窗口
+ * @param {{x: number, y: number}} pigWindow - 猪在窗口坐标里的位置（页面量的）
+ * @param {{x: number, y: number}} targetPigScreen - 展开/收起前记下的猪屏幕坐标
+ * @param {{x: number, y: number, width: number, height: number}} area
+ * @returns {{x: number, y: number, width: number, height: number}|null} 要平移就返回新 bounds
+ */
+export function anchorCorrection(windowBounds, pigWindow, targetPigScreen, area) {
+  const nowX = round(windowBounds.x) + round(pigWindow.x)
+  const nowY = round(windowBounds.y) + round(pigWindow.y)
+  const dx = nowX - round(targetPigScreen.x)
+  const dy = nowY - round(targetPigScreen.y)
+  if (Math.abs(dx) <= ANCHOR_TOLERANCE && Math.abs(dy) <= ANCHOR_TOLERANCE) return null
+  return clampBounds({
+    x: round(windowBounds.x) - dx,
+    y: round(windowBounds.y) - dy,
+    width: round(windowBounds.width),
+    height: round(windowBounds.height),
+  }, area)
+}
+
 /** 窗口的右下角：猪停在这儿。 */
 export function anchorPoint(bounds) {
   return { x: round(bounds.x) + round(bounds.width), y: round(bounds.y) + round(bounds.height) }

@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, net, protocol, screen, shell } from 'electron'
 
 import { startHost } from './lib/host.js'
-import { WINDOW_PADDING, clampBounds, contentBounds, movedBounds } from './lib/window-geometry.js'
+import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, movedBounds } from './lib/window-geometry.js'
 import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -189,7 +189,20 @@ function createWindow() {
 }
 
 let lastShape = []
-/** 页面报来内容外接框：改窗口大小（锚在猪身上），并抠出可点区域。 */
+/** 上一次报的猪在窗口坐标里的位置（收敛时当「展开前」的基准）。 */
+let lastPigWindow = null
+/** 内容变了之后挂上：{ target: 猪的屏幕坐标, passes }，页面下一帧来报时补一次平移。 */
+let anchorFix = null
+/** 上一次报的内容（尺寸 + 锚边）：用来判断这次是不是「内容变了」。 */
+let lastContent = null
+
+/**
+ * 页面报来内容外接框：
+ *   第一步 照锚边改窗口大小（大小对就行）；
+ *   第二步 页面下一帧量出猪在窗口里的真实位置（pigWindow），和「内容变化前」记下的
+ *          猪屏幕坐标比，差多少就把窗口平移多少 —— 收敛到 ≤1px。面板收起同理。
+ * 只在内容变化（展开/收起/尺寸变）时做，闲着不触发。
+ */
 ipcMain.on('piggy:content', (event, content) => {
   if (win === null || event.sender !== win.webContents) return
   const width = Number(content?.width)
@@ -198,11 +211,33 @@ ipcMain.on('piggy:content', (event, content) => {
   if (!Number.isFinite(width) || !Number.isFinite(height)) return
   const anchor = { vertical: content?.anchor?.vertical === 'top' ? 'top' : 'bottom', horizontal: content?.anchor?.horizontal === 'left' ? 'left' : 'right' }
   const bounds = win.getBounds()
-  const updated = contentBounds(bounds, { width, height, anchor }, workAreaFor(bounds))
-  applyBounds(updated, 'content')
+  const area = workAreaFor(bounds)
+  const pigWindow = { x: Number(content?.pigWindow?.x), y: Number(content?.pigWindow?.y) }
+  const hasPigWindow = Number.isFinite(pigWindow.x) && Number.isFinite(pigWindow.y)
+  const changed = lastContent === null
+    || lastContent.width !== width || lastContent.height !== height
+    || lastContent.anchor.vertical !== anchor.vertical || lastContent.anchor.horizontal !== anchor.horizontal
+
+  if (changed) {
+    // 「内容变化前」的猪屏幕坐标 = 现在的窗口原点 + 上一次报的猪窗口位置。
+    anchorFix = lastPigWindow === null ? null : {
+      target: { x: bounds.x + lastPigWindow.x, y: bounds.y + lastPigWindow.y },
+      passes: 0,
+    }
+    applyBounds(contentBounds(bounds, { width, height, anchor }, area), 'content')
+  } else if (anchorFix !== null && hasPigWindow) {
+    // 第二步：页面量到的猪窗口位置 → 补掉差值（夹进 workArea）。
+    const corrected = anchorCorrection(win.getBounds(), pigWindow, anchorFix.target, area)
+    anchorFix.passes += 1
+    if (corrected !== null) applyBounds(corrected, 'anchor')
+    if (corrected === null || anchorFix.passes >= 3) anchorFix = null
+  }
+
+  lastContent = { width, height, anchor }
+  if (hasPigWindow) lastPigWindow = pigWindow
   // 记下「猪在屏幕上哪儿」：实机核对展开面板时它有没有动（日志里是 DIP 坐标）。
-  const pigOnScreen = Number.isFinite(pig.x) && Number.isFinite(pig.y) ? { x: updated.x + pig.x, y: updated.y + pig.y } : null
-  log('content', JSON.stringify({ window: updated, anchor, pigOnScreen }))
+  const pigOnScreen = hasPigWindow ? { x: win.getBounds().x + pigWindow.x, y: win.getBounds().y + pigWindow.y } : null
+  log('content', JSON.stringify({ window: win.getBounds(), anchor, pigOnScreen, fix: anchorFix === null ? 'done' : anchorFix.passes }))
   const shape = Array.isArray(content.shape) ? content.shape : []
   win.setShape(shape.slice(0, 64).map(r => ({
     x: Math.max(0, Math.round(Number(r.x) || 0)), y: Math.max(0, Math.round(Number(r.y) || 0)),
