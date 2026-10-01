@@ -1,7 +1,10 @@
 // @ts-check
 /**
- * 加冕：长成之后由主人选一种形态（data/evolution.js）。达标不会自动加冕，
- * 不加钱、不改成长和疾病规则，只换样子。复活保留形态，领养的新猪从头来。
+ * 形态：长成之后换一身样子（data/evolution.js）。两条入口，同一套条件：
+ *   - 加冕 `crown()`  —— 出现在「加冕」App 里，由主人点；
+ *   - 签约 `signContract()` —— 不进加冕 App，靠商店的契约道具在背包里使用。
+ * 加冕是给王的动词，所以 `crown()` 只认 `via: 'coronation'` 的形态，别的会诚实拒绝。
+ * 达标不会自动换，不加钱、不改成长和疾病规则。复活保留形态，领养的新猪从头来。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入（见 docs/CONVENTIONS.md）。
  * @module dsh-piggy/core/evolution
@@ -19,6 +22,15 @@ function stageLevel(stageKey) {
 
 const REQUIREMENT_LABELS = Object.freeze({ jobs: '打工', plays: '本代玩耍' })
 
+/**
+ * How each entry point talks. `reason` is what a refusal to *this* door is called,
+ * so the panel can say 「加冕条件还没补齐」 or 「契约还没生效」 instead of one flat message.
+ */
+const WAYS = Object.freeze({
+  coronation: Object.freeze({ verb: '加冕', emoji: '👑', kind: 'coronation', reason: 'coronation-ineligible' }),
+  contract: Object.freeze({ verb: '签约', emoji: '😈', kind: 'contract', reason: 'contract-ineligible' }),
+})
+
 /** One form's conditions, each with what the pig has now. */
 function requirementsFor(state, form) {
   const rows = [{ key: 'level', label: '等级', have: levelFor(state.xp), need: stageLevel(form.stage) }]
@@ -34,7 +46,26 @@ function requirementsFor(state, form) {
 }
 
 /**
- * Every form and how close the pig is to it. `ready` means 加冕 would work now.
+ * The shared last mile: check this form's conditions, then change into it.
+ * Both doors go through here so they cannot drift apart.
+ * @param {object} state
+ * @param {object} form
+ * @param {number} nowMs
+ * @param {{verb: string, emoji: string, kind: string, reason: string}} way
+ */
+function transform(state, form, nowMs, way) {
+  const missing = requirementsFor(state, form).filter(row => !row.met)
+  if (missing.length > 0) return { ok: false, reason: way.reason, missing }
+  state.form = form.key
+  remember(state, `${way.emoji} ${way.verb}成为${form.label}，本事和生活都照旧`, nowMs)
+  announce(state, way.kind, `${state.name} ${way.verb}成为${form.label}！`, nowMs)
+  return { ok: true, form: form.key }
+}
+
+/**
+ * Every form and how close the pig is to it. `ready` means its own door would work
+ * now. `via` is carried through because only 加冕 forms belong in the 加冕 App —
+ * the 签约 form is discovered in the shop instead.
  * @param {object} state
  * @returns {{ current: string | null, forms: object[] } | null}
  */
@@ -48,8 +79,8 @@ export function formsView(state) {
     forms: FORMS.map(form => {
       const requirements = requirementsFor(state, form)
       return {
-        key: form.key, label: form.label, emoji: form.emoji, art: form.art,
-        // 这一形态挂在哪个人生阶段、那个阶段几级开始（调试页要按它拉等级）。
+        key: form.key, via: form.via, label: form.label, emoji: form.emoji, art: form.art,
+        // C1 debug buttons need the stage's starting level.
         stage: form.stage,
         fromLevel: lifeStageByKey(form.stage)?.fromLevel ?? 1,
         current: state.form === form.key,
@@ -63,6 +94,9 @@ export function formsView(state) {
 /**
  * 加冕. Settles elapsed time first, so a pig that died while the panel was
  * closed cannot be crowned. Crowning into the form it already has is a no-op.
+ *
+ * Only `via: 'coronation'` forms answer here: a form that is obtained some other
+ * way must not be reachable by pressing the crown button (or by POSTing `crown`).
  * @param {object} state
  * @param {number} nowMs
  * @param {string} [formKey]
@@ -74,13 +108,33 @@ export function crown(state, nowMs, formKey = DEFAULT_FORM) {
   if (state.hatched !== true) return { ok: false, reason: 'box' }
   decay(state, nowMs)
   if (state.dead === true) return { ok: false, reason: 'dead' }
+  // Already that shape wins over "wrong door": a crowned devil asking for the
+  // devil should hear "已是", not "这一种要签约".
   if (state.form === form.key) return { ok: true, form: form.key }
-  const missing = requirementsFor(state, form).filter(row => !row.met)
-  if (missing.length > 0) return { ok: false, reason: 'coronation-ineligible', missing }
-  state.form = form.key
-  remember(state, `👑 加冕成为${form.label}，本事和生活都照旧`, nowMs)
-  announce(state, 'coronation', `${state.name} 加冕成为${form.label}！`, nowMs)
-  return { ok: true, form: form.key }
+  if (form.via !== 'coronation') return { ok: false, reason: 'needs-contract', form: form.key }
+  return transform(state, form, nowMs, WAYS.coronation)
+}
+
+/**
+ * 签约 —— the contract door, spent by using the item in the bag.
+ *
+ * Same conditions as 加冕, different verb: 加冕是给王的，恶魔只能签。Refusals are
+ * honest and typed, and the caller must leave the item in the bag when this fails.
+ * @param {object} state
+ * @param {string} formKey  the form the contract grants (`data/shop.js`: item.form)
+ * @param {number} nowMs
+ */
+export function signContract(state, formKey, nowMs) {
+  if (state === null) return { ok: false, reason: 'absent' }
+  const form = formByKey(formKey)
+  if (form === null) return { ok: false, reason: 'unknown' }
+  if (form.via !== 'contract') return { ok: false, reason: 'not-a-contract', form: form.key }
+  if (state.hatched !== true) return { ok: false, reason: 'box' }
+  decay(state, nowMs)
+  if (state.dead === true) return { ok: false, reason: 'dead' }
+  // Already this shape: don't burn a 6666-coin contract to tell the player so.
+  if (state.form === form.key) return { ok: false, reason: 'already', form: form.key }
+  return transform(state, form, nowMs, WAYS.contract)
 }
 
 /**

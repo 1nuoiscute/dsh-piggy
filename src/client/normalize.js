@@ -322,15 +322,15 @@ export function normalize(raw) {
         graduations: num(obj(d.profile.counts).graduations, 0),
       },
     } : null,
-    // 加冕: the forms and how close the pig is. Older hosts send none.
+    // 形态: the forms and how close the pig is. Older hosts send none, and older
+    // hosts also have no `via` — treat those as 加冕, which is what they were.
     forms: isObj(d.forms) ? {
       current: typeof d.forms.current === 'string' ? d.forms.current : null,
       forms: arr(d.forms.forms).map(function (raw) {
         var f = obj(raw)
         return {
-          key: str(f.key, ''), label: str(f.label, ''), emoji: str(f.emoji, '👑'), art: str(f.art, ''),
+          key: str(f.key, ''), via: str(f.via, 'coronation'), label: str(f.label, ''), emoji: str(f.emoji, '👑'), art: str(f.art, ''),
           stage: str(f.stage, ''),
-          // 老宿主不发 fromLevel：给 1，等于「不用拉等级」。
           fromLevel: num(f.fromLevel, 1),
           current: f.current === true, ready: f.ready === true,
           requirements: arr(f.requirements).map(function (row) {

@@ -2011,6 +2011,15 @@ const kingForm = (patch = {}) => ({
   ],
   ...patch,
 })
+/** 恶魔猪 comes from a contract, not from the 加冕 app — same shape, `via` tells them apart. */
+const devilForm = (patch = {}) => ({
+  key: 'devil', via: 'contract', label: '恶魔猪', emoji: '😈', art: 'pig-devil', current: false, ready: false,
+  requirements: [
+    { key: 'level', label: '等级', have: 40, need: 40, met: true },
+    { key: 'plays', label: '本代玩耍', have: 20, need: 20, met: true },
+  ],
+  ...patch,
+})
 
 test('the 加冕 app shows how close the pig is to 加冕, and the button waits until every box is ticked', async () => {
   const { registration, dom, net } = await loadClient({
@@ -2151,28 +2160,48 @@ test('the desktop app gets a 退出 tile that asks the shell to close, and DSH d
   assert.equal(findByAttr(contentOf(plain.dom), 'data-app', 'quit'), undefined)
 })
 
-test('devil appears beside king with real condition progress and sends its own form key', async () => {
+test('the devil never appears in the 加冕 app, however ready it is', async () => {
   const { formsView, hatchEgg } = await import('../core.js')
   const { xpForLevel } = await import('../data.js')
-  for (const plays of [19, 20]) {
-    const state = hatchEgg(1_800_000_000_000)
-    Object.assign(state, { xp: xpForLevel(40), traits: { intel: 0, strong: 20, charm: 20 }, happiness: 10 })
-    state.stats.plays = plays
-    const { registration, dom, net } = await loadClient({ status: { ...SNAPSHOT, profile: PROFILE, forms: formsView(state) } })
-    registration.factory(() => {}).apply({})
-    await settle()
-    openPanel(dom, 'crown')
-    assert.notEqual(findByAttr(contentOf(dom), 'data-form', 'king'), undefined)
-    const block = findByAttr(contentOf(dom), 'data-form', 'devil')
-    assert.match(block.allText(), new RegExp('本代玩耍 ' + plays + '/20'))
-    const go = findByAttr(block, 'data-crown', 'devil')
-    assert.equal(go.disabled, plays < 20)
-    if (plays === 20) {
-      go.fire('click')
-      await settle()
-      const posts = net.calls.filter(call => call.method === 'POST')
-      assert.equal(posts.length, 1)
-      assert.deepEqual(JSON.parse(posts[0].body), { action: 'crown', form: 'devil' })
-    }
+  const state = hatchEgg(1_800_000_000_000)
+  Object.assign(state, { xp: xpForLevel(40), traits: { intel: 0, strong: 20, charm: 20 }, happiness: 10 })
+  state.stats.plays = 20
+  const forms = formsView(state)
+  assert.equal(forms.forms.find(form => form.key === 'devil').via, 'contract', 'the host marks it as a contract form')
+
+  const { registration, dom, net } = await loadClient({ status: { ...SNAPSHOT, profile: PROFILE, forms } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'crown')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-form', 'king'), undefined, 'the king still has his app')
+  assert.equal(findByAttr(contentOf(dom), 'data-form', 'devil'), undefined, '加冕 is not how a devil is made')
+  assert.equal(findByAttr(contentOf(dom), 'data-crown', 'devil'), undefined)
+  assert.equal(net.calls.filter(call => call.method === 'POST' && JSON.parse(call.body).action === 'crown').length, 0)
+})
+
+test('the 契约 shelf in the bag carries its conditions and sends use', async () => {
+  const contract = {
+    key: 'contract', label: '恶魔契约', emoji: '😈', price: 6666, kind: 'contract', tier: null, level: null,
+    owned: false, worn: false, unlocked: true, blurb: '签下变成恶魔猪', affordable: true, needed: false,
   }
+  const { registration, dom, net } = await loadClient({
+    status: { ...SNAPSHOT, profile: PROFILE, shop: [...SNAPSHOT.shop, contract], inventory: { ...SNAPSHOT.inventory, contract: 1 } },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'bag')
+  const shelf = findByAttr(contentOf(dom), 'data-bag', 'contract')
+  assert.notEqual(shelf, undefined, 'the new shelf shows up in the bag')
+  assert.match(shelf.allText(), /契约/)
+
+  tap(dom, 'data-bag', 'contract')
+  const tile = findByAttr(contentOf(dom), 'data-use', 'contract')
+  assert.notEqual(tile, undefined)
+  assert.match(tile.allText(), /恶魔猪/, 'the tile says what it does before you spend it')
+  tile.fire('click')
+  await settle()
+  await settle()
+  const post = net.calls.find(call => call.method === 'POST' && JSON.parse(call.body).action === 'use')
+  assert.deepEqual(JSON.parse(post.body), { action: 'use', item: 'contract' })
 })

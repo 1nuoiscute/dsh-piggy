@@ -1,8 +1,12 @@
 // @ts-check
 /**
- * 加冕 App：每种形态一块（data/evolution.js 的 FORMS，猪猪王是第一种，以后还会加）。
+ * 加冕 App：加冕得来的形态各一块（data/evolution.js 的 FORMS 里 via === 'coronation' 的那些，
+ * 猪猪王是第一种，以后还会加）。
  * 左边是那个形态的立绘，右边名字和条件，条件一条条打勾，齐了就能点加冕。
  * 已经是的那种标「当前形态」。
+ *
+ * 不是加冕来的形态（比如签约得来的恶魔猪）不在这里出现 —— 加冕是给王的动词，
+ * 那种形态在自己的入口里（商店的契约道具）。
  * @module dsh-piggy/client/tabs/crown
  */
 
@@ -16,7 +20,10 @@ export function renderCrownTab(ui) {
     return
   }
   if (ui.view.dead) ui.content.appendChild(el('div', 'dp-empty', '它走了，救回来才能加冕'))
-  for (var f = 0; f < forms.forms.length; f += 1) ui.content.appendChild(formBlock(ui, forms.forms[f]))
+  for (var f = 0; f < forms.forms.length; f += 1) {
+    if (forms.forms[f].via !== 'coronation') continue
+    ui.content.appendChild(formBlock(ui, forms.forms[f]))
+  }
 }
 
 /** One form: its picture, its conditions as ticked chips, and the button once they are all met. */

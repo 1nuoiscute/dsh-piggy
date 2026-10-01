@@ -59,8 +59,8 @@
     bath: "\u6CA1\u6709\u6D17\u6D74\u7528\u54C1\u4E86\uFF0C\u53BB\u4E70\u70B9\u5427 \u{1F9FC}",
     toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
   };
-  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B" };
-  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive"];
+  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B", contract: "\u{1F4DC} \u5951\u7EA6" };
+  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive", "contract"];
   var STAGES = [
     { key: "preschool", label: "\u5E7C\u513F\u56ED" },
     { key: "extracurricular", label: "\u8BFE\u5916" },
@@ -197,7 +197,7 @@
   }
 
   // src/client/tabs/shop.js
-  var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", dress: "pink", medicine: "green", revive: "purple" };
+  var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", dress: "pink", medicine: "green", revive: "purple", contract: "blue" };
   function shelfParts(kind) {
     var title = KIND_TITLE[kind] ?? kind;
     var space = title.indexOf(" ");
@@ -364,6 +364,8 @@
           soft: true,
           badge: "\xD7" + num(ui.view.inventory[item.key], 0),
           tag: item.needed ? "\u9700\u8981" : "",
+          // 契约 is the one consumable whose conditions you need to see before spending it.
+          note: item.kind === "contract" ? item.blurb : "",
           data: { "data-use": item.key },
           onPick: function() {
             ui.send("use", { item: item.key });
@@ -1930,9 +1932,20 @@
             ctx.showBubble(NO_ITEM_LINE[emptyKind] ?? "\u80CC\u5305\u91CC\u6CA1\u6709\u80FD\u7528\u7684\u4E1C\u897F", 3200);
             return;
           }
+          if (next.reason === "contract-ineligible") {
+            var lacks = (Array.isArray(next.missing) ? next.missing : []).map(function(row) {
+              return str(row.label, "") + " " + num(row.have, 0) + "/" + num(row.need, 0);
+            }).join(" \xB7 ");
+            ctx.showBubble(lacks === "" ? "\u5951\u7EA6\u8FD8\u6CA1\u751F\u6548" : "\u5951\u7EA6\u8FD8\u6CA1\u751F\u6548\uFF0C\u8FD8\u5DEE\uFF1A" + lacks, 3400);
+            return;
+          }
           var reasons = {
             box: "\u5148\u628A\u7EB8\u76D2\u62C6\u5F00",
             "coronation-ineligible": "\u52A0\u5195\u6761\u4EF6\u8FD8\u6CA1\u9F50",
+            "contract-ineligible": "\u5951\u7EA6\u8FD8\u6CA1\u751F\u6548\uFF1A\u6761\u4EF6\u6CA1\u8865\u9F50",
+            "needs-contract": "\u8FD9\u4E00\u79CD\u8981\u7B7E\u7EA6\uFF0C\u4E0D\u662F\u52A0\u5195",
+            "not-a-contract": "\u8FD9\u4E0D\u662F\u5951\u7EA6",
+            already: "\u5B83\u5DF2\u7ECF\u662F\u8FD9\u4E2A\u6837\u5B50\u4E86",
             cooldown: "\u8FD8\u8981\u7B49 " + num(next.wait, 0) + " \u79D2",
             poor: "\u94B1\u4E0D\u591F",
             away: "\u5B83\u5728\u5916\u9762",
@@ -2390,13 +2403,15 @@
           graduations: num(obj(d.profile.counts).graduations, 0)
         }
       } : null,
-      // 加冕: the forms and how close the pig is. Older hosts send none.
+      // 形态: the forms and how close the pig is. Older hosts send none, and older
+      // hosts also have no `via` — treat those as 加冕, which is what they were.
       forms: isObj(d.forms) ? {
         current: typeof d.forms.current === "string" ? d.forms.current : null,
         forms: arr(d.forms.forms).map(function(raw2) {
           var f = obj(raw2);
           return {
             key: str(f.key, ""),
+            via: str(f.via, "coronation"),
             label: str(f.label, ""),
             emoji: str(f.emoji, "\u{1F451}"),
             art: str(f.art, ""),
@@ -2565,7 +2580,10 @@
       return;
     }
     if (ui.view.dead) ui.content.appendChild(el("div", "dp-empty", "\u5B83\u8D70\u4E86\uFF0C\u6551\u56DE\u6765\u624D\u80FD\u52A0\u5195"));
-    for (var f = 0; f < forms.forms.length; f += 1) ui.content.appendChild(formBlock(ui, forms.forms[f]));
+    for (var f = 0; f < forms.forms.length; f += 1) {
+      if (forms.forms[f].via !== "coronation") continue;
+      ui.content.appendChild(formBlock(ui, forms.forms[f]));
+    }
   }
   function formBlock(ui, form) {
     var box = el("div", form.current ? "dp-crown dp-crown-now" : "dp-crown");
@@ -3148,6 +3166,9 @@
         if (event.kind === "coronation") {
           ctx.react("levelup", 950);
           ctx.burst(["\u{1F451}", "\u2728"], 3);
+        } else if (event.kind === "contract") {
+          ctx.react("levelup", 950);
+          ctx.burst(["\u{1F608}", "\u{1F4DC}"], 3);
         } else if (event.kind === "levelup") {
           ctx.react("levelup", 950);
           ctx.burst(["\u2728", "\u{1F389}"], 3);
