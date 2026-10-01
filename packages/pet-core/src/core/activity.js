@@ -3,7 +3,7 @@
  * 外出活动的开始与召回。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/activity
+ * @module dsh-piggy/core/activity
  */
 
 import { TOO_WEAK_HEALTH } from './constants.js'

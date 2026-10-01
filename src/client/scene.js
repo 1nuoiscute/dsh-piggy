@@ -4,7 +4,7 @@
  *
  * 只创建 DOM，不绑定事件、不读状态（见 docs/CONVENTIONS.md）；
  * 事件与渲染由 shell 负责。
- * @module dsh-pig/client/scene
+ * @module dsh-piggy/client/scene
  */
 import { MOUNTED } from './constants.js'
 import { el } from './dom.js'

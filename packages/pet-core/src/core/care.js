@@ -3,7 +3,7 @@
  * 照护动作（喂食/洗澡/玩耍）。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/care
+ * @module dsh-piggy/core/care
  */
 
 import { CARE_KIND, ILLNESS_ONSET, careItems } from '../data.js'

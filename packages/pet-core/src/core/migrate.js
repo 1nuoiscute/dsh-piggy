@@ -3,7 +3,7 @@
  * 存档迁移与字段清洗。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/migrate
+ * @module dsh-piggy/core/migrate
  */
 
 import { ILLNESS_CHAINS, INTERESTS, formByKey, MAX, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, interestByKey, itemByKey, jobByKey, schoolStageByKey, subjectByKey, tripByKey } from '../data.js'

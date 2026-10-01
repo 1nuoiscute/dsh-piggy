@@ -1,5 +1,5 @@
 /**
- * dsh-pig client tests — run the browser bundle in a faked DOM.
+ * dsh-piggy client tests — run the browser bundle in a faked DOM.
  *
  * The client half is a plain script that self-registers through
  * `window.__ModuleLoader__`, so it can be loaded and exercised in Node with a
@@ -500,7 +500,7 @@ test('the open panel shows the live host state', async () => {
   const { registration, dom, net } = await loadClient()
   registration.factory(() => {}).apply({})
   await settle()
-  assert.equal(net.calls[0].url, '/dsh-pig/state')
+  assert.equal(net.calls[0].url, '/dsh-piggy/state')
   openPanel(dom)
   const text = hostOf(dom).allText()
   assert.ok(text.includes('大花'), text)
@@ -920,7 +920,7 @@ test('the shop shows how many of a consumable the pig already has', async () => 
 
 test('a render does not wipe the developer-mode highlight', async () => {
   const { registration, dom, store } = await loadClient()
-  store.set('dsh-pig:dev', '1')
+  store.set('dsh-piggy:dev', '1')
   registration.factory(() => {}).apply({})
   await settle()
   assert.equal(hostOf(dom).attributes['data-dev'], 'true')
@@ -1569,7 +1569,7 @@ test('a drawn stage shows a sprite, the others show the emoji', async () => {
   const emoji = findByClass(hostOf(drawn.dom), 'dp-pig-emoji')
   assert.notEqual(img, undefined, 'the sprite element must exist')
   assert.equal(img.hidden, false, 'the sprite is shown')
-  assert.equal(img.src, '/dsh-pig/art/piglet.svg', 'the sprite points at the plugin art route')
+  assert.equal(img.src, '/dsh-piggy/art/piglet.svg', 'the sprite points at the plugin art route')
   assert.equal(emoji.hidden, true, 'and the emoji is hidden')
 
   const plain = await loadClient()

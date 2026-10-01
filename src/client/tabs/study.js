@@ -5,7 +5,7 @@
  * 第一层：学段方块（小学 … 学无止境）+ 兴趣。锁住的学段变灰，但点得进去看。
  * 第二层：学段里是九门课的方块，点一下就去上这一节；兴趣里是兴趣课方块，点一下就去学。
  * B4 起每门课各算各的课时：同一个学段里，正在这一段的能上，念完的打勾，还没到的上锁。
- * @module dsh-pig/client/tabs/study
+ * @module dsh-piggy/client/tabs/study
  */
 
 import { STAGES } from '../constants.js'

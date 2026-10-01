@@ -63,7 +63,7 @@ test('the real v7 save upgrades with its level, money, bag and schooling intact'
 })
 
 test('loading an older save keeps a copy of it before anything is rewritten', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-pig-upgrade-'))
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-piggy-upgrade-'))
   try {
     const path = join(dir, 'state.json')
     const original = readFileSync(new URL('./fixtures/state-v7-real.json', import.meta.url), 'utf8')

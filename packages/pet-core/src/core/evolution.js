@@ -4,7 +4,7 @@
  * 不加钱、不改成长和疾病规则，只换样子。复活保留形态，领养的新猪从头来。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/evolution
+ * @module dsh-piggy/core/evolution
  */
 
 import { DEFAULT_FORM, FORMS, LIFE_STAGES, TRAITS, formByKey } from '../data.js'

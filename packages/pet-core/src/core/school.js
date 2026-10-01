@@ -3,7 +3,7 @@
  * 九门课：每门课各算各的课时，课时决定这门课在哪个学段、能干什么工作（B4）。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/school
+ * @module dsh-piggy/core/school
  */
 
 import { GRADUATION_LESSONS, SUBJECTS, TRAITS, graduatedStage, stageForNextLesson, subjectByKey } from '../data.js'

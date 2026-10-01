@@ -9,7 +9,7 @@
  *
  * 需要指定结果的调用方（测试、调试页）可以直接给 `decay()` 传 `roll`。
  *
- * @module dsh-pig/core/random
+ * @module dsh-piggy/core/random
  */
 
 /** @typedef {() => number} Roll 返回 [0, 1) 的一个数 */

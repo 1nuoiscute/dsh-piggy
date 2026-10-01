@@ -5,7 +5,7 @@
  * 方法表单独成文件，是为了让 store.js 只剩"打开存档 + 节流写盘"这一件事
  * （见 docs/CONVENTIONS.md 的单一职责与函数长度条款）。
  *
- * @module dsh-pig/store/api
+ * @module dsh-piggy/store/api
  */
 import {
   act as coreAct,
@@ -83,7 +83,7 @@ export function createApi(control) {
         scheduleSave()
         return crossed
       } catch (error) {
-        console.warn(`[dsh-pig] feed failed: event="${event}" reason="${error instanceof Error ? error.message : String(error)}"`)
+        console.warn(`[dsh-piggy] feed failed: event="${event}" reason="${error instanceof Error ? error.message : String(error)}"`)
         return []
       }
     },
@@ -104,7 +104,7 @@ export function createApi(control) {
         scheduleSave()
       } catch (error) {
         // Keep the stale-but-valid state, but say why it is stale.
-        console.warn(`[dsh-pig] decay failed: reason="${error instanceof Error ? error.message : String(error)}"`)
+        console.warn(`[dsh-piggy] decay failed: reason="${error instanceof Error ? error.message : String(error)}"`)
       }
       return getState()
     },
@@ -235,7 +235,7 @@ export function createApi(control) {
         if (cleaned !== null) scheduleSave()
         return cleaned
       } catch (error) {
-        console.warn(`[dsh-pig] rename failed: reason="${error instanceof Error ? error.message : String(error)}"`)
+        console.warn(`[dsh-piggy] rename failed: reason="${error instanceof Error ? error.message : String(error)}"`)
         return null
       }
     },
@@ -249,7 +249,7 @@ export function createApi(control) {
         if (events.length > 0) scheduleSave()
         return events
       } catch (error) {
-        console.warn(`[dsh-pig] drainPending failed: reason="${error instanceof Error ? error.message : String(error)}"`)
+        console.warn(`[dsh-piggy] drainPending failed: reason="${error instanceof Error ? error.message : String(error)}"`)
         return []
       }
     },

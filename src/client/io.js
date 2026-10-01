@@ -3,7 +3,7 @@
  * 与宿主对话：拉快照、发动作。
  *
  * 只负责 HTTP 与错误话术，画界面交给 panel.js（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/client/io
+ * @module dsh-piggy/client/io
  */
 import { ACT_URL, NO_ITEM_LINE, STATE_URL } from './constants.js'
 import { el } from './dom.js'

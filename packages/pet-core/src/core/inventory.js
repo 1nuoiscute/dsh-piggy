@@ -3,7 +3,7 @@
  * 背包、购买、装扮与道具使用。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/inventory
+ * @module dsh-piggy/core/inventory
  */
 
 import { DEFAULT_TOY, REVIVE_ITEM, SHOP, dressSlotByKey, itemByKey } from '../data.js'

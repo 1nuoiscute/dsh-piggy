@@ -6,7 +6,7 @@
  * 原版 18 种 + 新增 15 种，门槛 = 等级 + 某几门课的课时（+ 兴趣证书）。
  * 三维不再是门槛，只决定报酬加成（`trait` 是算加成用的那一维）。
  *
- * @module dsh-pig/data/jobs
+ * @module dsh-piggy/data/jobs
  */
 
 import { CERTIFICATE_AFTER, interestByKey } from './interests.js'

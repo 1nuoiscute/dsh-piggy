@@ -2,7 +2,7 @@
 /**
  * 极小的 DOM 构造助手。
  *
- * @module dsh-pig/client/dom
+ * @module dsh-piggy/client/dom
  */
 
 import { num } from './values.js'

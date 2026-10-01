@@ -3,7 +3,7 @@
  * 面板渲染：开关面板、切页签、把快照画到 DOM 上
  *
  * 只通过 ctx 读写外壳的状态与元素（getter/setter 转发），不直接碰全局。
- * @module dsh-pig/client/panel
+ * @module dsh-piggy/client/panel
  */
 import { syncPigArt } from './art.js'
 import { DEV_TAB, OPEN_KEY, TABS } from './constants.js'

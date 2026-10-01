@@ -3,7 +3,7 @@
  * 状态页签。
  *
  * 属性条、三维、体重金币与照顾入口。
- * @module dsh-pig/client/tabs/status
+ * @module dsh-piggy/client/tabs/status
  */
 
 import { CARE_LABEL, MODES } from '../constants.js'

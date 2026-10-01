@@ -4,7 +4,7 @@
  *
  * 只碰交给它的几个元素，不读全局状态 —— 「猪还在不在」通过 isStopped()
  * 回调问外壳（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/client/effects
+ * @module dsh-piggy/client/effects
  */
 import { syncPigArt } from './art.js'
 import { PET_LINES } from './constants.js'

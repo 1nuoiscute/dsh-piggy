@@ -3,7 +3,7 @@
  * 面板快照：把状态序列化成界面读的那一份形状。
  *
  * 只读取状态与数值表，不算业务规则（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/snapshot
+ * @module dsh-piggy/snapshot
  */
 
 import { readFileSync } from 'node:fs'
@@ -24,7 +24,7 @@ function readPackageVersion() {
     const parsed = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
     return typeof parsed.version === 'string' ? parsed.version : 'unknown'
   } catch (error) {
-    console.warn(`[dsh-pig] package version unavailable: ${error instanceof Error ? error.message : String(error)}`)
+    console.warn(`[dsh-piggy] package version unavailable: ${error instanceof Error ? error.message : String(error)}`)
     return 'unknown'
   }
 }

@@ -3,7 +3,7 @@
  * 页签共用的小组件：属性条、道具选择器、效果行。
  *
  * 只负责画，不决定业务规则。
- * @module dsh-pig/client/widgets
+ * @module dsh-piggy/client/widgets
  */
 
 import { button, el, meter } from './dom.js'

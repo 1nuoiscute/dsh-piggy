@@ -3,7 +3,7 @@
  * 兴趣课。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/interests
+ * @module dsh-piggy/core/interests
  */
 
 import { INTERESTS, interestByKey } from '../data.js'

@@ -3,7 +3,7 @@
  * 加冕 App：每种形态一块（data/evolution.js 的 FORMS，猪猪王是第一种，以后还会加）。
  * 左边是那个形态的立绘，右边名字和条件，条件一条条打勾，齐了就能点加冕。
  * 已经是的那种标「当前形态」。
- * @module dsh-pig/client/tabs/crown
+ * @module dsh-piggy/client/tabs/crown
  */
 
 import { ART_URL } from '../constants.js'

@@ -2,7 +2,7 @@
 /**
  * 防御性读取：把任何宿主载荷映射成确定的形状。
  *
- * @module dsh-pig/client/values
+ * @module dsh-piggy/client/values
  */
 export var isObj = v => typeof v === 'object' && v !== null && !Array.isArray(v)
 export var obj = v => (isObj(v) ? v : {})

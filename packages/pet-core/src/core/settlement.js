@@ -3,7 +3,7 @@
  * 时间推进：衰减、疾病、结算、死亡。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/settlement
+ * @module dsh-piggy/core/settlement
  */
 
 import { CERTIFICATE_AFTER, DEFAULT_TIME_SCALE, ILLNESS_ONSET, GRADUATION_GROWTH, GRADUATION_LESSONS, SICK_AWAY_MULTIPLIER, SICK_PAY_MULTIPLIER, STUDY_GROWTH_PER_LESSON, TRAITS, illnessStageMs, interestByKey, jobByKey, rarityByKey, schoolStageByKey, stageForNextLesson, subjectByKey, traitBonus, tripByKey } from '../data.js'

@@ -3,15 +3,15 @@
  * HTTP 路由：面板读的快照、面板发的动作，以及手绘精灵图。
  *
  * 路由只做分发与序列化，不算业务规则 —— 每个动作都转发给 store（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/routes
+ * @module dsh-piggy/routes
  */
 import { readFileSync } from 'node:fs'
 
 import { snapshot } from './snapshot.js'
 
-const STATE_ROUTE = '/dsh-pig/state'
-const ACT_ROUTE = '/dsh-pig/act'
-const ART_ROUTE = '/dsh-pig/art'
+const STATE_ROUTE = '/dsh-piggy/state'
+const ACT_ROUTE = '/dsh-piggy/act'
+const ART_ROUTE = '/dsh-piggy/art'
 const BODY_LIMIT_BYTES = 2048
 
 const str = value => (typeof value === 'string' ? value : '')
@@ -84,7 +84,7 @@ const OPERATIONS = {
   giveAll: store => store.grantAll(),
 }
 
-/** GET /dsh-pig/state — the one shape the panel reads. */
+/** GET /dsh-piggy/state — the one shape the panel reads. */
 function registerStateRoute(webServer, store) {
   return webServer.register({
     kind: 'exact',
@@ -101,7 +101,7 @@ function registerStateRoute(webServer, store) {
 }
 
 /**
- * GET /dsh-pig/art/<name>.svg — the hand-drawn sprites.
+ * GET /dsh-piggy/art/<name>.svg — the hand-drawn sprites.
  *
  * Serving them from the package keeps the art as real .svg files in the
  * repository rather than a blob embedded in the client bundle.
@@ -122,7 +122,7 @@ function registerArtRoute(webServer) {
         res.writeHead(200, { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'no-cache' })
         res.end(svg)
       } catch (error) {
-        console.warn(`[dsh-pig] sprite missing: name="${name}" reason="${error instanceof Error ? error.message : String(error)}"`)
+        console.warn(`[dsh-piggy] sprite missing: name="${name}" reason="${error instanceof Error ? error.message : String(error)}"`)
         sendJson(res, 404, { error: 'not found' })
       }
     },
@@ -130,7 +130,7 @@ function registerArtRoute(webServer) {
 }
 
 /**
- * POST /dsh-pig/act — one action from the panel.
+ * POST /dsh-piggy/act — one action from the panel.
  *
  * The operation's verdict must win over the snapshot's always-true `ok`:
  * spreading the snapshot last silently swallowed every refusal.
@@ -164,7 +164,7 @@ function registerActRoute(webServer, store) {
           have: result.have,
         }, { 'cache-control': 'no-store' })
       } catch (error) {
-        console.warn(`[dsh-pig] action failed: action="${operation}" reason="${error instanceof Error ? error.message : String(error)}"`)
+        console.warn(`[dsh-piggy] action failed: action="${operation}" reason="${error instanceof Error ? error.message : String(error)}"`)
         sendJson(res, 500, { ok: false, reason: 'error' })
       }
     },
@@ -194,7 +194,7 @@ export function registerRoutes(ctx, store) {
     } catch (error) {
       // A route already taken: the pig stays command-only rather than breaking
       // activation, but this is a real failure and should be visible.
-      console.warn(`[dsh-pig] 路由注册失败，猪只能用命令访问：${error instanceof Error ? error.message : String(error)}`)
+      console.warn(`[dsh-piggy] 路由注册失败，猪只能用命令访问：${error instanceof Error ? error.message : String(error)}`)
     }
     return () => { for (const dispose of disposers) { try { dispose() } catch { /* best effort */ } } }
   })

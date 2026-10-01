@@ -2,7 +2,7 @@
 /**
  * 面板内部样式：页签、列表、格子、装扮点位与调试页。
  *
- * @module dsh-pig/client/css-tabs
+ * @module dsh-piggy/client/css-tabs
  */
 
 

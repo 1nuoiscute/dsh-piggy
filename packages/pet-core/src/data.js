@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * dsh-pig · data — the static game tables.
+ * dsh-piggy · data — the static game tables.
  *
  * Numbers and names only, no behaviour. The illness chains, thresholds, the
  * nine school subjects, the job/trip idea and the item categories are lifted
@@ -32,7 +32,7 @@
  *   mood   100/1000 = 10%  → happiness < 35 (a little kinder)
  *   health 5 → 5, unchanged — 0 is still death.
  *
- * @module dsh-pig/data
+ * @module dsh-piggy/data
  */
 
 export * from './data/minutes.js'

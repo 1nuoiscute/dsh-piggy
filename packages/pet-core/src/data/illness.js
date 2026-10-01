@@ -6,7 +6,7 @@
  * 链与药名照 QQ 宠物怀旧服 State.js；头晕、皮肤两条是原版有药没接上的链，
  * 头晕缺的第 3 级补了「神经衰弱 · 噗噗神水」。
  *
- * @module dsh-pig/data/illness
+ * @module dsh-piggy/data/illness
  */
 
 /** 状态阈值：饿、脏、孤单（心情）。发病、成长、心情显示共用。 */

@@ -3,7 +3,7 @@
  * 斜杠命令与拒绝话术。
  *
  * 只读取状态与数值表，不算业务规则（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/commands
+ * @module dsh-piggy/commands
  */
 
 import { ACTIONS, JOBS, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRAIT_ORDER, TRIPS, buy, feed, hatch } from './core.js'

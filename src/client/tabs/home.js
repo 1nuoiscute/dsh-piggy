@@ -2,7 +2,7 @@
 /**
  * 主屏（B9，照动森手机）：打开面板先看到一格格 App 方块，点进去是那个页签，
  * 页签顶上「‹」回主屏。原来挂在底部图标上的提醒，改挂在方块左上角。
- * @module dsh-pig/client/tabs/home
+ * @module dsh-piggy/client/tabs/home
  */
 
 import { el } from '../dom.js'

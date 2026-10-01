@@ -6,7 +6,7 @@
  * 照 QQ 宠物怀旧服 GrowUp.js：九门课各算各的课时，一门课上到第 9 / 20 / 40 / 95 节
  * 就算这门课小学 / 中学 / 大学 / 研究生毕业，不需要九门一起升。
  *
- * @module dsh-pig/data/school
+ * @module dsh-piggy/data/school
  */
 
 /**

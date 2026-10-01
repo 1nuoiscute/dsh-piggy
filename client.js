@@ -1,15 +1,15 @@
 // GENERATED FILE. Edit src/client/ and run `npm run build`; do not edit by hand.
 (() => {
   // src/client/constants.js
-  var STATE_URL = "/dsh-pig/state";
-  var ART_URL = "/dsh-pig/art/";
-  var ACT_URL = "/dsh-pig/act";
+  var STATE_URL = "/dsh-piggy/state";
+  var ART_URL = "/dsh-piggy/art/";
+  var ACT_URL = "/dsh-piggy/act";
   var POLL_MS = 4e3;
   var IDLE_CHAT_MINUTES = { min: 20, max: 40 };
   var GREET_DELAY_MS = 1500;
   var MOUNTED = "data-dsh-pig";
-  var OPEN_KEY = "dsh-pig:open";
-  var POSITION_KEY = "dsh-pig:position";
+  var OPEN_KEY = "dsh-piggy:open";
+  var POSITION_KEY = "dsh-piggy:position";
   var PANEL_WIDTH = 292;
   var PANEL_GAP = 8;
   var PANEL_MARGIN = 10;
@@ -26,7 +26,7 @@
     { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
     { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" }
   ];
-  var DEV_KEY = "dsh-pig:dev";
+  var DEV_KEY = "dsh-piggy:dev";
   var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
   var PET_LINES = [
     "\u597D\u8212\u670D\u2026",
@@ -2301,7 +2301,8 @@
   // src/client/storage.js
   function readStore(key) {
     try {
-      return window.localStorage.getItem(key);
+      var value = window.localStorage.getItem(key);
+      return value !== null ? value : window.localStorage.getItem(key.replace(/^dsh-piggy:/, "dsh-pig:"));
     } catch (error) {
       return null;
     }
@@ -2856,14 +2857,14 @@
         try {
           return mount();
         } catch (error) {
-          console.warn("[dsh-pig] \u6302\u8F7D\u5931\u8D25\uFF0C\u732A\u5148\u9000\u5230\u4E00\u8FB9", error);
+          console.warn("[dsh-piggy] \u6302\u8F7D\u5931\u8D25\uFF0C\u732A\u5148\u9000\u5230\u4E00\u8FB9", error);
           return () => {
           };
         }
       }
       function mount() {
         if (document.querySelector("[" + MOUNTED + "]") !== null) {
-          console.warn("[dsh-pig] \u5DF2\u5B58\u5728\u5B9E\u4F8B\uFF0C\u8DF3\u8FC7\u91CD\u590D\u6302\u8F7D");
+          console.warn("[dsh-piggy] \u5DF2\u5B58\u5728\u5B9E\u4F8B\uFF0C\u8DF3\u8FC7\u91CD\u590D\u6302\u8F7D");
           return () => {
           };
         }

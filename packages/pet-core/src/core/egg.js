@@ -3,7 +3,7 @@
  * 新猪的初始状态。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/egg
+ * @module dsh-piggy/core/egg
  */
 
 import { DEFAULT_TIME_SCALE, MAX } from '../data.js'

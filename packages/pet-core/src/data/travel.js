@@ -1,7 +1,7 @@
 // @ts-check
 /**
  * 旅行与纪念品 —— 静态数值表（零逻辑、零 IO，见 docs/CONVENTIONS.md）。
- * @module dsh-pig/data/travel
+ * @module dsh-piggy/data/travel
  */
 
 import { MINUTES } from './minutes.js'

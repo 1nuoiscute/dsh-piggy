@@ -2,7 +2,7 @@
 /**
  * 基础样式：设计令牌、宿主容器、猪、图标栏与气泡。
  *
- * @module dsh-pig/client/css-base
+ * @module dsh-piggy/client/css-base
  */
 
 

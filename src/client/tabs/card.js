@@ -6,7 +6,7 @@
  * 一行行（生日 / 星座 / 性格 / 口头禅），签名单独一个气泡，最底下一行收藏数。
  * 口头禅和签名旁边的铅笔按钮就地改，改的时候轮询不重画（见 panel.js）。
  * 加冕在主屏自己的 App 里（tabs/crown.js）；加冕后卡上多一行「形态」。
- * @module dsh-pig/client/tabs/card
+ * @module dsh-piggy/client/tabs/card
  */
 
 import { ART_URL } from '../constants.js'

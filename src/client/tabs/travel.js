@@ -3,7 +3,7 @@
  * 旅行页签。
  *
  * 目的地与纪念品收藏。
- * @module dsh-pig/client/tabs/travel
+ * @module dsh-piggy/client/tabs/travel
  */
 
 import { button, el } from '../dom.js'

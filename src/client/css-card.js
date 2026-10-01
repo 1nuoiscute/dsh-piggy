@@ -3,7 +3,7 @@
  * 居民卡的样式（B9）—— 照 animal-island-ui 的 Card `pattern-*`：淡色底上两层点点
  * （28px / 14px 网格），1.5px 同色描边，圆角 20px；「标签：值」的值放在米白胶囊里。
  * 女孩用 pattern-app-pink，男孩用 pattern-app-blue（参数取自它的 card.module.less）。
- * @module dsh-pig/client/css-card
+ * @module dsh-piggy/client/css-card
  */
 
 export const CSS_CARD = [

@@ -3,7 +3,7 @@
  * 台词：按场景挑一句、放进消息队列，处理主人的回复。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/lines
+ * @module dsh-piggy/core/lines
  */
 
 import { CATCHPHRASE_CHANCE, DEFAULT_OWNER_NAME, LINES, SERIOUS_SCENES, OWNER_NAME_MAX, OWNER_TOKEN, REPLY_HAPPINESS, THRESHOLDS, WELCOME_BACK_AFTER_MINUTES } from '../data.js'

@@ -6,12 +6,12 @@
  * Only IO and lifetime live here — the method table is in store/api.js and the
  * actual game rules are in core/ (see docs/CONVENTIONS.md).
  *
- * @module dsh-pig/store
+ * @module dsh-piggy/store
  */
 import { createApi } from './store/api.js'
-import { defaultStatePath, dshHome, readStateFile, writeStateFile } from './store/state-file.js'
+import { defaultStatePath, dshHome, moveLegacySaveDir, readStateFile, writeStateFile } from './store/state-file.js'
 
-export { defaultStatePath, dshHome }
+export { defaultStatePath, dshHome, moveLegacySaveDir }
 
 const SAVE_THROTTLE_MS = 1500
 
@@ -42,7 +42,7 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
       } catch (error) {
         // A failed write must not break the harness, but it must not be silent
         // either: the player would keep playing against a save that is not there.
-        console.warn(`[dsh-pig] save failed: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+        console.warn(`[dsh-piggy] save failed: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
       }
     }, SAVE_THROTTLE_MS)
     if (typeof timer?.unref === 'function') timer.unref()
@@ -89,7 +89,7 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
       try {
         writeNow()
       } catch (error) {
-        console.warn(`[dsh-pig] final save failed: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+        console.warn(`[dsh-piggy] final save failed: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
       }
     },
   })

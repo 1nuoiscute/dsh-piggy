@@ -3,7 +3,7 @@
  * 居民卡：性格、口头禅、签名、生日星座（B9）。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，随机数来自 core/random.js（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/profile
+ * @module dsh-piggy/core/profile
  */
 
 import { CATCHPHRASE_MAX, GRADUATION_LESSONS, MOTTO_MAX, PERSONALITIES, ZODIAC, personalityByKey } from '../data.js'

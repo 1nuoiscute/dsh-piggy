@@ -2,9 +2,9 @@
 /**
  * 存档的读写：原子写、损坏时保留现场。这一层不含任何业务规则。
  *
- * @module dsh-pig/store/state-file
+ * @module dsh-piggy/store/state-file
  */
-import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync, writeSync } from 'node:fs'
+import { closeSync, cpSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync, writeSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -20,7 +20,29 @@ export function dshHome() {
 
 /** Default save location. */
 export function defaultStatePath() {
-  return join(dshHome(), 'dsh-pig', 'state.json')
+  return join(dshHome(), 'dsh-piggy', 'state.json')
+}
+
+/**
+ * The save used to live in `$DSH_HOME/dsh-pig/`. Move it to `dsh-piggy/` once:
+ * copy the whole folder (backups too), then rename the old one aside rather
+ * than deleting it. Does nothing when the new folder already exists.
+ * @returns {string | null} where the old folder went, or null if nothing moved
+ */
+export function moveLegacySaveDir(home = dshHome(), nowMs = Date.now()) {
+  const fresh = join(home, 'dsh-piggy')
+  const legacy = join(home, 'dsh-pig')
+  if (existsSync(fresh) || !existsSync(legacy)) return null
+  try {
+    cpSync(legacy, fresh, { recursive: true, errorOnExist: true })
+    const aside = `${legacy}.moved-${new Date(nowMs).toISOString().replace(/[:.]/g, '-')}`
+    renameSync(legacy, aside)
+    console.warn(`[dsh-piggy] save folder moved: "${legacy}" -> "${fresh}" (old folder kept as "${aside}")`)
+    return aside
+  } catch (error) {
+    console.warn(`[dsh-piggy] could not move the old save folder: reason="${error instanceof Error ? error.message : String(error)}"`)
+    return null
+  }
 }
 
 /** Copy an unusable save next to the original, then complain loudly. */
@@ -29,10 +51,10 @@ function preserveUnusableSave(filePath, raw, reason, nowMs) {
   try {
     writeFileSync(backup, raw)
   } catch (error) {
-    console.warn(`[dsh-pig] save unusable (${reason}) and the backup failed: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+    console.warn(`[dsh-piggy] save unusable (${reason}) and the backup failed: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
     return
   }
-  console.warn(`[dsh-pig] save unusable (${reason}); kept a copy at "${backup}" and left the original untouched`)
+  console.warn(`[dsh-piggy] save unusable (${reason}); kept a copy at "${backup}" and left the original untouched`)
 }
 
 /**
@@ -45,9 +67,9 @@ function keepPreUpgradeCopy(filePath, raw, fromVersion, nowMs) {
   const backup = `${filePath}.v${fromVersion}-backup-${new Date(nowMs).toISOString().replace(/[:.]/g, '-')}`
   try {
     writeFileSync(backup, raw)
-    console.warn(`[dsh-pig] upgrading save v${fromVersion} -> v${STATE_VERSION}; kept a copy at "${backup}"`)
+    console.warn(`[dsh-piggy] upgrading save v${fromVersion} -> v${STATE_VERSION}; kept a copy at "${backup}"`)
   } catch (error) {
-    console.warn(`[dsh-pig] upgrading save v${fromVersion} -> v${STATE_VERSION} without a backup: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+    console.warn(`[dsh-piggy] upgrading save v${fromVersion} -> v${STATE_VERSION} without a backup: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
   }
 }
 
@@ -69,7 +91,7 @@ export function readStateFile(filePath, nowMs) {
     // A missing save is the normal first run; anything else is worth saying.
     const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
     if (code !== 'ENOENT') {
-      console.warn(`[dsh-pig] could not read save: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+      console.warn(`[dsh-piggy] could not read save: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
     }
     return { state: null, needsSave: false }
   }

@@ -1,5 +1,5 @@
 /**
- * dsh-pig host tests — the glue between core, the store and the HTTP routes.
+ * dsh-piggy host tests — the glue between core, the store and the HTTP routes.
  *
  * The unit tests cover the game model and the client bundle; this file covers
  * the part in between, which is exactly where a spread-order mistake once made
@@ -31,7 +31,7 @@ const MIN = 60_000
  */
 function boot(seed, options = {}) {
   const webServerMode = options.webServer ?? 'now'
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-pig-'))
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-piggy-'))
   const statePath = join(dir, 'state.json')
   const nowMs = Date.now()
   if (seed) writeFileSync(statePath, JSON.stringify(seed(nowMs)))
@@ -70,8 +70,8 @@ function boot(seed, options = {}) {
 
   const fire = (event, ...args) => { for (const fn of listeners[event] ?? []) fn(...args) }
   // Keep the HTTP status alongside the body so status assertions work.
-  const get = async () => withStatus(await call(routes['/dsh-pig/state'], 'GET'))
-  const post = async body => withStatus(await call(routes['/dsh-pig/act'], 'POST', body))
+  const get = async () => withStatus(await call(routes['/dsh-piggy/state'], 'GET'))
+  const post = async body => withStatus(await call(routes['/dsh-piggy/act'], 'POST', body))
   const cleanup = () => rmSync(dir, { recursive: true, force: true })
   return { routes, listeners, command, fire, get, post, releaseWebServer, statePath, cleanup }
 }
@@ -119,7 +119,7 @@ test('an operation that throws answers 500 and names the action, instead of losi
   console.warn = (...args) => warnings.push(args.map(String).join(' '))
   let result
   try {
-    result = await call(routes['/dsh-pig/act'], 'POST', { action: 'dev' })
+    result = await call(routes['/dsh-piggy/act'], 'POST', { action: 'dev' })
   } finally {
     console.warn = original
   }
@@ -133,8 +133,8 @@ test('an operation that throws answers 500 and names the action, instead of losi
 test('the host registers both routes, the four diet events and the command', () => {
   const app = boot()
   try {
-    assert.notEqual(app.routes['/dsh-pig/state'], undefined)
-    assert.notEqual(app.routes['/dsh-pig/act'], undefined)
+    assert.notEqual(app.routes['/dsh-piggy/state'], undefined)
+    assert.notEqual(app.routes['/dsh-piggy/act'], undefined)
     assert.deepEqual(
       Object.keys(app.listeners).sort(),
       ['agent/error', 'agent/inbox/claimed', 'agent/turn-stopping', 'tools/result'],
@@ -158,8 +158,8 @@ test('routes still register when the web seam arrives after activation', () => {
   try {
     assert.deepEqual(app.routes, {}, 'nothing to register against yet')
     assert.equal(app.releaseWebServer(), true, 'the seam arrives')
-    assert.notEqual(app.routes['/dsh-pig/state'], undefined, 'state route must register late')
-    assert.notEqual(app.routes['/dsh-pig/act'], undefined, 'act route must register late')
+    assert.notEqual(app.routes['/dsh-piggy/state'], undefined, 'state route must register late')
+    assert.notEqual(app.routes['/dsh-piggy/act'], undefined, 'act route must register late')
   } finally {
     app.cleanup()
   }
@@ -171,9 +171,9 @@ test('the plugin never depends on ctx.get for its routes', () => {
   const immediate = boot()
   const late = boot(null, { webServer: 'later' })
   try {
-    assert.notEqual(immediate.routes['/dsh-pig/state'], undefined)
+    assert.notEqual(immediate.routes['/dsh-piggy/state'], undefined)
     late.releaseWebServer()
-    assert.notEqual(late.routes['/dsh-pig/state'], undefined)
+    assert.notEqual(late.routes['/dsh-piggy/state'], undefined)
   } finally {
     immediate.cleanup()
     late.cleanup()
@@ -198,8 +198,8 @@ test('a host with no web seam stays command-only and does not throw', () => {
 test('routes reject the wrong method and unknown operations', async () => {
   const app = boot()
   try {
-    assert.equal((await call(app.routes['/dsh-pig/state'], 'POST')).status, 405)
-    assert.equal((await call(app.routes['/dsh-pig/act'], 'GET')).status, 405)
+    assert.equal((await call(app.routes['/dsh-piggy/state'], 'POST')).status, 405)
+    assert.equal((await call(app.routes['/dsh-piggy/act'], 'GET')).status, 405)
     const bad = await app.post({ action: 'fly' })
     assert.equal(bad.status, 400)
     assert.ok(bad.allowed.includes('work'))
@@ -658,7 +658,7 @@ test('the slash command answers about, shop and status', () => {
   const app = boot(nowMs => hatchEgg(nowMs))
   try {
     const run = input => app.command.handler({ rawInput: input })
-    assert.match(run('about').text, /dsh-pig/)
+    assert.match(run('about').text, /dsh-piggy/)
     assert.match(run('about').text, /还魂丹/)
     assert.match(run('shop').text, /商店/)
     assert.match(run('').text, /小猪|青年猪|中年猪/)

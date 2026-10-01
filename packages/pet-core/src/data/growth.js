@@ -8,7 +8,7 @@
  *
  * 存档里的 `xp` 字段就是成长值（沿用旧字段名，免得全库改名）。
  *
- * @module dsh-pig/data/growth
+ * @module dsh-piggy/data/growth
  */
 
 /** 满级。满级后成长值照样累计，只是不再升级。 */

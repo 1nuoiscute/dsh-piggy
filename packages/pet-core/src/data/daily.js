@@ -5,7 +5,7 @@
  * 数值以 docs/tasks/numbers/B5-daily.md（用户 2026-10-01 确认）为准 —— 不要随手改，
  * 觉得不合理就写进任务卡等人拍板。零逻辑、零 IO（见 docs/CONVENTIONS.md）。
  *
- * @module dsh-pig/data/daily
+ * @module dsh-piggy/data/daily
  */
 
 /**

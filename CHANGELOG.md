@@ -5,6 +5,14 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [Unreleased] — 名字统一成 dsh-piggy
+
+### Changed
+- 路由 `/dsh-pig/*` → `/dsh-piggy/*`，默认存档目录 `$DSH_HOME/dsh-pig/` → `$DSH_HOME/dsh-piggy/`，
+  profile 层 id 也改成 `dsh-piggy`。
+- 旧存档目录第一次启动时自动整个复制过去，旧目录改名为 `dsh-pig.moved-<时间>` 保留。
+- 面板的本地设置（开合、位置、开发者模式）换了键名，仍会读旧键，不会重置。
+
 ## [Unreleased] — 加冕（改编自 PR #2，作者 1nuoiscute）
 
 ### Added

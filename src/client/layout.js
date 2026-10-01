@@ -3,7 +3,7 @@
  * 图标栏与布局：钳制位置、贴边放下、图标的建立与高亮
  *
  * 只通过 ctx 读写外壳的状态与元素（getter/setter 转发），不直接碰全局。
- * @module dsh-pig/client/layout
+ * @module dsh-piggy/client/layout
  */
 import { DEV_TAB, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PIG_PADDING_X, SCENE_RESERVE, TABS } from './constants.js'
 import { button, el } from './dom.js'

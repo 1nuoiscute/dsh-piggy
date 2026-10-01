@@ -4,7 +4,7 @@
  *
  * B9（用户 2026-10-01）：照动森居民卡。性格在拆纸盒时随机一种，带一个默认口头禅和签名；
  * 口头禅和签名主人都能改，猪说话时会不时带上口头禅。
- * @module dsh-pig/data/profile
+ * @module dsh-piggy/data/profile
  */
 
 /**

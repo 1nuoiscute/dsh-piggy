@@ -6,7 +6,7 @@
  * 生病 tolk / errTolk / successTolk ……）。`[主人]` 会换成主人的称呼。
  * 文案来自 docs/tasks/numbers/B6-lines.md（用户 2026-10-01：按稿直接上）。
  *
- * @module dsh-pig/data/lines
+ * @module dsh-piggy/data/lines
  */
 
 /** 台词里代表主人称呼的占位符。 */

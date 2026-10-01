@@ -12,7 +12,7 @@
  *   3. 补一条迁移测试，用升级前的真实形状做样本
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/upgrades
+ * @module dsh-piggy/core/upgrades
  */
 
 /**

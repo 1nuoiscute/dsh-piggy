@@ -1,7 +1,7 @@
 // @ts-check
 /**
  * 生命周期与等级 —— 静态数值表（零逻辑、零 IO，见 docs/CONVENTIONS.md）。
- * @module dsh-pig/data/life
+ * @module dsh-piggy/data/life
  */
 
 /** Attribute ceilings. `health` keeps QQ Pet's 5-point scale. */

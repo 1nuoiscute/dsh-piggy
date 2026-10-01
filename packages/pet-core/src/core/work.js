@@ -3,7 +3,7 @@
  * 打工。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/work
+ * @module dsh-piggy/core/work
  */
 
 import { TRAITS, jobByKey, jobRequirement, traitBonus } from '../data.js'

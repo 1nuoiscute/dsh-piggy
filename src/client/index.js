@@ -1,5 +1,5 @@
 /**
- * dsh-pig · client — the floating pig.
+ * dsh-piggy · client — the floating pig.
  *
  * Hand-written browser bundle: DSH loads it through `window.__ModuleLoader__`,
  * bundled by esbuild from the modules beside it: raw DOM and `fetch` only, no framework.
@@ -46,14 +46,14 @@ import { arr, num, obj, str } from './values.js'
       try {
         return mount()
       } catch (error) {
-        console.warn('[dsh-pig] 挂载失败，猪先退到一边', error)
+        console.warn('[dsh-piggy] 挂载失败，猪先退到一边', error)
         return () => {}
       }
     }
 
     function mount() {
       if (document.querySelector('[' + MOUNTED + ']') !== null) {
-        console.warn('[dsh-pig] 已存在实例，跳过重复挂载')
+        console.warn('[dsh-piggy] 已存在实例，跳过重复挂载')
         return () => {}
       }
 

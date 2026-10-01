@@ -5,7 +5,7 @@
  * 等级成长（data/life.js）照旧；形态只是在某个阶段上换一身样子，不加收益。
  * 以后加新形态：在 FORMS 里加一行，在 assets/ 放 `<art>.svg`（有动作立绘的再放
  * `<art>-eat/bathe/play/pet/relaxed/work/study/trip.svg` 并写 actionArt: true）。
- * @module dsh-pig/data/evolution
+ * @module dsh-piggy/data/evolution
  */
 
 /**

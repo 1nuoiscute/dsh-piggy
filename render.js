@@ -1,12 +1,12 @@
 // @ts-check
 /**
- * dsh-pig · render — every word the pig says.
+ * dsh-piggy · render — every word the pig says.
  *
  * Pure string building: the command handlers, the HTTP actions, the tests and
  * the client bubble all read from here, so the pig's voice lives in exactly one
  * file.
  *
- * @module dsh-pig/render
+ * @module dsh-piggy/render
  */
 
 import {
@@ -316,7 +316,7 @@ export function renderAbout(commandName) {
   const trips = TRIPS.map(t => `  ${t.emoji} ${t.label}（${t.minutes} 分钟 · ${t.cost} 金币）`).join('\n')
   const shop = SHOP.map(item => `  ${item.emoji} ${item.label}  ${String(item.price).padStart(3)} 金币`).join('\n')
   return [
-    '🐖 dsh-pig —— 一只住在 DSH 里的猪',
+    '🐖 dsh-piggy —— 一只住在 DSH 里的猪',
     RULE,
     '最省事的用法：点右下角的 🐖，面板上六个图标点着用。',
     '  ① 状态  ② 学习  ③ 打工  ④ 商店  ⑤ 旅行  ⑥ 背包',
@@ -347,7 +347,7 @@ export function renderAbout(commandName) {
     `/${commandName} crown [形态]（长成后加冕）· weigh · name <名字> · about`,
     RULE,
     '它不调用模型、不注入上下文、不花一个 token。',
-    '存档在 $DSH_HOME/dsh-pig/state.json。',
+    '存档在 $DSH_HOME/dsh-piggy/state.json。',
   ].join('\n')
 }
 

@@ -7,15 +7,15 @@
  * 现在的要求是：日志说清楚、现场留一份、原文件不动。
  */
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
 import { hatchEgg, STATE_VERSION } from '../core.js'
-import { createStore } from '../store.js'
+import { createStore, moveLegacySaveDir } from '../store.js'
 
-const makeDir = () => mkdtempSync(join(tmpdir(), 'dsh-pig-store-'))
+const makeDir = () => mkdtempSync(join(tmpdir(), 'dsh-piggy-store-'))
 
 /** Run `body` with console.warn captured, returning what it logged. */
 function collectWarnings(body) {
@@ -149,5 +149,26 @@ test('a mutation that throws halfway is rolled back and never written', () => {
     assert.equal(JSON.parse(readFileSync(statePath, 'utf8')).satiety, 70, 'and nothing was written')
   } finally {
     rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('the old $DSH_HOME/dsh-pig folder moves to dsh-piggy once, byte for byte, and is kept aside', () => {
+  const home = makeDir()
+  try {
+    mkdirSync(join(home, 'dsh-pig'))
+    const save = JSON.stringify(hatchEgg(Date.parse('2026-10-01T09:00:00')))
+    writeFileSync(join(home, 'dsh-pig', 'state.json'), save)
+    writeFileSync(join(home, 'dsh-pig', 'state.json.v11-backup-x'), 'old')
+    const aside = moveLegacySaveDir(home, Date.parse('2026-10-01T10:00:00'))
+    assert.notEqual(aside, null)
+    assert.equal(readFileSync(join(home, 'dsh-piggy', 'state.json'), 'utf8'), save)
+    assert.equal(readFileSync(join(home, 'dsh-piggy', 'state.json.v11-backup-x'), 'utf8'), 'old')
+    assert.equal(existsSync(join(home, 'dsh-pig')), false)
+    assert.equal(readFileSync(join(aside, 'state.json'), 'utf8'), save, 'the old folder is renamed, not deleted')
+    // Once moved, a second start leaves everything alone.
+    mkdirSync(join(home, 'dsh-pig'))
+    assert.equal(moveLegacySaveDir(home), null)
+  } finally {
+    rmSync(home, { recursive: true, force: true })
   }
 })

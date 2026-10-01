@@ -1,5 +1,5 @@
 /**
- * dsh-pig core tests — the whole game model is pure and timestamp-driven, so
+ * dsh-piggy core tests — the whole game model is pure and timestamp-driven, so
  * every mechanic (growth, decay, work shifts, illness chains, shop, death) is
  * testable here without a timer or a wait.
  *

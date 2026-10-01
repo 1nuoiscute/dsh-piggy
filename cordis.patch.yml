@@ -8,8 +8,8 @@
 # config keys (both optional):
 #   command:   the slash command name, default "pig". Change it if another
 #              plugin already registered /pig.
-#   statePath: absolute path of the save file, default $DSH_HOME/dsh-pig/state.json.
+#   statePath: absolute path of the save file, default $DSH_HOME/dsh-piggy/state.json.
 - insert:
-    - id: dsh-pig
+    - id: dsh-piggy
       name: dsh-piggy
       config: {}

@@ -3,14 +3,14 @@
  * 客户端常量：接口地址、面板尺寸、页签与游戏文案。
  *
  * 数值与文案集中在这里，渲染代码只引用名字（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/client/constants
+ * @module dsh-piggy/client/constants
  */
 
 
-export const STATE_URL = '/dsh-pig/state'
+export const STATE_URL = '/dsh-piggy/state'
 // Hand-drawn stages are served from the plugin's own /art route.
-export const ART_URL = '/dsh-pig/art/'
-export const ACT_URL = '/dsh-pig/act'
+export const ART_URL = '/dsh-piggy/art/'
+export const ACT_URL = '/dsh-piggy/act'
 export const POLL_MS = 4000
 
 /** How often the pig speaks up unprompted, in minutes (mirrors data/lines.js IDLE_CHAT_MINUTES). */
@@ -19,8 +19,8 @@ export const IDLE_CHAT_MINUTES = { min: 20, max: 40 }
 /** Wait this long after the page opens before the pig says hello. */
 export const GREET_DELAY_MS = 1500
 export const MOUNTED = 'data-dsh-pig'
-export const OPEN_KEY = 'dsh-pig:open'
-export const POSITION_KEY = 'dsh-pig:position'
+export const OPEN_KEY = 'dsh-piggy:open'
+export const POSITION_KEY = 'dsh-piggy:position'
 // Must match `.dp-card{width}` — used to keep the panel inside the window.
 export const PANEL_WIDTH = 292
 export const PANEL_GAP = 8
@@ -47,7 +47,7 @@ export const TABS = [
 ]
 
 /** Developer mode: off unless asked for, and remembered across reloads. */
-export const DEV_KEY = 'dsh-pig:dev'
+export const DEV_KEY = 'dsh-piggy:dev'
 export const DEV_TAB = { key: 'dev', label: '调试', emoji: '🔧' }
 
 /** What the pig says when you pat it. A single line got old immediately. */

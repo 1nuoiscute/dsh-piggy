@@ -3,7 +3,7 @@
  * 商店页签（B8：动森手机式方块）。
  *
  * 第一层：六个货架方块。第二层：这个货架的货，点方块就是买。
- * @module dsh-pig/client/tabs/shop
+ * @module dsh-piggy/client/tabs/shop
  */
 
 import { KIND_ORDER, KIND_TITLE } from '../constants.js'

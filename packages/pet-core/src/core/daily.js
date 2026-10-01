@@ -6,7 +6,7 @@
  * 一天的边界是早上 06:00 —— `dayKeyFor()` 就在 clock.js，这里只是转出去，
  * 免得「一天从几点算起」有两份实现（见 docs/CONVENTIONS.md）。
  *
- * @module dsh-pig/core/daily
+ * @module dsh-piggy/core/daily
  */
 import { GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS, SHOP, itemByKey } from '../data.js'
 import { dayKeyFor } from './clock.js'

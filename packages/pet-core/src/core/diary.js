@@ -5,7 +5,7 @@
  * 零 token：模板拼句，不调模型（data/daily.js 的 DIARY_LINES）。事件点只是在
  * 原有逻辑旁边加一句 `noteToday(state, 'feed')`，判断和写入都在这里。
  *
- * @module dsh-pig/core/diary
+ * @module dsh-piggy/core/diary
  */
 import { DIARY_EMPTY_LINE, DIARY_LINES, DIARY_MAX, DIARY_MAX_SENTENCES, OWNER_TOKEN } from '../data.js'
 import { dayKeyFor } from './clock.js'

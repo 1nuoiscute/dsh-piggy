@@ -2,7 +2,7 @@
 /**
  * 样式入口：基础样式 + 页签样式拼成一张表。
  *
- * @module dsh-pig/client/styles
+ * @module dsh-piggy/client/styles
  */
 import { CSS_BASE } from './css-base.js'
 import { CSS_TABS } from './css-tabs.js'

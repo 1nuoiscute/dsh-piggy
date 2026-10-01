@@ -5,7 +5,7 @@
  * B4（用户 2026-10-01 确认）：兴趣课保留，同一门上满 CERTIFICATE_AFTER 次拿证；
  * 摄影师、程序员、舞蹈家、教练这几份工作要凭证上岗。
  *
- * @module dsh-pig/data/interests
+ * @module dsh-piggy/data/interests
  */
 
 import { MINUTES } from './minutes.js'

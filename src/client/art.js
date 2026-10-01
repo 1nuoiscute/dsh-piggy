@@ -3,7 +3,7 @@
  * 选立绘：有动作立绘的形态（加冕后的猪猪王等，见 data/evolution.js）在喂食、
  * 打工、上学、旅行时换成对应那张，照顾的反应盖过外出的样子，反应结束换回来。
  * 立绘来自 PR #2（作者 1nuoiscute）。
- * @module dsh-pig/client/art
+ * @module dsh-piggy/client/art
  */
 import { ART_URL } from './constants.js'
 

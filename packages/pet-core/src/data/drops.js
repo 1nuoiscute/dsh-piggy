@@ -5,7 +5,7 @@
  * 数字来自 docs/tasks/numbers/B4-study-jobs.md §4（用户 2026-10-01 确认）。
  * 参考 QQ 宠物：打工回来 75% 带 1 件、25% 带 2 件；这里给得少一点，因为钱多。
  *
- * @module dsh-pig/data/drops
+ * @module dsh-piggy/data/drops
  */
 
 /** 打工回来：带 2 件 / 带 1 件的概率（其余什么都不带）。 */

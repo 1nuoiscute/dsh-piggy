@@ -3,7 +3,7 @@
  * 客户端小格式化：天数、分钟数、物品类别名。
  *
  * 纯函数，输入输出都是字符串（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/client/format
+ * @module dsh-piggy/client/format
  */
 
 export function formatDays(days) {

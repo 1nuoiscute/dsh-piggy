@@ -4,7 +4,7 @@
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
  * 数字见 data/growth.js（docs/tasks/numbers/B2-growth.md）。
- * @module dsh-pig/core/growth
+ * @module dsh-piggy/core/growth
  */
 
 import {

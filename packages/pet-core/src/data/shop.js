@@ -1,7 +1,7 @@
 // @ts-check
 /**
  * 商店、装扮与照护物品 —— 静态数值表（零逻辑、零 IO，见 docs/CONVENTIONS.md）。
- * @module dsh-pig/data/shop
+ * @module dsh-piggy/data/shop
  */
 
 import { MEDICINES, REVIVE_ITEM } from './illness.js'

@@ -3,7 +3,7 @@
  * 调试页签。
  *
  * 仅开发者模式可见：改数值、改时间、一键拿齐。
- * @module dsh-pig/client/tabs/dev
+ * @module dsh-piggy/client/tabs/dev
  */
 
 import { button, el } from '../dom.js'

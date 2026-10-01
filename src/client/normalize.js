@@ -3,7 +3,7 @@
  * 把宿主快照（当前版 / 旧版 / 被截断）映射成面板画的那份形状。
  *
  * 缺字段补默认值，永不为 `undefined` —— 这是"满屏 undefined"那个 bug 的修法。
- * @module dsh-pig/client/normalize
+ * @module dsh-piggy/client/normalize
  */
 import { MODES } from './constants.js'
 import { arr, isObj, num, obj, str } from './values.js'

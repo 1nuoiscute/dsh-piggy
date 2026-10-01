@@ -4,7 +4,7 @@
  *
  * 第一层：武力 / 魅力 / 智力 三个大方块，右上角写能干的份数。
  * 第二层：这类职业的方块；点一个，下面出详情卡 —— 门槛逐条打勾打叉、加成和消耗、「出发」。
- * @module dsh-pig/client/tabs/work
+ * @module dsh-piggy/client/tabs/work
  */
 
 import { button, el } from '../dom.js'

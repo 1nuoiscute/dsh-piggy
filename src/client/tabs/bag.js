@@ -4,7 +4,7 @@
  *
  * 第一层：食物 / 洗浴 / 玩具 / 药品 / 复活 / 装扮 / 日记 / 纪念品，右上角写件数，空的变灰。
  * 第二层：道具点一下就用；装扮点一下穿上或脱下；日记和纪念品点一下，下面显示全文 / 故事。
- * @module dsh-pig/client/tabs/bag
+ * @module dsh-piggy/client/tabs/bag
  */
 
 import { KIND_ORDER } from '../constants.js'

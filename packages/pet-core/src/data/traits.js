@@ -1,7 +1,7 @@
 // @ts-check
 /**
  * 三维属性 —— 静态数值表（零逻辑、零 IO，见 docs/CONVENTIONS.md）。
- * @module dsh-pig/data/traits
+ * @module dsh-piggy/data/traits
  */
 
 /**

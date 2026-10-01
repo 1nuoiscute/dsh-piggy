@@ -5,7 +5,7 @@
  *
  * 配色取 animal-island-ui 的 app 方块色（docs/design-system/design-tokens.md），
  * 声明在组件根节点上，不碰宿主页面的 :root。
- * @module dsh-pig/client/css-tiles
+ * @module dsh-piggy/client/css-tiles
  */
 
 export const CSS_TILES = [

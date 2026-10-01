@@ -3,7 +3,7 @@
  * 领域常量与动作表。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/constants
+ * @module dsh-piggy/core/constants
  */
 
 /** Bumped when the saved shape changes in a way migrate() must handle. */

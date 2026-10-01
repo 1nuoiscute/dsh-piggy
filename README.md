@@ -6,10 +6,6 @@
 
 <p align="center">一只住在 <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a> 里的猪 —— 吃你的真实工作长大，QQ 宠物式的养成。</p>
 
-> 包名是 `dsh-piggy`（npm 上的 `dsh-pig` 已被一个无关的包占用）。
-> 插件在运行时注册的名字、HTTP 路由 `/dsh-pig/`、存档目录 `$DSH_HOME/dsh-pig/`
-> 都保留 `dsh-pig` —— **存档路径尤其不能动，那是你正在养的那只猪**。
-
 它会长大、上学、打工、旅行、生病、闹脾气，也会跟你搭话。
 玩法照着经典的 QQ 宠物复刻，界面照着动森（[animal-island-ui](https://github.com/guokaigdg/animal-island-ui)）的风格做。
 
@@ -18,7 +14,7 @@
 - **零运行时 npm 依赖** —— 纯 JS；游戏规则在独立的共享库 `@dsh-piggy/core` 里，以后的独立版也用同一套
 
 <p align="center">
-  <img src="docs/screenshots/b9-home.png" width="260" alt="主屏">
+  <img src="docs/screenshots/home.png" width="260" alt="主屏">
   <img src="docs/screenshots/b9-card-girl.png" width="260" alt="居民卡">
 </p>
 
@@ -62,6 +58,7 @@ dsh plugin --profile web add /path/to/dsh-piggy
   <img src="docs/screenshots/b9-status-away.png" width="200" alt="状态">
   <img src="docs/screenshots/b8-study-1.png" width="200" alt="学习">
   <img src="docs/screenshots/b9-work-detail.png" width="200" alt="打工详情">
+  <img src="docs/screenshots/b10-crown-progress.png" width="200" alt="加冕">
   <img src="docs/screenshots/b8-shop-1.png" width="200" alt="商店">
 </p>
 
@@ -87,14 +84,15 @@ dsh plugin --profile web add /path/to/dsh-piggy
 
 ## 存档
 
-`$DSH_HOME/dsh-pig/state.json` —— 原子写（临时文件 → fsync → rename）+ 节流。
+`$DSH_HOME/dsh-piggy/state.json` —— 原子写（临时文件 → fsync → rename）+ 节流。
+老版本存在 `$DSH_HOME/dsh-pig/` 的存档，第一次启动时会自动搬过来（旧目录改名保留，不删）。
 存档格式升级时逐级迁移，**升级前自动备份**为 `state.json.v<旧版本>-backup-<时间>`。
 
 ## 配置
 
 ```yaml
-- id: dsh-pig
-  name: dsh-pig
+- id: dsh-piggy
+  name: dsh-piggy
   config:
     command: pig                              # 改斜杠命令名
     statePath: /abs/path/to/state.json        # 改存档位置
@@ -116,8 +114,8 @@ dsh plugin --profile web add /path/to/dsh-piggy
 ## HTTP 接口
 
 ```
-GET  /dsh-pig/state   完整快照
-POST /dsh-pig/act     执行操作（操作表见 routes.js 的 OPERATIONS，命令与面板共用）
+GET  /dsh-piggy/state   完整快照
+POST /dsh-piggy/act     执行操作（操作表见 routes.js 的 OPERATIONS，命令与面板共用）
 ```
 
 请求体上限 2 KB，状态响应**不含任务标题**。

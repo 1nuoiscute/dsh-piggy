@@ -3,7 +3,7 @@
  * 时间、年龄、等级派生。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/clock
+ * @module dsh-piggy/core/clock
  */
 
 import { DAYS_PER_MONTH, DAY_STARTS_AT_HOUR, GRAVE, GROWTH_PER_HOUR, LEVEL_TITLES, LIFE_STAGES, MAX_LEVEL, SOUL_AFTER_DAYS, xpForLevel } from '../data.js'

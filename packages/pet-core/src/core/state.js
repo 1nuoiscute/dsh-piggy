@@ -3,7 +3,7 @@
  * 状态迁移（重置/继承/领养/改名/复活）。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/state
+ * @module dsh-piggy/core/state
  */
 
 import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, xpForLevel } from '../data.js'

@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * dsh-pig · core — the pure pig model.
+ * dsh-piggy · core — the pure pig model.
  *
  * No IO, no ctx, no clock of its own: every function takes the current time as
  * a parameter, so the whole game model is testable in isolation. Nothing here
@@ -17,7 +17,7 @@
  * become a single `activity` record, so "is the pig home?" has exactly one
  * answer and `decay()` has exactly one place to settle it.
  *
- * @module dsh-pig/core
+ * @module dsh-piggy/core
  */
 
 import {

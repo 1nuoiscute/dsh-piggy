@@ -3,7 +3,7 @@
  * 派生视图（属性/心情/血条）。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，不读写文件、不碰 DOM（见 docs/CONVENTIONS.md）。
- * @module dsh-pig/core/views
+ * @module dsh-piggy/core/views
  */
 
 import { GRAVE, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SLEEPY_AFTER_MINUTES, SOUL, SOUL_AFTER_DAYS, SUBJECTS, THRESHOLDS, TRAITS, TRAIT_ORDER, TRIPS } from '../data.js'

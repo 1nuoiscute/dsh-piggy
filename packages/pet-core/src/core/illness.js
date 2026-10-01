@@ -4,7 +4,7 @@
  *
  * 纯函数领域逻辑：时间由 nowMs 传入，随机数来自 core/random.js（见 docs/CONVENTIONS.md）。
  * 数字见 data/illness.js（docs/tasks/numbers/B3-illness.md）。
- * @module dsh-pig/core/illness
+ * @module dsh-piggy/core/illness
  */
 
 import {
