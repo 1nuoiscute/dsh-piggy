@@ -349,7 +349,6 @@ import { arr, num, obj, str } from './values.js'
       }, GREET_DELAY_MS)
       scheduleChat()
       // Optional call: minimal test environments stub a window without listeners.
-      // Optional call: minimal test environments stub a window without listeners.
       function onResize() {
         clampPig()
         fitPanel()
