@@ -18,6 +18,7 @@ import {
   WORK_DROP_VALUE_RATIO,
 } from '../data.js'
 import { chance, pickOne } from './random.js'
+import { recordDex } from './dex.js'
 
 /**
  * One item: pick a shelf by weight, then an item on it within the price range.
@@ -48,11 +49,12 @@ function pickItem(next, price, shelves) {
  * Put `count` random items in the bag.
  * @returns {Array<{key: string, label: string, emoji: string}>} what was given
  */
-function give(state, count, next, price, shelves = DROP_SHELVES) {
+function give(state, count, next, price, shelves = DROP_SHELVES, nowMs = 0) {
   const given = []
   for (let index = 0; index < count; index += 1) {
     const item = pickItem(next, price, shelves)
     if (item === null) continue
+    recordDex(state, 'items', item.key, nowMs)
     state.inventory = { ...(state.inventory ?? {}) }
     state.inventory[item.key] = (state.inventory[item.key] ?? 0) + 1
     given.push({ key: item.key, label: item.label, emoji: item.emoji })
@@ -61,21 +63,21 @@ function give(state, count, next, price, shelves = DROP_SHELVES) {
 }
 
 /** After a shift: sometimes one thing, now and then two, each worth ≤ 30% of the pay. */
-export function workDrops(state, pay, next) {
+export function workDrops(state, pay, next, nowMs = 0) {
   const roll = next()
   const count = roll < WORK_DROP.two ? 2 : roll < WORK_DROP.two + WORK_DROP.one ? 1 : 0
-  return give(state, count, next, { max: Math.max(1, pay * WORK_DROP_VALUE_RATIO) })
+  return give(state, count, next, { max: Math.max(1, pay * WORK_DROP_VALUE_RATIO) }, DROP_SHELVES, nowMs)
 }
 
 /** After a lesson: now and then one small thing. */
-export function studyDrops(state, next) {
-  return chance(next, STUDY_DROP_CHANCE) ? give(state, 1, next, { max: STUDY_DROP_MAX_PRICE }) : []
+export function studyDrops(state, next, nowMs = 0) {
+  return chance(next, STUDY_DROP_CHANCE) ? give(state, 1, next, { max: STUDY_DROP_MAX_PRICE }, DROP_SHELVES, nowMs) : []
 }
 
 /** A graduation: three things from the better shelves, no medicine. */
-export function graduationDrops(state, next) {
+export function graduationDrops(state, next, nowMs = 0) {
   const shelves = DROP_SHELVES.filter(shelf => !shelf.kinds.includes('medicine'))
-  return give(state, GRADUATION_DROP_COUNT, next, GRADUATION_DROP_PRICE, shelves)
+  return give(state, GRADUATION_DROP_COUNT, next, GRADUATION_DROP_PRICE, shelves, nowMs)
 }
 
 /** "苹果、香皂" with their emoji — for the announcements. */

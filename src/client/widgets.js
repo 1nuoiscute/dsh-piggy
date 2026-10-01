@@ -101,7 +101,7 @@ export function tile(spec) {
  * Open a category (or go back with `key` null). The new layer starts at the
  * top: the old scroll offset belonged to a different screen.
  * @param {object} ui
- * @param {'study'|'shop'|'bag'|'work'} tab
+ * @param {'study'|'shop'|'bag'|'work'|'dex'} tab
  * @param {string|null} key
  */
 export function drillTo(ui, tab, key) {

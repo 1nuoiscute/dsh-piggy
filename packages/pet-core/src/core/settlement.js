@@ -15,6 +15,7 @@ import { advanceIllness, noteOuting, restAtHome, rollForIllness } from './illnes
 import { say } from './lines.js'
 import { rollerFor } from './random.js'
 import { noteToday } from './diary.js'
+import { recordDex } from './dex.js'
 
 export { currentIllness, die } from './illness.js'
 
@@ -222,7 +223,7 @@ export function finishWork(state, activity, nowMs, next = rollerFor(state)) {
   noteToday(state, 'coinsEarned', coins)
   noteOuting(state)
   grow(state, outingGrowth(job === null ? activity.minutes ?? 0 : job.minutes), nowMs)
-  const brought = workDrops(state, coins, next)
+  const brought = workDrops(state, coins, next, nowMs)
   const label = job === null ? activity.label : job.label
   const emoji = job === null ? activity.emoji : job.emoji
   const tag = sick ? '（带病上工，只有一半）' : (points > 0 && trait !== null ? `（${TRAITS[trait].label} ${points}）` : '')
@@ -260,7 +261,7 @@ export function finishStudy(state, activity, nowMs, next = rollerFor(state)) {
   const gains = `${TRAITS[subject.trait].label} +${stage.gain}`
     + (subject.secondary !== null && stage.secondaryGain > 0 ? `、${TRAITS[subject.secondary].label} +${stage.secondaryGain}` : '')
   if (GRADUATION_LESSONS.includes(taken + 1)) {
-    const gifts = graduationDrops(state, next)
+    const gifts = graduationDrops(state, next, nowMs)
     grow(state, GRADUATION_GROWTH, nowMs)
     state.stats.graduations = (state.stats.graduations ?? 0) + 1
     remember(state, `🎓 ${subject.label}${stage.label}毕业（第 ${taken + 1} 节）`, nowMs)
@@ -269,7 +270,7 @@ export function finishStudy(state, activity, nowMs, next = rollerFor(state)) {
     say(state, 'graduate', nowMs)
     return
   }
-  const brought = studyDrops(state, next)
+  const brought = studyDrops(state, next, nowMs)
   const extra = brought.length > 0 ? `，还带回了${describeDrops(brought)}` : ''
   remember(state, `${subject.emoji} 上完${subject.label}第 ${taken + 1} 节，${gains}`, nowMs)
   announce(state, 'study', `${state.name} 上完${subject.label}第 ${taken + 1} 节，${gains} 📚${extra}`, nowMs)
@@ -285,10 +286,12 @@ export function finishTrip(state, activity, nowMs) {
   // is a fact about the table rather than a dice roll.
   const pick = trip.souvenirs[state.stats.trips % trip.souvenirs.length]
   const tier = rarityByKey(pick.rarity)
+  recordDex(state, 'souvenirs', pick.key, nowMs)
   state.souvenirs = [...(state.souvenirs ?? []), {
     key: pick.key, emoji: pick.emoji, label: pick.label,
     rarity: pick.rarity, story: pick.story,
     from: trip.key, fromLabel: trip.label,
+    gotAt: nowMs,
   }]
   state.happiness = clamp100(state.happiness + trip.happiness)
   state.satiety = clamp100(state.satiety + trip.satiety)

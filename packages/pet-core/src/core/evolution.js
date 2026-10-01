@@ -12,6 +12,7 @@ import { DEFAULT_FORM, FORMS, LIFE_STAGES, TRAITS, formByKey, itemByKey, lifeSta
 import { levelFor, lifeStageFor } from './clock.js'
 import { announce, remember } from './effects.js'
 import { decay } from './settlement.js'
+import { recordDex } from './dex.js'
 
 /** The level a stage starts at (成年猪 → 40). */
 function stageLevel(stageKey) {
@@ -52,6 +53,7 @@ function requirementsFor(state, form) {
 function transform(state, form, nowMs, way) {
   const missing = requirementsFor(state, form).filter(row => !row.met)
   if (missing.length > 0) return { ok: false, reason: way.reason, missing }
+  recordDex(state, 'forms', form.key, nowMs)
   state.form = form.key
   remember(state, `${way.emoji} ${way.verb}成为${form.label}，本事和生活都照旧`, nowMs)
   announce(state, way.kind, `${state.name} ${way.verb}成为${form.label}！`, nowMs)

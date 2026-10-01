@@ -369,6 +369,19 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
 - 截图实测使用隔离实例与 Playwright + `/usr/bin/chromium`；后续隔离实例按用户要求固定使用 3084，
   不触碰 3080、3082、3083。
 
+### C4 图鉴（Codex，2026-10-02）
+
+- 先写 `test/dex.test.js` 与 `test/dex-client.test.js`，实现前定向运行 7 条全部失败；实现后完整验证：
+  `npm run build` 通过，`npm test` **410 / 410 通过**，`npm run typecheck` **0 错误**，`client.js` 由构建脚本重新生成。
+- 3084 隔离实例 + Playwright + `/usr/bin/chromium` 实测：新孵化的猪五个分区计数分别为形态 0/2、
+  道具 0/63、纪念品 0/25，皮肤和鱼显示「等待收录」；买苹果后道具变 1/63，苹果显示「获得 1 次」；
+  调试切成猪猪王后形态变 1/2，猪猪王显示「获得 1 次」，未解锁的恶魔猪仍列出等级、魅力、武力、
+  本代玩耍的当前值/目标值。浏览器控制台无错误。
+- 截图：`docs/screenshots/c4-home-dex.png`、`c4-sections-empty.png`、`c4-forms-locked.png`、
+  `c4-items-apple.png`、`c4-forms-king.png`。
+- 迁移：新增 `ensureDex(state, nowMs)`，老存档从当前形态、背包数量、已购家当、纪念品回填；已发现条目
+  即使物品用掉或纪念品卖掉也保留，领养下一只猪时跟随主人继承。本轮**没有提升存档版本**，仍为 v12。
+
 
 ### D1 返工 2（DSH agent，2026-10-01）：根因已修（207px 跳没了），残余 12.8 / 24.9 DIP 仍未达标
 

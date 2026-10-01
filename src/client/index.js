@@ -111,7 +111,7 @@ import { arr, num, obj, str } from './values.js'
       // 用户自己点过学段之后，轮询就不许再替他改（B1 的「默认学段」只在没选过时生效）。
       var stagePicked = false
       // B8: which category each tile tab is opened into (null = the top layer), and a picked tile inside it.
-      var drill = { study: null, shop: null, bag: null, work: null, pick: null }
+      var drill = { study: null, shop: null, bag: null, work: null, dex: null, pick: null }
       // Which souvenir's story card is open in the travel tab, if any.
       var souvenirPick = null
       // Which care action's item picker is open, if any.

@@ -13,6 +13,7 @@ import { useFormItem } from './evolution.js'
 import { medicate } from './illness.js'
 import { decay } from './settlement.js'
 import { revive } from './state.js'
+import { recordDex } from './dex.js'
 
 /** Inventory counts, always including zeroes so the UI can render a grid. */
 export function inventoryView(state) {
@@ -64,6 +65,7 @@ export function buy(state, itemKey, nowMs) {
     if (have < need) return { ok: false, reason: 'low-level', need, have, item }
     if (state.coins < item.price) return { ok: false, reason: 'poor', price: item.price }
     state.coins -= item.price
+    recordDex(state, 'items', item.key, nowMs)
     state.dress = [...(state.dress ?? []), item.key]
     state.stats.purchases += 1
     remember(state, `买下了 ${item.emoji} ${item.label}（-${item.price} 金币）`, nowMs)
@@ -74,6 +76,7 @@ export function buy(state, itemKey, nowMs) {
 
   state.coins -= item.price
   state.inventory = { ...(state.inventory ?? {}) }
+  recordDex(state, 'items', item.key, nowMs)
   state.inventory[item.key] = (state.inventory[item.key] ?? 0) + 1
   state.stats.purchases += 1
   remember(state, `买了 ${item.emoji} ${item.label}（-${item.price} 金币）`, nowMs)
@@ -128,7 +131,12 @@ export function grantAll(state, nowMs) {
   if (state === null || state === undefined) return { ok: false, reason: 'absent' }
   const inventory = { ...(state.inventory ?? {}) }
   for (const item of SHOP) {
-    if (item.kind === 'dress') continue
+    if (item.kind === 'dress') {
+      if (!(state.dress ?? []).includes(item.key)) recordDex(state, 'items', item.key, nowMs)
+      continue
+    }
+    const added = Math.max(0, 20 - (inventory[item.key] ?? 0))
+    if (added > 0) recordDex(state, 'items', item.key, nowMs, added)
     inventory[item.key] = Math.max(inventory[item.key] ?? 0, 20)
   }
   state.inventory = inventory

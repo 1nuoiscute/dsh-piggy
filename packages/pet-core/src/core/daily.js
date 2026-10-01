@@ -13,6 +13,7 @@ import { dayKeyFor } from './clock.js'
 import { rollerFor } from './random.js'
 import { announce } from './effects.js'
 import { say } from './lines.js'
+import { recordDex } from './dex.js'
 
 export { dayKeyFor }
 
@@ -60,13 +61,14 @@ export function ensureDaily(state) {
  * @param {{coins: number, items: ReadonlyArray<{key: string, count: number}>}} reward
  * @returns {string} 领到了什么（给公告用）
  */
-export function grantReward(state, reward) {
+export function grantReward(state, reward, nowMs = 0) {
   const parts = []
   if (reward.coins > 0) {
     state.coins += reward.coins
     parts.push(`🪙 ${reward.coins}`)
   }
   for (const entry of reward.items) {
+    recordDex(state, 'items', entry.key, nowMs, entry.count)
     state.inventory = { ...(state.inventory ?? {}) }
     state.inventory[entry.key] = (state.inventory[entry.key] ?? 0) + entry.count
     const item = itemByKey(entry.key)
@@ -92,7 +94,7 @@ export function signIn(state, nowMs) {
   const today = dayKeyFor(nowMs)
   if (daily.signIn.lastDay === today) return { ok: false, reason: 'signed' }
   const index = daily.signIn.index % SIGN_IN_CYCLE
-  const text = grantReward(state, SIGN_IN_REWARDS[index])
+  const text = grantReward(state, SIGN_IN_REWARDS[index], nowMs)
   daily.signIn.lastDay = today
   daily.signIn.index = (index + 1) % SIGN_IN_CYCLE
   daily.signIn.total += 1
@@ -184,7 +186,7 @@ export function openGift(state, nowMs) {
   const daily = ensureDaily(state)
   if (daily.online.unclaimed <= 0) return { ok: false, reason: 'empty' }
   daily.online.unclaimed -= 1
-  const text = grantReward(state, pickGift(state, rollerFor(state)))
+  const text = grantReward(state, pickGift(state, rollerFor(state)), nowMs)
   announce(state, 'gift', `在线礼包：${text}`, nowMs)
   say(state, 'gift', nowMs)
   return { ok: true, reward: text }

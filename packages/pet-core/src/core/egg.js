@@ -9,6 +9,7 @@
 import { DEFAULT_TIME_SCALE, MAX } from '../data.js'
 import { BIRTH_WEIGHT_G, HATCH_WEIGHT_G, STATE_VERSION } from './constants.js'
 import { remember } from './effects.js'
+import { emptyDex } from './dex.js'
 import { emptyDialogue } from './lines.js'
 import { assignPersonality } from './profile.js'
 import { roll } from './random.js'
@@ -45,6 +46,7 @@ export function layEgg(nowMs) {
     // 家当: dress items are bought once, owned forever, and worn.
     dress: [],
     worn: [],
+    dex: emptyDex(),
     traits: { intel: 0, charm: 0, strong: 0 },
     // Lessons taken per subject (B4): the count decides the subject's stage
     // and which jobs the pig qualifies for.

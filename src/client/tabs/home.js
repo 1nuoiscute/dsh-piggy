@@ -10,7 +10,7 @@ import { tile, tileGrid } from '../widgets.js'
 
 /** One colour per app, so the home screen reads at a glance. */
 var APP_COLOR = {
-  status: 'green', card: 'pink', crown: 'purple', study: 'yellow', work: 'orange',
+  status: 'green', card: 'pink', dex: 'purple', study: 'yellow', work: 'orange',
   shop: 'red', travel: 'blue', bag: 'teal', pomodoro: 'red', update: 'lime', quit: 'peach', dev: 'brown',
 }
 

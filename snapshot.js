@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs'
 
-import { ACTIONS, ACTION_ORDER, doctorFee, profileView, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, formStageView, formsView, awayBlockedReason, careView, courseView, currentIllness, dailyView, daysToNextStage, diaryView, dressView, formatWeight, pomodoroView, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
+import { ACTIONS, ACTION_ORDER, doctorFee, profileView, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, dexView, formStageView, formsView, awayBlockedReason, careView, courseView, currentIllness, dailyView, daysToNextStage, diaryView, dressView, formatWeight, pomodoroView, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, studyView, traitView } from './core.js'
 import { CERTIFICATE_AFTER, DEFAULT_OWNER_NAME, INTERESTS, SIGN_IN_CYCLE, SEXES, jobChecklist, jobRequirement, rarityByKey, traitBonus } from './data.js'
 
 /** The stage the panel shows before there is a pig: the cardboard box. */
@@ -95,6 +95,7 @@ export function snapshot(store, options = {}) {
       trips: tripsFor(null),
       shop: shopFor(null),
       dress: [],
+      dex: { forms: [], skins: [], fish: [], items: [], souvenirs: [] },
       inventory: inventoryView({ inventory: {} }),
       activity: null, canGoOut: false, awayBlocked: 'absent',
       daily: { canSignIn: false, signInDay: 1, signInTotal: 0, cycle: SIGN_IN_CYCLE, unclaimed: 0, onlineMinutes: 0 },
@@ -117,6 +118,7 @@ export function snapshot(store, options = {}) {
 
   const daysLeft = daysToNextStage(state, nowMs)
 
+  const forms = formsView(state)
   return {
     ok: true,
     // The REAL flag, not "a save exists". A box produced by reset/adopt has a
@@ -128,7 +130,8 @@ export function snapshot(store, options = {}) {
     // B9: the villager card.
     profile: profileView(state, nowMs),
     // 加冕: every form and how close the pig is to it.
-    forms: formsView(state),
+    forms,
+    dex: dexView(state, forms, nowMs),
     timeScale: Number.isFinite(state.timeScale) ? state.timeScale : 1,
     pig: {
       name: state.name,

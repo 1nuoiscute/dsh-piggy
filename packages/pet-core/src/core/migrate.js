@@ -17,6 +17,7 @@ import { ensureDialogue } from './lines.js'
 import { ensureProfile } from './profile.js'
 import { isSeed, seedFor } from './random.js'
 import { applyUpgrades } from './upgrades.js'
+import { ensureDex } from './dex.js'
 
 /** Fill in anything a hand-edited or older save is missing. */
 export function migrate(input, nowMs) {
@@ -83,6 +84,7 @@ export function migrate(input, nowMs) {
   ensureDaily(state)
   ensureDiary(state)
   ensurePomodoro(state)
+  ensureDex(state, nowMs)
   return state
 }
 
@@ -150,6 +152,7 @@ export function sanitizeSouvenirs(raw) {
       story: typeof source.story === 'string' ? source.story : '',
       from: typeof source.from === 'string' ? source.from : null,
       fromLabel: typeof source.fromLabel === 'string' ? source.fromLabel : '',
+      ...(Number.isFinite(source.gotAt) ? { gotAt: source.gotAt } : {}),
     })
   }
   return out

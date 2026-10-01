@@ -19,7 +19,7 @@
   var TABS = [
     { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
     { key: "card", label: "\u5C45\u6C11\u5361", emoji: "\u{1FAAA}" },
-    { key: "crown", label: "\u52A0\u5195", emoji: "\u{1F451}" },
+    { key: "dex", label: "\u56FE\u9274", emoji: "\u{1F4D6}" },
     { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
     { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
     { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
@@ -2495,6 +2495,7 @@
         needed: obj(item).needed === true
       })).filter((item) => item.key !== ""),
       inventory: obj(d.inventory),
+      dex: normalizeDex(d.dex),
       daily: {
         canSignIn: obj(d.daily).canSignIn === true,
         signInDay: num(obj(d.daily).signInDay, 1),
@@ -2613,6 +2614,29 @@
       })),
       maxHealth: num(d.maxHealth, 5)
     };
+  }
+  function normalizeDex(raw) {
+    const source = obj(raw);
+    const out = {};
+    for (const section of ["forms", "skins", "fish", "items", "souvenirs"]) {
+      out[section] = arr(source[section]).map(function(value) {
+        const entry = obj(value);
+        return {
+          key: str(entry.key, ""),
+          label: str(entry.label, ""),
+          emoji: str(entry.emoji, "\u{1F4E6}"),
+          acquired: entry.acquired === true,
+          firstAt: typeof entry.firstAt === "number" ? entry.firstAt : null,
+          count: num(entry.count, 0),
+          condition: str(entry.condition, ""),
+          requirements: arr(entry.requirements).map(function(value2) {
+            const requirement = obj(value2);
+            return { key: str(requirement.key, ""), label: str(requirement.label, ""), have: num(requirement.have, 0), need: num(requirement.need, 0), met: requirement.met === true };
+          })
+        };
+      }).filter((entry) => entry.key !== "");
+    }
+    return out;
   }
   function normalizeActions(raw) {
     var source = obj(raw);
@@ -2744,69 +2768,76 @@
     return row;
   }
 
-  // src/client/tabs/crown.js
-  function renderCrownTab(ui) {
-    var forms = ui.view.forms;
-    if (forms === null) {
-      ui.content.appendChild(el("div", "dp-empty", "\u91CD\u542F dsh \u4E4B\u540E\u624D\u6709\u52A0\u5195"));
+  // src/client/tabs/dex.js
+  var SECTIONS = [];
+  function registerDexSection(section) {
+    if (section === null || typeof section !== "object" || typeof section.key !== "string") return;
+    const index = SECTIONS.findIndex((entry) => entry.key === section.key);
+    if (index >= 0) SECTIONS[index] = section;
+    else SECTIONS.push(section);
+  }
+  for (const section of [
+    { key: "forms", label: "\u5F62\u6001", emoji: "\u{1F437}", color: "pink" },
+    { key: "skins", label: "\u76AE\u80A4", emoji: "\u{1F3A8}", color: "purple" },
+    { key: "fish", label: "\u9C7C\u7C7B", emoji: "\u{1F41F}", color: "blue" },
+    { key: "items", label: "\u9053\u5177", emoji: "\u{1F392}", color: "orange" },
+    { key: "souvenirs", label: "\u7EAA\u5FF5\u54C1", emoji: "\u{1F9F3}", color: "teal" }
+  ]) registerDexSection(section);
+  function renderDexTab(ui) {
+    const picked = ui.drill.dex;
+    if (picked === null) return renderSections(ui);
+    const section = SECTIONS.find((entry) => entry.key === picked);
+    if (section === void 0) return drillTo(ui, "dex", null);
+    renderEntries(ui, section);
+  }
+  function renderSections(ui) {
+    const grid = tileGrid();
+    for (const section of SECTIONS) {
+      const entries = ui.view.dex[section.key] ?? [];
+      const got = entries.filter((entry) => entry.acquired).length;
+      grid.appendChild(tile({
+        emoji: section.emoji,
+        label: section.label,
+        color: section.color,
+        note: entries.length === 0 ? "\u7B49\u5F85\u6536\u5F55" : got + "/" + entries.length,
+        data: { "data-dex-section": section.key },
+        onPick: function() {
+          drillTo(ui, "dex", section.key);
+        }
+      }));
+    }
+    ui.content.appendChild(grid);
+  }
+  function renderEntries(ui, section) {
+    const entries = ui.view.dex[section.key] ?? [];
+    const acquired = entries.filter((entry) => entry.acquired).length;
+    drillHeader(ui, "dex", section.emoji + " " + section.label, acquired + "/" + entries.length);
+    if (entries.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E00\u9875\u8FD8\u6CA1\u6709\u6536\u5F55\u5185\u5BB9"));
       return;
     }
-    if (ui.view.dead) ui.content.appendChild(el("div", "dp-empty", "\u5B83\u8D70\u4E86\uFF0C\u6551\u56DE\u6765\u624D\u80FD\u52A0\u5195"));
-    for (var f = 0; f < forms.forms.length; f += 1) {
-      if (forms.forms[f].item !== "crown") continue;
-      ui.content.appendChild(formBlock(ui, forms.forms[f]));
-    }
-  }
-  function formBlock(ui, form) {
-    var box = el("div", form.current ? "dp-crown dp-crown-now" : "dp-crown");
-    box.setAttribute("data-form", form.key);
-    var top = el("div", "dp-crown-top");
-    var pic = el("div", "dp-crown-pic");
-    if (form.art !== "") {
-      var img = (
-        /** @type {HTMLImageElement} */
-        el("img", "dp-crown-img")
-      );
-      img.src = ART_URL + form.art + ".svg";
-      img.alt = "";
-      pic.appendChild(img);
-    } else {
-      pic.appendChild(el("span", null, form.emoji));
-    }
-    top.appendChild(pic);
-    var side = el("div", "dp-crown-side");
-    side.appendChild(el("div", "dp-crown-head", form.emoji + " " + form.label));
-    if (form.current) {
-      side.appendChild(el("div", "dp-crown-done", "\u2713 \u5F53\u524D\u5F62\u6001"));
-    } else {
-      var chips = el("div", "dp-crown-reqs");
-      for (var r = 0; r < form.requirements.length; r += 1) {
-        var row = form.requirements[r];
-        chips.appendChild(el(
-          "span",
-          row.met ? "dp-crown-req dp-crown-ok" : "dp-crown-req",
-          (row.met ? "\u2713 " : "\u2717 ") + row.label + " " + Math.min(row.have, row.need) + "/" + row.need
-        ));
+    const list = el("div", "dp-list");
+    for (const entry of entries) {
+      const row = el("div", "dp-item" + (entry.acquired ? "" : " dp-dim"));
+      row.setAttribute("data-dex-entry", entry.key);
+      row.appendChild(el("span", null, entry.acquired ? entry.emoji : "\u25FC"));
+      const body = el("div", "dp-grow");
+      body.appendChild(el("b", null, entry.acquired ? entry.label : "\u672A\u83B7\u5F97"));
+      body.appendChild(el("div", "dp-dim", entry.acquired ? "\u83B7\u5F97 " + entry.count + " \u6B21" : entry.condition));
+      if (!entry.acquired && entry.requirements.length > 0) {
+        body.appendChild(el("div", "dp-dim", entry.requirements.map((req) => req.label + " " + req.have + "/" + req.need + (req.met ? " \u2713" : "")).join(" \xB7 ")));
       }
-      side.appendChild(chips);
+      row.appendChild(body);
+      list.appendChild(row);
     }
-    top.appendChild(side);
-    box.appendChild(top);
-    if (!form.current) {
-      var go = button("dp-btn dp-btn-wide", { "data-crown": form.key }, function() {
-        ui.send("crown", { form: form.key });
-      });
-      go.textContent = form.hasItem ? "\u{1F451} \u52A0\u5195" : "\u53BB\u5546\u5E97\u4E70\u738B\u51A0";
-      box.appendChild(go);
-    }
-    return box;
+    ui.content.appendChild(list);
   }
 
   // src/client/tabs/home.js
   var APP_COLOR = {
     status: "green",
     card: "pink",
-    crown: "purple",
+    dex: "purple",
     study: "yellow",
     work: "orange",
     shop: "red",
@@ -3071,6 +3102,7 @@
       }
     }
     function select(next) {
+      if (next === "crown") next = "dex";
       if (next === "quit") {
         var desk = updatesBridge();
         if (desk !== null && desk.quit) desk.quit();
@@ -3143,7 +3175,7 @@
       if (app !== void 0 && !drilled) appHeader(ctx, app, ctx.tab === "shop" ? "\u{1FA99} " + ctx.view.pig.coins : "");
       if (ctx.tab === "status") renderStatusTab(ctx);
       else if (ctx.tab === "card") renderCardTab(ctx);
-      else if (ctx.tab === "crown") renderCrownTab(ctx);
+      else if (ctx.tab === "dex") renderDexTab(ctx);
       else if (ctx.tab === "study") renderStudyTab(ctx);
       else if (ctx.tab === "work") renderWorkTab(ctx);
       else if (ctx.tab === "shop") renderShopTab(ctx);
@@ -3268,9 +3300,7 @@
       });
       ctx.icons.study.setAttribute("data-alert", hasCourse ? "true" : "false");
       ctx.icons.shop.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.illness !== null ? "true" : "false");
-      ctx.icons.crown.setAttribute("data-alert", ctx.view.forms !== null && ctx.view.forms.forms.some(function(f) {
-        return f.item === "crown" && f.hasItem && f.ready;
-      }) ? "true" : "false");
+      ctx.icons.dex.setAttribute("data-alert", "false");
       ctx.icons.travel.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? "true" : "false");
       for (var i = 0; i < ctx.view.pending.length; i += 1) {
         var event = ctx.view.pending[i];
@@ -3523,7 +3553,7 @@
         var tab = "home";
         var stage = "primary";
         var stagePicked = false;
-        var drill = { study: null, shop: null, bag: null, work: null, pick: null };
+        var drill = { study: null, shop: null, bag: null, work: null, dex: null, pick: null };
         var souvenirPick = null;
         var picker = null;
         var ownerEdit = null;

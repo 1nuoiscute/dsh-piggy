@@ -587,8 +587,8 @@ test('the panel opens on a home screen of app tiles, and the icon bar is gone (B
     return findByClass(appTile, 'dp-tile-e').allText() + ' ' + findByClass(appTile, 'dp-tile-n').allText()
   }
   assert.deepEqual(
-    ['status', 'card', 'crown', 'study', 'work', 'shop', 'travel', 'bag'].map(labelOf),
-    ['📋 状态', '🪪 居民卡', '👑 加冕', '📚 学习', '💼 打工', '🛒 商店', '🧳 旅行', '🎒 背包'],
+    ['status', 'card', 'dex', 'study', 'work', 'shop', 'travel', 'bag'].map(labelOf),
+    ['📋 状态', '🪪 居民卡', '📖 图鉴', '📚 学习', '💼 打工', '🛒 商店', '🧳 旅行', '🎒 背包'],
   )
   const css = await readCss()
   assert.match(css, /\.dp-card \.dp-bar\{display:none\}/, 'the old icon bar is not shown')
@@ -1995,7 +1995,7 @@ test('banners live on the status tab only; the home screen flags the status tile
 })
 
 // ===========================================================================
-// 加冕 App（主屏一格）
+// C4 图鉴替代原加冕 App
 // ===========================================================================
 
 const PROFILE = {
@@ -2021,39 +2021,7 @@ const devilForm = (patch = {}) => ({
   ...patch,
 })
 
-test('the 加冕 app shows missing conditions and points owners without a crown to the shop', async () => {
-  const { registration, dom, net } = await loadClient({
-    status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [kingForm()] } },
-  })
-  registration.factory(() => {}).apply({})
-  await settle()
-  openPanel(dom, 'crown')
-  const block = findByAttr(contentOf(dom), 'data-form', 'king')
-  assert.notEqual(block, undefined)
-  assert.match(block.allText(), /✓ 等级 40\/40/)
-  assert.match(block.allText(), /✗ 魅力 12\/20/)
-  assert.match(findByAttr(block, 'data-crown', 'king').allText(), /商店买王冠/)
-  assert.equal(net.calls.filter(call => call.method === 'POST').length, 0)
-})
-
-test('a ready pig can be crowned from the 加冕 app', async () => {
-  const ready = kingForm({ ready: true, hasItem: true, requirements: [{ key: 'level', label: '等级', have: 40, need: 40, met: true }] })
-  const { registration, dom, net } = await loadClient({
-    status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [ready] } },
-  })
-  registration.factory(() => {}).apply({})
-  await settle()
-  openPanel(dom, 'crown')
-  const go = findByAttr(contentOf(dom), 'data-crown', 'king')
-  assert.equal(go.disabled, false)
-  go.fire('click')
-  await settle()
-  const posted = net.calls.filter(call => call.method === 'POST')
-  assert.equal(posted.length, 1)
-  assert.deepEqual(JSON.parse(posted[0].body), { action: 'crown', form: 'king' })
-})
-
-test('once crowned the card says which form, and the app marks it as current', async () => {
+test('once crowned the card still says which form', async () => {
   const status = { ...SNAPSHOT, profile: PROFILE, forms: { current: 'king', forms: [kingForm({ current: true })] } }
   const { registration, dom } = await loadClient({ status })
   registration.factory(() => {}).apply({})
@@ -2061,25 +2029,19 @@ test('once crowned the card says which form, and the app marks it as current', a
   openPanel(dom, 'card')
   assert.match(contentOf(dom).allText(), /形态：\s*👑 猪猪王/)
   assert.equal(findByAttr(contentOf(dom), 'data-form', 'king'), undefined, 'the card itself has no 加冕 block')
-  const again = await loadClient({ status })
-  again.registration.factory(() => {}).apply({})
-  await settle()
-  openPanel(again.dom, 'crown')
-  assert.match(findByAttr(contentOf(again.dom), 'data-form', 'king').allText(), /当前形态/)
-  assert.equal(findByAttr(contentOf(again.dom), 'data-crown', 'king'), undefined)
 })
 
-test('the 加冕 tile sits next to 居民卡 on the home screen and lights up when a form is ready', async () => {
+test('the 图鉴 tile sits next to 居民卡 and replaces the crown tile', async () => {
   const { registration, dom } = await loadClient({
     status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [kingForm({ ready: true, hasItem: true })] } },
   })
   registration.factory(() => {}).apply({})
   await settle()
   openPanel(dom, 'home')
-  const tile = findByAttr(contentOf(dom), 'data-app', 'crown')
+  const tile = findByAttr(contentOf(dom), 'data-app', 'dex')
   assert.notEqual(tile, undefined)
-  assert.match(tile.allText(), /加冕/)
-  assert.match(tile.allText(), /!/)
+  assert.match(tile.allText(), /图鉴/)
+  assert.equal(findByAttr(contentOf(dom), 'data-app', 'crown'), undefined)
 })
 
 // ===========================================================================
@@ -2160,7 +2122,7 @@ test('the desktop app gets a 退出 tile that asks the shell to close, and DSH d
   assert.equal(findByAttr(contentOf(plain.dom), 'data-app', 'quit'), undefined)
 })
 
-test('the devil never appears in the 加冕 app, however ready it is', async () => {
+test('both item-based forms are represented in the form data used by the dex', async () => {
   const { formsView, hatchEgg } = await import('../core.js')
   const { xpForLevel } = await import('../data.js')
   const state = hatchEgg(1_800_000_000_000)
@@ -2170,14 +2132,7 @@ test('the devil never appears in the 加冕 app, however ready it is', async () 
   assert.equal(forms.forms.find(form => form.key === 'devil').via, 'item')
   assert.equal(forms.forms.find(form => form.key === 'devil').item, 'contract')
 
-  const { registration, dom, net } = await loadClient({ status: { ...SNAPSHOT, profile: PROFILE, forms } })
-  registration.factory(() => {}).apply({})
-  await settle()
-  openPanel(dom, 'crown')
-  assert.notEqual(findByAttr(contentOf(dom), 'data-form', 'king'), undefined, 'the king still has his app')
-  assert.equal(findByAttr(contentOf(dom), 'data-form', 'devil'), undefined, '加冕 is not how a devil is made')
-  assert.equal(findByAttr(contentOf(dom), 'data-crown', 'devil'), undefined)
-  assert.equal(net.calls.filter(call => call.method === 'POST' && JSON.parse(call.body).action === 'crown').length, 0)
+  assert.equal(forms.forms.find(form => form.key === 'king').item, 'crown')
 })
 
 test('the 晋升 shelf in the bag shows 签约 and sends use', async () => {
@@ -2207,23 +2162,14 @@ test('the 晋升 shelf in the bag shows 签约 and sends use', async () => {
   assert.deepEqual(JSON.parse(post.body), { action: 'use', item: 'contract' })
 })
 
-test('C3 promotion tiles use item labels and the crown app points empty bags to the shop', async () => {
+test('C3 promotion tiles keep their item action labels after the crown app is replaced', async () => {
   const crownItem = { key: 'crown', label: '王冠', emoji: '👑', price: 3000, kind: 'promotion', useLabel: '加冕', affordable: true }
   const contractItem = { key: 'contract', label: '恶魔契约', emoji: '😈', price: 6666, kind: 'promotion', useLabel: '签约', affordable: true }
   const forms = { current: null, forms: [kingForm({ via: 'item', item: 'crown', hasItem: false }), devilForm({ via: 'item', item: 'contract' })] }
   const status = { ...SNAPSHOT, forms, shop: [...SNAPSHOT.shop, crownItem, contractItem], inventory: { ...SNAPSHOT.inventory, crown: 0, contract: 1 } }
-  const { registration, dom, net } = await loadClient({
-    status,
-    actResult: { ...status, ok: false, reason: 'needs-item' },
-  })
+  const { registration, dom } = await loadClient({ status })
   registration.factory(() => {}).apply({})
   await settle()
-  openPanel(dom, 'crown')
-  const go = findByAttr(contentOf(dom), 'data-crown', 'king')
-  assert.match(go.allText(), /商店买王冠/)
-  go.fire('click')
-  await settle()
-  assert.deepEqual(JSON.parse(net.calls.find(call => call.method === 'POST').body), { action: 'crown', form: 'king' })
   pickTab(dom, 'bag')
   tap(dom, 'data-bag', 'promotion')
   assert.match(findByAttr(contentOf(dom), 'data-use', 'contract').allText(), /签约/)

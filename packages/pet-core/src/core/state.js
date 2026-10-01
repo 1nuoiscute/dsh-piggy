@@ -6,7 +6,7 @@
  * @module dsh-piggy/core/state
  */
 
-import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, formByKey, xpForLevel } from '../data.js'
+import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, formByKey, itemByKey, xpForLevel } from '../data.js'
 import { dayKeyFor, lifeStageFor } from './clock.js'
 import { MEMORY_LIMIT } from './constants.js'
 import { announce, clamp, remember } from './effects.js'
@@ -15,6 +15,7 @@ import { ensurePomodoro, settlePomodoro } from './pomodoro.js'
 import { say } from './lines.js'
 import { sanitizeIllness, sanitizeInventory, sanitizeTraits } from './migrate.js'
 import { decay, die } from './settlement.js'
+import { ensureDex, recordDex } from './dex.js'
 
 /**
  * Wipe the pig and start from a fresh box, whatever state it was in.
@@ -36,7 +37,7 @@ export function reset(nowMs) {
  * grown. Losing a pig is only ever an accident now (there is no old age), and
  * the revive item is the way to keep the one you have.
  */
-export const INHERITED = ['traits', 'lessons', 'interests', 'souvenirs']
+export const INHERITED = ['traits', 'lessons', 'interests', 'souvenirs', 'dex']
 
 export function inherit(oldState, fresh, nowMs) {
   if (oldState === null) return fresh
@@ -99,6 +100,7 @@ export const DEV_NUMBERS = Object.freeze({
 export function applyDevPatch(state, patch, nowMs) {
   if (state === null || typeof patch !== 'object' || patch === null) return state
   const before = { dead: state.dead, hatched: state.hatched, stage: state.stage }
+  ensureDex(state, nowMs)
 
   for (const [key, [lo, hi]] of Object.entries(DEV_NUMBERS)) {
     const value = patch[key]
@@ -117,6 +119,10 @@ export function applyDevPatch(state, patch, nowMs) {
   }
 
   if (patch.inventory !== null && typeof patch.inventory === 'object') {
+    for (const [key, value] of Object.entries(patch.inventory)) {
+      const beforeCount = state.inventory?.[key] ?? 0
+      if (itemByKey(key) !== null && Number.isFinite(value) && value > beforeCount) recordDex(state, 'items', key, nowMs, Math.floor(value - beforeCount))
+    }
     state.inventory = sanitizeInventory({ ...state.inventory, ...patch.inventory })
   }
 
@@ -185,7 +191,10 @@ export function applyDevPatch(state, patch, nowMs) {
 
   // 形态（C1）：调试页要能直接变成猪猪王 / 恶魔猪，条件不看。传 null 恢复普通。
   if (patch.form === null) state.form = null
-  else if (typeof patch.form === 'string' && formByKey(patch.form) !== null) state.form = patch.form
+  else if (typeof patch.form === 'string' && formByKey(patch.form) !== null) {
+    recordDex(state, 'forms', patch.form, nowMs)
+    state.form = patch.form
+  }
 
   if (patch.activity === null) state.activity = null
   if (patch.outingStreak === 0) state.outingStreak = 0

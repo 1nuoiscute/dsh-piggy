@@ -244,6 +244,7 @@ export function normalize(raw) {
       needed: obj(item).needed === true,
     })).filter(item => item.key !== ''),
     inventory: obj(d.inventory),
+    dex: normalizeDex(d.dex),
     daily: {
       canSignIn: obj(d.daily).canSignIn === true,
       signInDay: num(obj(d.daily).signInDay, 1),
@@ -356,6 +357,27 @@ export function normalize(raw) {
     })),
     maxHealth: num(d.maxHealth, 5),
   }
+}
+
+function normalizeDex(raw) {
+  const source = obj(raw)
+  const out = {}
+  for (const section of ['forms', 'skins', 'fish', 'items', 'souvenirs']) {
+    out[section] = arr(source[section]).map(function (value) {
+      const entry = obj(value)
+      return {
+        key: str(entry.key, ''), label: str(entry.label, ''), emoji: str(entry.emoji, '📦'),
+        acquired: entry.acquired === true,
+        firstAt: typeof entry.firstAt === 'number' ? entry.firstAt : null,
+        count: num(entry.count, 0), condition: str(entry.condition, ''),
+        requirements: arr(entry.requirements).map(function (value) {
+          const requirement = obj(value)
+          return { key: str(requirement.key, ''), label: str(requirement.label, ''), have: num(requirement.have, 0), need: num(requirement.need, 0), met: requirement.met === true }
+        }),
+      }
+    }).filter(entry => entry.key !== '')
+  }
+  return out
 }
 
 export function normalizeActions(raw) {

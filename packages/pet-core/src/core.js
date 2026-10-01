@@ -69,6 +69,7 @@ import {
 
 export { ACTIONS, ACTION_ORDER, STATE_VERSION } from './core/constants.js'
 export { drainPending } from './core/effects.js'
+export { DEX_SECTIONS, dexView, emptyDex, ensureDex, recordDex } from './core/dex.js'
 export { ageDays, ageMonths, dayKeyFor, daysToNextStage, hasSoul, levelFor, levelProgress, levelTitle, lifeStageFor, nextLifeStage } from './core/clock.js'
 export { careFactor, grow, growFromRealWork, outingGrowth } from './core/growth.js'
 export { hatch, hatchEgg, layEgg } from './core/egg.js'
