@@ -568,3 +568,21 @@ DSH 的判断方向对：剩下的 13/25 DIP 是「翻锚边」那一步没被�
 - C3 由 Claude 代为 rebase 到 17b4174（无冲突，重建 client.js 无差异，400 + 21 全过）并快进合入 main（28d8fc4）。
 - Linux 测试包：Claude 在 `dsh-pig-claude` 工作区从 28d8fc4 打出 `apps/desktop/dist/dsh-piggy-0.25.2-test.AppImage`（打包时用 `extraMetadata.version` 标成 0.25.2-test，仓库版本号没改）；包内 `resources/game/client.js` 与 main 逐字节一致。
 - Windows 包仍待：推 tag 走 CI，需要用户批准。
+
+---
+
+## ⚠️ 开工前必读：Claude 在 C3 之后的改动（2026-10-01，已发 v0.25.2）
+
+用户在桌面版实测截到问题，Claude 直接修了并发版。**DSH agent、Codex 开工前先同步最新 main**（`git log --oneline -5` 能看到 `b6b8e28 release: 0.25.2`）。
+
+| 改了什么 | 文件 | 对你的影响 |
+|---|---|---|
+| 桌面版可点区域直接用窗口坐标、向外取整（以前漏缝＝用户看到的「黑条」，面板右边被切） | `apps/desktop/renderer/shell.js` | 改桌面版时别再把坐标换算到「内容框原点」 |
+| 钉的是**整块内容**离窗口边 16px，不再只钉猪（面板朝下开时名字框会伸出窗口） | 同上 `pinPig` | 测试 `window.test.js` 断言已改 |
+| 面板朝右开时名字框（HUD）、日历挪到猪右边 | `src/client/layout.js`、`src/client/css-tabs.js` | 加新的跟着猪定位的元素时，朝右开要镜像 |
+| 番茄钟本地秒针：`src/client/pomodoro-clock.js`，在 `io.js` 里创建，面板重画后同一帧按本地时间覆盖（`ctx.pomoTick`） | `io.js`、`panel.js`、`tabs/pomodoro.js` | 别在别处再写倒计时文字；要显示剩余时间就交给它 |
+| **去掉「礼冠」装扮**（用户定：王冠只保留能加冕的）。买过旧王冠装扮的存档读档时换成一顶王冠道具 | `data/shop.js`、`core/migrate.js` | 商店 63 件、装扮 11 件；图鉴的「道具/装扮」分区别再列礼冠 |
+| macOS 上跳过 `setShape`；发版加了 macOS 构建机（未签名 dmg） | `apps/desktop/main.js`、`.github/workflows/release.yml` | 桌面版改动要想到 mac 没有可点区域裁剪 |
+| 版本：插件 0.25.2，桌面外壳 0.1.2 | 两个 `package.json` | 下次发版前 CHANGELOG 写 `## [x.y.z] — 日期 · 主题` 小节 |
+
+**验收方式也变了**：桌面版改动 Claude 会用 Electron 调试端口驱动 + python-xlib 截 X 窗口**真实像素**、读 XShape 可点区域，四个角各开一次面板逐张看图。只报坐标数字不算过。
