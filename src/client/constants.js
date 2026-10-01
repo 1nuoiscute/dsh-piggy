@@ -37,6 +37,7 @@ export const PIG_PADDING_X = 6
 
 export const TABS = [
   { key: 'status', label: '状态', emoji: '📋' },
+  { key: 'card', label: '居民卡', emoji: '🪪' },
   { key: 'study', label: '学习', emoji: '📚' },
   { key: 'work', label: '打工', emoji: '💼' },
   { key: 'shop', label: '商店', emoji: '🛒' },

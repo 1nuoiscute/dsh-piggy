@@ -1,0 +1,47 @@
+// @ts-check
+/**
+ * 居民卡的样式（B9）—— 照 animal-island-ui 的 Card `pattern-*`：淡色底上两层点点
+ * （28px / 14px 网格），1.5px 同色描边，圆角 20px；「标签：值」的值放在米白胶囊里。
+ * 女孩用 pattern-app-pink，男孩用 pattern-app-blue（参数取自它的 card.module.less）。
+ * @module dsh-pig/client/css-card
+ */
+
+export const CSS_CARD = [
+  '.dp-vcard{position:relative;padding:14px 14px 12px;border-radius:20px;color:var(--ac-text-body);',
+  '--vc-dot:rgba(196,184,158,.15);--vc-dot2:rgba(196,184,158,.1);--vc-bg:rgb(247,243,223);--vc-line:#d4c4a8;',
+  'background:radial-gradient(circle,var(--vc-dot) 1.5px,transparent 1.5px),',
+  'radial-gradient(circle,var(--vc-dot2) 1px,transparent 1px),var(--vc-bg);',
+  'background-size:28px 28px,14px 14px;background-position:0 0,7px 7px;border:1.5px solid var(--vc-line)}',
+  '.dp-vcard[data-sex="girl"]{--vc-dot:rgba(248,166,178,.18);--vc-dot2:rgba(255,200,210,.12);--vc-bg:#fde4e8;--vc-line:#f8a6b2}',
+  '.dp-vcard[data-sex="boy"]{--vc-dot:rgba(136,157,240,.18);--vc-dot2:rgba(180,195,255,.12);--vc-bg:#e8edff;--vc-line:#889df0}',
+
+  // Top: the photo and who it is.
+  '.dp-vcard-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}',
+  '.dp-vcard-avatar{flex:none;width:72px;height:72px;border-radius:18px;display:flex;align-items:center;',
+  'justify-content:center;background:#fffbe7;border:2px solid var(--vc-line);box-shadow:0 3px 0 rgba(61,52,40,.12)}',
+  '.dp-vcard-img{width:56px;height:56px;display:block}',
+  '.dp-vcard-e{font-size:40px;line-height:1}',
+  '.dp-vcard-who{display:flex;flex-direction:column;gap:3px;min-width:0}',
+  '.dp-vcard-name{font-size:15px;font-weight:800;color:var(--ac-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+  '.dp-vcard-sub{font-size:10.5px;font-weight:600;color:var(--ac-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+
+  // 「标签：值」 rows.
+  '.dp-vcard-row{display:flex;align-items:center;gap:6px;margin-top:7px;min-width:0}',
+  '.dp-vcard-label{flex:none;width:44px;font-size:10.5px;font-weight:700;color:var(--ac-text)}',
+  '.dp-vcard-value{flex:1;min-width:0;padding:5px 11px;border-radius:var(--ac-pill);background:#faf8f2;',
+  'font-size:11px;font-weight:600;color:var(--ac-text-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+  // The motto is the pig talking: a bubble that may take two lines.
+  '.dp-vcard-motto-row{align-items:flex-start}',
+  '.dp-vcard-motto-row .dp-vcard-label{margin-top:6px}',
+  '.dp-vcard-value.dp-vcard-motto{border-radius:12px;white-space:normal;line-height:1.45}',
+  '.dp-vcard-edit{flex:none;font:inherit;font-size:12px;line-height:1;width:24px;height:24px;padding:0;cursor:pointer;',
+  'border-radius:50%;border:2px solid var(--vc-line);background:#fffbe7}',
+  '.dp-vcard-edit:hover{background:var(--ac-hover)}',
+  '.dp-vcard-input{flex:1;min-width:0;padding:3px 9px;font-size:11px}',
+  // In-place editing: the two buttons stay as small as the pencil they replace.
+  '.dp-vcard-row .dp-mini{flex:none;padding:3px 9px;font-size:10px;box-shadow:none}',
+  '[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}',
+
+  '.dp-vcard-foot{margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--vc-line);',
+  'font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+].join('')

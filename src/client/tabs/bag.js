@@ -45,9 +45,6 @@ function ownedOf(ui, kind) {
 }
 
 function renderCategories(ui) {
-  var head = el('div', 'dp-title')
-  head.appendChild(el('b', null, '🎒 背包'))
-  ui.content.appendChild(head)
   var grid = tileGrid()
   for (var k = 0; k < CONSUMABLES.length; k += 1) {
     (function (kind) {

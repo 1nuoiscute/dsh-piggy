@@ -29,6 +29,8 @@ import {
   signIn as coreSignIn,
   reset as coreReset,
   seeDoctor as coreSeeDoctor,
+  setCatchphrase as coreSetCatchphrase,
+  setMotto as coreSetMotto,
   setOwnerName as coreSetOwnerName,
   setQuiet as coreSetQuiet,
   sellSouvenir as coreSellSouvenir,
@@ -145,6 +147,12 @@ export function createApi(control) {
 
     /** 免打扰 on or off. */
     setQuiet: on => mutate(live => coreSetQuiet(live, on)),
+
+    /** The pig's catchphrase (居民卡). */
+    setCatchphrase: text => mutate(live => coreSetCatchphrase(live, text)),
+
+    /** The line on the pig's card (居民卡). */
+    setMotto: text => mutate(live => coreSetMotto(live, text)),
 
     /** What the pig calls its owner. */
     setOwnerName: name => mutate(live => coreSetOwnerName(live, name)),

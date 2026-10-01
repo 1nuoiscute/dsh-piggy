@@ -61,6 +61,9 @@ const OPERATIONS = {
   chat: (store, body) => store.chat(str(body.reason)),
   quiet: (store, body) => store.setQuiet(body.on === true),
   owner: (store, body) => store.setOwnerName(str(body.name)),
+  // 居民卡: the catchphrase and the motto.
+  catchphrase: (store, body) => store.setCatchphrase(str(body.text)),
+  motto: (store, body) => store.setMotto(str(body.text)),
   // 改猪的名字（和斜杠命令 /pig name 同一条路）。
   name: (store, body) => ({ ok: Boolean(store.rename(str(body.name))), name: true }),
   work: (store, body) => store.startWork(str(body.job)),

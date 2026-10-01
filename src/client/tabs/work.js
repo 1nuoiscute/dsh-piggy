@@ -1,19 +1,20 @@
 // @ts-check
 /**
- * 打工页签。
+ * 打工页签（B9：和学习 / 商店 / 背包一样的方块）。
  *
- * 顶上按技能分（武力 / 魅力 / 智力），跟学习页的学段按钮一个样子；每份工作一行，
- * 只写时长和报酬，门槛收进「详情」里逐条打勾打叉（用户 2026-10-01：别堆一大段字）。
+ * 第一层：武力 / 魅力 / 智力 三个大方块，右上角写能干的份数。
+ * 第二层：这类职业的方块；点一个，下面出详情卡 —— 门槛逐条打勾打叉、加成和消耗、「出发」。
  * @module dsh-pig/client/tabs/work
  */
 
 import { button, el } from '../dom.js'
+import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
 
-/** The three skill buttons, in the order QQ Pet lists its traits. */
+/** The three skills, in the order QQ Pet lists its traits, each with its colour. */
 var SKILLS = [
-  { key: 'strong', label: '💪 武力' },
-  { key: 'charm', label: '✨ 魅力' },
-  { key: 'intel', label: '🧠 智力' },
+  { key: 'strong', emoji: '💪', label: '武力', color: 'orange' },
+  { key: 'charm', emoji: '✨', label: '魅力', color: 'pink' },
+  { key: 'intel', emoji: '🧠', label: '智力', color: 'blue' },
 ]
 
 export function renderWorkTab(ui) {
@@ -21,60 +22,68 @@ export function renderWorkTab(ui) {
     ui.content.appendChild(el('div', 'dp-empty', '宿主还没提供工作列表。'))
     return
   }
-  // Older hosts send no trait per job: show them all, as one list.
+  // Older hosts send no trait per job: one list of every job, no skill layer.
   var bySkill = ui.view.jobs.some(function (job) { return job.trait !== '' })
-  var jobs = ui.view.jobs
-  if (bySkill) {
-    var seg = el('div', 'dp-seg dp-seg-3')
-    for (var s = 0; s < SKILLS.length; s += 1) {
-      (function (skill) {
-        var count = ui.view.jobs.filter(function (job) { return job.trait === skill.key && job.qualified }).length
-        var btn = button(null, { 'data-skill': skill.key }, function () {
-          ui.workTrait = skill.key
-          ui.jobDetail = null
-          ui.renderContent()
-        })
-        btn.textContent = skill.label + (count > 0 ? ' ' + count : '')
-        btn.setAttribute('data-active', skill.key === ui.workTrait ? 'true' : 'false')
-        seg.appendChild(btn)
-      })(SKILLS[s])
-    }
-    ui.content.appendChild(seg)
-    jobs = ui.view.jobs.filter(function (job) { return job.trait === ui.workTrait })
+  if (!bySkill) {
+    renderJobs(ui, ui.view.jobs, 'orange')
+    return
   }
-
-  var list = el('div', 'dp-list')
-  for (var i = 0; i < jobs.length; i += 1) {
-    (function (job) {
-      var locked = job.qualified === false
-      var row = el('div', 'dp-item' + (locked ? ' dp-job-locked' : ''))
-      row.appendChild(el('span', null, job.emoji))
-      var grow = el('div', 'dp-grow')
-      grow.appendChild(el('div', null, job.label))
-      grow.appendChild(el('div', 'dp-dim', (locked ? '🔒 ' : '') + job.minutes + ' 分钟 · ' + job.coins + ' 🪙'))
-      row.appendChild(grow)
-      var open = ui.jobDetail === job.key
-      var more = button('dp-mini dp-mini-plain', { 'data-job-detail': job.key }, function () {
-        ui.jobDetail = open ? null : job.key
-        ui.renderContent()
-      })
-      more.textContent = open ? '收起' : '详情'
-      row.appendChild(more)
-      var go = button('dp-mini', { 'data-job': job.key }, function () { ui.send('work', { job: job.key }) })
-      go.textContent = '出发'
-      go.disabled = !ui.view.canGoOut || locked
-      row.appendChild(go)
-      list.appendChild(row)
-      if (open) list.appendChild(jobDetails(job))
-    })(jobs[i])
+  var skill = SKILLS.find(function (entry) { return entry.key === ui.drill.work })
+  if (skill === undefined) {
+    renderSkills(ui)
+    return
   }
-  ui.content.appendChild(list)
+  var chosen = skill
+  drillHeader(ui, 'work', chosen.emoji + ' ' + chosen.label, '')
+  renderJobs(ui, ui.view.jobs.filter(function (job) { return job.trait === chosen.key }), chosen.color)
 }
 
-/** 详情: every condition with a tick or a cross, then what the job pays and costs. */
-function jobDetails(job) {
-  var box = el('div', 'dp-pick dp-job-detail')
-  box.appendChild(el('div', 'dp-pick-head', job.qualified ? '✓ 条件都够了' : '还差这些'))
+/** The top layer: one tile per skill, with how many of its jobs the pig can do. */
+function renderSkills(ui) {
+  var grid = tileGrid()
+  for (var s = 0; s < SKILLS.length; s += 1) {
+    (function (skill) {
+      var open = ui.view.jobs.filter(function (job) { return job.trait === skill.key && job.qualified }).length
+      grid.appendChild(tile({
+        emoji: skill.emoji, label: skill.label, color: skill.color,
+        badge: open > 0 ? String(open) : '',
+        data: { 'data-skill': skill.key },
+        onPick: function () { drillTo(ui, 'work', skill.key) },
+      }))
+    })(SKILLS[s])
+  }
+  ui.content.appendChild(grid)
+}
+
+/** Job tiles; the picked one opens its details under the grid. */
+function renderJobs(ui, jobs, color) {
+  var grid = tileGrid()
+  var picked = null
+  for (var i = 0; i < jobs.length; i += 1) {
+    (function (job) {
+      var active = ui.drill.pick === job.key
+      if (active) picked = job
+      var locked = job.qualified === false
+      grid.appendChild(tile({
+        emoji: job.emoji, label: job.label, color: color, soft: true, active: active,
+        note: job.minutes + '分·' + job.coins + '🪙',
+        tag: locked ? '🔒' : '', dim: locked,
+        data: { 'data-job-tile': job.key },
+        onPick: function () {
+          ui.drill.pick = active ? null : job.key
+          ui.renderContent()
+        },
+      }))
+    })(jobs[i])
+  }
+  ui.content.appendChild(grid)
+  if (picked !== null) ui.content.appendChild(jobDetails(ui, picked))
+}
+
+/** 详情: every condition with a tick or a cross, what the job pays and costs, and 出发. */
+function jobDetails(ui, job) {
+  var box = el('div', 'dp-pick dp-tile-card dp-job-detail')
+  box.appendChild(el('div', 'dp-pick-head', job.emoji + ' ' + job.label + ' · ' + (job.qualified ? '条件都够了' : '还差这些')))
   for (var r = 0; r < job.requirements.length; r += 1) {
     var need = job.requirements[r]
     var have = need.kind === 'level' ? '（现在 Lv.' + need.have + '）'
@@ -85,8 +94,13 @@ function jobDetails(job) {
   }
   // A locked job from an older host has no checklist, only the summary line.
   if (job.requirements.length === 0 && job.lockText) box.appendChild(el('div', 'dp-req', '✗ ' + job.lockText))
-  box.appendChild(el('div', 'dp-dim', job.traitEmoji + job.traitLabel + ' ' + job.traitPoints
-    + (job.payPercent > 0 ? ' · 报酬 +' + job.payPercent + '%' : '')
+  box.appendChild(el('div', 'dp-dim', job.minutes + ' 分钟 · ' + job.coins + ' 🪙 · '
+    + job.traitEmoji + job.traitLabel + ' ' + job.traitPoints
+    + (job.payPercent > 0 ? '（+' + job.payPercent + '%）' : '')
     + ' · 饱食 ' + job.satiety + ' · 清洁 ' + job.cleanliness))
+  var go = button('dp-btn dp-btn-wide dp-job-go', { 'data-job': job.key }, function () { ui.send('work', { job: job.key }) })
+  go.textContent = '💼 出发'
+  go.disabled = !ui.view.canGoOut || job.qualified === false
+  box.appendChild(go)
   return box
 }

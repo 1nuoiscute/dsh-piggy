@@ -29,7 +29,7 @@ export function renderShopTab(ui) {
   var coins = '🪙 ' + ui.view.pig.coins
   var shelf = ui.drill.shop
   if (shelf === null || KIND_ORDER.indexOf(shelf) < 0) {
-    renderShelves(ui, coins)
+    renderShelves(ui)
     return
   }
   var parts = shelfParts(shelf)
@@ -40,11 +40,8 @@ export function renderShopTab(ui) {
   ui.content.appendChild(grid)
 }
 
-function renderShelves(ui, coins) {
-  var head = el('div', 'dp-title')
-  head.appendChild(el('b', null, '🛒 商店'))
-  head.appendChild(el('span', null, coins))
-  ui.content.appendChild(head)
+/** The top layer; its title row (with the money) is the app header. */
+function renderShelves(ui) {
   var grid = tileGrid()
   for (var k = 0; k < KIND_ORDER.length; k += 1) {
     (function (kind) {

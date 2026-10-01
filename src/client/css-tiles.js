@@ -67,6 +67,17 @@ export const CSS_TILES = [
   '.dp-drill-title{font-size:12px;font-weight:800;color:var(--ac-text);white-space:nowrap}',
   '.dp-drill-info{flex:1;min-width:0;text-align:right;font-size:10px;font-weight:600;',
   'color:var(--ac-text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  // B9: the home screen replaces the bottom icon bar. The bar still exists
+  // (its icons carry the alert state the home tiles read) but is not shown.
+  '[data-dsh-pig] .dp-card .dp-bar{display:none}',
+  '.dp-app-head{margin-bottom:12px}',
+  // Out working, the collapsed scene shrinks to pig + prop; open, it must stay
+  // as wide as the panel, or the name plate is squeezed onto the pig.
+  '[data-dsh-pig][data-open="true"][data-away] .dp-scene{width:var(--panel-width)}',
+  // Banners only live on the status tab now, with room to breathe below.
+  '[data-dsh-pig] .dp-alert{margin-bottom:14px}',
+  '[data-dsh-pig] .dp-alert + .dp-actions{margin-bottom:14px}',
+  '.dp-job-go{display:block;width:100%;margin-top:9px}',
   // A picked tile's details (a diary page, a souvenir's story) sit under the grid.
   '.dp-tile-card{margin-top:12px}',
 ].join('')

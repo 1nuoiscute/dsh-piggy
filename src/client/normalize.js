@@ -288,6 +288,20 @@ export function normalize(raw) {
       size: num(d.boxStage.size, 58),
     } : { key: 'box', label: '纸盒', emoji: '📦', size: 58 },
     awayBlocked: typeof d.awayBlocked === 'string' ? d.awayBlocked : null,
+    // B9: the villager card. Older hosts send none, and the card says so.
+    profile: isObj(d.profile) ? {
+      personality: isObj(d.profile.personality) ? { label: str(d.profile.personality.label, ''), emoji: str(d.profile.personality.emoji, '') } : null,
+      catchphrase: str(d.profile.catchphrase, ''),
+      motto: str(d.profile.motto, ''),
+      birthday: str(d.profile.birthday, ''),
+      zodiac: isObj(d.profile.zodiac) ? { label: str(d.profile.zodiac.label, ''), emoji: str(d.profile.zodiac.emoji, '') } : null,
+      counts: {
+        days: num(obj(d.profile.counts).days, 0),
+        certificates: num(obj(d.profile.counts).certificates, 0),
+        souvenirs: num(obj(d.profile.counts).souvenirs, 0),
+        graduations: num(obj(d.profile.counts).graduations, 0),
+      },
+    } : null,
     // B6: what the pig calls its owner, and 免打扰. Older hosts send neither.
     dialogue: {
       ownerName: str(obj(d.dialogue).ownerName, '主人'),

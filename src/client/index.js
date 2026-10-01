@@ -99,12 +99,13 @@ import { arr, num, obj, str } from './values.js'
 
       // ---- state ----
       var view = normalize(null)
-      var tab = 'status'
+      // B9: the panel opens on the home screen of app tiles.
+      var tab = 'home'
       var stage = 'primary'
       // 用户自己点过学段之后，轮询就不许再替他改（B1 的「默认学段」只在没选过时生效）。
       var stagePicked = false
       // B8: which category each tile tab is opened into (null = the top layer), and a picked tile inside it.
-      var drill = { study: null, shop: null, bag: null, pick: null }
+      var drill = { study: null, shop: null, bag: null, work: null, pick: null }
       // Which souvenir's story card is open in the travel tab, if any.
       var souvenirPick = null
       // Which care action's item picker is open, if any.
@@ -113,9 +114,8 @@ import { arr, num, obj, str } from './values.js'
       var ownerEdit = null
       // 猪的名字草稿（同上：编辑期间轮询不许重绘，否则输入框会丢焦点）。
       var pigNameEdit = null
-      // Work tab: which skill's jobs are shown, and whose 详情 is open.
-      var workTrait = 'strong'
-      var jobDetail = null
+      // 居民卡: { field: 'catchphrase'|'motto', draft } while one is being edited.
+      var cardEdit = null
 
       /** The tabs get an explicit context instead of closing over the shell locals. */
       var isOpen = readStore(OPEN_KEY) === 'true'
@@ -171,8 +171,7 @@ import { arr, num, obj, str } from './values.js'
         get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
         get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
         get pigNameEdit() { return pigNameEdit }, set pigNameEdit(next) { pigNameEdit = next },
-        get workTrait() { return workTrait }, set workTrait(next) { workTrait = next },
-        get jobDetail() { return jobDetail }, set jobDetail(next) { jobDetail = next },
+        get cardEdit() { return cardEdit }, set cardEdit(next) { cardEdit = next },
         get isOpen() { return isOpen }, set isOpen(next) { isOpen = next },
         get lastStage() { return lastStage }, set lastStage(next) { lastStage = next },
         get lastPendingAt() { return lastPendingAt }, set lastPendingAt(next) { lastPendingAt = next },

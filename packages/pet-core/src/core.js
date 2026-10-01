@@ -74,6 +74,7 @@ export { careFactor, grow, growFromRealWork, outingGrowth } from './core/growth.
 export { hatch, hatchEgg, layEgg } from './core/egg.js'
 export { adopt, ageFromNow, applyDevPatch, inherit, rename, reset, revive, setTimeScale } from './core/state.js'
 export { migrate } from './core/migrate.js'
+export { assignPersonality, ensureProfile, profileView, setCatchphrase, setMotto, zodiacFor } from './core/profile.js'
 export { chat, pickLine, replyToLine, say, setOwnerName, setQuiet } from './core/lines.js'
 export { canSignIn, dailyView, emptyDaily, ensureDaily, giftsWaiting, grantReward, openGift, pickGift, recordOnline, signIn } from './core/daily.js'
 export { composeDiary, diaryView, emptyDiary, ensureDiary, noteToday, writeDiaryIfNewDay } from './core/diary.js'

@@ -5,12 +5,14 @@
  * 只通过 ctx 读写外壳的状态与元素（getter/setter 转发），不直接碰全局。
  * @module dsh-pig/client/panel
  */
-import { ART_URL, OPEN_KEY, TABS } from './constants.js'
+import { ART_URL, DEV_TAB, OPEN_KEY, TABS } from './constants.js'
 import { button, el } from './dom.js'
 import { normalize } from './normalize.js'
 import { writeStore } from './storage.js'
 import { CSS } from './styles.js'
 import { renderBagTab } from './tabs/bag.js'
+import { renderCardTab } from './tabs/card.js'
+import { appHeader, renderHome } from './tabs/home.js'
 import { renderDevTab } from './tabs/dev.js'
 import { renderShopTab } from './tabs/shop.js'
 import { renderStatusTab } from './tabs/status.js'
@@ -85,79 +87,14 @@ export function createPanel(ctx) {
         }
         if (ctx.host.getAttribute('data-open') !== 'true') return
 
-        // Alerts sit above the tab body so they are visible from any tab.
-        // Each one is guarded on `pig` because an unhatched pig is null — the
-        // hatch affordance below is the only thing that may render then.
+        // Only the host-version warning sits above every tab; the pig's own
+        // banners (away / sick / gone) live on the status tab (B9).
         if (ctx.view.legacy) {
           var legacy = el('div', 'dp-alert dp-legacy')
           legacy.appendChild(el('b', null, '⚠️ 宿主是旧版本'))
           legacy.appendChild(el('div', null, '金币、健康、打工、商店这些是新增的，重启 dsh（不是刷新页面）之后才会出现。'))
           ctx.content.appendChild(legacy)
         }
-        if (ctx.view.pig !== null && ctx.view.dead) {
-          var dead = el('div', 'dp-alert dp-dead')
-          dead.appendChild(el('b', null, '🪦 ' + ctx.view.pig.name + ' 走了' + (ctx.view.pig.soul ? '，灵魂还留在墓碑上 👻' : '')))
-          dead.appendChild(el('div', null, ctx.view.pig.soul
-            ? '用还魂丹可以把它叫回来，也可以领养新的'
-            : '背包里的还魂丹就能救回来'))
-          ctx.content.appendChild(dead)
-          // Adopting is available the moment the pig dies — not only once the
-          // soul turns up a day later. Waiting a day to start over was a
-          // mistake: the grave is already a dead end with nothing to do.
-          var adoptWrap = el('div', 'dp-actions')
-          var adopt = button('dp-btn dp-btn-wide', { 'data-action': 'adopt' }, function () { ctx.send('adopt') })
-          adopt.appendChild(el('span', null, '📦'))
-          adopt.appendChild(el('span', null, '领养新猪'))
-          adoptWrap.appendChild(adopt)
-          ctx.content.appendChild(adoptWrap)
-        } else if (ctx.view.pig !== null && ctx.view.pig.illness !== null) {
-          var illness = ctx.view.pig.illness
-          var sick = el('div', 'dp-alert dp-sick')
-          sick.appendChild(el('b', null, '🤒 ' + illness.name + '（第 ' + illness.stage + '/4 期）'))
-          // B3: every stage has its own cure, and the wrong one makes it worse,
-          // so the alert always names the exact medicine.
-          sick.appendChild(el('div', null, '需要「' + illness.cureEmoji + illness.cure + '」—— 吃错药会加重'))
-          var needed = null
-          var shelf = ctx.view.shop || []
-          for (var c = 0; c < shelf.length; c += 1) {
-            if (shelf[c].needed) needed = shelf[c]
-          }
-          // Hosts from before B3 do not flag the cure: match it by stage tier,
-          // then by name.
-          for (var t = 0; needed === null && t < shelf.length; t += 1) {
-            if (shelf[t].kind === 'medicine' && shelf[t].tier === illness.stage) needed = shelf[t]
-          }
-          for (var n = 0; needed === null && n < shelf.length; n += 1) {
-            if (shelf[n].label === illness.cure) needed = shelf[n]
-          }
-          if (ctx.view.canGoOut) {
-            sick.appendChild(el('div', 'dp-dim', '带病出门报酬减半、病情更快'))
-          }
-          if (needed !== null && ctx.view.canGoOut && ctx.view.pig.coins < needed.price) {
-            sick.appendChild(el('div', 'dp-dim', '还差 ' + needed.price + ' 🪙 买「' + needed.label + '」，先去打工'))
-          }
-          ctx.content.appendChild(sick)
-          if (illness.doctorFee !== null) {
-            var clinic = el('div', 'dp-actions')
-            var doctor = button('dp-btn dp-btn-wide', { 'data-action': 'doctor' }, function () { ctx.send('doctor') })
-            doctor.appendChild(el('span', null, '🏥'))
-            doctor.appendChild(el('span', null, '看医生（' + illness.doctorFee + ' 🪙）'))
-            clinic.appendChild(doctor)
-            ctx.content.appendChild(clinic)
-          }
-        } else if (ctx.view.pig !== null && ctx.view.activity !== null) {
-          var away = el('div', 'dp-alert dp-work')
-          away.appendChild(el('b', null, ctx.view.activity.emoji + ' 在外面：' + ctx.view.activity.label))
-          away.appendChild(el('div', null, '还有 ' + ctx.view.activity.secondsLeft + ' 秒'))
-          ctx.content.appendChild(away)
-          var wrap = el('div', 'dp-actions')
-          var call = button('dp-btn dp-btn-wide', { 'data-action': 'calloff' }, function () { ctx.send('calloff') })
-          call.appendChild(el('span', null, '↩️'))
-          call.appendChild(el('span', null, '叫它回来'))
-          wrap.appendChild(call)
-          ctx.content.appendChild(wrap)
-        }
-
         if (ctx.view.pig === null) {
           ctx.content.appendChild(el('div', 'dp-empty', '门口放着一个纸盒，里面窸窸窣窣 📦'))
           var grid = el('div', 'dp-actions')
@@ -169,7 +106,20 @@ export function createPanel(ctx) {
           return
         }
 
+        // B9: the home screen first; every app gets a 「‹」 back to it on its
+        // top layer (inside a category the app's own 「‹」 goes up a layer).
+        var apps = ctx.devMode ? TABS.concat([DEV_TAB]) : TABS
+        if (ctx.tab === 'home') {
+          renderHome(ctx, apps)
+          ctx.fitPanel()
+          return
+        }
+        var drilled = ctx.tab in ctx.drill && ctx.drill[ctx.tab] !== null
+        var app = apps.find(function (entry) { return entry.key === ctx.tab })
+        if (app !== undefined && !drilled) appHeader(ctx, app, ctx.tab === 'shop' ? '🪙 ' + ctx.view.pig.coins : '')
+
         if (ctx.tab === 'status') renderStatusTab(ctx)
+        else if (ctx.tab === 'card') renderCardTab(ctx)
         else if (ctx.tab === 'study') renderStudyTab(ctx)
         else if (ctx.tab === 'work') renderWorkTab(ctx)
         else if (ctx.tab === 'shop') renderShopTab(ctx)
@@ -338,6 +288,7 @@ export function createPanel(ctx) {
 
         // Typing a new name: a repaint would drop the input and its focus.
         if ((ctx.ownerEdit !== null || ctx.pigNameEdit !== null) && ctx.tab === 'status') return
+        if (ctx.cardEdit !== null && ctx.tab === 'card') return
         renderContent()
       }
 

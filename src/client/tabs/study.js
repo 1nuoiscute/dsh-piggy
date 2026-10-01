@@ -53,9 +53,6 @@ function renderStages(ui) {
   // Prefer the host's own ladder: a client that hard-codes the stages would
   // keep offering one the host has never heard of.
   var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES
-  var head = el('div', 'dp-title')
-  head.appendChild(el('b', null, '📚 学习'))
-  ui.content.appendChild(head)
   var grid = tileGrid()
   for (var s = 0; s < stageList.length; s += 1) {
     (function (entry, index) {

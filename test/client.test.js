@@ -44,7 +44,7 @@ const readModule = name => readFile(new URL('../src/client/' + name, import.meta
 
 async function readCss() {
   const dir = new URL('../src/client/', import.meta.url)
-  const modules = ['css-base.js', 'css-tabs.js', 'css-tiles.js']
+  const modules = ['css-base.js', 'css-tabs.js', 'css-tiles.js', 'css-card.js']
   const sources = await Promise.all(modules.map(name => readFile(new URL(name, dir), 'utf8')))
   let css = ''
   for (const source of sources) {
@@ -232,6 +232,12 @@ const findByAttr = (root, attr, value) => {
   root.walk(node => { if (node.attributes?.[attr] === value) found.push(node) })
   return found[0]
 }
+/** B9: a job is a tile; its 出发 button lives in the details under the grid. */
+const sendJob = (dom, key) => {
+  tap(dom, 'data-job-tile', key)
+  tap(dom, 'data-job', key)
+}
+
 /** Tap a tile (or any element) in the panel body by one of its data attributes. */
 const tap = (dom, attr, value) => {
   const node = findByAttr(contentOf(dom), attr, value)
@@ -249,9 +255,15 @@ const findByClass = (root, className) => {
 const settle = () => new Promise(resolve => setImmediate(resolve))
 
 /** Open the panel by tapping the pig. */
-function openPanel(dom) {
+function openPanel(dom, app = 'status') {
   // The menu lives on the context menu; a left click only pats the pig.
   sceneOf(dom).fire('contextmenu', { preventDefault() {} })
+  // B9: the panel opens on the home screen. Most tests are about one app, so
+  // they land in it the way a user would: tap its tile.
+  if (app !== 'home' && contentOf(dom) !== undefined) {
+    const tile = findByAttr(contentOf(dom), 'data-app', app)
+    if (tile !== undefined) tile.fire('click')
+  }
 }
 
 /** Left-click the pig (a pat, not the menu). */
@@ -562,20 +574,28 @@ test('a truncated payload still renders without throwing', async () => {
 // The six-icon bar
 // ===========================================================================
 
-test('the icon bar holds exactly the six QQ Pet entries in order', async () => {
+test('the panel opens on a home screen of app tiles, and the icon bar is gone (B9)', async () => {
   const { registration, dom } = await loadClient()
   registration.factory(() => {}).apply({})
   await settle()
-  openPanel(dom)
+  openPanel(dom, 'home')
 
-  // allText() joins sibling text with spaces, so collapse runs of whitespace.
-  const labelOf = key => findByAttr(barOf(dom), 'data-tab', key).allText().replace(/\s+/g, ' ').trim()
+  const labelOf = key => {
+    const appTile = findByAttr(contentOf(dom), 'data-app', key)
+    return findByClass(appTile, 'dp-tile-e').allText() + ' ' + findByClass(appTile, 'dp-tile-n').allText()
+  }
   assert.deepEqual(
-    ['status', 'study', 'work', 'shop', 'travel', 'bag'].map(labelOf),
-    ['📋 状态', '📚 学习', '💼 打工', '🛒 商店', '🧳 旅行', '🎒 背包'],
+    ['status', 'card', 'study', 'work', 'shop', 'travel', 'bag'].map(labelOf),
+    ['📋 状态', '🪪 居民卡', '📚 学习', '💼 打工', '🛒 商店', '🧳 旅行', '🎒 背包'],
   )
-  assert.equal(barOf(dom).children.length, 6)
-  assert.equal(findByAttr(barOf(dom), 'data-tab', 'status').attributes['data-active'], 'true')
+  const css = await readCss()
+  assert.match(css, /\.dp-card \.dp-bar\{display:none\}/, 'the old icon bar is not shown')
+
+  // An app has a 「‹」 back to the home screen.
+  tap(dom, 'data-app', 'shop')
+  assert.equal(findByAttr(contentOf(dom), 'data-app', 'shop'), undefined, 'inside the shop now')
+  tap(dom, 'data-home', 'true')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-app', 'shop'), undefined, 'and back home')
 })
 
 test('clicking an icon marks it active and switches the content', async () => {
@@ -1031,7 +1051,7 @@ test('the work tab lists jobs and sending the pig out POSTs the job', async () =
   assert.ok(text.includes('打零工'), text)
   assert.ok(text.includes('12'), text)
 
-  findByAttr(contentOf(dom), 'data-job', 'odd').fire('click')
+  sendJob(dom, 'odd')
   await settle()
   await settle()
   const post = net.calls.find(call => call.method === 'POST')
@@ -1055,13 +1075,17 @@ test('a job behind a trait gate says what it needs instead of just greying out',
 
   // The row stays short (owner, 2026-10-01): a padlock, time and pay. What
   // the gate wants lives behind 详情, not in a pile of text on the row.
+  // B9: a job is a tile — a padlock, time and pay. What the gate wants lives
+  // in the details under the grid, not in a pile of text on the tile.
   let text = contentOf(dom).allText()
-  assert.ok(text.includes('🔒 120 分钟 · 480 🪙'), text)
-  assert.ok(!text.includes('智力 10'), 'the gate is not spelled out on the row')
-  assert.equal(findByAttr(contentOf(dom), 'data-job', 'tutor').disabled, true)
-  findByAttr(contentOf(dom), 'data-job-detail', 'tutor').fire('click')
+  assert.ok(text.includes('120分·480🪙'), text)
+  assert.ok(findByAttr(contentOf(dom), 'data-job-tile', 'tutor').allText().includes('🔒'))
+  assert.ok(!text.includes('智力 10'), 'the gate is not spelled out on the tile')
+  tap(dom, 'data-job-tile', 'tutor')
   text = contentOf(dom).allText()
-  assert.ok(text.includes('✗ 🧠 智力 10'), `an older host's gate still shows under 详情: ${text}`)
+  assert.ok(text.includes('✗ 🧠 智力 10'), `an older host's gate still shows in the details: ${text}`)
+  assert.equal(findByAttr(contentOf(dom), 'data-job', 'tutor').disabled, true)
+  tap(dom, 'data-job-tile', 'odd')
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
 })
 
@@ -1153,6 +1177,7 @@ test('an older host with no job gates does not lock the whole board', async () =
   const text = contentOf(dom).allText()
   assert.ok(!text.includes('🔒'), text)
   assert.ok(!text.includes('undefined'), text)
+  tap(dom, 'data-job-tile', 'odd')
   assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
 })
 
@@ -1506,7 +1531,7 @@ test('a refused operation explains itself in the bubble', async () => {
   await settle()
   openPanel(dom)
   pickTab(dom, 'work')
-  findByAttr(contentOf(dom), 'data-job', 'odd').fire('click')
+  sendJob(dom, 'odd')
   await settle()
   await settle()
   const bubble = findByClass(hostOf(dom), 'dp-bubble')
@@ -1932,4 +1957,20 @@ test('tile tabs: coloured top layer, back returns, a poll keeps you inside, a ne
   } finally {
     globalThis.window.setInterval = realSetInterval
   }
+})
+
+test('banners live on the status tab only; the home screen flags the status tile instead (B9)', async () => {
+  const away = { kind: 'work', key: 'odd', label: '打零工', emoji: '🧹', secondsLeft: 60 }
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, canGoOut: false, activity: away } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'home')
+  assert.equal(findByClass(findByAttr(contentOf(dom), 'data-app', 'status'), 'dp-tile-tag').allText(), '在外面')
+  for (const app of ['shop', 'bag', 'study', 'card']) {
+    tap(dom, 'data-app', app)
+    assert.ok(!contentOf(dom).allText().includes('在外面'), `${app} has no away banner`)
+    tap(dom, 'data-home', 'true')
+  }
+  tap(dom, 'data-app', 'status')
+  assert.ok(contentOf(dom).allText().includes('在外面：打零工'), 'the status tab has it')
 })

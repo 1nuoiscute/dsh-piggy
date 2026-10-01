@@ -6,9 +6,9 @@
  * @module dsh-pig/core/lines
  */
 
-import { DEFAULT_OWNER_NAME, LINES, OWNER_NAME_MAX, OWNER_TOKEN, REPLY_HAPPINESS, THRESHOLDS, WELCOME_BACK_AFTER_MINUTES } from '../data.js'
+import { CATCHPHRASE_CHANCE, DEFAULT_OWNER_NAME, LINES, SERIOUS_SCENES, OWNER_NAME_MAX, OWNER_TOKEN, REPLY_HAPPINESS, THRESHOLDS, WELCOME_BACK_AFTER_MINUTES } from '../data.js'
 import { announce, clamp100 } from './effects.js'
-import { rollerFor } from './random.js'
+import { chance, rollerFor } from './random.js'
 
 /** The dialogue record every pig carries; older saves get it filled in. */
 export function emptyDialogue() {
@@ -33,9 +33,24 @@ export function pickLine(state, scene, next = rollerFor(state)) {
   const line = pool[index]
   return {
     scene,
-    text: line.text.split(OWNER_TOKEN).join(dialogue.ownerName),
+    text: withCatchphrase(state, scene, line.text.split(OWNER_TOKEN).join(dialogue.ownerName), next),
     replies: (line.replies ?? []).map(reply => ({ label: reply.label, happiness: reply.happiness ?? REPLY_HAPPINESS })),
   }
+}
+
+/**
+ * Now and then the pig ends a line with its catchphrase, the way the villagers
+ * do (B9): 「好舒服…」 → 「好舒服，呼噜…」. Never in serious moments, never on a
+ * stage direction like 「（眯起眼睛）」, and never twice.
+ */
+function withCatchphrase(state, scene, text, next) {
+  const phrase = typeof state.catchphrase === 'string' ? state.catchphrase.trim() : ''
+  if (phrase === '' || SERIOUS_SCENES.includes(scene) || text.startsWith('（') || text.includes(phrase)) return text
+  if (!chance(next, CATCHPHRASE_CHANCE)) return text
+  const match = /^(.*?)([。！？!?～~…]*)$/.exec(text)
+  const body = match === null ? text : match[1]
+  const tail = match === null ? '' : match[2]
+  return `${body}，${phrase}${tail}`
 }
 
 /**

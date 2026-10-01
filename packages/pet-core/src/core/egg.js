@@ -10,6 +10,7 @@ import { DEFAULT_TIME_SCALE, MAX } from '../data.js'
 import { BIRTH_WEIGHT_G, HATCH_WEIGHT_G, STATE_VERSION } from './constants.js'
 import { remember } from './effects.js'
 import { emptyDialogue } from './lines.js'
+import { assignPersonality } from './profile.js'
 import { roll } from './random.js'
 
 export function layEgg(nowMs) {
@@ -84,6 +85,7 @@ export function hatch(state, nowMs) {
   // (older saves let it eat real work) does not count toward growing up.
   state.xp = 0
   state.sex = pickSex(state)
+  assignPersonality(state)
   state.bornAt = nowMs
   state.ageForced = false
   state.dead = false
@@ -99,6 +101,7 @@ export function hatchEgg(nowMs) {
   const state = layEgg(nowMs)
   state.hatched = true
   state.sex = pickSex(state)
+  assignPersonality(state)
   state.bornAt = nowMs
   state.ageForced = false
   state.weightG += HATCH_WEIGHT_G

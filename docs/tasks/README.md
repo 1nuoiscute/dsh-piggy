@@ -18,6 +18,7 @@
 | B3 | 疾病：5 条链、20 种专用药、概率发病、吃错药加重（[数值单](numbers/B3-illness.md) ✅） | Claude | ✅ 已合入 |
 | B4 | 学习→职业：九门课课时、33 种职业、证书、掉落（[数值单](numbers/B4-study-jobs.md) ✅） | Claude | ✅ 已合入 |
 | [B5](B5-daily.md) | 日常：签到 12 天、在线礼包（每小时）、宠物日记（[数值单](numbers/B5-daily.md) ✅） | **DSH agent** | 可以开工 |
+| [B9](B9-home-card.md) | 九宫格主屏、居民卡、打工方块、横幅只在状态页（截图 docs/screenshots/b9-*.png） | Claude | ✅ 已合入 |
 | [B8](B8-tiles.md) | 学习/商店/背包改成动森手机式方块（两层都是方块），截图在 docs/screenshots/b8-*.png | Claude | ✅ 已合入 |
 | B6 | 台词全量 + 闲聊 + 免打扰（动画、右键菜单暂不动）（[审稿单](numbers/B6-lines.md)） | Claude | ✅ 已合入（用户：不审，按稿直接上） |
 

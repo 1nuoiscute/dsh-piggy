@@ -101,6 +101,7 @@ test('the welcome back only comes after half an hour away', () => {
 
 test('the owner can be called something else, and the lines use it', () => {
   const pig = wellPig()
+  pig.catchphrase = '' // the catchphrase has its own test
   assert.equal(setOwnerName(pig, '   ').reason, 'empty')
   assert.deepEqual(setOwnerName(pig, '  小明同学今天也在加班吗真的吗  '), { ok: true, ownerName: '小明同学今天也在加班吗真' })
   setOwnerName(pig, '小明')

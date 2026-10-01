@@ -18,6 +18,7 @@
   var PIG_PADDING_X = 6;
   var TABS = [
     { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
+    { key: "card", label: "\u5C45\u6C11\u5361", emoji: "\u{1FAAA}" },
     { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
     { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
     { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
@@ -202,7 +203,7 @@
     var coins = "\u{1FA99} " + ui.view.pig.coins;
     var shelf = ui.drill.shop;
     if (shelf === null || KIND_ORDER.indexOf(shelf) < 0) {
-      renderShelves(ui, coins);
+      renderShelves(ui);
       return;
     }
     var parts = shelfParts(shelf);
@@ -214,11 +215,7 @@
     for (var i = 0; i < items.length; i += 1) grid.appendChild(itemTile(ui, items[i], SHELF_COLOR[shelf]));
     ui.content.appendChild(grid);
   }
-  function renderShelves(ui, coins) {
-    var head = el("div", "dp-title");
-    head.appendChild(el("b", null, "\u{1F6D2} \u5546\u5E97"));
-    head.appendChild(el("span", null, coins));
-    ui.content.appendChild(head);
+  function renderShelves(ui) {
     var grid = tileGrid();
     for (var k = 0; k < KIND_ORDER.length; k += 1) {
       (function(kind) {
@@ -292,9 +289,6 @@
     });
   }
   function renderCategories(ui) {
-    var head = el("div", "dp-title");
-    head.appendChild(el("b", null, "\u{1F392} \u80CC\u5305"));
-    ui.content.appendChild(head);
     var grid = tileGrid();
     for (var k = 0; k < CONSUMABLES.length; k += 1) {
       (function(kind) {
@@ -642,6 +636,7 @@
   function renderStatusTab(ui) {
     var p = ui.view.pig;
     if (p === null) return;
+    renderBanners(ui);
     labelledBar(ui, "\u{1F35A} \u9971\u98DF", p.satiety, p.satiety + "%");
     labelledBar(ui, "\u2764\uFE0F \u5FC3\u60C5", p.happiness, p.happiness + "%", "dp-mood");
     labelledBar(ui, "\u{1FAE7} \u6E05\u6D01", p.cleanliness, p.cleanliness + "%", "dp-clean");
@@ -757,6 +752,68 @@
     row.appendChild(quiet);
     return row;
   }
+  function renderBanners(ui) {
+    if (ui.view.pig !== null && ui.view.dead) {
+      var dead = el("div", "dp-alert dp-dead");
+      dead.appendChild(el("b", null, "\u{1FAA6} " + ui.view.pig.name + " \u8D70\u4E86" + (ui.view.pig.soul ? "\uFF0C\u7075\u9B42\u8FD8\u7559\u5728\u5893\u7891\u4E0A \u{1F47B}" : "")));
+      dead.appendChild(el("div", null, ui.view.pig.soul ? "\u7528\u8FD8\u9B42\u4E39\u53EF\u4EE5\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u4E5F\u53EF\u4EE5\u9886\u517B\u65B0\u7684" : "\u80CC\u5305\u91CC\u7684\u8FD8\u9B42\u4E39\u5C31\u80FD\u6551\u56DE\u6765"));
+      ui.content.appendChild(dead);
+      var adoptWrap = el("div", "dp-actions");
+      var adopt = button("dp-btn dp-btn-wide", { "data-action": "adopt" }, function() {
+        ui.send("adopt");
+      });
+      adopt.appendChild(el("span", null, "\u{1F4E6}"));
+      adopt.appendChild(el("span", null, "\u9886\u517B\u65B0\u732A"));
+      adoptWrap.appendChild(adopt);
+      ui.content.appendChild(adoptWrap);
+    } else if (ui.view.pig !== null && ui.view.pig.illness !== null) {
+      var illness = ui.view.pig.illness;
+      var sick = el("div", "dp-alert dp-sick");
+      sick.appendChild(el("b", null, "\u{1F912} " + illness.name + "\uFF08\u7B2C " + illness.stage + "/4 \u671F\uFF09"));
+      sick.appendChild(el("div", null, "\u9700\u8981\u300C" + illness.cureEmoji + illness.cure + "\u300D\u2014\u2014 \u5403\u9519\u836F\u4F1A\u52A0\u91CD"));
+      var needed = null;
+      var shelf = ui.view.shop || [];
+      for (var c = 0; c < shelf.length; c += 1) {
+        if (shelf[c].needed) needed = shelf[c];
+      }
+      for (var t = 0; needed === null && t < shelf.length; t += 1) {
+        if (shelf[t].kind === "medicine" && shelf[t].tier === illness.stage) needed = shelf[t];
+      }
+      for (var n = 0; needed === null && n < shelf.length; n += 1) {
+        if (shelf[n].label === illness.cure) needed = shelf[n];
+      }
+      if (ui.view.canGoOut) {
+        sick.appendChild(el("div", "dp-dim", "\u5E26\u75C5\u51FA\u95E8\u62A5\u916C\u51CF\u534A\u3001\u75C5\u60C5\u66F4\u5FEB"));
+      }
+      if (needed !== null && ui.view.canGoOut && ui.view.pig.coins < needed.price) {
+        sick.appendChild(el("div", "dp-dim", "\u8FD8\u5DEE " + needed.price + " \u{1FA99} \u4E70\u300C" + needed.label + "\u300D\uFF0C\u5148\u53BB\u6253\u5DE5"));
+      }
+      ui.content.appendChild(sick);
+      if (illness.doctorFee !== null) {
+        var clinic = el("div", "dp-actions");
+        var doctor = button("dp-btn dp-btn-wide", { "data-action": "doctor" }, function() {
+          ui.send("doctor");
+        });
+        doctor.appendChild(el("span", null, "\u{1F3E5}"));
+        doctor.appendChild(el("span", null, "\u770B\u533B\u751F\uFF08" + illness.doctorFee + " \u{1FA99}\uFF09"));
+        clinic.appendChild(doctor);
+        ui.content.appendChild(clinic);
+      }
+    } else if (ui.view.pig !== null && ui.view.activity !== null) {
+      var away = el("div", "dp-alert dp-work");
+      away.appendChild(el("b", null, ui.view.activity.emoji + " \u5728\u5916\u9762\uFF1A" + ui.view.activity.label));
+      away.appendChild(el("div", null, "\u8FD8\u6709 " + ui.view.activity.secondsLeft + " \u79D2"));
+      ui.content.appendChild(away);
+      var wrap = el("div", "dp-actions");
+      var call = button("dp-btn dp-btn-wide", { "data-action": "calloff" }, function() {
+        ui.send("calloff");
+      });
+      call.appendChild(el("span", null, "\u21A9\uFE0F"));
+      call.appendChild(el("span", null, "\u53EB\u5B83\u56DE\u6765"));
+      wrap.appendChild(call);
+      ui.content.appendChild(wrap);
+    }
+  }
 
   // src/client/tabs/study.js
   var INTEREST_TAB = "interest";
@@ -789,9 +846,6 @@
   }
   function renderStages(ui) {
     var stageList = ui.view.stages.length > 0 ? ui.view.stages : STAGES;
-    var head = el("div", "dp-title");
-    head.appendChild(el("b", null, "\u{1F4DA} \u5B66\u4E60"));
-    ui.content.appendChild(head);
     var grid = tileGrid();
     for (var s = 0; s < stageList.length; s += 1) {
       (function(entry, index) {
@@ -1376,12 +1430,61 @@
     ".dp-drill-title{font-size:12px;font-weight:800;color:var(--ac-text);white-space:nowrap}",
     ".dp-drill-info{flex:1;min-width:0;text-align:right;font-size:10px;font-weight:600;",
     "color:var(--ac-text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    // B9: the home screen replaces the bottom icon bar. The bar still exists
+    // (its icons carry the alert state the home tiles read) but is not shown.
+    "[data-dsh-pig] .dp-card .dp-bar{display:none}",
+    ".dp-app-head{margin-bottom:12px}",
+    // Out working, the collapsed scene shrinks to pig + prop; open, it must stay
+    // as wide as the panel, or the name plate is squeezed onto the pig.
+    '[data-dsh-pig][data-open="true"][data-away] .dp-scene{width:var(--panel-width)}',
+    // Banners only live on the status tab now, with room to breathe below.
+    "[data-dsh-pig] .dp-alert{margin-bottom:14px}",
+    "[data-dsh-pig] .dp-alert + .dp-actions{margin-bottom:14px}",
+    ".dp-job-go{display:block;width:100%;margin-top:9px}",
     // A picked tile's details (a diary page, a souvenir's story) sit under the grid.
     ".dp-tile-card{margin-top:12px}"
   ].join("");
 
+  // src/client/css-card.js
+  var CSS_CARD = [
+    ".dp-vcard{position:relative;padding:14px 14px 12px;border-radius:20px;color:var(--ac-text-body);",
+    "--vc-dot:rgba(196,184,158,.15);--vc-dot2:rgba(196,184,158,.1);--vc-bg:rgb(247,243,223);--vc-line:#d4c4a8;",
+    "background:radial-gradient(circle,var(--vc-dot) 1.5px,transparent 1.5px),",
+    "radial-gradient(circle,var(--vc-dot2) 1px,transparent 1px),var(--vc-bg);",
+    "background-size:28px 28px,14px 14px;background-position:0 0,7px 7px;border:1.5px solid var(--vc-line)}",
+    '.dp-vcard[data-sex="girl"]{--vc-dot:rgba(248,166,178,.18);--vc-dot2:rgba(255,200,210,.12);--vc-bg:#fde4e8;--vc-line:#f8a6b2}',
+    '.dp-vcard[data-sex="boy"]{--vc-dot:rgba(136,157,240,.18);--vc-dot2:rgba(180,195,255,.12);--vc-bg:#e8edff;--vc-line:#889df0}',
+    // Top: the photo and who it is.
+    ".dp-vcard-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}",
+    ".dp-vcard-avatar{flex:none;width:72px;height:72px;border-radius:18px;display:flex;align-items:center;",
+    "justify-content:center;background:#fffbe7;border:2px solid var(--vc-line);box-shadow:0 3px 0 rgba(61,52,40,.12)}",
+    ".dp-vcard-img{width:56px;height:56px;display:block}",
+    ".dp-vcard-e{font-size:40px;line-height:1}",
+    ".dp-vcard-who{display:flex;flex-direction:column;gap:3px;min-width:0}",
+    ".dp-vcard-name{font-size:15px;font-weight:800;color:var(--ac-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".dp-vcard-sub{font-size:10.5px;font-weight:600;color:var(--ac-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    // 「标签：值」 rows.
+    ".dp-vcard-row{display:flex;align-items:center;gap:6px;margin-top:7px;min-width:0}",
+    ".dp-vcard-label{flex:none;width:44px;font-size:10.5px;font-weight:700;color:var(--ac-text)}",
+    ".dp-vcard-value{flex:1;min-width:0;padding:5px 11px;border-radius:var(--ac-pill);background:#faf8f2;",
+    "font-size:11px;font-weight:600;color:var(--ac-text-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    // The motto is the pig talking: a bubble that may take two lines.
+    ".dp-vcard-motto-row{align-items:flex-start}",
+    ".dp-vcard-motto-row .dp-vcard-label{margin-top:6px}",
+    ".dp-vcard-value.dp-vcard-motto{border-radius:12px;white-space:normal;line-height:1.45}",
+    ".dp-vcard-edit{flex:none;font:inherit;font-size:12px;line-height:1;width:24px;height:24px;padding:0;cursor:pointer;",
+    "border-radius:50%;border:2px solid var(--vc-line);background:#fffbe7}",
+    ".dp-vcard-edit:hover{background:var(--ac-hover)}",
+    ".dp-vcard-input{flex:1;min-width:0;padding:3px 9px;font-size:11px}",
+    // In-place editing: the two buttons stay as small as the pencil they replace.
+    ".dp-vcard-row .dp-mini{flex:none;padding:3px 9px;font-size:10px;box-shadow:none}",
+    "[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}",
+    ".dp-vcard-foot{margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--vc-line);",
+    "font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+  ].join("");
+
   // src/client/styles.js
-  var CSS = CSS_BASE + CSS_TABS + CSS_TILES;
+  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD;
 
   // src/client/tabs/travel.js
   function renderTravelTab(ui) {
@@ -1454,9 +1557,9 @@
 
   // src/client/tabs/work.js
   var SKILLS = [
-    { key: "strong", label: "\u{1F4AA} \u6B66\u529B" },
-    { key: "charm", label: "\u2728 \u9B45\u529B" },
-    { key: "intel", label: "\u{1F9E0} \u667A\u529B" }
+    { key: "strong", emoji: "\u{1F4AA}", label: "\u6B66\u529B", color: "orange" },
+    { key: "charm", emoji: "\u2728", label: "\u9B45\u529B", color: "pink" },
+    { key: "intel", emoji: "\u{1F9E0}", label: "\u667A\u529B", color: "blue" }
   ];
   function renderWorkTab(ui) {
     if (ui.view.jobs.length === 0) {
@@ -1466,68 +1569,88 @@
     var bySkill = ui.view.jobs.some(function(job) {
       return job.trait !== "";
     });
-    var jobs = ui.view.jobs;
-    if (bySkill) {
-      var seg = el("div", "dp-seg dp-seg-3");
-      for (var s = 0; s < SKILLS.length; s += 1) {
-        (function(skill) {
-          var count = ui.view.jobs.filter(function(job) {
-            return job.trait === skill.key && job.qualified;
-          }).length;
-          var btn = button(null, { "data-skill": skill.key }, function() {
-            ui.workTrait = skill.key;
-            ui.jobDetail = null;
-            ui.renderContent();
-          });
-          btn.textContent = skill.label + (count > 0 ? " " + count : "");
-          btn.setAttribute("data-active", skill.key === ui.workTrait ? "true" : "false");
-          seg.appendChild(btn);
-        })(SKILLS[s]);
-      }
-      ui.content.appendChild(seg);
-      jobs = ui.view.jobs.filter(function(job) {
-        return job.trait === ui.workTrait;
-      });
+    if (!bySkill) {
+      renderJobs(ui, ui.view.jobs, "orange");
+      return;
     }
-    var list = el("div", "dp-list");
+    var skill = SKILLS.find(function(entry) {
+      return entry.key === ui.drill.work;
+    });
+    if (skill === void 0) {
+      renderSkills(ui);
+      return;
+    }
+    var chosen = skill;
+    drillHeader(ui, "work", chosen.emoji + " " + chosen.label, "");
+    renderJobs(ui, ui.view.jobs.filter(function(job) {
+      return job.trait === chosen.key;
+    }), chosen.color);
+  }
+  function renderSkills(ui) {
+    var grid = tileGrid();
+    for (var s = 0; s < SKILLS.length; s += 1) {
+      (function(skill) {
+        var open = ui.view.jobs.filter(function(job) {
+          return job.trait === skill.key && job.qualified;
+        }).length;
+        grid.appendChild(tile({
+          emoji: skill.emoji,
+          label: skill.label,
+          color: skill.color,
+          badge: open > 0 ? String(open) : "",
+          data: { "data-skill": skill.key },
+          onPick: function() {
+            drillTo(ui, "work", skill.key);
+          }
+        }));
+      })(SKILLS[s]);
+    }
+    ui.content.appendChild(grid);
+  }
+  function renderJobs(ui, jobs, color) {
+    var grid = tileGrid();
+    var picked = null;
     for (var i = 0; i < jobs.length; i += 1) {
       (function(job) {
+        var active = ui.drill.pick === job.key;
+        if (active) picked = job;
         var locked = job.qualified === false;
-        var row = el("div", "dp-item" + (locked ? " dp-job-locked" : ""));
-        row.appendChild(el("span", null, job.emoji));
-        var grow = el("div", "dp-grow");
-        grow.appendChild(el("div", null, job.label));
-        grow.appendChild(el("div", "dp-dim", (locked ? "\u{1F512} " : "") + job.minutes + " \u5206\u949F \xB7 " + job.coins + " \u{1FA99}"));
-        row.appendChild(grow);
-        var open = ui.jobDetail === job.key;
-        var more = button("dp-mini dp-mini-plain", { "data-job-detail": job.key }, function() {
-          ui.jobDetail = open ? null : job.key;
-          ui.renderContent();
-        });
-        more.textContent = open ? "\u6536\u8D77" : "\u8BE6\u60C5";
-        row.appendChild(more);
-        var go = button("dp-mini", { "data-job": job.key }, function() {
-          ui.send("work", { job: job.key });
-        });
-        go.textContent = "\u51FA\u53D1";
-        go.disabled = !ui.view.canGoOut || locked;
-        row.appendChild(go);
-        list.appendChild(row);
-        if (open) list.appendChild(jobDetails(job));
+        grid.appendChild(tile({
+          emoji: job.emoji,
+          label: job.label,
+          color,
+          soft: true,
+          active,
+          note: job.minutes + "\u5206\xB7" + job.coins + "\u{1FA99}",
+          tag: locked ? "\u{1F512}" : "",
+          dim: locked,
+          data: { "data-job-tile": job.key },
+          onPick: function() {
+            ui.drill.pick = active ? null : job.key;
+            ui.renderContent();
+          }
+        }));
       })(jobs[i]);
     }
-    ui.content.appendChild(list);
+    ui.content.appendChild(grid);
+    if (picked !== null) ui.content.appendChild(jobDetails(ui, picked));
   }
-  function jobDetails(job) {
-    var box = el("div", "dp-pick dp-job-detail");
-    box.appendChild(el("div", "dp-pick-head", job.qualified ? "\u2713 \u6761\u4EF6\u90FD\u591F\u4E86" : "\u8FD8\u5DEE\u8FD9\u4E9B"));
+  function jobDetails(ui, job) {
+    var box = el("div", "dp-pick dp-tile-card dp-job-detail");
+    box.appendChild(el("div", "dp-pick-head", job.emoji + " " + job.label + " \xB7 " + (job.qualified ? "\u6761\u4EF6\u90FD\u591F\u4E86" : "\u8FD8\u5DEE\u8FD9\u4E9B")));
     for (var r = 0; r < job.requirements.length; r += 1) {
       var need = job.requirements[r];
       var have = need.kind === "level" ? "\uFF08\u73B0\u5728 Lv." + need.have + "\uFF09" : need.kind === "certificate" ? "\uFF08" + need.have + "/" + need.need + " \u6B21\uFF09" : need.kind === "every" || need.kind === "anyOf" ? "\uFF08" + need.have + "/" + need.need + " \u95E8\uFF09" : "\uFF08\u73B0\u5728 " + need.have + " \u8282\uFF09";
       box.appendChild(el("div", need.met ? "dp-req dp-req-ok" : "dp-req", (need.met ? "\u2713 " : "\u2717 ") + need.text + (need.met ? "" : " " + have)));
     }
     if (job.requirements.length === 0 && job.lockText) box.appendChild(el("div", "dp-req", "\u2717 " + job.lockText));
-    box.appendChild(el("div", "dp-dim", job.traitEmoji + job.traitLabel + " " + job.traitPoints + (job.payPercent > 0 ? " \xB7 \u62A5\u916C +" + job.payPercent + "%" : "") + " \xB7 \u9971\u98DF " + job.satiety + " \xB7 \u6E05\u6D01 " + job.cleanliness));
+    box.appendChild(el("div", "dp-dim", job.minutes + " \u5206\u949F \xB7 " + job.coins + " \u{1FA99} \xB7 " + job.traitEmoji + job.traitLabel + " " + job.traitPoints + (job.payPercent > 0 ? "\uFF08+" + job.payPercent + "%\uFF09" : "") + " \xB7 \u9971\u98DF " + job.satiety + " \xB7 \u6E05\u6D01 " + job.cleanliness));
+    var go = button("dp-btn dp-btn-wide dp-job-go", { "data-job": job.key }, function() {
+      ui.send("work", { job: job.key });
+    });
+    go.textContent = "\u{1F4BC} \u51FA\u53D1";
+    go.disabled = !ui.view.canGoOut || job.qualified === false;
+    box.appendChild(go);
     return box;
   }
 
@@ -1770,7 +1893,7 @@
       while (ctx.bar.firstChild) ctx.bar.removeChild(ctx.bar.firstChild);
       var list = visibleTabs();
       for (var t = 0; t < list.length; t += 1) ctx.buildIcon(list[t]);
-      if (ctx.icons[ctx.tab] === void 0) ctx.tab = "status";
+      if (ctx.icons[ctx.tab] === void 0 && ctx.tab !== "home") ctx.tab = "home";
       for (var k in ctx.icons) ctx.icons[k].setAttribute("data-active", k === ctx.tab ? "true" : "false");
     }
     function buildIcon(entry) {
@@ -2063,6 +2186,20 @@
         size: num(d.boxStage.size, 58)
       } : { key: "box", label: "\u7EB8\u76D2", emoji: "\u{1F4E6}", size: 58 },
       awayBlocked: typeof d.awayBlocked === "string" ? d.awayBlocked : null,
+      // B9: the villager card. Older hosts send none, and the card says so.
+      profile: isObj(d.profile) ? {
+        personality: isObj(d.profile.personality) ? { label: str(d.profile.personality.label, ""), emoji: str(d.profile.personality.emoji, "") } : null,
+        catchphrase: str(d.profile.catchphrase, ""),
+        motto: str(d.profile.motto, ""),
+        birthday: str(d.profile.birthday, ""),
+        zodiac: isObj(d.profile.zodiac) ? { label: str(d.profile.zodiac.label, ""), emoji: str(d.profile.zodiac.emoji, "") } : null,
+        counts: {
+          days: num(obj(d.profile.counts).days, 0),
+          certificates: num(obj(d.profile.counts).certificates, 0),
+          souvenirs: num(obj(d.profile.counts).souvenirs, 0),
+          graduations: num(obj(d.profile.counts).graduations, 0)
+        }
+      } : null,
       // B6: what the pig calls its owner, and 免打扰. Older hosts send neither.
       dialogue: {
         ownerName: str(obj(d.dialogue).ownerName, "\u4E3B\u4EBA"),
@@ -2106,6 +2243,160 @@
       window.localStorage.setItem(key, value);
     } catch (error) {
     }
+  }
+
+  // src/client/tabs/card.js
+  var LIMITS = { catchphrase: 6, motto: 24 };
+  function renderCardTab(ui) {
+    var p = ui.view.pig;
+    var profile = ui.view.profile;
+    if (p === null) return;
+    if (profile === null) {
+      ui.content.appendChild(el("div", "dp-empty", "\u91CD\u542F dsh \u4E4B\u540E\u624D\u6709\u5C45\u6C11\u5361"));
+      return;
+    }
+    var card = el("div", "dp-vcard");
+    card.setAttribute("data-sex", p.sex !== null ? p.sex.key : "none");
+    var top = el("div", "dp-vcard-top");
+    var avatar = el("div", "dp-vcard-avatar");
+    if (p.stage.art !== null) {
+      var img = (
+        /** @type {HTMLImageElement} */
+        el("img", "dp-vcard-img")
+      );
+      img.src = ART_URL + p.stage.art + ".svg";
+      img.alt = "";
+      avatar.appendChild(img);
+    } else {
+      avatar.appendChild(el("span", "dp-vcard-e", p.stage.emoji));
+    }
+    top.appendChild(avatar);
+    var who = el("div", "dp-vcard-who");
+    who.appendChild(el("b", "dp-vcard-name", p.name + (p.sex !== null ? " " + p.sex.symbol : "")));
+    who.appendChild(el("span", "dp-vcard-sub", "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel));
+    who.appendChild(el("span", "dp-vcard-sub", p.stage.label));
+    top.appendChild(who);
+    card.appendChild(top);
+    card.appendChild(field("\u751F\u65E5", profile.birthday));
+    if (profile.zodiac !== null) card.appendChild(field("\u661F\u5EA7", profile.zodiac.emoji + " " + profile.zodiac.label));
+    if (profile.personality !== null) card.appendChild(field("\u6027\u683C", profile.personality.emoji + " " + profile.personality.label));
+    card.appendChild(editableField(ui, "catchphrase", "\u53E3\u5934\u7985", profile.catchphrase));
+    card.appendChild(editableField(ui, "motto", "\u7B7E\u540D", profile.motto));
+    var c = profile.counts;
+    card.appendChild(el(
+      "div",
+      "dp-vcard-foot",
+      "\u517B\u4E86 " + c.days + " \u5929 \xB7 \u8BC1\u4E66 " + c.certificates + " \xB7 \u7EAA\u5FF5\u54C1 " + c.souvenirs + " \xB7 \u6BD5\u4E1A " + c.graduations
+    ));
+    ui.content.appendChild(card);
+  }
+  function field(label, value) {
+    var row = el("div", "dp-vcard-row");
+    row.appendChild(el("span", "dp-vcard-label", label + "\uFF1A"));
+    row.appendChild(el("span", "dp-vcard-value", value));
+    return row;
+  }
+  function editableField(ui, key, label, value) {
+    var editing = ui.cardEdit !== null && ui.cardEdit.field === key;
+    var row = el("div", "dp-vcard-row" + (key === "motto" ? " dp-vcard-motto-row" : ""));
+    row.appendChild(el("span", "dp-vcard-label", label + "\uFF1A"));
+    if (editing) {
+      var input = (
+        /** @type {HTMLInputElement} */
+        el("input", "dp-input dp-vcard-input")
+      );
+      input.value = ui.cardEdit.draft;
+      input.maxLength = LIMITS[key];
+      input.setAttribute("data-card-input", key);
+      input.addEventListener("input", function() {
+        ui.cardEdit = { field: key, draft: input.value };
+      });
+      var save = button("dp-mini", { "data-card-save": key }, function() {
+        var text = (ui.cardEdit === null ? "" : ui.cardEdit.draft).trim();
+        ui.cardEdit = null;
+        if (text !== "") ui.send(key, { text });
+        ui.renderContent();
+      });
+      save.textContent = "\u597D";
+      var cancel = button("dp-mini dp-mini-plain", { "data-card-cancel": key }, function() {
+        ui.cardEdit = null;
+        ui.renderContent();
+      });
+      cancel.textContent = "\u7B97\u4E86";
+      row.appendChild(input);
+      row.appendChild(save);
+      row.appendChild(cancel);
+      return row;
+    }
+    row.appendChild(el("span", key === "motto" ? "dp-vcard-value dp-vcard-motto" : "dp-vcard-value", key === "motto" ? "\u300C" + value + "\u300D" : value));
+    var pencil = button("dp-vcard-edit", { "data-card-edit": key }, function() {
+      ui.cardEdit = { field: key, draft: value };
+      ui.renderContent();
+    });
+    pencil.textContent = "\u270F\uFE0F";
+    pencil.title = "\u6539" + label;
+    row.appendChild(pencil);
+    return row;
+  }
+
+  // src/client/tabs/home.js
+  var APP_COLOR = {
+    status: "green",
+    card: "pink",
+    study: "yellow",
+    work: "orange",
+    shop: "red",
+    travel: "blue",
+    bag: "teal",
+    dev: "brown"
+  };
+  function renderHome(ui, apps) {
+    var p = ui.view.pig;
+    var head = el("div", "dp-title");
+    head.appendChild(el("b", null, p.name + (p.sex !== null ? " " + p.sex.symbol : "") + " Lv." + p.level.level));
+    head.appendChild(el("span", null, "\u{1FA99} " + p.coins));
+    ui.content.appendChild(head);
+    var grid = tileGrid();
+    for (var i = 0; i < apps.length; i += 1) {
+      (function(app) {
+        grid.appendChild(tile({
+          emoji: app.emoji,
+          label: app.label,
+          color: APP_COLOR[app.key] ?? "blue",
+          tag: alertFor(ui, app.key),
+          data: { "data-app": app.key },
+          onPick: function() {
+            ui.select(app.key);
+          }
+        }));
+      })(apps[i]);
+    }
+    ui.content.appendChild(grid);
+  }
+  function alertFor(ui, key) {
+    var p = ui.view.pig;
+    if (key === "status") {
+      if (ui.view.dead) return "\u8D70\u4E86";
+      if (p.illness !== null) return "\u751F\u75C5";
+      if (ui.view.activity !== null) return "\u5728\u5916\u9762";
+      return "";
+    }
+    var icon = ui.icons[key];
+    return icon !== void 0 && icon.getAttribute("data-alert") === "true" ? "!" : "";
+  }
+  function appHeader(ui, app, info) {
+    var row = el("div", "dp-drill dp-app-head");
+    var back = el("button", "dp-drill-back");
+    back.setAttribute("data-home", "true");
+    back.textContent = "\u2039";
+    back.addEventListener("click", function(event) {
+      if (event && typeof event.stopPropagation === "function") event.stopPropagation();
+      ui.select("home");
+    });
+    row.appendChild(back);
+    row.appendChild(el("b", "dp-drill-title", app.emoji + " " + app.label));
+    if (info) row.appendChild(el("span", "dp-drill-info", info));
+    ui.content.appendChild(row);
   }
 
   // src/client/panel.js
@@ -2161,66 +2452,6 @@
         legacy.appendChild(el("div", null, "\u91D1\u5E01\u3001\u5065\u5EB7\u3001\u6253\u5DE5\u3001\u5546\u5E97\u8FD9\u4E9B\u662F\u65B0\u589E\u7684\uFF0C\u91CD\u542F dsh\uFF08\u4E0D\u662F\u5237\u65B0\u9875\u9762\uFF09\u4E4B\u540E\u624D\u4F1A\u51FA\u73B0\u3002"));
         ctx.content.appendChild(legacy);
       }
-      if (ctx.view.pig !== null && ctx.view.dead) {
-        var dead = el("div", "dp-alert dp-dead");
-        dead.appendChild(el("b", null, "\u{1FAA6} " + ctx.view.pig.name + " \u8D70\u4E86" + (ctx.view.pig.soul ? "\uFF0C\u7075\u9B42\u8FD8\u7559\u5728\u5893\u7891\u4E0A \u{1F47B}" : "")));
-        dead.appendChild(el("div", null, ctx.view.pig.soul ? "\u7528\u8FD8\u9B42\u4E39\u53EF\u4EE5\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u4E5F\u53EF\u4EE5\u9886\u517B\u65B0\u7684" : "\u80CC\u5305\u91CC\u7684\u8FD8\u9B42\u4E39\u5C31\u80FD\u6551\u56DE\u6765"));
-        ctx.content.appendChild(dead);
-        var adoptWrap = el("div", "dp-actions");
-        var adopt = button("dp-btn dp-btn-wide", { "data-action": "adopt" }, function() {
-          ctx.send("adopt");
-        });
-        adopt.appendChild(el("span", null, "\u{1F4E6}"));
-        adopt.appendChild(el("span", null, "\u9886\u517B\u65B0\u732A"));
-        adoptWrap.appendChild(adopt);
-        ctx.content.appendChild(adoptWrap);
-      } else if (ctx.view.pig !== null && ctx.view.pig.illness !== null) {
-        var illness = ctx.view.pig.illness;
-        var sick = el("div", "dp-alert dp-sick");
-        sick.appendChild(el("b", null, "\u{1F912} " + illness.name + "\uFF08\u7B2C " + illness.stage + "/4 \u671F\uFF09"));
-        sick.appendChild(el("div", null, "\u9700\u8981\u300C" + illness.cureEmoji + illness.cure + "\u300D\u2014\u2014 \u5403\u9519\u836F\u4F1A\u52A0\u91CD"));
-        var needed = null;
-        var shelf = ctx.view.shop || [];
-        for (var c = 0; c < shelf.length; c += 1) {
-          if (shelf[c].needed) needed = shelf[c];
-        }
-        for (var t = 0; needed === null && t < shelf.length; t += 1) {
-          if (shelf[t].kind === "medicine" && shelf[t].tier === illness.stage) needed = shelf[t];
-        }
-        for (var n = 0; needed === null && n < shelf.length; n += 1) {
-          if (shelf[n].label === illness.cure) needed = shelf[n];
-        }
-        if (ctx.view.canGoOut) {
-          sick.appendChild(el("div", "dp-dim", "\u5E26\u75C5\u51FA\u95E8\u62A5\u916C\u51CF\u534A\u3001\u75C5\u60C5\u66F4\u5FEB"));
-        }
-        if (needed !== null && ctx.view.canGoOut && ctx.view.pig.coins < needed.price) {
-          sick.appendChild(el("div", "dp-dim", "\u8FD8\u5DEE " + needed.price + " \u{1FA99} \u4E70\u300C" + needed.label + "\u300D\uFF0C\u5148\u53BB\u6253\u5DE5"));
-        }
-        ctx.content.appendChild(sick);
-        if (illness.doctorFee !== null) {
-          var clinic = el("div", "dp-actions");
-          var doctor = button("dp-btn dp-btn-wide", { "data-action": "doctor" }, function() {
-            ctx.send("doctor");
-          });
-          doctor.appendChild(el("span", null, "\u{1F3E5}"));
-          doctor.appendChild(el("span", null, "\u770B\u533B\u751F\uFF08" + illness.doctorFee + " \u{1FA99}\uFF09"));
-          clinic.appendChild(doctor);
-          ctx.content.appendChild(clinic);
-        }
-      } else if (ctx.view.pig !== null && ctx.view.activity !== null) {
-        var away = el("div", "dp-alert dp-work");
-        away.appendChild(el("b", null, ctx.view.activity.emoji + " \u5728\u5916\u9762\uFF1A" + ctx.view.activity.label));
-        away.appendChild(el("div", null, "\u8FD8\u6709 " + ctx.view.activity.secondsLeft + " \u79D2"));
-        ctx.content.appendChild(away);
-        var wrap = el("div", "dp-actions");
-        var call = button("dp-btn dp-btn-wide", { "data-action": "calloff" }, function() {
-          ctx.send("calloff");
-        });
-        call.appendChild(el("span", null, "\u21A9\uFE0F"));
-        call.appendChild(el("span", null, "\u53EB\u5B83\u56DE\u6765"));
-        wrap.appendChild(call);
-        ctx.content.appendChild(wrap);
-      }
       if (ctx.view.pig === null) {
         ctx.content.appendChild(el("div", "dp-empty", "\u95E8\u53E3\u653E\u7740\u4E00\u4E2A\u7EB8\u76D2\uFF0C\u91CC\u9762\u7AB8\u7AB8\u7AA3\u7AA3 \u{1F4E6}"));
         var grid = el("div", "dp-actions");
@@ -2233,7 +2464,19 @@
         ctx.content.appendChild(grid);
         return;
       }
+      var apps = ctx.devMode ? TABS.concat([DEV_TAB]) : TABS;
+      if (ctx.tab === "home") {
+        renderHome(ctx, apps);
+        ctx.fitPanel();
+        return;
+      }
+      var drilled = ctx.tab in ctx.drill && ctx.drill[ctx.tab] !== null;
+      var app = apps.find(function(entry) {
+        return entry.key === ctx.tab;
+      });
+      if (app !== void 0 && !drilled) appHeader(ctx, app, ctx.tab === "shop" ? "\u{1FA99} " + ctx.view.pig.coins : "");
       if (ctx.tab === "status") renderStatusTab(ctx);
+      else if (ctx.tab === "card") renderCardTab(ctx);
       else if (ctx.tab === "study") renderStudyTab(ctx);
       else if (ctx.tab === "work") renderWorkTab(ctx);
       else if (ctx.tab === "shop") renderShopTab(ctx);
@@ -2372,6 +2615,7 @@
         }
       }
       if ((ctx.ownerEdit !== null || ctx.pigNameEdit !== null) && ctx.tab === "status") return;
+      if (ctx.cardEdit !== null && ctx.tab === "card") return;
       renderContent();
     }
     function showPigLine(event) {
@@ -2521,16 +2765,15 @@
         host.style.bottom = userBottom + "px";
         var icons = {};
         var view = normalize(null);
-        var tab = "status";
+        var tab = "home";
         var stage = "primary";
         var stagePicked = false;
-        var drill = { study: null, shop: null, bag: null, pick: null };
+        var drill = { study: null, shop: null, bag: null, work: null, pick: null };
         var souvenirPick = null;
         var picker = null;
         var ownerEdit = null;
         var pigNameEdit = null;
-        var workTrait = "strong";
-        var jobDetail = null;
+        var cardEdit = null;
         var isOpen = readStore(OPEN_KEY) === "true";
         var lastStage = null;
         var lastPendingAt = 0;
@@ -2629,17 +2872,11 @@
           set pigNameEdit(next) {
             pigNameEdit = next;
           },
-          get workTrait() {
-            return workTrait;
+          get cardEdit() {
+            return cardEdit;
           },
-          set workTrait(next) {
-            workTrait = next;
-          },
-          get jobDetail() {
-            return jobDetail;
-          },
-          set jobDetail(next) {
-            jobDetail = next;
+          set cardEdit(next) {
+            cardEdit = next;
           },
           get isOpen() {
             return isOpen;

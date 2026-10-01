@@ -81,7 +81,8 @@ export function createLayout(ctx) {
         while (ctx.bar.firstChild) ctx.bar.removeChild(ctx.bar.firstChild)
         var list = visibleTabs()
         for (var t = 0; t < list.length; t += 1) ctx.buildIcon(list[t])
-        if (ctx.icons[ctx.tab] === undefined) ctx.tab = 'status'
+        // The home screen has no icon of its own; only a vanished app (dev off) falls back.
+        if (ctx.icons[ctx.tab] === undefined && ctx.tab !== 'home') ctx.tab = 'home'
         for (var k in ctx.icons) ctx.icons[k].setAttribute('data-active', k === ctx.tab ? 'true' : 'false')
       }
 

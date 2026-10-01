@@ -29,6 +29,7 @@ test('every scene has at least one line, and replies are well-formed', () => {
 test('the same line is never picked twice in a row, and [主人] is filled in', () => {
   const pig = hatchEgg(T0)
   pig.dialogue.ownerName = '小明'
+  pig.catchphrase = '' // the catchphrase has its own test below
   const always = () => 0
   const first = pickLine(pig, 'pet', always)
   const second = pickLine(pig, 'pet', always)
