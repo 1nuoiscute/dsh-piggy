@@ -267,10 +267,12 @@ export function createPanel(ctx) {
           ctx.lastStage = pigStage.key
         }
 
-        // 番茄钟（C2）：专注中就在猪头顶挂着倒计时。
+        // 番茄钟（C2）：专注中挂在猪立绘右上角。data-pomo 让气泡收起后知道该不该放
+        // 回来；气泡正说着就先不显示 —— 两者位置挨着，宁可角标让位。
         var pomo = ctx.view.pomodoro
         var pomoOn = pomo !== null && pomo.active
-        ctx.pomoHint.hidden = !pomoOn
+        ctx.pomoHint.setAttribute('data-pomo', pomoOn ? 'on' : '')
+        ctx.pomoHint.hidden = !pomoOn || ctx.bubble.hidden === false
         if (pomoOn) ctx.pomoHint.textContent = '🍅 ' + clockText(pomo.secondsLeft)
         noticePomodoro(pomo)
 

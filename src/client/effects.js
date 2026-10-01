@@ -11,7 +11,7 @@ import { PET_LINES } from './constants.js'
 import { el } from './dom.js'
 
 /**
- * @param {{ scene: object, pig: object, pigArt: object, card: object, bubble: object, isStopped: () => boolean }} deps
+ * @param {{ scene: object, pig: object, pigArt: object, card: object, bubble: object, pomoHint?: object, isStopped: () => boolean }} deps
  * @returns {{ react: Function, burst: Function, flash: Function, showBubble: Function, showLine: Function, toast: Function, dispose: Function }}
  */
 export function createEffects(deps) {
@@ -19,6 +19,8 @@ export function createEffects(deps) {
   var pig = deps.pig
   var card = deps.card
   var bubble = deps.bubble
+  // 番茄钟角标（C2）：气泡说话时给它让位，两者位置本来就挨着。
+  var pomoHint = deps.pomoHint ?? null
   var isStopped = deps.isStopped
 
   var reactTimer = null
@@ -101,9 +103,13 @@ function showBubble(text, ms) {
   bubble.setAttribute('data-bubble-shown', 'true')
   bubble.textContent = text
   bubble.hidden = false
+  // 角标让位：气泡和它挨着，宁可角标先消失也不能压住猪说的话。
+  if (pomoHint !== null) pomoHint.hidden = true
   bubbleTimer = window.setTimeout(function () {
     bubble.hidden = true
     bubbleTimer = null
+    // 气泡走了，专注还在就把角标放回来（面板每 4 秒也会按 data-pomo 重设一次）。
+    if (pomoHint !== null) pomoHint.hidden = pomoHint.getAttribute('data-pomo') !== 'on'
   }, ms || 2600)
 }
 

@@ -152,9 +152,16 @@ export function settlePomodoro(state, nowMs) {
   return { done: true, minutes: minutes, rewarded: rewarded, todayDone: p.todayDone, coins: rewarded ? POMODORO_REWARD.coins : 0 }
 }
 
-/** Give up on a running session: no reward, no count, pig talks again. */
+/**
+ * Give up on a running session: no reward, no count, pig talks again.
+ *
+ * 先结算：面板关着的时候没人轮询，回来点「放弃」时这一轮可能早就到点了 ——
+ * 那是做完的番茄，按完成算（计数 + 发奖 + 完成台词），不当放弃丢掉。
+ */
 export function abandonPomodoro(state, nowMs) {
   if (state === null) return { ok: false, reason: 'absent' }
+  const finished = settlePomodoro(state, nowMs)
+  if (finished !== null) return { ok: true, abandoned: false, ...finished }
   const p = ensurePomodoro(state)
   if (p.startedAt === null) return { ok: false, reason: 'idle' }
   p.startedAt = null
@@ -165,7 +172,7 @@ export function abandonPomodoro(state, nowMs) {
   p.quietBefore = null
   remember(state, '🍅 番茄钟没做完就停了', nowMs)
   say(state, 'pomodoroAbandon', nowMs)
-  return { ok: true, todayDone: p.todayDone }
+  return { ok: true, abandoned: true, todayDone: p.todayDone }
 }
 
 /**

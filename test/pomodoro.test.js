@@ -15,12 +15,14 @@ import {
   hatchEgg, layEgg, migrate, pomodoroView, settlePomodoro, startPomodoro,
 } from '../packages/pet-core/src/core.js'
 import { POMODORO_MINUTES, POMODORO_REWARD, POMODORO_REWARDED_PER_DAY } from '../packages/pet-core/src/data.js'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { createStore } from '../store.js'
 import { SNAPSHOT, PIG, contentOf, findByAttr, hostOf, mount, openPanel, sceneOf, settle } from './helpers/bundle.js'
+
+const readClientFile = name => readFileSync(new URL('../src/client/' + name, import.meta.url), 'utf8')
 
 const MIN = 60_000
 const at = (h, m = 0) => new Date(2026, 9, 1, h, m, 0, 0).getTime()
@@ -122,13 +124,29 @@ test('中途放弃：不给奖励、不计数、免打扰放回去、有台词',
   const state = piggy()
   const coins = state.coins
   startPomodoro(state, 45, at(10))
-  const result = abandonPomodoro(state, at(20))
+  // 真的在中途放弃：45 分钟的一个，20 分钟时就停（不是"到点之后才点放弃"）。
+  const result = abandonPomodoro(state, at(10) + 20 * MIN)
   assert.equal(result.ok, true)
   assert.equal(state.pomodoro.todayDone, 0)
   assert.equal(state.coins, coins, '放弃没有钱')
   assert.equal(state.dialogue.quiet, false)
-  assert.equal(pomodoroView(state, at(20)).active, false)
+  assert.equal(pomodoroView(state, at(10) + 20 * MIN).active, false)
   assert.notEqual(state.dialogue.lastByScene.pomodoroAbandon, undefined, '要有放弃台词')
+})
+
+test('放弃一个已经到点的番茄：按完成处理，计数发奖，且不说放弃台词', () => {
+  // 面板关着的时候没人轮询：时间早就到了，主人回来点了「放弃」——
+  // 那是做完的番茄，不能当放弃丢掉。
+  const state = piggy()
+  const coins = state.coins
+  startPomodoro(state, 15, at(10))
+  const result = abandonPomodoro(state, at(10) + 15 * MIN + 1000)
+  assert.equal(result.done, true, '要按完成返回')
+  assert.equal(state.pomodoro.todayDone, 1, '计数照常')
+  assert.equal(state.coins, coins + POMODORO_REWARD.coins, '奖励照发')
+  assert.equal(state.dialogue.lastByScene.pomodoroAbandon, undefined, '不能说放弃台词')
+  assert.notEqual(state.dialogue.lastByScene.pomodoroDone, undefined, '要说完成台词')
+  assert.equal(state.dialogue.quiet, false, '免打扰也要放回去')
 })
 
 test('自己本来就开了免打扰：做完之后仍然是免打扰', () => {
@@ -379,4 +397,52 @@ test('走真实 store：开一个番茄，时间到之后读一次状态就结�
     store.dispose()
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+// ---------------------------------------------------------------------------
+// C2 返工：头顶角标的位置
+// ---------------------------------------------------------------------------
+
+test('角标挂在猪身上（跟着猪一起动），不是挂在场景上', async () => {
+  const active = { ...POMO_OFF, active: true, minutes: 45, secondsLeft: 2700 }
+  const { dom } = await openPomodoro({ ...SNAPSHOT, pomodoro: active })
+  const pill = findByAttr(sceneOf(dom), 'data-pomo-pill', 'true')
+  assert.notEqual(pill, undefined)
+  assert.equal(pill.parentNode.className.includes('dp-pig'), true, '父节点必须是猪立绘，这样它才跟着猪走')
+})
+
+test('角标的 CSS：贴右上角、离猪头不过 20px、层级低于说话气泡', () => {
+  // 这条守的是返工原因：原来它挂在场景上、z-index:4，面板打开时正好压在「今天完成」那行上。
+  const css = readClientFile('css-tiles.js')
+  const rule = /\.dp-pomo\{([^}]*)\}/.exec(css)
+  assert.notEqual(rule, null, '找不到 .dp-pomo 规则')
+  const body = rule[1].replace(/\s+/g, '')
+  const bottom = /bottom:calc\(100%\+(\d+)px\)/.exec(body)
+  assert.notEqual(bottom, null, '要相对猪（100%）定位，不是相对场景')
+  const lineHeight = Number(/\.dp-pomo\{|line-height:(\d+(?:\.\d+)?)px/.exec(body.replace('line-height:', 'line-height:'))?.[1] ?? 0)
+  const padding = /\.dp-pomo\{|padding:(\d+)px(\d+)px/.exec(body.replace('padding:', 'padding:'))
+  const padY = padding === null ? 0 : Number(padding[1])
+  const total = Number(bottom[1]) + lineHeight + padY * 2
+  assert.ok(total <= 20, `角标最多高出猪头 ${total}px（要求 20px 以内）`)
+  assert.ok(/right:/.test(body), '贴右上角')
+  const z = /z-index:(\d+)/.exec(body)
+  assert.notEqual(z, null, '要写明层级')
+  assert.ok(Number(z[1]) < 2, `层级要低于说话气泡（气泡是 2），现在是 ${z[1]}`)
+})
+
+test('猪说话的时候角标让位（气泡和角标挨着，宁可角标先消失）', async () => {
+  const active = { ...POMO_OFF, active: true, minutes: 45, secondsLeft: 2700 }
+  const { dom } = await openPomodoro({ ...SNAPSHOT, pomodoro: active })
+  const scene = sceneOf(dom)
+  const pill = findByAttr(scene, 'data-pomo-pill', 'true')
+  const bubble = findByAttr(scene, 'data-bubble-shown', 'true')
+
+  // 左键摸一下 → 猪说一句 → 角标让位。整段是同步的，不受挂具里 stub 掉的定时器影响。
+  scene.fire('pointerdown', { button: 0, clientX: 0, clientY: 0 })
+  scene.fire('pointerup', {})
+  assert.equal(bubble.hidden, false, '气泡应该出来了')
+  assert.equal(pill.hidden, true, '气泡在场时角标不显示')
+  // 气泡收起后由下一次重绘放回来，这里只确认面板记着「专注中」这个事实
+  // （真机采样：气泡消失约 3 秒后角标回来，见卡末验证记录）。
+  assert.equal(pill.getAttribute('data-pomo'), 'on', '面板要知道专注还在，好把角标放回来')
 })

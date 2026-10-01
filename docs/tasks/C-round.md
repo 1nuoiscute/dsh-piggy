@@ -225,6 +225,35 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
   等不到点。现在快进会把番茄钟的 `startedAt` / `restUntil` 一起往前挪并立即结算 —— 这是卡上
   「调试快进一小时后结算发奖」这条验收的前提，改动只在 `applyDevPatch` 的调试分支里。
 
+### C2 返工（DSH agent，2026-10-01）
+
+**1. 头顶 🍅 角标压面板（必改）**
+
+- 原来 `.dp-pomo` 挂在**场景**上（`bottom:calc(100%+40px)`、`z-index:4`），面板打开时正好落在
+  「今天完成」那行中间。现在改成挂在**猪立绘**上的小角标：`bottom:calc(100% + 2px)`、`right:-4px`、
+  `z-index:1`（低于说话气泡的 2、也低于装扮层 3），跟着猪一起动。
+- 真机实测（隔离 3082，`getBoundingClientRect` 采样）：
+  - 面板收起：角标离猪头 **18px**（要求 ≤20px）；与面板/ HUD / 气泡重叠面积 **0 px²**（12 次采样）
+  - 面板打开：角标离猪头 **19px**；与面板重叠 **0 px²**（面板底边 602、角标顶 639，让开 37px）、
+    与 HUD 重叠 **0 px²**（HUD 右 789 < 角标左 828）
+- 说话气泡和角标位置挨着，所以加了条规则：**猪说话时角标让位**（`showBubble` 先把它藏起来，
+  气泡收起后按 `data-pomo` 放回来）。真机实测：摸一下猪 → 气泡「再多待一会儿」出现 → 角标隐藏；
+  3.2 秒后气泡消失 → 角标回来（🍅 44:44）。
+- 截图：`docs/screenshots/c2-pill-open.png`（面板打开）、`c2-pill-closed.png`（面板收起）、
+  `c2-pill-open-zoom.png` / `c2-pill-closed-zoom.png`（放大自查没有重叠）、`c2-pill-bubble.png`（让位瞬间）；
+  顺手把 `c2-focusing.png` 按新样式重截。
+
+**2. 放弃前先结算（小修）**
+
+- `abandonPomodoro` 现在先调 `settlePomodoro`：已经到点的按完成返回（`{ok:true, done:true, ...}`，
+  照常计数发奖、说完成台词、恢复免打扰），没到点才走放弃分支（返回里带 `abandoned: true`）。
+- 红测试：`test/pomodoro.test.js` 的「放弃一个已经到点的番茄」——先写红，再去掉修复里的两行确认它变红，
+  然后复原。顺带发现原来那条「中途放弃」的测试其实一直在放弃一个**已经完成**的番茄（`at(20)` 是 20:00，
+  45 分钟的那轮 10:45 就到点了），改成真正的 20 分钟后放弃。
+- `npm run build && npm test`：**360 / 360 通过**；`npm run typecheck`：**0 错误**
+- 改动文件：`packages/pet-core/src/core/pomodoro.js`、`src/client/scene.js`、`src/client/panel.js`、
+  `src/client/effects.js`、`src/client/css-tiles.js`、`test/pomodoro.test.js`、README/CHANGELOG
+
 ## 疑问（数值/规则觉得不合理写这里，等用户定）
 
 - **C2 番茄钟**三条自己定的规则，等用户点头：

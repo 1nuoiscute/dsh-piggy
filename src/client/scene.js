@@ -64,12 +64,6 @@ pokeHint.appendChild(el('span', null, '戳三下'))
 pokeHint.hidden = true
 scene.appendChild(pokeHint)
 
-// 番茄钟（C2）：专注中挂在猪头顶，写着番茄和剩余分钟。
-var pomoHint = el('div', 'dp-pomo')
-pomoHint.setAttribute('data-pomo-pill', 'true')
-pomoHint.hidden = true
-scene.appendChild(pomoHint)
-
 // 签到 / 在线礼包的小气泡，位置在猪头上，样式在 css-tabs.js。
 var dailyHint = el('button', 'dp-daily')
 dailyHint.hidden = true
@@ -92,6 +86,13 @@ pig.appendChild(pigEmoji)
 // 装扮点位：每个点位挂一件，位置全在 CSS 里（.dp-slot[data-slot=…]）。
 var dressSlots = el('div', 'dp-dress')
 pig.appendChild(dressSlots)
+
+// 番茄钟（C2）：专注中贴在猪立绘右上角的小角标，挂在猪身上所以跟着它走。
+// 位置别越出猪头上方 20px，也不能高过说话气泡 —— 面板打开时它就够不着面板。
+var pomoHint = el('div', 'dp-pomo')
+pomoHint.setAttribute('data-pomo-pill', 'true')
+pomoHint.hidden = true
+pig.appendChild(pomoHint)
 scene.appendChild(pig)
 // Right-click is not discoverable on its own, so the native tooltip says so.
 scene.title = '左键摸摸 · 右键打开面板 · 拖动可移动'

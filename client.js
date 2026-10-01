@@ -1438,11 +1438,13 @@
 
   // src/client/css-tiles.js
   var CSS_TILES = [
-    // 番茄钟（C2）：猪头顶的药丸 + App 里的倒计时。
-    ".dp-pomo{position:absolute;bottom:calc(100% + 40px);left:50%;transform:translateX(-50%);",
-    "font-size:10px;font-weight:800;color:#fff;background:var(--tile-red);",
-    "border-radius:var(--ac-pill);padding:2px 7px;white-space:nowrap;pointer-events:none;",
-    "box-shadow:0 2px 0 rgba(61,52,40,.16);z-index:4}",
+    // 番茄钟角标（C2 返工）：贴在猪立绘右上角，跟着猪一起动。
+    // 高度 = 13 + 2 = 15px，再往上 2px，所以顶多高出猪头 17px（要求 20px 以内）；
+    // z-index:1 低于说话气泡（2）、也低于装扮层（3），面板打开时更够不着面板。
+    ".dp-pomo{position:absolute;bottom:calc(100% + 2px);right:-4px;z-index:1;",
+    "font-size:9.5px;font-weight:800;color:#fff;background:var(--tile-red);",
+    "border-radius:var(--ac-pill);padding:1px 5px;line-height:13px;white-space:nowrap;pointer-events:none;",
+    "box-shadow:0 2px 0 rgba(61,52,40,.16)}",
     ".dp-pomo-live{display:flex;flex-direction:column;align-items:center;gap:3px;margin:6px 0 10px}",
     ".dp-pomo-clock{font-size:26px;font-weight:800;color:var(--ac-text);letter-spacing:1px}",
     // 主屏底部的版本号：一行灰字，不占格子（连点 7 次解锁调试模式，见 C1）。
@@ -1769,6 +1771,7 @@
     var pig = deps.pig;
     var card = deps.card;
     var bubble = deps.bubble;
+    var pomoHint = deps.pomoHint ?? null;
     var isStopped = deps.isStopped;
     var reactTimer = null;
     var bubbleTimer = null;
@@ -1837,9 +1840,11 @@
       bubble.setAttribute("data-bubble-shown", "true");
       bubble.textContent = text;
       bubble.hidden = false;
+      if (pomoHint !== null) pomoHint.hidden = true;
       bubbleTimer = window.setTimeout(function() {
         bubble.hidden = true;
         bubbleTimer = null;
+        if (pomoHint !== null) pomoHint.hidden = pomoHint.getAttribute("data-pomo") !== "on";
       }, ms || 2600);
     }
     function showLine(text, replies, onReply) {
@@ -3052,7 +3057,8 @@
       }
       var pomo = ctx.view.pomodoro;
       var pomoOn = pomo !== null && pomo.active;
-      ctx.pomoHint.hidden = !pomoOn;
+      ctx.pomoHint.setAttribute("data-pomo", pomoOn ? "on" : "");
+      ctx.pomoHint.hidden = !pomoOn || ctx.bubble.hidden === false;
       if (pomoOn) ctx.pomoHint.textContent = "\u{1F345} " + clockText(pomo.secondsLeft);
       noticePomodoro(pomo);
       var daily = ctx.view.daily;
@@ -3161,10 +3167,6 @@
     pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
     pokeHint.hidden = true;
     scene.appendChild(pokeHint);
-    var pomoHint = el("div", "dp-pomo");
-    pomoHint.setAttribute("data-pomo-pill", "true");
-    pomoHint.hidden = true;
-    scene.appendChild(pomoHint);
     var dailyHint = el("button", "dp-daily");
     dailyHint.hidden = true;
     scene.appendChild(dailyHint);
@@ -3181,6 +3183,10 @@
     pig.appendChild(pigEmoji);
     var dressSlots = el("div", "dp-dress");
     pig.appendChild(dressSlots);
+    var pomoHint = el("div", "dp-pomo");
+    pomoHint.setAttribute("data-pomo-pill", "true");
+    pomoHint.hidden = true;
+    pig.appendChild(pomoHint);
     scene.appendChild(pig);
     scene.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
     var bar = el("div", "dp-bar");
@@ -3332,6 +3338,7 @@
           pigArt,
           card,
           bubble,
+          pomoHint,
           isStopped: function() {
             return stopped;
           }

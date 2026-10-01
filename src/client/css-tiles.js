@@ -9,11 +9,13 @@
  */
 
 export const CSS_TILES = [
-  // 番茄钟（C2）：猪头顶的药丸 + App 里的倒计时。
-  '.dp-pomo{position:absolute;bottom:calc(100% + 40px);left:50%;transform:translateX(-50%);',
-  'font-size:10px;font-weight:800;color:#fff;background:var(--tile-red);',
-  'border-radius:var(--ac-pill);padding:2px 7px;white-space:nowrap;pointer-events:none;',
-  'box-shadow:0 2px 0 rgba(61,52,40,.16);z-index:4}',
+  // 番茄钟角标（C2 返工）：贴在猪立绘右上角，跟着猪一起动。
+  // 高度 = 13 + 2 = 15px，再往上 2px，所以顶多高出猪头 17px（要求 20px 以内）；
+  // z-index:1 低于说话气泡（2）、也低于装扮层（3），面板打开时更够不着面板。
+  '.dp-pomo{position:absolute;bottom:calc(100% + 2px);right:-4px;z-index:1;',
+  'font-size:9.5px;font-weight:800;color:#fff;background:var(--tile-red);',
+  'border-radius:var(--ac-pill);padding:1px 5px;line-height:13px;white-space:nowrap;pointer-events:none;',
+  'box-shadow:0 2px 0 rgba(61,52,40,.16)}',
   '.dp-pomo-live{display:flex;flex-direction:column;align-items:center;gap:3px;margin:6px 0 10px}',
   '.dp-pomo-clock{font-size:26px;font-weight:800;color:var(--ac-text);letter-spacing:1px}',
 
