@@ -77,8 +77,10 @@ export function dexView(state, formView, nowMs = 0) {
       const progress = formView?.forms?.find(entry => entry.key === form.key)
       const item = SHOP.find(entry => entry.key === form.item)
       return {
-        key: form.key, label: form.label, emoji: form.emoji,
+        key: form.key, label: form.label, emoji: form.emoji, art: form.art,
         acquired: record !== null, firstAt: record?.firstAt ?? null, count: record?.count ?? 0,
+        description: form.line,
+        hint: form.hint,
         condition: `使用${item?.label ?? '晋升道具'}完成${item?.useLabel ?? '变身'}`,
         requirements: progress?.requirements ?? [],
       }
@@ -91,6 +93,8 @@ export function dexView(state, formView, nowMs = 0) {
       return {
         key: item.key, label: item.label, emoji: item.emoji,
         acquired: record !== null, firstAt: record?.firstAt ?? null, count: record?.count ?? 0,
+        description: item.blurb ?? '一件陪伴日常生活的小东西。',
+        hint: '有些相遇藏在货架、礼物，或一次意外收获里。',
         condition: `商店购买 · ${item.price} 金币${gate}`,
       }
     }),
@@ -99,6 +103,8 @@ export function dexView(state, formView, nowMs = 0) {
       return {
         key: item.key, label: item.label, emoji: item.emoji,
         acquired: record !== null, firstAt: record?.firstAt ?? null, count: record?.count ?? 0,
+        description: item.story ?? '从远方带回来的记忆。',
+        hint: '离开熟悉的屋檐走远一些，风会把答案带回来。',
         condition: `旅行到${item.fromLabel}获得`,
       }
     }),

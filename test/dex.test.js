@@ -4,6 +4,7 @@ import { test } from 'node:test'
 
 import { adopt, applyDevPatch, buy, hatchEgg, migrate, useItem } from '../core.js'
 import { xpForLevel } from '../data.js'
+import { dexView } from '../packages/pet-core/src/core/dex.js'
 
 const NOW = 1_800_000_000_000
 
@@ -70,4 +71,16 @@ test('C4 the collection follows the owner when a dead pig is adopted', () => {
   state.health = 0
   adopt(state, NOW + 1_000)
   assert.deepEqual(state.dex.items.apple, { firstAt: NOW, count: 1 })
+})
+
+test('C4 form catalogue carries its SVG, story and a riddle instead of exposing the recipe', () => {
+  const state = readyKing()
+  const formView = {
+    forms: [{ key: 'king', requirements: [{ key: 'level', label: '等级', have: 40, need: 40, met: true }] }],
+  }
+  const [king] = dexView(state, formView, NOW).forms
+  assert.equal(king.art, 'pig-king')
+  assert.match(king.description, /王冠/)
+  assert.match(king.hint, /金色/)
+  assert.notEqual(king.hint, king.condition)
 })

@@ -367,6 +367,7 @@ function normalizeDex(raw) {
       const entry = obj(value)
       return {
         key: str(entry.key, ''), label: str(entry.label, ''), emoji: str(entry.emoji, '📦'),
+        art: str(entry.art, ''), description: str(entry.description, ''), hint: str(entry.hint, ''),
         acquired: entry.acquired === true,
         firstAt: typeof entry.firstAt === 'number' ? entry.firstAt : null,
         count: num(entry.count, 0), condition: str(entry.condition, ''),

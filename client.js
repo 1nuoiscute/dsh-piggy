@@ -1617,8 +1617,60 @@
     ".dp-crown .dp-btn{width:100%;margin-top:9px}"
   ].join("");
 
+  // src/client/css-dex.js
+  var CSS_DEX = [
+    ".dp-dex-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;perspective:700px}",
+    ".dp-dex-card{position:relative;min-width:0;aspect-ratio:4/5;padding:7px;border:1.5px solid rgba(117,91,48,.3);",
+    "border-radius:14px;overflow:hidden;cursor:pointer;color:var(--ac-text);font:inherit;",
+    "background:linear-gradient(145deg,#fff9dc 0%,#f5dd9e 38%,#e8bfcf 68%,#b9ddec 100%);",
+    "box-shadow:0 4px 0 rgba(61,52,40,.14),0 8px 18px rgba(91,67,37,.1);",
+    "transform:rotateX(var(--dex-rx,0deg)) rotateY(var(--dex-ry,0deg));transform-style:preserve-3d;",
+    "transition:transform .2s var(--ac-ease),box-shadow .2s var(--ac-ease)}",
+    ".dp-dex-card:hover{transform:translateY(-2px) rotateX(var(--dex-rx,-2deg)) rotateY(var(--dex-ry,3deg));",
+    "box-shadow:0 6px 0 rgba(61,52,40,.12),0 12px 22px rgba(91,67,37,.16)}",
+    ".dp-dex-card:focus-visible{outline:2px solid var(--ac-primary);outline-offset:2px}",
+    '.dp-dex-card::after,.dp-dex-big::after{content:"";position:absolute;inset:-45%;pointer-events:none;',
+    "background:linear-gradient(112deg,transparent 32%,rgba(255,255,255,.1) 42%,rgba(255,255,255,.72) 49%,",
+    "rgba(155,224,255,.3) 54%,transparent 66%);transform:translateX(-58%) rotate(5deg);",
+    "transition:transform .65s ease;mix-blend-mode:screen}",
+    ".dp-dex-card:hover::after,.dp-dex-big:hover::after{transform:translateX(58%) rotate(5deg)}",
+    ".dp-dex-card-locked{background:linear-gradient(145deg,#e4e2dc,#bbbcb9 52%,#d4d0ca);border-color:#aaa7a0}",
+    ".dp-dex-artbox{position:relative;height:calc(100% - 25px);display:flex;align-items:center;justify-content:center;",
+    "border-radius:10px;background:rgba(255,255,255,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.7);overflow:hidden}",
+    ".dp-dex-art{display:block;width:88%;height:88%;object-fit:contain;filter:drop-shadow(0 4px 3px rgba(61,52,40,.18));",
+    "transform:translateZ(14px);transition:transform .2s var(--ac-ease)}",
+    ".dp-dex-card:hover .dp-dex-art{transform:translateZ(18px) scale(1.04)}",
+    ".dp-dex-card-locked .dp-dex-art,.dp-dex-big-locked .dp-dex-art{filter:grayscale(1) brightness(0);opacity:.32}",
+    ".dp-dex-emoji{font-size:42px;line-height:1;filter:drop-shadow(0 3px 2px rgba(61,52,40,.16))}",
+    ".dp-dex-lock{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;",
+    "align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;font-size:17px;",
+    "background:rgba(58,57,54,.78);border:2px solid rgba(255,255,255,.8);box-shadow:0 3px 8px rgba(0,0,0,.18)}",
+    ".dp-dex-caption{position:relative;z-index:1;display:block;margin-top:6px;font-size:10.5px;font-weight:800;",
+    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}",
+    ".dp-dex-card-locked .dp-dex-caption{color:#615f5b;letter-spacing:.08em}",
+    ".dp-dex-detail{margin-top:12px;perspective:800px}",
+    ".dp-dex-big{position:relative;overflow:hidden;min-height:198px;padding:13px;border-radius:19px;",
+    "border:2px solid rgba(177,127,43,.48);background:linear-gradient(145deg,#fff8cf 0%,#f6d48c 32%,#efb8d1 61%,#a9d9ec 100%);",
+    "box-shadow:0 5px 0 rgba(61,52,40,.14),0 14px 28px rgba(91,67,37,.14);transform-style:preserve-3d;",
+    "transform:rotateX(var(--dex-rx,0deg)) rotateY(var(--dex-ry,0deg));transition:transform .18s ease}",
+    ".dp-dex-big-locked{background:linear-gradient(145deg,#e9e7e1,#c5c5c1 56%,#ddd9d3);border-color:#aaa7a0}",
+    ".dp-dex-big-art{position:relative;height:112px;display:flex;align-items:center;justify-content:center;border-radius:14px;",
+    "background:rgba(255,255,255,.48);box-shadow:inset 0 0 0 1px rgba(255,255,255,.75);overflow:hidden}",
+    ".dp-dex-big-art .dp-dex-art{width:106px;height:106px}",
+    ".dp-dex-big-title{position:relative;z-index:1;margin-top:9px;font-size:14px;font-weight:900;text-align:center;color:var(--ac-text)}",
+    ".dp-dex-riddle{position:relative;z-index:1;margin-top:8px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.52);",
+    "font-size:10.5px;font-weight:600;line-height:1.55;color:var(--ac-text-body)}",
+    ".dp-dex-riddle b{display:block;margin-bottom:2px;font-size:9px;letter-spacing:.14em;color:#766f65}",
+    ".dp-dex-story{position:relative;z-index:1;margin-top:7px;font-size:10.5px;font-weight:600;line-height:1.5;",
+    "text-align:center;color:var(--ac-text-body)}",
+    ".dp-dex-foot{position:relative;z-index:1;margin-top:8px;padding-top:7px;border-top:1px dashed rgba(87,69,42,.3);",
+    "font-size:9.5px;font-weight:700;text-align:center;color:var(--ac-text-2)}",
+    "@media (prefers-reduced-motion:reduce){.dp-dex-card,.dp-dex-big,.dp-dex-art{transition:none!important;transform:none!important}",
+    ".dp-dex-card::after,.dp-dex-big::after{display:none}}"
+  ].join("");
+
   // src/client/styles.js
-  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD;
+  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX;
 
   // src/client/tabs/travel.js
   function renderTravelTab(ui) {
@@ -2625,6 +2677,9 @@
           key: str(entry.key, ""),
           label: str(entry.label, ""),
           emoji: str(entry.emoji, "\u{1F4E6}"),
+          art: str(entry.art, ""),
+          description: str(entry.description, ""),
+          hint: str(entry.hint, ""),
           acquired: entry.acquired === true,
           firstAt: typeof entry.firstAt === "number" ? entry.firstAt : null,
           count: num(entry.count, 0),
@@ -2816,21 +2871,82 @@
       ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E00\u9875\u8FD8\u6CA1\u6709\u6536\u5F55\u5185\u5BB9"));
       return;
     }
-    const list = el("div", "dp-list");
+    const list = el("div", "dp-dex-grid");
     for (const entry of entries) {
-      const row = el("div", "dp-item" + (entry.acquired ? "" : " dp-dim"));
-      row.setAttribute("data-dex-entry", entry.key);
-      row.appendChild(el("span", null, entry.acquired ? entry.emoji : "\u25FC"));
-      const body = el("div", "dp-grow");
-      body.appendChild(el("b", null, entry.acquired ? entry.label : "\u672A\u83B7\u5F97"));
-      body.appendChild(el("div", "dp-dim", entry.acquired ? "\u83B7\u5F97 " + entry.count + " \u6B21" : entry.condition));
-      if (!entry.acquired && entry.requirements.length > 0) {
-        body.appendChild(el("div", "dp-dim", entry.requirements.map((req) => req.label + " " + req.have + "/" + req.need + (req.met ? " \u2713" : "")).join(" \xB7 ")));
-      }
-      row.appendChild(body);
-      list.appendChild(row);
+      list.appendChild(entryCard(ui, entry, section.label));
     }
     ui.content.appendChild(list);
+    const picked = entries.find((entry) => entry.key === ui.drill.pick);
+    if (picked !== void 0) ui.content.appendChild(detailCard(picked, section.label));
+  }
+  function entryCard(ui, entry, sectionLabel) {
+    const card = button(
+      "dp-dex-card" + (entry.acquired ? "" : " dp-dex-card-locked"),
+      { "data-dex-entry": entry.key },
+      function() {
+        ui.drill.pick = ui.drill.pick === entry.key ? null : entry.key;
+        ui.renderContent();
+      }
+    );
+    const art = el("span", "dp-dex-artbox");
+    appendArt(art, entry);
+    if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
+    card.appendChild(art);
+    card.appendChild(el("span", "dp-dex-caption", entry.acquired ? entry.label : "\u672A\u77E5" + sectionLabel));
+    tilt(card);
+    return card;
+  }
+  function detailCard(entry, sectionLabel) {
+    const wrap = el("div", "dp-dex-detail");
+    wrap.setAttribute("data-dex-detail", entry.key);
+    const card = el("div", "dp-dex-big" + (entry.acquired ? "" : " dp-dex-big-locked"));
+    const art = el("div", "dp-dex-big-art");
+    appendArt(art, entry);
+    if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
+    card.appendChild(art);
+    card.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + sectionLabel));
+    if (entry.acquired) {
+      card.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
+      card.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21"));
+    } else {
+      const riddle = el("div", "dp-dex-riddle");
+      riddle.appendChild(el("b", null, "\u89E3\u9501\u8C1C\u9762"));
+      riddle.appendChild(el("span", null, entry.hint || "\u5B83\u85CF\u5728\u4E00\u6B21\u5C1A\u672A\u542F\u7A0B\u7684\u76F8\u9047\u91CC\u3002"));
+      card.appendChild(riddle);
+    }
+    wrap.appendChild(card);
+    tilt(card);
+    return wrap;
+  }
+  function appendArt(parent, entry) {
+    if (entry.art) {
+      const img = (
+        /** @type {HTMLImageElement} */
+        el("img", "dp-dex-art")
+      );
+      img.src = ART_URL + entry.art + ".svg";
+      img.alt = entry.acquired ? entry.label : "";
+      parent.appendChild(img);
+    } else {
+      parent.appendChild(el("span", "dp-dex-emoji", entry.acquired ? entry.emoji : "\u25C6"));
+    }
+  }
+  function firstSeen(value) {
+    if (typeof value !== "number") return "\u9996\u6B21\u53D1\u73B0\u65F6\u95F4\u672A\u77E5";
+    return "\u9996\u6B21\u53D1\u73B0 " + new Date(value).toLocaleDateString("zh-CN");
+  }
+  function tilt(node) {
+    node.addEventListener("pointermove", function(event) {
+      const box = node.getBoundingClientRect();
+      const x = ((event.clientX ?? box.left + box.width / 2) - box.left) / Math.max(1, box.width) - 0.5;
+      const y = ((event.clientY ?? box.top + box.height / 2) - box.top) / Math.max(1, box.height) - 0.5;
+      node.style.setProperty("--dex-rx", (-y * 7).toFixed(2) + "deg");
+      node.style.setProperty("--dex-ry", (x * 9).toFixed(2) + "deg");
+    });
+    node.addEventListener("pointerleave", function() {
+      node.style.removeProperty("--dex-rx");
+      node.style.removeProperty("--dex-ry");
+    });
   }
 
   // src/client/tabs/home.js
