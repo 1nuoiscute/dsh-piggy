@@ -1390,14 +1390,14 @@
     '.dp-tile[data-color="peach"]{--tile-c:var(--tile-peach)}',
     '.dp-tile[data-color="brown"]{--tile-c:var(--tile-brown)}',
     // The grid: three columns that can never be widened by their content.
-    ".dp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 8px;padding:4px 2px 2px}",
+    ".dp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:4px 2px 2px}",
     // A tile is a column: the coloured square, then its name, then a note.
     ".dp-tile{font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;",
     "padding:0;margin:0;border:0;background:none;cursor:pointer;color:var(--ac-text)}",
     ".dp-tile-icon{position:relative;display:flex;align-items:center;justify-content:center;",
-    "width:62px;height:62px;border-radius:18px;background:var(--tile-c,var(--ac-bg-content));",
+    "width:50px;height:50px;border-radius:15px;background:var(--tile-c,var(--ac-bg-content));",
     "box-shadow:0 3px 0 rgba(61,52,40,.16);transition:transform .15s var(--ac-ease),box-shadow .15s var(--ac-ease)}",
-    ".dp-tile-e{font-size:30px;line-height:1;filter:drop-shadow(0 1px 1px rgba(61,52,40,.18))}",
+    ".dp-tile-e{font-size:24px;line-height:1;filter:drop-shadow(0 1px 1px rgba(61,52,40,.18))}",
     ".dp-tile:hover:not(:disabled) .dp-tile-icon{transform:translateY(-2px);box-shadow:0 5px 0 rgba(61,52,40,.16)}",
     ".dp-tile:active:not(:disabled) .dp-tile-icon{transform:translateY(2px);box-shadow:0 1px 0 rgba(61,52,40,.16)}",
     ".dp-tile:focus-visible{outline:none}",
@@ -1412,9 +1412,10 @@
     ".dp-tile-badge{right:-6px;background:var(--ac-primary);color:#fff}",
     ".dp-tile-tag{left:-6px;background:var(--ac-warning);color:var(--ac-text)}",
     // Second layer: the same colour, a shade paler and a little smaller.
-    ".dp-tile-soft .dp-tile-icon{width:54px;height:54px;border-radius:16px;",
+    // Sizes trimmed on 2026-10-01 (owner: the tiles were too big): 50px / 44px.
+    ".dp-tile-soft .dp-tile-icon{width:44px;height:44px;border-radius:13px;",
     "background:color-mix(in srgb,var(--tile-c) 42%,#fffbe7)}",
-    ".dp-tile-soft .dp-tile-e{font-size:26px}",
+    ".dp-tile-soft .dp-tile-e{font-size:21px}",
     // Locked: greyed but still openable (a stage can be looked into before it opens).
     '.dp-tile[data-locked="true"] .dp-tile-icon{filter:grayscale(.75);opacity:.6}',
     '.dp-tile[data-dim="true"] .dp-tile-icon,.dp-tile:disabled .dp-tile-icon{opacity:.45;box-shadow:none}',
