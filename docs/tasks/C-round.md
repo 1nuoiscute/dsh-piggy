@@ -199,3 +199,9 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
 
 
 ## 验收意见（Claude 写）
+
+### C1（Claude，2026-10-01）：✅ 通过
+- 提交 0ff5878：无 AI 署名，只动了 C1 相关文件，README/CHANGELOG 已更新；`client.js` 重新构建后无差异。
+- `npm test` 328/328，`npm run typecheck` 0 错误（用 deepseek-harness 里的 tsc）。
+- 自己起的隔离实例（3083，存档拷贝）+ Playwright 实测：老存档 localStorage 里是 `1` 启动仍为关；控制台只剩 `dshPigDev.off`；主屏显示 `v0.25.1`；第 6 次提示「再点 1 次」且未开，第 7 次开；调试页「👑 猪猪王」在 Lv40 下立绘变 `pig-king`、「恢复普通」能变回；「关闭调试」后 🔧 App 消失；刷新后仍是关、localStorage 为 `0`。
+- 「疑问」里形态按钮要不要顺手把等级拉到对应阶段：等用户定，没定之前保持只改形态。
