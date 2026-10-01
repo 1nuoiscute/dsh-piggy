@@ -62,6 +62,27 @@ dsh plugin --profile web add /path/to/dsh-piggy
   <img src="docs/screenshots/b8-shop-1.png" width="200" alt="商店">
 </p>
 
+## 桌面版（开发中）
+
+不装 DSH 也能养：[`apps/desktop/`](apps/desktop/) 是一个 Electron 小程序，双击就有一只猪趴在屏幕右下角，
+玩法、界面和 DSH 里完全一样（用的是同一份代码）。
+
+- 窗口铺满屏幕但只有猪、面板、气泡那几块接收点击，其余地方照常点桌面
+- 存档和 DSH 里那只各养各的；托盘菜单「从 DSH 导入猪…」可以把那只接过来
+- 托盘菜单还有：藏起来 / 开机自启 / 退出
+- 桌面版没有「吃你的真实工作」，只靠时间慢慢长
+
+```sh
+cd apps/desktop
+npm install
+npm start              # 直接跑
+npm run dist:linux     # 打 AppImage（dist/）
+npm run dist:win       # 打 Windows 安装包
+```
+
+Linux 上默认走 XWayland（Wayland 不让窗口给自己裁形状）。
+从 GitHub 一键更新、选版本还在做。
+
 ## 养成规则
 
 > 具体数值以 [`packages/pet-core/src/data/`](packages/pet-core/src/data/) 与 [CHANGELOG](CHANGELOG.md) 为准，这里只讲规则。
