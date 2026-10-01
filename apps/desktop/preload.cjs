@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('piggyShell', {
   moveBy: (dx, dy) => ipcRenderer.send('piggy:move', { dx: Number(dx) || 0, dy: Number(dy) || 0 }),
   /** 主进程推来的窗口/工作区几何：面板朝屏幕里侧开要用。 */
   geometry: () => geometry,
+  /** 页面挂载完主动要一次几何（did-finish-load 可能早于订阅）。 */
+  askGeometry: () => ipcRenderer.send('piggy:geometry:ask'),
   onGeometry: callback => {
     ipcRenderer.on('piggy:geometry', (event, info) => { geometry = info; callback(info) })
   },

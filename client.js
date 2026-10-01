@@ -1971,14 +1971,16 @@
     return { send, refresh: refresh2 };
   }
 
-  // src/client/layout.js
+  // src/client/desktop-shell.js
   function desktopShell() {
     var shell = typeof window !== "undefined" ? (
       /** @type {any} */
       window.__dshPiggyShell
     ) : null;
-    return shell !== null && typeof shell === "object" && typeof shell.room === "function" ? shell : null;
+    return shell !== null && typeof shell === "object" && typeof shell.moveBy === "function" ? shell : null;
   }
+
+  // src/client/layout.js
   function createLayout(ctx) {
     function clampPig() {
       if (desktopShell() !== null) return;
@@ -2009,8 +2011,16 @@
             ctx.card.style.top = "calc(100% + " + PANEL_GAP + "px)";
             ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below)) + "px";
           }
-          ctx.card.style.right = "0px";
-          ctx.card.style.maxWidth = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN)) + "px";
+          var width = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN));
+          var opensRight = typeof room.left === "number" && typeof room.right === "number" && room.left < width + PANEL_MARGIN && room.right > room.left;
+          if (opensRight) {
+            ctx.card.style.right = "auto";
+            ctx.card.style.left = "0px";
+          } else {
+            ctx.card.style.left = "auto";
+            ctx.card.style.right = "0px";
+          }
+          ctx.card.style.maxWidth = width + "px";
           ctx.hud.style.left = "9px";
           return;
         }
@@ -3241,6 +3251,19 @@
     return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
   }
 
+  // src/client/position.js
+  function readPosition(raw) {
+    if (raw === null || raw === void 0) return null;
+    try {
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.right === "number" && typeof parsed.bottom === "number") {
+        return { right: parsed.right, bottom: parsed.bottom };
+      }
+    } catch (error) {
+    }
+    return null;
+  }
+
   // src/client/dev-mode.js
   function createDevMode(applyOn, say) {
     var on = false;
@@ -3336,25 +3359,17 @@
           bar,
           content
         } = parts;
-        var deskShell = typeof window !== "undefined" && /** @type {any} */
-        window.__dshPiggyShell && typeof /** @type {any} */
-        window.__dshPiggyShell.moveBy === "function" ? (
-          /** @type {any} */
-          window.__dshPiggyShell
-        ) : null;
-        var savedPos = deskShell === null ? readStore(POSITION_KEY) : null;
-        var userRight = 18;
-        var userBottom = 18;
-        if (savedPos !== null) {
-          try {
-            var parsed = JSON.parse(savedPos);
-            if (parsed && typeof parsed.right === "number") userRight = parsed.right;
-            if (parsed && typeof parsed.bottom === "number") userBottom = parsed.bottom;
-          } catch (error) {
-          }
+        var deskShell = desktopShell();
+        var savedPos = deskShell === null ? readPosition(readStore(POSITION_KEY)) : null;
+        var userRight = savedPos === null ? 18 : savedPos.right;
+        var userBottom = savedPos === null ? 18 : savedPos.bottom;
+        if (deskShell === null) {
+          host.style.right = userRight + "px";
+          host.style.bottom = userBottom + "px";
+        } else {
+          host.style.right = "auto";
+          host.style.bottom = "auto";
         }
-        host.style.right = userRight + "px";
-        host.style.bottom = userBottom + "px";
         var icons = {};
         var view = normalize(null);
         var tab = "home";
@@ -3570,8 +3585,8 @@
           drag = {
             x: event.clientX,
             y: event.clientY,
-            lastX: event.clientX,
-            lastY: event.clientY,
+            lastX: typeof event.screenX === "number" ? event.screenX : event.clientX,
+            lastY: typeof event.screenY === "number" ? event.screenY : event.clientY,
             right: parseFloat(getComputedStyle(host).right) || 18,
             bottom: parseFloat(getComputedStyle(host).bottom) || 18,
             moved: false
@@ -3584,12 +3599,15 @@
           var dx = event.clientX - drag.x;
           var dy = event.clientY - drag.y;
           if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
-          if (deskShell !== null) {
-            var stepX = event.clientX - drag.lastX;
-            var stepY = event.clientY - drag.lastY;
-            drag.lastX = event.clientX;
-            drag.lastY = event.clientY;
-            if (stepX !== 0 || stepY !== 0) deskShell.moveBy(stepX, stepY);
+          var shellNow = desktopShell();
+          if (shellNow !== null) {
+            var screenX = typeof event.screenX === "number" ? event.screenX : event.clientX;
+            var screenY = typeof event.screenY === "number" ? event.screenY : event.clientY;
+            var stepX = screenX - drag.lastX;
+            var stepY = screenY - drag.lastY;
+            drag.lastX = screenX;
+            drag.lastY = screenY;
+            if (stepX !== 0 || stepY !== 0) shellNow.moveBy(stepX, stepY);
             return;
           }
           userRight = drag.right - dx;

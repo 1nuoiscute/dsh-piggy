@@ -24,6 +24,42 @@
   /** 猪在窗口里的固定内边距：桌面版位置归窗口管，页面里不再自己挪。 */
   var INSET = 16
 
+  // 先把外壳挂上：client.js 在挂载那一刻（apply 里）就会读 __dshPiggyShell，
+  // 晚一步它就把桌面版当网页版 —— 拖动只挪页面里的猪、窗口不跟。几何还没到时
+  // room() 返回 null，页面会先用自己那套算，等几何到了再改。
+  // 几何（窗口位置 + 工作区）靠主进程推过来：不订阅的话 room() 永远是 null，
+  // 桌面版的分支就跑不到（面板会按小窗口的 innerWidth 乱开）。
+  if (typeof shell.onGeometry === 'function') shell.onGeometry(function () {})
+  if (typeof shell.askGeometry === 'function') shell.askGeometry()
+
+  w.__dshPiggyShell = {
+    /** 猪在屏幕上的位置与可用空间：页面里的布局按这个算面板朝哪边开。 */
+    room: function () {
+      var info = shell.geometry ? shell.geometry() : null
+      if (info === null) return null
+      var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
+      var pigNode = host === null || host.querySelector === undefined ? null : host.querySelector('.dp-pig')
+      if (pigNode === null) return null
+      var pigBox = layoutBox(pigNode)
+      // 猪在屏幕上的矩形（窗口原点 + 猪在窗口里的位置）
+      var pig = {
+        left: info.window.x + pigBox.x,
+        top: info.window.y + pigBox.y,
+        right: info.window.x + pigBox.x + pigBox.width,
+        bottom: info.window.y + pigBox.y + pigBox.height,
+      }
+      return {
+        above: Math.round(pig.top - info.workArea.y),
+        below: Math.round(info.workArea.y + info.workArea.height - pig.bottom),
+        left: Math.round(pig.left - info.workArea.x),
+        right: Math.round(info.workArea.x + info.workArea.width - pig.right),
+        width: info.workArea.width,
+        height: info.workArea.height,
+      }
+    },
+    moveBy: function (dx, dy) { shell.moveBy(dx, dy) },
+  }
+
   var entry = null
   w.__ModuleLoader__ = { load: function (e) { entry = e } }
 
@@ -50,7 +86,7 @@
     var x = 0
     var y = 0
     var walk = node
-    while (walk !== null && walk !== document.body) {
+    while (walk !== null && walk !== undefined && walk !== document.body) {
       x += walk.offsetLeft || 0
       y += walk.offsetTop || 0
       walk = walk.offsetParent
@@ -58,7 +94,7 @@
     return { x: x, y: y, width: node.offsetWidth || 0, height: node.offsetHeight || 0 }
   }
 
-  /** 每个可见节点取布局框，再合并成一串互不重叠的矩形。 */
+  /** 每个可见节点取布局框，再合并成一串互不重叠的矩形。猪的位置也一起报上去。 */
   function boxes() {
     var host = document.querySelector('[data-dsh-pig]')
     if (host === null) return { content: null, rects: [] }
@@ -76,6 +112,7 @@
     }
     if (rects.length === 0) return { content: null, rects: [] }
 
+    var hostBox = layoutBox(host)
     var merged = true
     while (merged) {
       merged = false
@@ -104,6 +141,11 @@
       bottom = Math.max(bottom, rects[m].b)
     }
     var content = { x: left - PAD, y: top - PAD, width: right - left + PAD * 2, height: bottom - top + PAD * 2 }
+    // 猪在内容框里的位置（含尺寸）：主进程靠它把窗口挪成「猪在屏幕上一像素都不动」，
+    // 钉边也靠它判断面板开在哪一侧。用 host.querySelector，不用后代选择器。
+    var pigNode = host.querySelector === undefined ? null : host.querySelector('.dp-pig')
+    var pigBox = pigNode === null ? { x: 0, y: 0, width: 0, height: 0 } : layoutBox(pigNode)
+    var pig = { x: pigBox.x - content.x, y: pigBox.y - content.y, width: pigBox.width, height: pigBox.height }
     // 窗口坐标下的可点区域（内容框左上角是窗口原点）。
     var shape = rects.map(function (r) {
       return {
@@ -113,11 +155,82 @@
         height: Math.round((r.b - r.y) / STEP) * STEP,
       }
     })
-    return { content: content, shape: shape }
+    return { content: content, shape: shape, pig: pig, hostBox: hostBox, pigBox: pigBox }
   }
 
-  function keyOf(content, shape) {
-    var parts = [content.width, content.height]
+  /** 上一次写过的样式，避免每帧都改。 */
+  var pinned = ''
+  /** 当前锚边：面板收起（内容对称）时保持不变。 */
+  var lastVertical = 'bottom'
+  var lastHorizontal = 'right'
+
+  /**
+   * 让**猪**离窗口的锚边正好 INSET：钉的是猪，不是外层 host。
+   *
+   * 面板一开，场景会被撑到面板那么宽，猪在 host 内部的位置就偏了 —— 只钉 host 的话
+   * 猪会跟着漂（实测左上角展开时漂了 208px）。这里按猪的实际布局盒反推 host 的内边距，
+   * 是一个收敛到固定目标的闭环：窗口大小怎么变，猪离锚边都是 INSET。
+   */
+  function pinPig(vertical, horizontal, hostBox, pigBox) {
+    var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
+    if (host === null) return
+    var innerLeft = pigBox.x - hostBox.x
+    var innerTop = pigBox.y - hostBox.y
+    var innerRight = hostBox.width - innerLeft - pigBox.width
+    var innerBottom = hostBox.height - innerTop - pigBox.height
+    var want = {}
+    if (horizontal === 'left') {
+      want.left = (INSET - innerLeft) + 'px'
+      want.right = 'auto'
+    } else {
+      want.right = (INSET - innerRight) + 'px'
+      want.left = 'auto'
+    }
+    if (vertical === 'top') {
+      want.top = (INSET - innerTop) + 'px'
+      want.bottom = 'auto'
+    } else {
+      want.bottom = (INSET - innerBottom) + 'px'
+      want.top = 'auto'
+    }
+    var key = [vertical, horizontal, want.left, want.right, want.top, want.bottom].join('|')
+    if (key === pinned) return
+    pinned = key
+    host.style.left = want.left
+    host.style.right = want.right
+    host.style.top = want.top
+    host.style.bottom = want.bottom
+  }
+
+  /**
+   * 面板在猪的哪一侧 → 猪该钉哪两条边。
+   *
+   * 直接看面板（.dp-card）相对猪的位置，不能看内容框对称性：宿主本来就比猪高（HUD 那几
+   * 像素），收起时会被误判成「面板在下面」，一开除就翻锚点、窗口带着猪跳。
+   * 面板收起时保持上一次的锚边（首次是右下角）。
+   */
+  function sides(host) {
+    var card = host.querySelector === undefined ? null : /** @type {any} */ (host.querySelector('.dp-card'))
+    var pigNode = host.querySelector === undefined ? null : /** @type {any} */ (host.querySelector('.dp-pig'))
+    if (card === null || pigNode === null || card.hidden === true) return { vertical: lastVertical, horizontal: lastHorizontal }
+    var cardBox = layoutBox(card)
+    var pigBox = layoutBox(pigNode)
+    if (cardBox.width < 1 || cardBox.height < 1) return { vertical: lastVertical, horizontal: lastHorizontal }
+    // 面板在猪上方 → 猪贴窗口底边；在下方 → 贴顶边。横向同理。
+    // 比中心而不是比边：面板比猪宽得多，可能和猪的范围重叠。
+    var pigCenterY = pigBox.y + pigBox.height / 2
+    var cardCenterY = cardBox.y + cardBox.height / 2
+    var pigCenterX = pigBox.x + pigBox.width / 2
+    var cardCenterX = cardBox.x + cardBox.width / 2
+    lastVertical = cardCenterY < pigCenterY ? 'bottom' : 'top'
+    lastHorizontal = cardCenterX < pigCenterX ? 'right' : 'left'
+    return { vertical: lastVertical, horizontal: lastHorizontal }
+  }
+
+  function keyOf(content, shape, pig) {
+    // 猪在内容框里的位置也算进去：面板从上方翻到下方时尺寸可能没变，
+    // 但锚点换边了，主进程必须知道。
+    var parts = [content.width, content.height, pig.x, pig.y]
     for (var i = 0; i < shape.length; i += 1) parts.push(shape[i].x, shape[i].y, shape[i].width, shape[i].height)
     // 4px 一档：动画抖几像素不会换 key。
     return parts.map(function (n) { return Math.floor(n / STEP) }).join(',')
@@ -132,37 +245,13 @@
   function tick() {
     var next = boxes()
     if (next.content === null) return
-    var key = keyOf(next.content, next.shape)
+    var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
+    var side = sides(host)
+    pinPig(side.vertical, side.horizontal, next.hostBox, next.pigBox)
+    var key = keyOf(next.content, next.shape, next.pig)
     if (key === lastKey) return
     lastKey = key
-    shell.setContent({ width: next.content.width, height: next.content.height, shape: next.shape })
-  }
-
-  // ---------------------------------------------------------------------------
-  // 拖动：窗口跟着鼠标走（屏幕坐标），页面里不动
-  // ---------------------------------------------------------------------------
-
-  function moveChannel() {
-    var dragging = false
-    var lastX = 0
-    var lastY = 0
-    window.addEventListener('pointerdown', function (event) {
-      if (event.button !== 0) return
-      dragging = true
-      lastX = event.clientX
-      lastY = event.clientY
-    })
-    window.addEventListener('pointermove', function (event) {
-      if (!dragging) return
-      var dx = event.clientX - lastX
-      var dy = event.clientY - lastY
-      if (dx === 0 && dy === 0) return
-      lastX = event.clientX
-      lastY = event.clientY
-      shell.moveBy(dx, dy)
-    })
-    window.addEventListener('pointerup', function () { dragging = false })
-    window.addEventListener('pointercancel', function () { dragging = false })
+    shell.setContent({ width: next.content.width, height: next.content.height, pig: next.pig, anchor: side, shape: next.shape })
   }
 
   // ---------------------------------------------------------------------------
@@ -170,29 +259,7 @@
   // ---------------------------------------------------------------------------
 
   function start() {
-    var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
-    if (host !== null) {
-      host.style.right = INSET + 'px'
-      host.style.bottom = INSET + 'px'
-    }
-    w.__dshPiggyShell = {
-      /** 猪在屏幕上的位置与可用空间：页面里的布局按这个算面板朝哪边开。 */
-      room: function () {
-        var info = shell.geometry ? shell.geometry() : null
-        if (info === null) return null
-        var scene = document.querySelector('[data-dsh-pig] .dp-scene')
-        var sceneBox = scene === null ? { height: 0 } : layoutBox(scene)
-        var pigBottom = info.window.y + info.window.height - INSET
-        return {
-          above: Math.round(pigBottom - sceneBox.height - info.workArea.y),
-          below: Math.round(info.workArea.y + info.workArea.height - pigBottom),
-          width: info.workArea.width,
-          height: info.workArea.height,
-        }
-      },
-      moveBy: function (dx, dy) { shell.moveBy(dx, dy) },
-    }
-    moveChannel()
+    pinPig('bottom', 'right', { x: 0, y: 0, width: 0, height: 0 }, { x: 0, y: 0, width: 0, height: 0 })
     setInterval(tick, 120)
     window.addEventListener('pointermove', tick)
     window.addEventListener('pointerup', tick)

@@ -79,10 +79,12 @@ function fakePage(options = {}) {
   const host = new Node('div', { className: '', left: 700, top: 500, width: 100, height: 120 })
   host.setAttribute('data-dsh-pig', '')
   body.appendChild(host)
-  const scene = new Node('div', { className: 'dp-scene', left: 700, top: 500, width: 80, height: 80 })
-  scene.offsetParent = body
+  const scene = new Node('div', { className: 'dp-scene', left: 0, top: 0, width: 80, height: 80 })
+  scene.offsetParent = host
+  scene.offsetLeft = 0
+  scene.offsetTop = 0
   host.appendChild(scene)
-  const pig = new Node('div', { className: 'dp-pig', left: 706, top: 512, width: 66, height: 66 })
+  const pig = new Node('div', { className: 'dp-pig', left: 6, top: 12, width: 66, height: 66 })
   pig.offsetParent = scene
   pig.rect = { left: 706, top: 512, width: 66, height: 66 }
   scene.appendChild(pig)
@@ -101,17 +103,27 @@ function fakePage(options = {}) {
       setShape: rects => window.__shellCalls.shape.push(rects),
       moveBy: (dx, dy) => window.__shellCalls.move.push({ dx, dy }),
       setBounds: bounds => window.__shellCalls.bounds.push(bounds),
+      onGeometry: () => {},
+      askGeometry: () => { window.__shellCalls.asked = (window.__shellCalls.asked || 0) + 1 },
     },
     addEventListener: (name, fn) => { (listeners[name] ??= []).push(fn) },
     removeEventListener: (name, fn) => { listeners[name] = (listeners[name] ?? []).filter(entry => entry !== fn) },
   }
   const head = new Node('head')
   // shell.js 会往 head 里塞 <script src=client.js>；这里模拟「客户端加载完成」。
+  // shellAtLoad 记下 client 挂载那一刻外壳在不在 —— 真实顺序就是这样，晚一步桌面版
+  // 就会被当成网页版（拖动只挪页面里的猪）。
+  const order = { shellAtLoad: null }
   head.appendChild = function (child) {
     child.parentNode = head
     head.children.push(child)
     if (child.nodeName === 'script' && typeof child.onload === 'function') {
-      window.__ModuleLoader__.load({ factory: () => ({ apply: () => {} }) })
+      order.shellAtLoad = typeof window.__dshPiggyShell
+      window.__ModuleLoader__.load({
+        factory: () => ({
+          apply: () => { order.shellAtApply = typeof window.__dshPiggyShell },
+        }),
+      })
       child.onload()
     }
     return child
@@ -128,7 +140,7 @@ function fakePage(options = {}) {
   const styleOf = () => ({ display: 'block', visibility: 'visible', opacity: '1' })
 
   return {
-    window, document, body, host, scene, pig, card, listeners,
+    window, document, body, host, scene, pig, card, listeners, order,
     /** 跑一遍真实 shell.js。 */
     run() {
       const factory = new Function('window', 'document', 'getComputedStyle', 'setInterval', 'requestAnimationFrame', SHELL)
@@ -176,19 +188,67 @@ test('面板展开 / 收起：内容框变了才上报', () => {
   assert.ok(box.height >= 300, `内容框要包住面板：${JSON.stringify(box)}`)
 })
 
-test('拖猪：窗口跟着走，页面上不再自己挪位置', () => {
+test('外壳要订阅几何并主动问一次（不然 room() 永远是 null）', () => {
+  const page = fakePage()
+  page.run()
+  assert.equal(page.window.__shellCalls.asked, 1, '挂载时要主动要一次几何')
+})
+
+test('真实加载顺序：client 挂载时外壳已经挂好了（拖动才不会当网页版）', () => {
+  const page = fakePage()
+  page.run()
+  assert.equal(page.order.shellAtLoad, 'object', 'shell.js 要在加载 client 之前挂上 __dshPiggyShell')
+  assert.equal(page.order.shellAtApply, 'object', 'apply() 里读的时候也得在')
+  assert.equal(typeof page.window.__dshPiggyShell.moveBy, 'function')
+})
+
+test('面板把场景撑宽后，猪离窗口锚边仍然是 16px（钉的是猪不是 host）', () => {
   const page = fakePage()
   page.run()
   page.tick(false)
-  page.window.__shellCalls.move.length = 0
+  // 面板打开：host/场景变宽，猪在 host 内部被挤到一边（真实布局就是这样）
+  page.host.offsetWidth = 292
+  page.pig.offsetLeft = 120
+  page.scene.offsetWidth = 292
+  page.tick()
+  // 猪被挤到 host 右边 → 外壳钉右边，并把 host 的右边距补偿成「猪离右边 16px」：
+  // innerRight = 292 - 120 - 66 = 106 → right = 16 - 106 = -90
+  const right = Number(String(page.host.style.right).replace('px', ''))
+  assert.equal(right, 16 - (292 - 120 - 66), `host 右边距要补偿猪的内部偏移：${page.host.style.right}`)
+  assert.equal(page.host.style.left, 'auto', '钉右边时左边是 auto')
+})
 
-  // 外壳的拖动通道：pointerdown 之后 pointermove 的增量交给主进程。
-  page.fire('pointerdown', { button: 0, clientX: 100, clientY: 100, pointerId: 1, target: page.pig })
-  page.fire('pointermove', { clientX: 130, clientY: 90, pointerId: 1 })
+test('上报里带着猪在内容框里的位置（主进程靠它让猪不动）', () => {
+  const page = fakePage()
+  page.run()
+  page.tick(false)
+  const box = page.window.__shellCalls.content.at(-1)
+  assert.notEqual(box.pig, undefined, '要报猪在内容框里的位置')
+  assert.equal(typeof box.pig.x, 'number')
+  assert.equal(typeof box.pig.y, 'number')
+  assert.ok(box.pig.width > 0 && box.pig.height > 0, `尺寸也要报：${JSON.stringify(box.pig)}`)
+  assert.ok(box.pig.x >= 0 && box.pig.x + box.pig.width <= box.width, '猪要在内容框里')
+})
+
+test('窗口移动只由页面里的猪负责发（外壳自己不重复发）', () => {
+  const page = fakePage()
+  page.run()
+  page.tick(false)
+  // 外壳自己监听鼠标再发一次的话，会和 client 的拖动叠成两倍位移。
+  page.fire('pointerdown', { button: 0, clientX: 100, clientY: 100, pointerId: 1 })
+  page.fire('pointermove', { clientX: 160, clientY: 130, pointerId: 1, screenX: 460, screenY: 330 })
   page.fire('pointerup', { pointerId: 1 })
+  assert.deepEqual(page.window.__shellCalls.move, [], '外壳不该自己发 moveBy')
+})
 
-  assert.equal(page.window.__shellCalls.move.length, 1, '拖动要通知主进程移动窗口')
-  assert.deepEqual(page.window.__shellCalls.move[0], { dx: 30, dy: -10 })
+test('拖猪：外壳把移动通道开给页面里的猪使用', () => {
+  const page = fakePage()
+  page.run()
+  page.tick(false)
+  // 页面的猪抓着鼠标时调 window.__dshPiggyShell.moveBy，外壳转给主进程。
+  assert.equal(typeof page.window.__dshPiggyShell?.moveBy, 'function', '要开一条移动通道')
+  page.window.__dshPiggyShell.moveBy(30, -10)
+  assert.deepEqual(page.window.__shellCalls.move, [{ dx: 30, dy: -10 }])
 })
 
 // ---------------------------------------------------------------------------
@@ -197,28 +257,123 @@ test('拖猪：窗口跟着走，页面上不再自己挪位置', () => {
 
 const AREA = { x: 0, y: 0, width: 1920, height: 1040 }
 
-test('内容变大时以右下角为锚往外长', () => {
+test('窗口盯住猪贴的那两条边：锚边不动，另一边长', () => {
   const win = { x: 1500, y: 700, width: 100, height: 120 }
-  const grown = contentBounds(win, { width: 324, height: 520 }, AREA)
-  assert.equal(grown.x + grown.width, win.x + win.width, '右边缘不动')
-  assert.equal(grown.y + grown.height, win.y + win.height, '下边缘不动')
-  assert.deepEqual({ width: grown.width, height: grown.height }, { width: 324, height: 520 })
+  // 面板朝上开 → 猪贴底、贴右：下边和右边不动
+  const up = contentBounds(win, { width: 324, height: 320, anchor: { vertical: 'bottom', horizontal: 'right' } }, AREA)
+  assert.deepEqual({ x: up.x, y: up.y }, { x: 1600 - 324, y: 820 - 320 })
+  // 面板朝下开 → 猪贴顶、贴左：上边和左边不动
+  const down = contentBounds(win, { width: 324, height: 200, anchor: { vertical: 'top', horizontal: 'left' } }, AREA)
+  assert.deepEqual({ x: down.x, y: down.y }, { x: 1500, y: 700 })
+  // 面板朝下 + 朝左 → 上边和右边不动
+  const mix = contentBounds(win, { width: 324, height: 200, anchor: { vertical: 'top', horizontal: 'right' } }, AREA)
+  assert.deepEqual({ x: mix.x, y: mix.y }, { x: 1600 - 324, y: 700 })
 })
 
 test('窗口不会伸出 workArea：贴边时朝里收', () => {
   const win = { x: 1900, y: 1030, width: 20, height: 10 }
-  const grown = contentBounds(win, { width: 324, height: 520 }, AREA)
+  const open = { width: 324, height: 520, anchor: { vertical: 'bottom', horizontal: 'right' } }
+  const grown = contentBounds(win, open, AREA)
   assert.ok(grown.x >= AREA.x && grown.y >= AREA.y, '左上不能负')
   assert.ok(grown.x + grown.width <= AREA.x + AREA.width, '右边不能超出')
   assert.ok(grown.y + grown.height <= AREA.y + AREA.height, '下边不能超出')
 })
 
-test('拖到屏幕外时夹回 workArea（多显示器：按那块屏算）', () => {
-  const second = { x: 1920, y: 0, width: 1280, height: 1024 }
-  assert.deepEqual(movedBounds({ x: 2000, y: 100, width: 100, height: 100 }, 50, -200, second), { x: 2050, y: 0, width: 100, height: 100 })
-  assert.deepEqual(movedBounds({ x: 1930, y: 100, width: 100, height: 100 }, -500, 0, second), { x: 1920, y: 100, width: 100, height: 100 })
-  // 比屏幕还大的窗口：贴左上，不硬塞。
-  assert.deepEqual(clampBounds({ x: -50, y: -50, width: 4000, height: 3000 }, AREA), { x: 0, y: 0, width: 4000, height: 3000 })
+// ---------------------------------------------------------------------------
+// 返工（Claude 验收）：面板朝哪边开，锚点就跟到哪边；猪一像素都不许动
+// ---------------------------------------------------------------------------
+
+const PIG = { width: 85, height: 82 }
+const PANEL = { width: 292, height: 379 }
+const GAP = 8
+
+/** 收起态的内容框：猪 + 四周 16px 留白。 */
+function collapsedContent() {
+  return { width: PIG.width + WINDOW_PADDING * 2, height: PIG.height + WINDOW_PADDING * 2, pig: { x: WINDOW_PADDING, y: WINDOW_PADDING }, anchor: { vertical: 'bottom', horizontal: 'right' } }
+}
+
+/** 猪贴哪两条边（页面钉猪用的就是这个）。 */
+function anchorOf(vertical, horizontal) {
+  return { vertical: vertical === 'below' ? 'top' : 'bottom', horizontal: horizontal === 'right' ? 'left' : 'right' }
+}
+
+/**
+ * 展开态：面板在猪的上方或下方、左边或右边。
+ * 页面就是这么挑的：哪边有地方往哪边开（横向也是），这样窗口才长得下。
+ */
+function openedContent(vertical, horizontal) {
+  const wide = PIG.width + PANEL.width + GAP
+  const tall = PIG.height + GAP + PANEL.height
+  const width = (horizontal === 'right' ? wide : wide) + WINDOW_PADDING * 2
+  const height = tall + WINDOW_PADDING * 2
+  // 横向：'left' = 面板在猪左边（猪靠右），'right' = 面板在猪右边（猪靠左）
+  const pigX = horizontal === 'right' ? WINDOW_PADDING : WINDOW_PADDING + PANEL.width + GAP
+  const pigY = vertical === 'below' ? WINDOW_PADDING : WINDOW_PADDING + PANEL.height + GAP
+  const panel = {
+    x: horizontal === 'right' ? WINDOW_PADDING + PIG.width + GAP : WINDOW_PADDING,
+    y: vertical === 'below' ? WINDOW_PADDING + PIG.height + GAP : WINDOW_PADDING,
+    width: PANEL.width,
+    height: PANEL.height,
+  }
+  return { width, height, pig: { x: pigX, y: pigY, width: PIG.width, height: PIG.height }, anchor: anchorOf(vertical, horizontal), panel }
+}
+
+/** 屏幕四角各放一次猪（留出 18px 边距，跟启动位置一致）。 */
+function cornerStarts() {
+  const corners = []
+  for (const vertical of ['top', 'bottom']) {
+    for (const horizontal of ['left', 'right']) {
+      const collapsed = collapsedContent()
+      const width = collapsed.width
+      const height = collapsed.height
+      const x = horizontal === 'left' ? AREA.x + 18 : AREA.x + AREA.width - width - 18
+      const y = vertical === 'top' ? AREA.y + 18 : AREA.y + AREA.height - height - 18
+      corners.push({ name: `${vertical}-${horizontal}`, collapsed, start: { x, y, width, height } })
+    }
+  }
+  return corners
+}
+
+test('四个角展开/收起：猪不动、面板在窗口里、窗口在 workArea 里、收起回原位', () => {
+  for (const corner of cornerStarts()) {
+    // 页面按「哪边有地方」挑边：上边靠顶就往下开，左边靠墙就往右开。
+    const vertical = corner.name.startsWith('top') ? 'below' : 'above'
+    const horizontal = corner.name.endsWith('left') ? 'right' : 'left'
+    const open = openedContent(vertical, horizontal)
+    const grown = contentBounds(corner.start, open, AREA)
+    const label = `${corner.name} / 面板朝${vertical === 'below' ? '下' : '上'}${horizontal === 'right' ? '右' : '左'}`
+
+    // 1) 猪的屏幕坐标前后一致
+    assert.equal(grown.x + open.pig.x, corner.start.x + corner.collapsed.pig.x, `${label}：猪的横坐标动了`)
+    assert.equal(grown.y + open.pig.y, corner.start.y + corner.collapsed.pig.y, `${label}：猪的纵坐标动了`)
+
+    // 2) 面板完全在窗口里
+    const panel = { x: grown.x + open.panel.x, y: grown.y + open.panel.y, width: open.panel.width, height: open.panel.height }
+    assert.ok(panel.x >= grown.x && panel.y >= grown.y, `${label}：面板跑到窗口左上外面了`)
+    assert.ok(panel.x + panel.width <= grown.x + grown.width, `${label}：面板超出窗口右边`)
+    assert.ok(panel.y + panel.height <= grown.y + grown.height, `${label}：面板超出窗口下边`)
+
+    // 3) 窗口完全在 workArea 里
+    assert.ok(grown.x >= AREA.x && grown.y >= AREA.y, `${label}：窗口超出左上`)
+    assert.ok(grown.x + grown.width <= AREA.x + AREA.width, `${label}：窗口超出右边`)
+    assert.ok(grown.y + grown.height <= AREA.y + AREA.height, `${label}：窗口超出下边`)
+
+    // 4) 收起后回到原位（收起时锚边不变，只是窗口缩小）
+    const back = contentBounds(grown, { ...corner.collapsed, anchor: open.anchor }, AREA)
+    assert.deepEqual(back, corner.start, `${label}：收起后没回到原来的位置`)
+  }
+})
+
+test('复现 Claude 的 bug：猪在屏幕顶上、面板朝下开时面板必须在窗口里', () => {
+  // 窗口 y=0、高 552，面板 544–923 在窗口外 —— 因为旧实现一律锚右下角。
+  const collapsed = collapsedContent()
+  const start = clampBounds({ x: 1200, y: AREA.y, ...collapsed, width: collapsed.width, height: collapsed.height }, AREA)
+  const open = openedContent('below', 'left')
+  const grown = contentBounds(start, open, AREA)
+  assert.equal(grown.y, start.y, '猪在窗口顶部：窗口该往下长，上边缘别动')
+  assert.equal(grown.y + open.pig.y, start.y + collapsed.pig.y, '猪不动')
+  assert.ok(grown.y + grown.height >= grown.y + open.panel.y + open.panel.height, '面板要整个在窗口里')
+  assert.ok(grown.y + grown.height <= AREA.y + AREA.height, '窗口别伸出屏幕')
 })
 
 test('4px 取整：动画级别的抖动不产生新 key，真变化仍然能看出来', () => {

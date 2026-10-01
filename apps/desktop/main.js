@@ -189,14 +189,20 @@ function createWindow() {
 }
 
 let lastShape = []
-/** 页面报来内容外接框：改窗口大小（锚在右下角），并抠出可点区域。 */
+/** 页面报来内容外接框：改窗口大小（锚在猪身上），并抠出可点区域。 */
 ipcMain.on('piggy:content', (event, content) => {
   if (win === null || event.sender !== win.webContents) return
   const width = Number(content?.width)
   const height = Number(content?.height)
+  const pig = { x: Number(content?.pig?.x), y: Number(content?.pig?.y) }
   if (!Number.isFinite(width) || !Number.isFinite(height)) return
+  const anchor = { vertical: content?.anchor?.vertical === 'top' ? 'top' : 'bottom', horizontal: content?.anchor?.horizontal === 'left' ? 'left' : 'right' }
   const bounds = win.getBounds()
-  applyBounds(contentBounds(bounds, { width, height }, workAreaFor(bounds)), 'content')
+  const updated = contentBounds(bounds, { width, height, anchor }, workAreaFor(bounds))
+  applyBounds(updated, 'content')
+  // 记下「猪在屏幕上哪儿」：实机核对展开面板时它有没有动（日志里是 DIP 坐标）。
+  const pigOnScreen = Number.isFinite(pig.x) && Number.isFinite(pig.y) ? { x: updated.x + pig.x, y: updated.y + pig.y } : null
+  log('content', JSON.stringify({ window: updated, anchor, pigOnScreen }))
   const shape = Array.isArray(content.shape) ? content.shape : []
   win.setShape(shape.slice(0, 64).map(r => ({
     x: Math.max(0, Math.round(Number(r.x) || 0)), y: Math.max(0, Math.round(Number(r.y) || 0)),
@@ -206,6 +212,12 @@ ipcMain.on('piggy:content', (event, content) => {
 })
 
 /** 拖动：窗口按屏幕坐标跟着鼠标走。 */
+/** 页面要几何：给它推一次（订阅晚于 did-finish-load 时靠这个）。 */
+ipcMain.on('piggy:geometry:ask', (event) => {
+  if (win === null || event.sender !== win.webContents) return
+  pushGeometry()
+})
+
 ipcMain.on('piggy:move', (event, delta) => {
   if (win === null || event.sender !== win.webContents) return
   const dx = Number(delta?.dx)
@@ -213,6 +225,7 @@ ipcMain.on('piggy:move', (event, delta) => {
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return
   const bounds = win.getBounds()
   applyBounds(movedBounds(bounds, dx, dy, workAreaFor(bounds)), 'move')
+  // 窗口挪了，但内容框没变：记录里的猪跟着窗口一起动了，下一次算锚点还是对的。
 })
 
 ipcMain.on('piggy:shape', (event, rects) => {

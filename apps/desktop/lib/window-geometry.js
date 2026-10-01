@@ -38,17 +38,29 @@ export function clampBounds(bounds, area) {
 }
 
 /**
- * 内容尺寸变了：保持右下角不动，把窗口改成内容大小，再夹进工作区。
- * @param {{x: number, y: number, width: number, height: number}} windowBounds
- * @param {{width: number, height: number}} content - 已经含留白的窗口内容尺寸
+ * 内容变了：**盯住猪贴着的那两条窗口边**，窗口往另一边长。
+ *
+ * 页面把猪钉在锚边上固定 16px（见 renderer/shell.js 的 pinPig），所以只要锚边在屏幕上
+ * 不动，猪就一像素不动 —— 不需要推算猪的位置，也就没有「按上一次报告推算」带来的漂移。
+ * 锚点由面板朝哪边开决定：面板在上 → 锚下边；面板在下 → 锚上边；横向同理。
+ *
+ * @param {{x: number, y: number, width: number, height: number}} windowBounds - 当前窗口
+ * @param {{width: number, height: number, anchor?: {vertical?: string, horizontal?: string}}} content
  * @param {{x: number, y: number, width: number, height: number}} area
  */
 export function contentBounds(windowBounds, content, area) {
   const width = Math.max(MIN_WINDOW.width, round(content.width))
   const height = Math.max(MIN_WINDOW.height, round(content.height))
+  const vertical = content.anchor?.vertical === 'top' ? 'top' : 'bottom'
+  const horizontal = content.anchor?.horizontal === 'left' ? 'left' : 'right'
   const right = round(windowBounds.x) + round(windowBounds.width)
   const bottom = round(windowBounds.y) + round(windowBounds.height)
-  return clampBounds({ x: right - width, y: bottom - height, width, height }, area)
+  return clampBounds({
+    x: horizontal === 'right' ? right - width : round(windowBounds.x),
+    y: vertical === 'bottom' ? bottom - height : round(windowBounds.y),
+    width,
+    height,
+  }, area)
 }
 
 /**

@@ -6,17 +6,8 @@
  * @module dsh-piggy/client/layout
  */
 import { DEV_TAB, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PIG_PADDING_X, SCENE_RESERVE, TABS } from './constants.js'
+import { desktopShell } from './desktop-shell.js'
 import { button, el } from './dom.js'
-
-/**
- * 桌面版（apps/desktop）把窗口缩到猪身上，页面看到的 innerWidth 不再是屏幕。
- * 外壳会挂一个 `__dshPiggyShell`，位置归窗口管、面板按屏幕坐标挑边。
- * 网页版没有它，下面每条分支都走原路。
- */
-function desktopShell() {
-  var shell = typeof window !== 'undefined' ? (/** @type {any} */ (window)).__dshPiggyShell : null
-  return shell !== null && typeof shell === 'object' && typeof shell.room === 'function' ? shell : null
-}
 
 export function createLayout(ctx) {
       function clampPig() {
@@ -60,8 +51,18 @@ export function createLayout(ctx) {
               ctx.card.style.top = 'calc(100% + ' + PANEL_GAP + 'px)'
               ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below)) + 'px'
             }
-            ctx.card.style.right = '0px'
-            ctx.card.style.maxWidth = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN)) + 'px'
+            // 横向同理：猪靠屏幕右边就朝左开（默认），靠左边就改成朝右开。
+            var width = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN))
+            var opensRight = typeof room.left === 'number' && typeof room.right === 'number'
+              && room.left < width + PANEL_MARGIN && room.right > room.left
+            if (opensRight) {
+              ctx.card.style.right = 'auto'
+              ctx.card.style.left = '0px'
+            } else {
+              ctx.card.style.left = 'auto'
+              ctx.card.style.right = '0px'
+            }
+            ctx.card.style.maxWidth = width + 'px'
             ctx.hud.style.left = '9px'
             return
           }

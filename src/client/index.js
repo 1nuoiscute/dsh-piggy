@@ -29,6 +29,8 @@ import { CSS } from './styles.js'
 import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_TAB, KIND_ORDER, KIND_TITLE, MOUNTED, MODES, NO_ITEM_LINE, OPEN_KEY, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PET_LINES, PIG_PADDING_X, GREET_DELAY_MS, IDLE_CHAT_MINUTES, POLL_MS, POSITION_KEY, SCENE_RESERVE, STAGES, STATE_URL, TABS } from './constants.js'
 import { button, el, meter } from './dom.js'
 import { normalize } from './normalize.js'
+import { desktopShell } from './desktop-shell.js'
+import { readPosition } from './position.js'
 import { createDevMode } from './dev-mode.js'
 import { readStore, writeStore } from './storage.js'
 import { arr, num, obj, str } from './values.js'
@@ -66,23 +68,22 @@ import { arr, num, obj, str } from './values.js'
       var { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop,
         progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content } = parts
 
-      // 桌面版外壳（apps/desktop）：窗口是贴着猪的小窗，位置由它管。
-      var deskShell = typeof window !== 'undefined' && (/** @type {any} */ (window)).__dshPiggyShell
-        && typeof (/** @type {any} */ (window)).__dshPiggyShell.moveBy === 'function'
-        ? (/** @type {any} */ (window)).__dshPiggyShell : null
-      var savedPos = deskShell === null ? readStore(POSITION_KEY) : null
+      // 桌面版外壳：用时现取（外壳脚本比 client 先跑，但晚到也不能当网页版 —— 那样拖动
+      // 只挪页面里的猪、窗口不跟）。
+      var deskShell = desktopShell()
+      var savedPos = deskShell === null ? readPosition(readStore(POSITION_KEY)) : null
       // The pig's position as the user set it, before any on-screen clamp.
-      var userRight = 18
-      var userBottom = 18
-      if (savedPos !== null) {
-        try {
-          var parsed = JSON.parse(savedPos)
-          if (parsed && typeof parsed.right === 'number') userRight = parsed.right
-          if (parsed && typeof parsed.bottom === 'number') userBottom = parsed.bottom
-        } catch (error) { /* ignore */ }
+      var userRight = savedPos === null ? 18 : savedPos.right
+      var userBottom = savedPos === null ? 18 : savedPos.bottom
+      // 桌面版位置归外壳管（它把猪钉在窗口的锚边上）。这里再写 right/bottom 会和外壳的
+      // left/top 一起把 host 拉宽拉高，猪就被挤跑了 —— 实测面板一开猪会漂 207px。
+      if (deskShell === null) {
+        host.style.right = userRight + 'px'
+        host.style.bottom = userBottom + 'px'
+      } else {
+        host.style.right = 'auto'
+        host.style.bottom = 'auto'
       }
-      host.style.right = userRight + 'px'
-      host.style.bottom = userBottom + 'px'
 
       // Keep the pig itself on screen — and nothing more. There used to be a
       // composer-avoidance floor here that forced the widget above the input box:
@@ -239,7 +240,8 @@ import { arr, num, obj, str } from './values.js'
         if (event.button !== 0) return
         drag = {
           x: event.clientX, y: event.clientY,
-          lastX: event.clientX, lastY: event.clientY,
+          lastX: typeof event.screenX === 'number' ? event.screenX : event.clientX,
+          lastY: typeof event.screenY === 'number' ? event.screenY : event.clientY,
           right: parseFloat(getComputedStyle(host).right) || 18,
           bottom: parseFloat(getComputedStyle(host).bottom) || 18,
           moved: false,
@@ -253,12 +255,17 @@ import { arr, num, obj, str } from './values.js'
         var dy = event.clientY - drag.y
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true
         // 桌面版（D1）：窗口缩在猪身上，拖动＝把窗口按屏幕坐标挪走，页面里不动位置。
-        if (deskShell !== null) {
-          var stepX = event.clientX - drag.lastX
-          var stepY = event.clientY - drag.lastY
-          drag.lastX = event.clientX
-          drag.lastY = event.clientY
-          if (stepX !== 0 || stepY !== 0) deskShell.moveBy(stepX, stepY)
+        var shellNow = desktopShell()
+        if (shellNow !== null) {
+          // 窗口自己在动，clientX 是相对窗口的：窗口一挪，下一次增量就算错了。
+          // 屏幕坐标不受窗口位置影响（screenX/screenY）。
+          var screenX = typeof event.screenX === 'number' ? event.screenX : event.clientX
+          var screenY = typeof event.screenY === 'number' ? event.screenY : event.clientY
+          var stepX = screenX - drag.lastX
+          var stepY = screenY - drag.lastY
+          drag.lastX = screenX
+          drag.lastY = screenY
+          if (stepX !== 0 || stepY !== 0) shellNow.moveBy(stepX, stepY)
           return
         }
         userRight = drag.right - dx
