@@ -14,8 +14,8 @@
 - **零运行时 npm 依赖** —— 纯 JS；游戏规则在独立的共享库 `@dsh-piggy/core` 里，以后的独立版也用同一套
 
 <p align="center">
-  <img src="docs/screenshots/home.png" width="260" alt="主屏">
-  <img src="docs/screenshots/b9-card-girl.png" width="260" alt="居民卡">
+  <img src="docs/screenshots/readme-home.png" width="260" alt="主屏">
+  <img src="docs/screenshots/readme-card.png" width="260" alt="居民卡">
 </p>
 
 ---
@@ -55,11 +55,11 @@ dsh plugin --profile web add /path/to/dsh-piggy
 所有 App 都是**先点大方块、再点小方块**，左上角「‹」一层层退回主屏。
 
 <p align="center">
-  <img src="docs/screenshots/b9-status-away.png" width="200" alt="状态">
-  <img src="docs/screenshots/b8-study-1.png" width="200" alt="学习">
-  <img src="docs/screenshots/b9-work-detail.png" width="200" alt="打工详情">
-  <img src="docs/screenshots/b10-crown-progress.png" width="200" alt="加冕">
-  <img src="docs/screenshots/b8-shop-1.png" width="200" alt="商店">
+  <img src="docs/screenshots/readme-status.png" width="200" alt="状态">
+  <img src="docs/screenshots/readme-study.png" width="200" alt="学习">
+  <img src="docs/screenshots/readme-work.png" width="200" alt="打工详情">
+  <img src="docs/screenshots/readme-crown.png" width="200" alt="加冕">
+  <img src="docs/screenshots/readme-shop.png" width="200" alt="商店">
 </p>
 
 ## 桌面版（开发中）
