@@ -1,16 +1,14 @@
 // @ts-check
 /**
- * 形态：长成之后换一身样子（data/evolution.js）。两条入口，同一套条件：
- *   - 加冕 `crown()`  —— 出现在「加冕」App 里，由主人点；
- *   - 签约 `signContract()` —— 不进加冕 App，靠商店的契约道具在背包里使用。
- * 加冕是给王的动词，所以 `crown()` 只认 `via: 'coronation'` 的形态，别的会诚实拒绝。
+ * 形态：长成之后换一身样子。王冠和契约都从商店购买，在背包使用；
+ * 加冕 App 和 /pig crown 也走同一个王冠使用入口。
  * 达标不会自动换，不加钱、不改成长和疾病规则。复活保留形态，领养的新猪从头来。
  *
  * 纯函数领域逻辑：时间由 nowMs 传入（见 docs/CONVENTIONS.md）。
  * @module dsh-piggy/core/evolution
  */
 
-import { DEFAULT_FORM, FORMS, LIFE_STAGES, TRAITS, formByKey, lifeStageByKey } from '../data.js'
+import { DEFAULT_FORM, FORMS, LIFE_STAGES, TRAITS, formByKey, itemByKey, lifeStageByKey } from '../data.js'
 import { levelFor, lifeStageFor } from './clock.js'
 import { announce, remember } from './effects.js'
 import { decay } from './settlement.js'
@@ -23,8 +21,7 @@ function stageLevel(stageKey) {
 const REQUIREMENT_LABELS = Object.freeze({ jobs: '打工', plays: '本代玩耍' })
 
 /**
- * How each entry point talks. `reason` is what a refusal to *this* door is called,
- * so the panel can say 「加冕条件还没补齐」 or 「契约还没生效」 instead of one flat message.
+ * Item-specific words stay in one place while the checks and consumption are shared.
  */
 const WAYS = Object.freeze({
   coronation: Object.freeze({ verb: '加冕', emoji: '👑', kind: 'coronation', reason: 'coronation-ineligible' }),
@@ -46,8 +43,7 @@ function requirementsFor(state, form) {
 }
 
 /**
- * The shared last mile: check this form's conditions, then change into it.
- * Both doors go through here so they cannot drift apart.
+ * Check this form's conditions, then change into it.
  * @param {object} state
  * @param {object} form
  * @param {number} nowMs
@@ -64,8 +60,7 @@ function transform(state, form, nowMs, way) {
 
 /**
  * Every form and how close the pig is to it. `ready` means its own door would work
- * now. `via` is carried through because only 加冕 forms belong in the 加冕 App —
- * the 签约 form is discovered in the shop instead.
+ * now. The required item is reported separately from the progress requirements.
  * @param {object} state
  * @returns {{ current: string | null, forms: object[] } | null}
  */
@@ -79,8 +74,8 @@ export function formsView(state) {
     forms: FORMS.map(form => {
       const requirements = requirementsFor(state, form)
       return {
-        key: form.key, via: form.via, label: form.label, emoji: form.emoji, art: form.art,
-        // C1 debug buttons need the stage's starting level.
+        key: form.key, via: form.via, item: form.item, label: form.label, emoji: form.emoji, art: form.art,
+        hasItem: (state.inventory?.[form.item] ?? 0) > 0,
         stage: form.stage,
         fromLevel: lifeStageByKey(form.stage)?.fromLevel ?? 1,
         current: state.form === form.key,
@@ -92,49 +87,50 @@ export function formsView(state) {
 }
 
 /**
- * 加冕. Settles elapsed time first, so a pig that died while the panel was
- * closed cannot be crowned. Crowning into the form it already has is a no-op.
- *
- * Only `via: 'coronation'` forms answer here: a form that is obtained some other
- * way must not be reachable by pressing the crown button (or by POSTing `crown`).
+ * Spend the matching promotion item only after all conditions pass.
+ * @param {object} state
+ * @param {string} itemKey
+ * @param {number} nowMs
+ */
+export function useFormItem(state, itemKey, nowMs) {
+  if (state === null) return { ok: false, reason: 'absent' }
+  const item = itemByKey(itemKey)
+  if (item === null || item.kind !== 'promotion') return { ok: false, reason: 'unknown' }
+  const form = formByKey(item.form)
+  if (form === null || form.item !== itemKey) return { ok: false, reason: 'unknown' }
+  if (state.hatched !== true) return { ok: false, reason: 'box' }
+  decay(state, nowMs)
+  if (state.dead === true) return { ok: false, reason: 'dead' }
+  if (state.form === form.key) return { ok: false, reason: 'already', form: form.key }
+  if (state.activity !== null) return { ok: false, reason: 'away' }
+  const have = state.inventory?.[itemKey] ?? 0
+  if (have <= 0) return { ok: false, reason: 'needs-item', item: itemKey }
+  const way = itemKey === 'crown' ? WAYS.coronation : WAYS.contract
+  const result = transform(state, form, nowMs, way)
+  if (!result.ok) return result
+  state.inventory[itemKey] = have - 1
+  return { ...result, item }
+}
+
+/**
+ * The old crown action remains for the App and slash command, using the crown item.
  * @param {object} state
  * @param {number} nowMs
  * @param {string} [formKey]
  */
 export function crown(state, nowMs, formKey = DEFAULT_FORM) {
-  if (state === null) return { ok: false, reason: 'absent' }
   const form = formByKey(formKey)
   if (form === null) return { ok: false, reason: 'unknown' }
-  if (state.hatched !== true) return { ok: false, reason: 'box' }
-  decay(state, nowMs)
-  if (state.dead === true) return { ok: false, reason: 'dead' }
-  // Already that shape wins over "wrong door": a crowned devil asking for the
-  // devil should hear "已是", not "这一种要签约".
-  if (state.form === form.key) return { ok: true, form: form.key }
-  if (form.via !== 'coronation') return { ok: false, reason: 'needs-contract', form: form.key }
-  return transform(state, form, nowMs, WAYS.coronation)
+  if (form.item !== 'crown') return { ok: false, reason: 'needs-contract', form: form.key }
+  return useFormItem(state, form.item, nowMs)
 }
 
-/**
- * 签约 —— the contract door, spent by using the item in the bag.
- *
- * Same conditions as 加冕, different verb: 加冕是给王的，恶魔只能签。Refusals are
- * honest and typed, and the caller must leave the item in the bag when this fails.
- * @param {object} state
- * @param {string} formKey  the form the contract grants (`data/shop.js`: item.form)
- * @param {number} nowMs
- */
+/** Keep the PR #3 API while requiring an owned contract. */
 export function signContract(state, formKey, nowMs) {
-  if (state === null) return { ok: false, reason: 'absent' }
   const form = formByKey(formKey)
   if (form === null) return { ok: false, reason: 'unknown' }
-  if (form.via !== 'contract') return { ok: false, reason: 'not-a-contract', form: form.key }
-  if (state.hatched !== true) return { ok: false, reason: 'box' }
-  decay(state, nowMs)
-  if (state.dead === true) return { ok: false, reason: 'dead' }
-  // Already this shape: don't burn a 6666-coin contract to tell the player so.
-  if (state.form === form.key) return { ok: false, reason: 'already', form: form.key }
-  return transform(state, form, nowMs, WAYS.contract)
+  if (form.item !== 'contract') return { ok: false, reason: 'not-a-contract', form: form.key }
+  return useFormItem(state, form.item, nowMs)
 }
 
 /**

@@ -166,6 +166,7 @@ import { arr, num, obj, str } from './values.js'
         flash: flash,
         react: react,
         burst: burst,
+        transform: fx.transform,
         showBubble: showBubble,
         showLine: showLine,
         toast: toast,

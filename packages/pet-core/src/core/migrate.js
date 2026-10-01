@@ -158,7 +158,10 @@ export function sanitizeSouvenirs(raw) {
 export function sanitizeDressList(raw) {
   if (!Array.isArray(raw)) return []
   const out = []
-  for (const key of raw) {
+  for (const savedKey of raw) {
+    // Before C3, crown was a wearable. Keep the paid-for outfit under its new
+    // key; the promotion item now owns `crown` in the inventory namespace.
+    const key = savedKey === 'crown' ? 'royal-crown' : savedKey
     if (typeof key !== 'string') continue
     const item = itemByKey(key)
     if (item === null || item.kind !== 'dress' || out.includes(key)) continue

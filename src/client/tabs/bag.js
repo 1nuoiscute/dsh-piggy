@@ -94,8 +94,7 @@ function renderItems(ui, kind) {
       grid.appendChild(tile({
         emoji: item.emoji, label: item.label, color: SHELF_COLOR[kind] ?? 'blue', soft: true,
         badge: '×' + num(ui.view.inventory[item.key], 0), tag: item.needed ? '需要' : '',
-        // 契约 is the one consumable whose conditions you need to see before spending it.
-        note: item.kind === 'contract' ? item.blurb : '',
+        note: item.kind === 'promotion' ? item.useLabel : '',
         data: { 'data-use': item.key },
         onPick: function () { ui.send('use', { item: item.key }) },
       }))

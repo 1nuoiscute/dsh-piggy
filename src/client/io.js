@@ -46,16 +46,16 @@ export function createIo(ctx) {
               ctx.showBubble(NO_ITEM_LINE[emptyKind] ?? '背包里没有能用的东西', 3200)
               return
             }
-            // 契约: the tile has no room for the numbers, so say exactly what is
-            // missing here — this is the moment the player is deciding to spend it.
-            if (next.reason === 'contract-ineligible') {
+            if (next.reason === 'contract-ineligible' || next.reason === 'coronation-ineligible') {
               var lacks = (Array.isArray(next.missing) ? next.missing : [])
                 .map(function (row) { return str(row.label, '') + ' ' + num(row.have, 0) + '/' + num(row.need, 0) }).join(' · ')
-              ctx.showBubble(lacks === '' ? '契约还没生效' : '契约还没生效，还差：' + lacks, 3400)
+              var actionName = next.reason === 'contract-ineligible' ? '签约' : '加冕'
+              ctx.showBubble(lacks === '' ? actionName + '条件还没齐' : actionName + '还差：' + lacks, 3400)
               return
             }
             var reasons = {
               box: '先把纸盒拆开',
+              'needs-item': '还没有王冠，去商店的晋升货架买',
               'coronation-ineligible': '加冕条件还没齐',
               'contract-ineligible': '契约还没生效：条件没补齐',
               'needs-contract': '这一种要签约，不是加冕',

@@ -41,7 +41,8 @@ test('devil uses level, strength, charm and successful plays as independent boun
 
 test('加冕 is the wrong door for the devil, and the command says so', () => {
   const state = ready()
-  assert.equal(devil(state).via, 'contract')
+  assert.equal(devil(state).via, 'item')
+  assert.equal(devil(state).item, 'contract')
   const refused = crown(state, NOW, 'devil')
   assert.equal(refused.ok, false)
   assert.equal(refused.reason, 'needs-contract')
@@ -50,15 +51,16 @@ test('加冕 is the wrong door for the devil, and the command says so', () => {
   // …and the king still comes through it.
   Object.assign(state.traits, { intel: 20 })
   state.stats.jobs = 10
+  state.inventory.crown = 1
   assert.equal(crown(state, NOW, 'king').ok, true)
   assert.equal(state.form, 'king')
 })
 
-test('the contract lives on its own shelf and its refusal does not spend it', () => {
+test('the contract shares the promotion shelf and its refusal does not spend it', () => {
   const item = itemByKey('contract')
-  assert.equal(item.kind, 'contract')
+  assert.equal(item.kind, 'promotion')
   assert.equal(item.form, 'devil')
-  assert.ok(KIND_ORDER.includes('contract'), 'the shelf is part of the shop order')
+  assert.ok(KIND_ORDER.includes('promotion'), 'the shelf is part of the shop order')
   // The tile has no room for the numbers, so the blurb says what it does; the
   // exact shortfall is spelled out by the refusal (covered in host.test.js).
   assert.match(item.blurb, /恶魔猪/, 'the blurb says what it turns the pig into')
@@ -117,8 +119,10 @@ test('devil stays selected when unhappy, is idempotent, and can switch to king',
   assert.deepEqual(view.hides, ['head', 'back'])
   state.traits.intel = 20
   state.stats.jobs = 10
+  state.inventory.crown = 1
   assert.equal(crown(state, NOW).ok, true, 'king remains the default')
   assert.equal(state.form, 'king')
+  state.inventory.contract = 1
   assert.equal(signContract(state, 'devil', NOW).ok, true, 'and the contract can take it back')
   assert.equal(state.form, 'devil')
 })

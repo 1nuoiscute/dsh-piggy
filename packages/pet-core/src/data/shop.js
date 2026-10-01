@@ -33,6 +33,7 @@ export const DEFAULT_TOY = Object.freeze({
  * @property {number} [tier]
  * @property {boolean} [cureAll]
  * @property {string} [form]   契约类道具：签下它换成哪个形态（data/evolution.js 的 key）
+ * @property {string} [useLabel] 背包中的操作文字
  * @property {string} [blurb]
  */
 /**
@@ -87,25 +88,25 @@ export const SHOP = Object.freeze([
   Object.freeze({ key: 'flowercrown', label: '花环', emoji: '💐', price: 1800, kind: 'dress', level: 20, slot: 'head', blurb: '春天做的' }),
   Object.freeze({ key: 'tophat', label: '礼帽', emoji: '🎩', price: 2600, kind: 'dress', level: 25, slot: 'head', blurb: '正式场合' }),
   Object.freeze({ key: 'necklace', label: '项链', emoji: '📿', price: 3600, kind: 'dress', level: 30, slot: 'neck', blurb: '据说是祖传的' }),
-  Object.freeze({ key: 'crown', label: '王冠', emoji: '👑', price: 5200, kind: 'dress', level: 40, slot: 'head', blurb: '自己给自己加冕' }),
+  Object.freeze({ key: 'royal-crown', label: '礼冠', emoji: '👑', price: 5200, kind: 'dress', level: 40, slot: 'head', blurb: '旧版王冠装扮' }),
   Object.freeze({ key: 'wings', label: '翅膀', emoji: '🪽', price: 8000, kind: 'dress', level: 50, slot: 'back', blurb: '能不能飞，谁也没见它飞过' }),
   // --- medicine: the twenty stage cures and 百草丹 (data/illness.js) ------
   ...MEDICINES,
   // --- revive -------------------------------------------------------------
   REVIVE_ITEM,
-  // --- contract (契约) ------------------------------------------------------
-  // 形态的另一条入口：不是加冕（那是给王的动词），而是买一张契约，在背包里签。
-  // 条件与加冕一样从严（见 data/evolution.js 的 requires），这里只负责卖；
-  // 签约失败的拒绝发生在 useItem 里，条件不齐就不签，道具留在背包。
-  // 格子上的字放不下条件，所以只写它干什么；差哪一条由拒绝时的气泡说清。
+  // --- promotion -----------------------------------------------------------
   Object.freeze({
-    key: 'contract', label: '恶魔契约', emoji: '😈', price: 6666, kind: 'contract', form: 'devil',
-    blurb: '签下变成恶魔猪',
+    key: 'crown', label: '王冠', emoji: '👑', price: 3000, kind: 'promotion', form: 'king',
+    useLabel: '加冕', blurb: '戴上变成猪猪王',
+  }),
+  Object.freeze({
+    key: 'contract', label: '恶魔契约', emoji: '😈', price: 6666, kind: 'promotion', form: 'devil',
+    useLabel: '签约', blurb: '签下变成恶魔猪',
   }),
 ])
 
 /** Shop shelves, in the order the panel shows them. */
-export const KIND_ORDER = Object.freeze(['food', 'bath', 'toy', 'dress', 'medicine', 'revive', 'contract'])
+export const KIND_ORDER = Object.freeze(['food', 'bath', 'toy', 'dress', 'medicine', 'revive', 'promotion'])
 
 export const KIND_LABEL = Object.freeze({
   food: '食物',
@@ -114,7 +115,7 @@ export const KIND_LABEL = Object.freeze({
   dress: '装扮',
   medicine: '药品',
   revive: '复活',
-  contract: '契约',
+  promotion: '晋升',
 })
 
 /** Which care action spends which shelf. */
@@ -150,4 +151,3 @@ export function careItems(kind) {
   const bought = itemsOfKind(kind)
   return kind === 'toy' ? [DEFAULT_TOY, ...bought] : bought
 }
-

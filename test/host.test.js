@@ -449,10 +449,10 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
   })
   try {
     const board = await app.get()
-    assert.equal(board.shop.length, 63)
+    assert.equal(board.shop.length, 64)
     assert.equal(board.dress.length, 12)
     assert.equal(board.shop.find(item => item.key === 'scarf').owned, true)
-    const crown = board.shop.find(item => item.key === 'crown')
+    const crown = board.shop.find(item => item.key === 'royal-crown')
     assert.equal(crown.unlocked, false)
     assert.equal(crown.level, 40, 're-spread on the 60-level curve (2026-10-01)')
 
@@ -465,11 +465,11 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
     assert.equal(off.ok, true)
     assert.equal(off.dress.find(item => item.key === 'scarf').worn, false)
 
-    const notOwned = await app.post({ action: 'wear', item: 'crown' })
+    const notOwned = await app.post({ action: 'wear', item: 'royal-crown' })
     assert.equal(notOwned.ok, false)
     assert.equal(notOwned.reason, 'not-owned')
 
-    const locked = await app.post({ action: 'buy', item: 'crown' })
+    const locked = await app.post({ action: 'buy', item: 'royal-crown' })
     assert.equal(locked.ok, false)
     assert.equal(locked.reason, 'low-level')
     assert.equal(locked.need, 40)
@@ -809,13 +809,14 @@ test('加冕 works from the slash command and over HTTP, and the snapshot carrie
     const pig = hatchEgg(nowMs)
     Object.assign(pig, { xp: xpForLevel(40), traits: { intel: 20, charm: 20, strong: 20 }, satiety: 90, cleanliness: 90, happiness: 90 })
     pig.stats.jobs = 10
+    pig.inventory.crown = 1
     return pig
   }
   const early = boot(nowMs => hatchEgg(nowMs))
   try {
     const refused = early.command.handler({ rawInput: 'crown' })
     assert.equal(refused.kind, 'error')
-    assert.match(refused.text, /还差一点：等级 1\/40/)
+    assert.match(refused.text, /商店.*晋升.*王冠|王冠.*商店/)
     assert.match(early.command.handler({ rawInput: 'crown 恐龙' }).text, /没有这种形态/)
   } finally {
     early.cleanup()
@@ -849,11 +850,12 @@ test('the devil is signed for, not crowned: 加冕 refuses it and the contract d
     try {
       const before = await app.get()
       const form = before.forms.forms.find(entry => entry.key === 'devil')
-      assert.equal(form.via, 'contract')
+      assert.equal(form.via, 'item')
+      assert.equal(form.item, 'contract')
       assert.equal(form.ready, plays === 20)
       assert.equal(form.requirements.find(row => row.key === 'plays').label, '本代玩耍')
       const contract = before.shop.find(item => item.key === 'contract')
-      assert.equal(contract.kind, 'contract')
+      assert.equal(contract.kind, 'promotion')
       assert.match(contract.blurb, /恶魔猪/, 'the shelf says what the contract does')
 
       // 加冕 is the wrong door — over HTTP and over the command.

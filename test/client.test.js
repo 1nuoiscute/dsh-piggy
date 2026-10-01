@@ -2004,16 +2004,16 @@ const PROFILE = {
   counts: { days: 1, certificates: 0, souvenirs: 0, graduations: 0 },
 }
 const kingForm = (patch = {}) => ({
-  key: 'king', label: '猪猪王', emoji: '👑', art: 'pig-king', current: false, ready: false,
+  key: 'king', via: 'item', item: 'crown', hasItem: false, label: '猪猪王', emoji: '👑', art: 'pig-king', current: false, ready: false,
   requirements: [
     { key: 'level', label: '等级', have: 41, need: 40, met: true },
     { key: 'charm', label: '魅力', have: 12, need: 20, met: false },
   ],
   ...patch,
 })
-/** 恶魔猪 comes from a contract, not from the 加冕 app — same shape, `via` tells them apart. */
+/** 恶魔猪 comes from a contract item and stays out of the 加冕 app. */
 const devilForm = (patch = {}) => ({
-  key: 'devil', via: 'contract', label: '恶魔猪', emoji: '😈', art: 'pig-devil', current: false, ready: false,
+  key: 'devil', via: 'item', item: 'contract', hasItem: false, label: '恶魔猪', emoji: '😈', art: 'pig-devil', current: false, ready: false,
   requirements: [
     { key: 'level', label: '等级', have: 40, need: 40, met: true },
     { key: 'plays', label: '本代玩耍', have: 20, need: 20, met: true },
@@ -2021,7 +2021,7 @@ const devilForm = (patch = {}) => ({
   ...patch,
 })
 
-test('the 加冕 app shows how close the pig is to 加冕, and the button waits until every box is ticked', async () => {
+test('the 加冕 app shows missing conditions and points owners without a crown to the shop', async () => {
   const { registration, dom, net } = await loadClient({
     status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [kingForm()] } },
   })
@@ -2032,12 +2032,12 @@ test('the 加冕 app shows how close the pig is to 加冕, and the button waits 
   assert.notEqual(block, undefined)
   assert.match(block.allText(), /✓ 等级 40\/40/)
   assert.match(block.allText(), /✗ 魅力 12\/20/)
-  assert.equal(findByAttr(block, 'data-crown', 'king').disabled, true)
+  assert.match(findByAttr(block, 'data-crown', 'king').allText(), /商店买王冠/)
   assert.equal(net.calls.filter(call => call.method === 'POST').length, 0)
 })
 
 test('a ready pig can be crowned from the 加冕 app', async () => {
-  const ready = kingForm({ ready: true, requirements: [{ key: 'level', label: '等级', have: 40, need: 40, met: true }] })
+  const ready = kingForm({ ready: true, hasItem: true, requirements: [{ key: 'level', label: '等级', have: 40, need: 40, met: true }] })
   const { registration, dom, net } = await loadClient({
     status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [ready] } },
   })
@@ -2071,7 +2071,7 @@ test('once crowned the card says which form, and the app marks it as current', a
 
 test('the 加冕 tile sits next to 居民卡 on the home screen and lights up when a form is ready', async () => {
   const { registration, dom } = await loadClient({
-    status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [kingForm({ ready: true })] } },
+    status: { ...SNAPSHOT, profile: PROFILE, forms: { current: null, forms: [kingForm({ ready: true, hasItem: true })] } },
   })
   registration.factory(() => {}).apply({})
   await settle()
@@ -2167,7 +2167,8 @@ test('the devil never appears in the 加冕 app, however ready it is', async () 
   Object.assign(state, { xp: xpForLevel(40), traits: { intel: 0, strong: 20, charm: 20 }, happiness: 10 })
   state.stats.plays = 20
   const forms = formsView(state)
-  assert.equal(forms.forms.find(form => form.key === 'devil').via, 'contract', 'the host marks it as a contract form')
+  assert.equal(forms.forms.find(form => form.key === 'devil').via, 'item')
+  assert.equal(forms.forms.find(form => form.key === 'devil').item, 'contract')
 
   const { registration, dom, net } = await loadClient({ status: { ...SNAPSHOT, profile: PROFILE, forms } })
   registration.factory(() => {}).apply({})
@@ -2179,10 +2180,10 @@ test('the devil never appears in the 加冕 app, however ready it is', async () 
   assert.equal(net.calls.filter(call => call.method === 'POST' && JSON.parse(call.body).action === 'crown').length, 0)
 })
 
-test('the 契约 shelf in the bag carries its conditions and sends use', async () => {
+test('the 晋升 shelf in the bag shows 签约 and sends use', async () => {
   const contract = {
-    key: 'contract', label: '恶魔契约', emoji: '😈', price: 6666, kind: 'contract', tier: null, level: null,
-    owned: false, worn: false, unlocked: true, blurb: '签下变成恶魔猪', affordable: true, needed: false,
+    key: 'contract', label: '恶魔契约', emoji: '😈', price: 6666, kind: 'promotion', tier: null, level: null,
+    owned: false, worn: false, unlocked: true, useLabel: '签约', blurb: '签下变成恶魔猪', affordable: true, needed: false,
   }
   const { registration, dom, net } = await loadClient({
     status: { ...SNAPSHOT, profile: PROFILE, shop: [...SNAPSHOT.shop, contract], inventory: { ...SNAPSHOT.inventory, contract: 1 } },
@@ -2191,17 +2192,52 @@ test('the 契约 shelf in the bag carries its conditions and sends use', async (
   await settle()
   openPanel(dom)
   pickTab(dom, 'bag')
-  const shelf = findByAttr(contentOf(dom), 'data-bag', 'contract')
+  const shelf = findByAttr(contentOf(dom), 'data-bag', 'promotion')
   assert.notEqual(shelf, undefined, 'the new shelf shows up in the bag')
-  assert.match(shelf.allText(), /契约/)
+  assert.match(shelf.allText(), /晋升/)
 
-  tap(dom, 'data-bag', 'contract')
+  tap(dom, 'data-bag', 'promotion')
   const tile = findByAttr(contentOf(dom), 'data-use', 'contract')
   assert.notEqual(tile, undefined)
-  assert.match(tile.allText(), /恶魔猪/, 'the tile says what it does before you spend it')
+  assert.match(tile.allText(), /恶魔契约.*签约/, 'the tile uses the item action label')
   tile.fire('click')
   await settle()
   await settle()
   const post = net.calls.find(call => call.method === 'POST' && JSON.parse(call.body).action === 'use')
   assert.deepEqual(JSON.parse(post.body), { action: 'use', item: 'contract' })
+})
+
+test('C3 promotion tiles use item labels and the crown app points empty bags to the shop', async () => {
+  const crownItem = { key: 'crown', label: '王冠', emoji: '👑', price: 3000, kind: 'promotion', useLabel: '加冕', affordable: true }
+  const contractItem = { key: 'contract', label: '恶魔契约', emoji: '😈', price: 6666, kind: 'promotion', useLabel: '签约', affordable: true }
+  const forms = { current: null, forms: [kingForm({ via: 'item', item: 'crown', hasItem: false }), devilForm({ via: 'item', item: 'contract' })] }
+  const status = { ...SNAPSHOT, forms, shop: [...SNAPSHOT.shop, crownItem, contractItem], inventory: { ...SNAPSHOT.inventory, crown: 0, contract: 1 } }
+  const { registration, dom, net } = await loadClient({
+    status,
+    actResult: { ...status, ok: false, reason: 'needs-item' },
+  })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'crown')
+  const go = findByAttr(contentOf(dom), 'data-crown', 'king')
+  assert.match(go.allText(), /商店买王冠/)
+  go.fire('click')
+  await settle()
+  assert.deepEqual(JSON.parse(net.calls.find(call => call.method === 'POST').body), { action: 'crown', form: 'king' })
+  pickTab(dom, 'bag')
+  tap(dom, 'data-bag', 'promotion')
+  assert.match(findByAttr(contentOf(dom), 'data-use', 'contract').allText(), /签约/)
+})
+
+test('C3 transformation announcement creates one full-screen emoji effect and clears on dispose', async () => {
+  const pending = [{ id: 1, kind: 'coronation', text: '加冕', at: Date.now() }]
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, pending } })
+  const dispose = registration.factory(() => {}).apply({})
+  await settle()
+  const overlay = findByClass(dom.body, 'dp-transform')
+  assert.notEqual(overlay, undefined)
+  assert.match(overlay.allText(), /👑/)
+  assert.match(overlay.allText(), /✨/)
+  dispose()
+  assert.equal(findByClass(dom.body, 'dp-transform'), undefined)
 })

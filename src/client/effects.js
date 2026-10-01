@@ -12,7 +12,7 @@ import { el } from './dom.js'
 
 /**
  * @param {{ scene: object, pig: object, pigArt: object, card: object, bubble: object, pomoHint?: object, isStopped: () => boolean }} deps
- * @returns {{ react: Function, burst: Function, flash: Function, showBubble: Function, showLine: Function, toast: Function, dispose: Function }}
+ * @returns {{ react: Function, burst: Function, transform: Function, flash: Function, showBubble: Function, showLine: Function, toast: Function, dispose: Function }}
  */
 export function createEffects(deps) {
   var scene = deps.scene
@@ -25,6 +25,36 @@ export function createEffects(deps) {
 
   var reactTimer = null
   var bubbleTimer = null
+  var transformTimer = null
+  var transformLayer = null
+
+/** Full-screen promotion effect, replaced on a second transformation. */
+function transform(kind) {
+  if (transformTimer !== null) window.clearTimeout(transformTimer)
+  if (transformLayer !== null) transformLayer.remove()
+  var emojis = kind === 'contract' ? ['😈', '🔥'] : ['👑', '✨']
+  var layer = el('div', 'dp-transform')
+  layer.setAttribute('aria-hidden', 'true')
+  for (var i = 0; i < 16; i += 1) {
+    var falling = el('span', 'dp-transform-fall', emojis[i % 2])
+    falling.style.left = ((i * 47) % 101) + '%'
+    falling.style.setProperty('--delay', ((i % 5) * 0.07) + 's')
+    falling.style.setProperty('--drift', (((i % 3) - 1) * 34) + 'px')
+    layer.appendChild(falling)
+  }
+  var center = pig.getBoundingClientRect()
+  var pop = el('span', 'dp-transform-pop', emojis[0])
+  pop.style.left = (center.left + center.width / 2) + 'px'
+  pop.style.top = (center.top + center.height / 2) + 'px'
+  layer.appendChild(pop)
+  document.body.appendChild(layer)
+  transformLayer = layer
+  transformTimer = window.setTimeout(function () {
+    layer.remove()
+    if (transformLayer === layer) transformLayer = null
+    transformTimer = null
+  }, 1450)
+}
 
 // ---- animation ----
 function react(kind, ms) {
@@ -158,9 +188,13 @@ function toast(text) {
   function dispose() {
     if (reactTimer !== null) window.clearTimeout(reactTimer)
     if (bubbleTimer !== null) window.clearTimeout(bubbleTimer)
+    if (transformTimer !== null) window.clearTimeout(transformTimer)
+    if (transformLayer !== null) transformLayer.remove()
     reactTimer = null
     bubbleTimer = null
+    transformTimer = null
+    transformLayer = null
   }
 
-  return { react: react, burst: burst, flash: flash, showBubble: showBubble, showLine: showLine, toast: toast, dispose: dispose }
+  return { react: react, burst: burst, transform: transform, flash: flash, showBubble: showBubble, showLine: showLine, toast: toast, dispose: dispose }
 }

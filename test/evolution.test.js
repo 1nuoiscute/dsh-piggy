@@ -18,6 +18,7 @@ function adult(level = 40) {
   const state = hatchEgg(NOW)
   Object.assign(state, { xp: xpForLevel(level), traits: { intel: 20, charm: 20, strong: 20 } })
   state.stats.jobs = 10
+  state.inventory.crown = 1
   return state
 }
 
@@ -42,7 +43,7 @@ test('all three traits and completed jobs are independent boundaries', () => {
   }
 })
 
-test('an adult can fill a missing condition later; crowning is idempotent and free', () => {
+test('an adult can fill a missing condition later; crowning spends one crown', () => {
   const state = adult()
   state.traits.strong = 19
   assert.equal(crown(state, NOW).ok, false)
@@ -51,8 +52,9 @@ test('an adult can fill a missing condition later; crowning is idempotent and fr
   state.coins = 0
   const before = { xp: state.xp, ageMs: state.ageMs, stats: { ...state.stats } }
   assert.equal(crown(state, NOW).ok, true)
+  assert.equal(state.inventory.crown, 0)
   const count = state.pending.length
-  assert.equal(crown(state, NOW).ok, true)
+  assert.equal(crown(state, NOW).reason, 'already')
   assert.equal(state.pending.length, count)
   assert.equal(state.coins, 0)
   assert.equal(state.xp, before.xp)

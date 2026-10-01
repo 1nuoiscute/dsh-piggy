@@ -308,7 +308,7 @@ export function createPanel(ctx) {
         ctx.icons.study.setAttribute('data-alert', hasCourse ? 'true' : 'false')
         ctx.icons.shop.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.illness !== null ? 'true' : 'false')
         // 加冕: a form is waiting to be picked.
-        ctx.icons.crown.setAttribute('data-alert', ctx.view.forms !== null && ctx.view.forms.forms.some(function (f) { return f.ready }) ? 'true' : 'false')
+        ctx.icons.crown.setAttribute('data-alert', ctx.view.forms !== null && ctx.view.forms.forms.some(function (f) { return f.item === 'crown' && f.hasItem && f.ready }) ? 'true' : 'false')
         ctx.icons.travel.setAttribute('data-alert', ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? 'true' : 'false')
 
         for (var i = 0; i < ctx.view.pending.length; i += 1) {
@@ -326,8 +326,8 @@ export function createPanel(ctx) {
           // 免打扰: routine news stays quiet; illness and death still speak.
           if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue
           ctx.toast(str(event.text, '猪有新消息'))
-          if (event.kind === 'coronation') { ctx.react('levelup', 950); ctx.burst(['👑', '✨'], 3) }
-          else if (event.kind === 'contract') { ctx.react('levelup', 950); ctx.burst(['😈', '📜'], 3) }
+          if (event.kind === 'coronation') { ctx.react('levelup', 950); ctx.transform('crown') }
+          else if (event.kind === 'contract') { ctx.react('levelup', 950); ctx.transform('contract') }
           else if (event.kind === 'levelup') { ctx.react('levelup', 950); ctx.burst(['✨', '🎉'], 3) }
           else if (event.kind === 'cured') { ctx.react('cure', 900); ctx.burst(['💚', '✨'], 3) }
           else if (event.kind === 'death') ctx.react('refuse', 700)

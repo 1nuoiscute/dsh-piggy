@@ -59,8 +59,8 @@
     bath: "\u6CA1\u6709\u6D17\u6D74\u7528\u54C1\u4E86\uFF0C\u53BB\u4E70\u70B9\u5427 \u{1F9FC}",
     toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
   };
-  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B", contract: "\u{1F4DC} \u5951\u7EA6" };
-  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive", "contract"];
+  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B", promotion: "\u2728 \u664B\u5347" };
+  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive", "promotion"];
   var STAGES = [
     { key: "preschool", label: "\u5E7C\u513F\u56ED" },
     { key: "extracurricular", label: "\u8BFE\u5916" },
@@ -197,7 +197,7 @@
   }
 
   // src/client/tabs/shop.js
-  var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", dress: "pink", medicine: "green", revive: "purple", contract: "blue" };
+  var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", dress: "pink", medicine: "green", revive: "purple", promotion: "blue" };
   function shelfParts(kind) {
     var title = KIND_TITLE[kind] ?? kind;
     var space = title.indexOf(" ");
@@ -364,8 +364,7 @@
           soft: true,
           badge: "\xD7" + num(ui.view.inventory[item.key], 0),
           tag: item.needed ? "\u9700\u8981" : "",
-          // 契约 is the one consumable whose conditions you need to see before spending it.
-          note: item.kind === "contract" ? item.blurb : "",
+          note: item.kind === "promotion" ? item.useLabel : "",
           data: { "data-use": item.key },
           onPick: function() {
             ui.send("use", { item: item.key });
@@ -1437,6 +1436,17 @@
     "color:var(--ac-text-muted);font-size:10px;font-weight:500;line-height:1.55;",
     "white-space:pre-wrap;word-break:break-word}",
     /* ---------- particles and toast ---------- */
+    ".dp-transform{position:fixed;inset:0;z-index:2147483647;pointer-events:none;overflow:hidden}",
+    ".dp-transform-fall{position:absolute;top:-48px;font-size:28px;opacity:0;",
+    "animation:dp-transform-fall 1.35s var(--delay) ease-in forwards}",
+    "@keyframes dp-transform-fall{0%{opacity:0;transform:translate3d(0,-20px,0) rotate(-15deg)}",
+    "12%{opacity:1}100%{opacity:0;transform:translate3d(var(--drift),105vh,0) rotate(30deg)}}",
+    ".dp-transform-pop{position:absolute;font-size:72px;line-height:1;filter:drop-shadow(0 3px 8px #fff);",
+    "animation:dp-transform-pop 1.3s ease-out forwards}",
+    "@keyframes dp-transform-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.15)}",
+    "35%{opacity:1;transform:translate(-50%,-50%) scale(1.25)}",
+    "70%{opacity:1;transform:translate(-50%,-50%) scale(1)}",
+    "100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}",
     ".dp-fx{position:absolute;z-index:1;pointer-events:none;font-size:17px;",
     "animation:dp-rise 1.1s ease-out forwards}",
     "@keyframes dp-rise{0%{opacity:0;transform:translate(var(--dx0,0),4px) scale(.5)}18%{opacity:1}",
@@ -1789,6 +1799,34 @@
     var isStopped = deps.isStopped;
     var reactTimer = null;
     var bubbleTimer = null;
+    var transformTimer = null;
+    var transformLayer = null;
+    function transform(kind) {
+      if (transformTimer !== null) window.clearTimeout(transformTimer);
+      if (transformLayer !== null) transformLayer.remove();
+      var emojis = kind === "contract" ? ["\u{1F608}", "\u{1F525}"] : ["\u{1F451}", "\u2728"];
+      var layer = el("div", "dp-transform");
+      layer.setAttribute("aria-hidden", "true");
+      for (var i = 0; i < 16; i += 1) {
+        var falling = el("span", "dp-transform-fall", emojis[i % 2]);
+        falling.style.left = i * 47 % 101 + "%";
+        falling.style.setProperty("--delay", i % 5 * 0.07 + "s");
+        falling.style.setProperty("--drift", (i % 3 - 1) * 34 + "px");
+        layer.appendChild(falling);
+      }
+      var center = pig.getBoundingClientRect();
+      var pop = el("span", "dp-transform-pop", emojis[0]);
+      pop.style.left = center.left + center.width / 2 + "px";
+      pop.style.top = center.top + center.height / 2 + "px";
+      layer.appendChild(pop);
+      document.body.appendChild(layer);
+      transformLayer = layer;
+      transformTimer = window.setTimeout(function() {
+        layer.remove();
+        if (transformLayer === layer) transformLayer = null;
+        transformTimer = null;
+      }, 1450);
+    }
     function react(kind, ms) {
       if (reactTimer !== null) window.clearTimeout(reactTimer);
       pig.removeAttribute("data-react");
@@ -1898,10 +1936,14 @@
     function dispose() {
       if (reactTimer !== null) window.clearTimeout(reactTimer);
       if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
+      if (transformTimer !== null) window.clearTimeout(transformTimer);
+      if (transformLayer !== null) transformLayer.remove();
       reactTimer = null;
       bubbleTimer = null;
+      transformTimer = null;
+      transformLayer = null;
     }
-    return { react, burst, flash, showBubble, showLine, toast, dispose };
+    return { react, burst, transform, flash, showBubble, showLine, toast, dispose };
   }
 
   // src/client/io.js
@@ -1932,15 +1974,17 @@
             ctx.showBubble(NO_ITEM_LINE[emptyKind] ?? "\u80CC\u5305\u91CC\u6CA1\u6709\u80FD\u7528\u7684\u4E1C\u897F", 3200);
             return;
           }
-          if (next.reason === "contract-ineligible") {
+          if (next.reason === "contract-ineligible" || next.reason === "coronation-ineligible") {
             var lacks = (Array.isArray(next.missing) ? next.missing : []).map(function(row) {
               return str(row.label, "") + " " + num(row.have, 0) + "/" + num(row.need, 0);
             }).join(" \xB7 ");
-            ctx.showBubble(lacks === "" ? "\u5951\u7EA6\u8FD8\u6CA1\u751F\u6548" : "\u5951\u7EA6\u8FD8\u6CA1\u751F\u6548\uFF0C\u8FD8\u5DEE\uFF1A" + lacks, 3400);
+            var actionName = next.reason === "contract-ineligible" ? "\u7B7E\u7EA6" : "\u52A0\u5195";
+            ctx.showBubble(lacks === "" ? actionName + "\u6761\u4EF6\u8FD8\u6CA1\u9F50" : actionName + "\u8FD8\u5DEE\uFF1A" + lacks, 3400);
             return;
           }
           var reasons = {
             box: "\u5148\u628A\u7EB8\u76D2\u62C6\u5F00",
+            "needs-item": "\u8FD8\u6CA1\u6709\u738B\u51A0\uFF0C\u53BB\u5546\u5E97\u7684\u664B\u5347\u8D27\u67B6\u4E70",
             "coronation-ineligible": "\u52A0\u5195\u6761\u4EF6\u8FD8\u6CA1\u9F50",
             "contract-ineligible": "\u5951\u7EA6\u8FD8\u6CA1\u751F\u6548\uFF1A\u6761\u4EF6\u6CA1\u8865\u9F50",
             "needs-contract": "\u8FD9\u4E00\u79CD\u8981\u7B7E\u7EA6\uFF0C\u4E0D\u662F\u52A0\u5195",
@@ -2320,6 +2364,7 @@
         worn: obj(item).worn === true,
         unlocked: obj(item).unlocked !== false,
         blurb: str(obj(item).blurb, ""),
+        useLabel: str(obj(item).useLabel, "\u4F7F\u7528"),
         affordable: obj(item).affordable === true,
         needed: obj(item).needed === true
       })).filter((item) => item.key !== ""),
@@ -2411,12 +2456,13 @@
           var f = obj(raw2);
           return {
             key: str(f.key, ""),
-            via: str(f.via, "coronation"),
+            via: str(f.via, "item"),
+            item: str(f.item, ""),
             label: str(f.label, ""),
             emoji: str(f.emoji, "\u{1F451}"),
             art: str(f.art, ""),
+            hasItem: f.hasItem === true,
             stage: str(f.stage, ""),
-            // 老宿主不发 fromLevel：给 1，等于「不用拉等级」。
             fromLevel: num(f.fromLevel, 1),
             current: f.current === true,
             ready: f.ready === true,
@@ -2581,7 +2627,7 @@
     }
     if (ui.view.dead) ui.content.appendChild(el("div", "dp-empty", "\u5B83\u8D70\u4E86\uFF0C\u6551\u56DE\u6765\u624D\u80FD\u52A0\u5195"));
     for (var f = 0; f < forms.forms.length; f += 1) {
-      if (forms.forms[f].via !== "coronation") continue;
+      if (forms.forms[f].item !== "crown") continue;
       ui.content.appendChild(formBlock(ui, forms.forms[f]));
     }
   }
@@ -2624,8 +2670,7 @@
       var go = button("dp-btn dp-btn-wide", { "data-crown": form.key }, function() {
         ui.send("crown", { form: form.key });
       });
-      go.textContent = form.ready ? "\u{1F451} \u52A0\u5195" : "\u6761\u4EF6\u9F50\u4E86\u5C31\u80FD\u52A0\u5195";
-      go.disabled = !form.ready;
+      go.textContent = form.hasItem ? "\u{1F451} \u52A0\u5195" : "\u53BB\u5546\u5E97\u4E70\u738B\u51A0";
       box.appendChild(go);
     }
     return box;
@@ -3149,7 +3194,7 @@
       ctx.icons.study.setAttribute("data-alert", hasCourse ? "true" : "false");
       ctx.icons.shop.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.illness !== null ? "true" : "false");
       ctx.icons.crown.setAttribute("data-alert", ctx.view.forms !== null && ctx.view.forms.forms.some(function(f) {
-        return f.ready;
+        return f.item === "crown" && f.hasItem && f.ready;
       }) ? "true" : "false");
       ctx.icons.travel.setAttribute("data-alert", ctx.view.pig !== null && ctx.view.pig.coins >= 400 ? "true" : "false");
       for (var i = 0; i < ctx.view.pending.length; i += 1) {
@@ -3165,10 +3210,10 @@
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
         if (event.kind === "coronation") {
           ctx.react("levelup", 950);
-          ctx.burst(["\u{1F451}", "\u2728"], 3);
+          ctx.transform("crown");
         } else if (event.kind === "contract") {
           ctx.react("levelup", 950);
-          ctx.burst(["\u{1F608}", "\u{1F4DC}"], 3);
+          ctx.transform("contract");
         } else if (event.kind === "levelup") {
           ctx.react("levelup", 950);
           ctx.burst(["\u2728", "\u{1F389}"], 3);
@@ -3456,6 +3501,7 @@
           flash,
           react,
           burst,
+          transform: fx.transform,
           showBubble,
           showLine,
           toast,

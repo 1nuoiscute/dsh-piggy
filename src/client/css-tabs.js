@@ -237,6 +237,17 @@ export const CSS_TABS = [
   'white-space:pre-wrap;word-break:break-word}',
 
   /* ---------- particles and toast ---------- */
+  '.dp-transform{position:fixed;inset:0;z-index:2147483647;pointer-events:none;overflow:hidden}',
+  '.dp-transform-fall{position:absolute;top:-48px;font-size:28px;opacity:0;',
+  'animation:dp-transform-fall 1.35s var(--delay) ease-in forwards}',
+  '@keyframes dp-transform-fall{0%{opacity:0;transform:translate3d(0,-20px,0) rotate(-15deg)}',
+  '12%{opacity:1}100%{opacity:0;transform:translate3d(var(--drift),105vh,0) rotate(30deg)}}',
+  '.dp-transform-pop{position:absolute;font-size:72px;line-height:1;filter:drop-shadow(0 3px 8px #fff);',
+  'animation:dp-transform-pop 1.3s ease-out forwards}',
+  '@keyframes dp-transform-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.15)}',
+  '35%{opacity:1;transform:translate(-50%,-50%) scale(1.25)}',
+  '70%{opacity:1;transform:translate(-50%,-50%) scale(1)}',
+  '100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}',
   '.dp-fx{position:absolute;z-index:1;pointer-events:none;font-size:17px;',
   'animation:dp-rise 1.1s ease-out forwards}',
   '@keyframes dp-rise{0%{opacity:0;transform:translate(var(--dx0,0),4px) scale(.5)}18%{opacity:1}',

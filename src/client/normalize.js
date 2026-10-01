@@ -239,6 +239,7 @@ export function normalize(raw) {
       worn: obj(item).worn === true,
       unlocked: obj(item).unlocked !== false,
       blurb: str(obj(item).blurb, ''),
+      useLabel: str(obj(item).useLabel, '使用'),
       affordable: obj(item).affordable === true,
       needed: obj(item).needed === true,
     })).filter(item => item.key !== ''),
@@ -329,7 +330,8 @@ export function normalize(raw) {
       forms: arr(d.forms.forms).map(function (raw) {
         var f = obj(raw)
         return {
-          key: str(f.key, ''), via: str(f.via, 'coronation'), label: str(f.label, ''), emoji: str(f.emoji, '👑'), art: str(f.art, ''),
+          key: str(f.key, ''), via: str(f.via, 'item'), item: str(f.item, ''), label: str(f.label, ''), emoji: str(f.emoji, '👑'), art: str(f.art, ''),
+          hasItem: f.hasItem === true,
           stage: str(f.stage, ''),
           fromLevel: num(f.fromLevel, 1),
           current: f.current === true, ready: f.ready === true,

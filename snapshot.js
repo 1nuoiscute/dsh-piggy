@@ -357,6 +357,7 @@ function shopFor(state) {
       worn: dress.get(item.key)?.worn === true,
       unlocked,
       blurb: item.blurb ?? '',
+      useLabel: item.useLabel ?? '使用',
       affordable: state === null ? false : state.coins >= item.price,
       // The one cure the pig needs right now (B3: a medicine per illness stage).
       needed: neededCure !== null && item.key === neededCure,
