@@ -62,6 +62,13 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - 兴趣课上满 5 次拿证；打工、上课回来会随机带东西。
 - 旧的 23 门课按对照表并进九门课的课时；正在打的旧工作按旧报酬结算。
 
+### Documentation
+- README 截图使用仓库相对路径；补充独立克隆、源码构建及 Windows PowerShell 入门。
+- 开发目录说明适配 packages/pet-core，构建工具固定为已验证版本。
+
+### Verification（文档）
+- 本地链接、构建、类型检查及完整自动测试通过；客户端生成产物保持与上游一致。
+
 ## [Unreleased] — 批次 0 框架
 
 ### Changed（内部）
