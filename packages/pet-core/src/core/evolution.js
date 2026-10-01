@@ -17,14 +17,16 @@ function stageLevel(stageKey) {
   return LIFE_STAGES.find(stage => stage.key === stageKey)?.fromLevel ?? 0
 }
 
+const REQUIREMENT_LABELS = Object.freeze({ jobs: '打工', plays: '本代玩耍' })
+
 /** One form's conditions, each with what the pig has now. */
 function requirementsFor(state, form) {
   const rows = [{ key: 'level', label: '等级', have: levelFor(state.xp), need: stageLevel(form.stage) }]
   for (const [key, need] of Object.entries(form.requires)) {
     rows.push({
       key,
-      label: key === 'jobs' ? '打工' : (TRAITS[key]?.label ?? key),
-      have: key === 'jobs' ? (state.stats?.jobs ?? 0) : (state.traits?.[key] ?? 0),
+      label: REQUIREMENT_LABELS[key] ?? TRAITS[key]?.label ?? key,
+      have: key === 'jobs' || key === 'plays' ? (state.stats?.[key] ?? 0) : (state.traits?.[key] ?? 0),
       need,
     })
   }

@@ -2150,3 +2150,29 @@ test('the desktop app gets a 退出 tile that asks the shell to close, and DSH d
   openPanel(plain.dom, 'home')
   assert.equal(findByAttr(contentOf(plain.dom), 'data-app', 'quit'), undefined)
 })
+
+test('devil appears beside king with real condition progress and sends its own form key', async () => {
+  const { formsView, hatchEgg } = await import('../core.js')
+  const { xpForLevel } = await import('../data.js')
+  for (const plays of [19, 20]) {
+    const state = hatchEgg(1_800_000_000_000)
+    Object.assign(state, { xp: xpForLevel(40), traits: { intel: 0, strong: 20, charm: 20 }, happiness: 10 })
+    state.stats.plays = plays
+    const { registration, dom, net } = await loadClient({ status: { ...SNAPSHOT, profile: PROFILE, forms: formsView(state) } })
+    registration.factory(() => {}).apply({})
+    await settle()
+    openPanel(dom, 'crown')
+    assert.notEqual(findByAttr(contentOf(dom), 'data-form', 'king'), undefined)
+    const block = findByAttr(contentOf(dom), 'data-form', 'devil')
+    assert.match(block.allText(), new RegExp('本代玩耍 ' + plays + '/20'))
+    const go = findByAttr(block, 'data-crown', 'devil')
+    assert.equal(go.disabled, plays < 20)
+    if (plays === 20) {
+      go.fire('click')
+      await settle()
+      const posts = net.calls.filter(call => call.method === 'POST')
+      assert.equal(posts.length, 1)
+      assert.deepEqual(JSON.parse(posts[0].body), { action: 'crown', form: 'devil' })
+    }
+  }
+})

@@ -17,7 +17,7 @@
  * @property {boolean} actionArt 有没有喂食、打工等各个动作的立绘
  * @property {string} line
  * @property {string} stage     到了哪个阶段（data/life.js 的 key）才能加冕
- * @property {Readonly<Record<string, number>>} requires  三维各要多少，`jobs` 是本代打完几份工
+ * @property {Readonly<Record<string, number>>} requires  三维各要多少，`jobs` / `plays` 是本代完成的打工 / 玩耍次数
  * @property {readonly string[]} hides  这身样子盖住的装扮位置
  */
 
@@ -28,6 +28,13 @@ export const FORMS = Object.freeze([
     line: '阅历与本事都攒够了，戴上自己的王冠。',
     stage: 'middle',
     requires: Object.freeze({ intel: 20, charm: 20, strong: 20, jobs: 10 }),
+    hides: Object.freeze(['head', 'back']),
+  }),
+  Object.freeze({
+    key: 'devil', label: '恶魔猪', emoji: '😈', art: 'pig-devil', actionArt: true,
+    line: '玩出了本事，也玩出了自己的小脾气。',
+    stage: 'middle',
+    requires: Object.freeze({ strong: 20, charm: 20, plays: 20 }),
     hides: Object.freeze(['head', 'back']),
   }),
 ])
