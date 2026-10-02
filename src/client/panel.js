@@ -22,6 +22,7 @@ import { renderUpdateTab, updatesBridge } from './tabs/update.js'
 import { renderShopTab } from './tabs/shop.js'
 import { renderStatusTab } from './tabs/status.js'
 import { renderStudyTab } from './tabs/study.js'
+import { renderSkinsTab } from './tabs/skins.js'
 import { renderTravelTab } from './tabs/travel.js'
 import { renderWorkTab } from './tabs/work.js'
 import { str } from './values.js'
@@ -152,6 +153,7 @@ export function createPanel(ctx) {
         if (ctx.tab === 'status') renderStatusTab(ctx)
         else if (ctx.tab === 'card') renderCardTab(ctx)
         else if (ctx.tab === 'dex') renderDexTab(ctx)
+        else if (ctx.tab === 'skins') renderSkinsTab(ctx)
         else if (ctx.tab === 'study') renderStudyTab(ctx)
         else if (ctx.tab === 'work') renderWorkTab(ctx)
         else if (ctx.tab === 'shop') renderShopTab(ctx)
@@ -222,6 +224,7 @@ export function createPanel(ctx) {
             ctx.pigEmoji.hidden = true
             ctx.pig.setAttribute('data-art', pigStage.art)
             ctx.pig.setAttribute('data-art-actions', pigStage.actionArt ? 'true' : 'false')
+            ctx.pig.setAttribute('data-art-scenes', pigStage.artScenes.join(','))
             ctx.host.setAttribute('data-art-actions', pigStage.actionArt ? 'true' : 'false')
             ctx.pig.setAttribute('data-activity', ctx.view.activity === null ? '' : ctx.view.activity.kind)
             syncPigArt(ctx.pig, ctx.pigArt)
@@ -232,6 +235,7 @@ export function createPanel(ctx) {
             ctx.pigEmoji.textContent = pigStage.emoji
             ctx.pig.removeAttribute('data-art')
             ctx.pig.removeAttribute('data-art-actions')
+            ctx.pig.removeAttribute('data-art-scenes')
             ctx.host.removeAttribute('data-art-actions')
           }
           // Literally grows up: the stage carries its own size.

@@ -20,6 +20,7 @@
     { key: "status", label: "\u72B6\u6001", emoji: "\u{1F4CB}" },
     { key: "card", label: "\u5C45\u6C11\u5361", emoji: "\u{1FAAA}" },
     { key: "dex", label: "\u56FE\u9274", emoji: "\u{1F4D6}" },
+    { key: "skins", label: "\u6362\u80A4", emoji: "\u{1F3A8}" },
     { key: "study", label: "\u5B66\u4E60", emoji: "\u{1F4DA}" },
     { key: "work", label: "\u6253\u5DE5", emoji: "\u{1F4BC}" },
     { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
@@ -538,6 +539,22 @@
     { key: "fish_moon", label: "\u6708\u5F71\u9C7C", emoji: "\u{1F319}", rarity: "legend", times: ["night"], behavior: "mixed", difficulty: 100, minCm: 60, maxCm: 160, price: 300 }
   ]);
 
+  // packages/pet-core/src/data/skins.js
+  var SKIN_SCENES = Object.freeze(["idle", "eat", "bathe", "play", "pet", "relaxed", "work", "study", "trip", "fish"]);
+  var REQUIRED_SKIN_SCENES = Object.freeze(SKIN_SCENES.slice(0, 5));
+  var SKINS = Object.freeze([
+    Object.freeze({
+      key: "mint",
+      label: "\u8584\u8377\u5C0F\u732A",
+      emoji: "\u{1F33F}",
+      art: "skin-mint",
+      author: "dsh-piggy",
+      description: "\u50CF\u4E00\u53E3\u8584\u8377\u6C7D\u6C34\uFF0C\u6E05\u6E05\u51C9\u51C9\u3002",
+      scenes: Object.freeze(["idle", "eat", "bathe", "play", "pet"]),
+      custom: false
+    })
+  ]);
+
   // src/client/tabs/dev.js
   function renderDevTab(ui) {
     var topBar = el("div", "dp-dev-row");
@@ -602,6 +619,12 @@
       ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u732A\u3002\u5148\u300C\u62C6\u5F00\u7EB8\u76D2\u300D\u518D\u8C03\u3002"));
       return;
     }
+    var skinRows = ui.view.skins?.entries?.length > 0 ? ui.view.skins.entries : SKINS;
+    group("\u76AE\u80A4", skinRows.map(function(skin) {
+      return { key: "skin:" + skin.key, label: skin.emoji + " " + skin.label, run: function() {
+        ui.send("skin", { skin: skin.key });
+      } };
+    }), "\u5F62\u6001\u663E\u793A\u4F18\u5148\u4E8E\u76AE\u80A4\uFF1B\u6062\u590D\u666E\u901A\u5F62\u6001\u5373\u53EF\u770B\u5230\u76AE\u80A4\u3002");
     group("\u9053\u5177", forms.filter(function(form) {
       return form.item !== "";
     }).map(function(form) {
@@ -1802,8 +1825,13 @@
 .dp-fish-qte{width:100%;min-height:318px;border:0;border-radius:18px;padding:15px 12px 12px;box-sizing:border-box;background:linear-gradient(155deg,#eefcff,#d8f3f8);display:flex;flex-direction:column;align-items:center;gap:9px;color:#294950;cursor:pointer;touch-action:manipulation;outline:0}.dp-fish-qte:focus-visible{box-shadow:0 0 0 3px #43b96f}.dp-fish-qte-title{font-size:15px;font-weight:800}.dp-fish-qte-ring{position:relative;width:178px;height:178px;border-radius:50%;box-shadow:0 3px 12px #246a7a44,inset 0 0 0 2px #fff;transform:rotate(-90deg)}.dp-fish-qte-ring:after{content:"";position:absolute;inset:17px;border-radius:50%;background:#f8feff;box-shadow:inset 0 2px 8px #8ab7c044}.dp-fish-qte-needle{position:absolute;z-index:3;left:50%;bottom:50%;width:4px;height:47%;border-radius:4px;background:#ed5d55;box-shadow:0 0 0 1px #fff,0 0 6px #d64a45;transform-origin:50% 100%}.dp-fish-qte-needle:after{content:"";position:absolute;top:-5px;left:-3px;width:10px;height:10px;border-radius:50%;background:#ed5d55}.dp-fish-qte-core{position:absolute;z-index:4;inset:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#fff 0 48%,#e9f9fb 70%);font-size:42px;transform:rotate(90deg)}.dp-fish-qte-score{font-size:14px}.dp-fish-qte-feedback{min-height:18px;font-size:12px;color:#55727a}.dp-fish-help{text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
 `;
 
+  // src/client/css-skins.js
+  var CSS_SKINS = `
+.dp-skin-intro{display:grid;gap:4px;padding:10px 12px;margin-bottom:10px;border-radius:14px;background:#f3edff;color:#55426f}.dp-skin-intro span{font-size:11px;line-height:1.5}.dp-skin-grid{display:grid;gap:8px}.dp-skin-card{display:grid;grid-template-columns:64px 1fr auto;align-items:center;gap:9px;padding:8px;border:1px solid #eadff5;border-radius:14px;background:#fff}.dp-skin-current{border-color:#a883d0;box-shadow:0 0 0 2px #efe3ff inset}.dp-skin-art{width:60px;height:60px;object-fit:contain}.dp-skin-copy{display:grid;gap:3px;min-width:0}.dp-skin-copy small{color:#81758d;font-size:10px;line-height:1.35}.dp-skin-pick{border:0;border-radius:10px;padding:7px 9px;background:#8d67b6;color:#fff;font-weight:700}.dp-skin-pick:disabled{background:#ded4e8;color:#766a80}.dp-skin-import{display:grid;place-items:center;gap:5px;margin-top:10px;padding:14px 10px;border:1px dashed #a98ac8;border-radius:14px;background:#fbf8ff;color:#665276;text-align:center;cursor:pointer}.dp-skin-import span{font-size:10px}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{display:inline-block!important;padding:5px 12px;border-radius:9px;background:#8d67b6;color:#fff;font-weight:700}
+`;
+
   // src/client/styles.js
-  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING;
+  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS;
 
   // src/client/tabs/travel.js
   function renderTravelTab(ui) {
@@ -1975,14 +2003,15 @@
 
   // src/client/art.js
   var REACTION_ART = { feed: "eat", bathe: "bathe", play: "play", pet: "pet", cure: "relaxed", levelup: "relaxed" };
-  var ACTIVITY_ART = { work: "work", study: "study", interest: "study", trip: "trip" };
+  var ACTIVITY_ART = { work: "work", study: "study", interest: "study", trip: "trip", fishing: "fish" };
   function syncPigArt(pig, image) {
     var base = pig.getAttribute("data-art");
     if (!base) return;
     var art = base;
     if (pig.getAttribute("data-art-actions") === "true") {
       var action = REACTION_ART[pig.getAttribute("data-react")] || ACTIVITY_ART[pig.getAttribute("data-activity")];
-      if (action) art += "-" + action;
+      var scenes = String(pig.getAttribute("data-art-scenes") || "").split(",");
+      if (action && (scenes[0] === "" || scenes.indexOf(action) >= 0)) art += "-" + action;
     }
     var src = ART_URL + art + ".svg";
     if (image.getAttribute("src") !== src) image.src = src;
@@ -2478,6 +2507,28 @@
     };
   }
 
+  // src/client/normalize-skins.js
+  function normalizeSkins(raw) {
+    const source = obj(raw);
+    return {
+      current: str(source.current, "default"),
+      entries: arr(source.entries).map(function(value) {
+        const entry = obj(value);
+        return {
+          key: str(entry.key, ""),
+          label: str(entry.label, "\u76AE\u80A4"),
+          emoji: str(entry.emoji, "\u{1F3A8}"),
+          art: str(entry.art, ""),
+          author: str(entry.author, ""),
+          description: str(entry.description, ""),
+          custom: entry.custom === true,
+          current: entry.current === true,
+          scenes: arr(entry.scenes).filter((scene) => typeof scene === "string")
+        };
+      }).filter((entry) => entry.key !== "")
+    };
+  }
+
   // src/client/normalize.js
   function normalize(raw) {
     var d = obj(raw);
@@ -2485,8 +2536,6 @@
     var legacy = pig !== null && !("coins" in pig) && !("health" in pig);
     return {
       legacy,
-      // Host build version, shown in the debug tab so a stale bundle is
-      // visible instead of being guessed at.
       version: str(d.version, ""),
       // Trust the flag when the host sends one. Older hosts did not, and for
       // those "a pig exists" is still the right answer.
@@ -2506,6 +2555,7 @@
           faded: obj(pig.stage).faded === true,
           // 加冕后的形态：有没有动作立绘、盖住哪些装扮位置。
           actionArt: obj(pig.stage).actionArt === true,
+          artScenes: arr(obj(pig.stage).artScenes).filter((scene) => typeof scene === "string"),
           hides: arr(obj(pig.stage).hides).map(function(slot) {
             return str(slot, "");
           })
@@ -2724,6 +2774,7 @@
       })).filter((item) => item.key !== ""),
       inventory: obj(d.inventory),
       dex: normalizeDex(d.dex),
+      skins: normalizeSkins(d.skins),
       fishing: normalizeFishing(d.fishing),
       daily: {
         canSignIn: obj(d.daily).canSignIn === true,
@@ -3199,6 +3250,15 @@
     if (entry.acquired) {
       card.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
       card.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
+      if (section.key === "skins") {
+        const current = ui.view.skins.current === entry.key;
+        const pick = button("dp-skin-pick", { "data-dex-skin": entry.key }, function() {
+          ui.send("skin", { skin: entry.key });
+        });
+        pick.textContent = current ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528\u8FD9\u6B3E\u76AE\u80A4";
+        pick.disabled = current;
+        card.appendChild(pick);
+      }
     } else {
       const riddle = el("div", "dp-dex-riddle");
       riddle.appendChild(el("b", null, "\u89E3\u9501\u8C1C\u9762"));
@@ -3459,6 +3519,7 @@
     status: "green",
     card: "pink",
     dex: "purple",
+    skins: "purple",
     study: "yellow",
     work: "orange",
     shop: "red",
@@ -3697,6 +3758,65 @@
     return box;
   }
 
+  // src/client/tabs/skins.js
+  function renderSkinsTab(ui) {
+    const intro = el("div", "dp-skin-intro");
+    intro.appendChild(el("b", null, "\u7ED9\u732A\u732A\u6362\u4EF6\u65B0\u8863\u670D"));
+    intro.appendChild(el("span", null, "\u5F62\u6001\u4F1A\u4F18\u5148\u663E\u793A\uFF1B\u6062\u590D\u666E\u901A\u5F62\u6001\u540E\uFF0C\u9009\u4E2D\u7684\u76AE\u80A4\u4ECD\u4F1A\u4FDD\u7559\u3002"));
+    ui.content.appendChild(intro);
+    const grid = el("div", "dp-skin-grid");
+    for (const skin of ui.view.skins.entries) grid.appendChild(skinCard(ui, skin));
+    ui.content.appendChild(grid);
+    ui.content.appendChild(importCard(ui));
+  }
+  function skinCard(ui, skin) {
+    const card = el("div", "dp-skin-card" + (skin.current ? " dp-skin-current" : ""));
+    const img = (
+      /** @type {HTMLImageElement} */
+      el("img", "dp-skin-art")
+    );
+    img.src = ART_URL + skin.art + ".svg";
+    img.alt = skin.label;
+    card.appendChild(img);
+    const copy = el("span", "dp-skin-copy");
+    copy.appendChild(el("b", null, skin.emoji + " " + skin.label));
+    copy.appendChild(el("small", null, skin.description || "\u4F5C\u8005\uFF1A" + skin.author));
+    card.appendChild(copy);
+    const pick = button("dp-skin-pick", { "data-skin": skin.key }, function() {
+      ui.send("skin", { skin: skin.key });
+    });
+    pick.textContent = skin.current ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
+    pick.disabled = skin.current;
+    card.appendChild(pick);
+    return card;
+  }
+  function importCard(ui) {
+    const wrap = el("label", "dp-skin-import");
+    wrap.appendChild(el("b", null, "\u{1F4E6} \u5BFC\u5165\u81EA\u5DF1\u7684\u76AE\u80A4"));
+    wrap.appendChild(el("span", null, "\u9009\u62E9\u6309\u6559\u7A0B\u5236\u4F5C\u7684 ZIP\uFF1B\u5BFC\u5165\u6210\u529F\u540E\u4F1A\u81EA\u52A8\u4F7F\u7528\u3002"));
+    const input = (
+      /** @type {HTMLInputElement} */
+      el("input")
+    );
+    input.type = "file";
+    input.accept = ".zip,application/zip";
+    input.setAttribute("accept", ".zip,application/zip");
+    input.setAttribute("data-skin-import", "zip");
+    input.addEventListener("change", function() {
+      const file = input.files?.[0];
+      if (!file) return;
+      fetch("/dsh-piggy/skins/import", { method: "POST", headers: { "content-type": "application/zip" }, body: file }).then((response) => response.json()).then((data) => {
+        if (data.ok !== true) return ui.showBubble("\u5BFC\u5165\u5931\u8D25\uFF1A" + ((data.errors || [data.reason]).join("\uFF1B") || "\u8BF7\u68C0\u67E5\u76AE\u80A4\u5305"));
+        ui.view = data;
+        ui.renderContent();
+        ui.showBubble("\u76AE\u80A4\u5BFC\u5165\u6210\u529F \u{1F3A8}");
+      }).catch(() => ui.showBubble("\u5BFC\u5165\u5931\u8D25\uFF1A\u65E0\u6CD5\u8BFB\u53D6\u76AE\u80A4\u5305"));
+    });
+    wrap.appendChild(input);
+    wrap.appendChild(el("span", "dp-skin-file", "\u9009\u62E9 ZIP"));
+    return wrap;
+  }
+
   // src/client/panel.js
   var URGENT_KINDS = ["sick", "worse", "death", "cured", "revived"];
   function createPanel(ctx) {
@@ -3799,6 +3919,7 @@
       if (ctx.tab === "status") renderStatusTab(ctx);
       else if (ctx.tab === "card") renderCardTab(ctx);
       else if (ctx.tab === "dex") renderDexTab(ctx);
+      else if (ctx.tab === "skins") renderSkinsTab(ctx);
       else if (ctx.tab === "study") renderStudyTab(ctx);
       else if (ctx.tab === "work") renderWorkTab(ctx);
       else if (ctx.tab === "shop") renderShopTab(ctx);
@@ -3859,6 +3980,7 @@
           ctx.pigEmoji.hidden = true;
           ctx.pig.setAttribute("data-art", pigStage.art);
           ctx.pig.setAttribute("data-art-actions", pigStage.actionArt ? "true" : "false");
+          ctx.pig.setAttribute("data-art-scenes", pigStage.artScenes.join(","));
           ctx.host.setAttribute("data-art-actions", pigStage.actionArt ? "true" : "false");
           ctx.pig.setAttribute("data-activity", ctx.view.activity === null ? "" : ctx.view.activity.kind);
           syncPigArt(ctx.pig, ctx.pigArt);
@@ -3869,6 +3991,7 @@
           ctx.pigEmoji.textContent = pigStage.emoji;
           ctx.pig.removeAttribute("data-art");
           ctx.pig.removeAttribute("data-art-actions");
+          ctx.pig.removeAttribute("data-art-scenes");
           ctx.host.removeAttribute("data-art-actions");
         }
         ctx.host.style.setProperty("--pig-size", pigStage.size + "px");

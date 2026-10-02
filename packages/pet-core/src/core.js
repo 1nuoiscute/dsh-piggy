@@ -99,3 +99,5 @@ export { abandonPomodoro, awayFromPomodoro, emptyPomodoro, ensurePomodoro, pomod
 export { bodyWeightClass, bodyWeightView, ensureBodyWeight, idealWeightG, reduceFishingWeight, reducePlayWeight, reduceWorkWeight, setBodyWeightClass, settleWeight, weightStageView } from './core/weight.js'
 export { castFishing, emptyFishing, ensureFishing, feedFish, finishAutoFishing, fishingPeriod, fishingView, grantFish, hookFishing, keepFish, resolveFishing, sellFish, skipFishingWait, startAutoFishing } from './core/fishing.js'
 export { FISH, fishByKey } from './data.js'
+export { SKINS, SKIN_SCENES, REQUIRED_SKIN_SCENES, skinByKey } from './data.js'
+export { allSkins, ensureSkins, registerCustomSkin, selectSkin, skinStageView, skinView } from './core/skins.js'

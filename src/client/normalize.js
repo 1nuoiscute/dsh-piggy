@@ -8,15 +8,13 @@
 import { MODES } from './constants.js'
 import { arr, isObj, num, obj, str } from './values.js'
 import { normalizeFishing } from './normalize-fishing.js'
-/** Map any host payload onto the fully populated view model. */
+import { normalizeSkins } from './normalize-skins.js'
 export function normalize(raw) {
   var d = obj(raw)
   var pig = isObj(d.pig) ? d.pig : null
   var legacy = pig !== null && !('coins' in pig) && !('health' in pig)
   return {
     legacy: legacy,
-    // Host build version, shown in the debug tab so a stale bundle is
-    // visible instead of being guessed at.
     version: str(d.version, ''),
     // Trust the flag when the host sends one. Older hosts did not, and for
     // those "a pig exists" is still the right answer.
@@ -36,6 +34,7 @@ export function normalize(raw) {
         faded: obj(pig.stage).faded === true,
         // 加冕后的形态：有没有动作立绘、盖住哪些装扮位置。
         actionArt: obj(pig.stage).actionArt === true,
+        artScenes: arr(obj(pig.stage).artScenes).filter(scene => typeof scene === 'string'),
         hides: arr(obj(pig.stage).hides).map(function (slot) { return str(slot, '') }),
       },
       // Older hosts send no sex; the HUD then simply shows none.
@@ -245,6 +244,7 @@ export function normalize(raw) {
     })).filter(item => item.key !== ''),
     inventory: obj(d.inventory),
     dex: normalizeDex(d.dex),
+    skins: normalizeSkins(d.skins),
     fishing: normalizeFishing(d.fishing),
     daily: {
       canSignIn: obj(d.daily).canSignIn === true,

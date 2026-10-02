@@ -98,7 +98,7 @@
 - 截图：`docs/screenshots/c5-cast-auto.png`、`c5-minigame.png`、`c5-catch-result.png`、`c5-fish-bag.png`；10 秒录屏：`docs/screenshots/c5-fishing.webm`。抛竿页、小游戏截图和录屏已按单击抛竿与三圈容错重拍；Playwright 控制台与 page error 均为 0。
 
 ## C6 换肤（Codex）
-- `data/skins.js`：`{key, label, emoji, art, price, actionArt}`；默认皮肤 `default`（现有 piglet）。`state.skin`（`ensureSkin`），商店「🎨 皮肤」货架，买后背包「换上」。
+- `data/skins.js`：`{key, label, emoji, art, scenes, author, description}`；默认皮肤 `default`（现有 piglet）。`state.skin` 与 `state.customSkins` 由 `ensureSkins` 给老存档补齐，不升存档版本。皮肤不进入商店和背包；主菜单「🎨 换肤」与图鉴皮肤详情都能切换。
 - 立绘查找顺序：形态（王/恶魔）> 皮肤 > 默认。**形态优先，皮肤被盖住**（用户说进化形态不管）。缺动作图时回落到该皮肤待机图。
 - 先放 1 个占位皮肤（把 piglet.svg 换色）走通流程，等用户的图再加。
 
@@ -140,6 +140,15 @@ my-skin.zip
 `skin.json` 至少写 `key`、`label`、`author`，可选 `description`；`key` 只允许小写字母、数字和连字符。导入时逐个校验 SVG 尺寸与禁用元素，文件缺失或格式不合格时列清单，不写入半套皮肤。C6 实现时同时提交 `docs/examples/skin-pack/` 和可直接下载的 `docs/examples/skin-pack-example.zip` 作为参考包。
 
 显示优先级固定为：**晋升形态 > 当前皮肤 > 默认猪**。猪猪王或恶魔猪启用时仍保留用户选择的皮肤状态，但画面由形态覆盖；恢复普通形态后自动显示原先选择的皮肤。
+
+### 验证记录 — C6（Codex，2026-10-02）
+
+- 先写红测：核心测试最初因没有 `SKINS` 表失败，客户端测试因主菜单没有换肤 App 失败；导入包测试先因 `store/skin-pack.js` 不存在失败。实现后 `npm run build` 通过并重新生成 `client.js`（226319 bytes），`npm test` 445/445 通过，`npm run typecheck` 通过。
+- 主菜单新增「🎨 换肤」，皮肤不在商店、不进入背包。内置薄荷占位皮肤、默认皮肤和玩家皮肤均可直接切换；图鉴皮肤详情有同一条切换入口；调试页会从皮肤表与存档自动列出每一种皮肤。
+- 3084 实测导入 `docs/examples/skin-pack-example.zip` 成功，当前皮肤变为 `mint-example`，自定义立绘 `/dsh-piggy/art/custom-mint-example.svg` 返回 200。导入器先检查整包，要求根目录清单和 5 张必需 SVG，并拒绝外链、脚本、文字、位图、渐变、滤镜及错误视框，再统一落盘。
+- 3084 实测优先级：选中 `mint-example` 时普通形态使用 `custom-mint-example`；调试切到猪猪王后仍保留 `skin=mint-example`，画面使用 `pig-king`；恢复普通形态后自动回到 `custom-mint-example`。动作文件缺失时客户端按场景清单回落到该皮肤待机图。
+- 老存档由 `ensureSkins(state)` 补 `skin='default'` 和 `customSkins=[]`，未知或损坏的皮肤记录会被清理；存档版本保持 v12，未升级。
+- 教程与参考包：`docs/CUSTOM-SKINS.md`、`docs/examples/skin-pack/`、`docs/examples/skin-pack-example.zip`。截图：`docs/screenshots/c6-skins.png`、`c6-import.png`、`c6-dex-switch.png`；Playwright 使用 `/usr/bin/chromium`，控制台错误和 page error 均为 0。
 
 ## C7 胖猪（Codex）
 - 体重分 3 档：正常 / 圆润（≥ 理想体重 ×1.3）/ 胖胖（≥ ×1.6）；理想体重按等级取（Codex 从现有 weightG 增长数据算一张表写进数值单）。

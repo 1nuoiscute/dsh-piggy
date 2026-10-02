@@ -8,11 +8,14 @@
 import { readFileSync } from 'node:fs'
 
 import { snapshot } from './snapshot.js'
+import { customSkinArt, installSkinPack } from './store/skin-pack.js'
 
 const STATE_ROUTE = '/dsh-piggy/state'
 const ACT_ROUTE = '/dsh-piggy/act'
 const ART_ROUTE = '/dsh-piggy/art'
 const BODY_LIMIT_BYTES = 2048
+const SKIN_ROUTE = '/dsh-piggy/skins/import'
+const SKIN_LIMIT_BYTES = 2 * 1024 * 1024
 
 const str = value => (typeof value === 'string' ? value : '')
 
@@ -34,6 +37,17 @@ async function readJsonBody(req) {
   } catch {
     return null
   }
+}
+
+async function readBuffer(req, limit) {
+  const chunks = []
+  let size = 0
+  for await (const chunk of req) {
+    size += chunk.length
+    if (size > limit) return null
+    chunks.push(chunk)
+  }
+  return Buffer.concat(chunks)
 }
 
 /**
@@ -84,6 +98,7 @@ const OPERATIONS = {
   fishAuto: (store, body) => store.startAutoFishing(Number(body.minutes)),
   fishGive: (store, body) => store.grantFish(str(body.fish)),
   fishSkip: store => store.skipFishingWait(),
+  skin: (store, body) => store.selectSkin(str(body.skin)),
   calloff: store => store.callOffActivity(),
   buy: (store, body) => store.buy(str(body.item)),
   use: (store, body) => store.useItem(str(body.item)),
@@ -118,7 +133,7 @@ function registerStateRoute(webServer, store) {
  * Serving them from the package keeps the art as real .svg files in the
  * repository rather than a blob embedded in the client bundle.
  */
-function registerArtRoute(webServer) {
+function registerArtRoute(webServer, store) {
   return webServer.register({
     kind: 'prefix',
     path: ART_ROUTE,
@@ -128,14 +143,35 @@ function registerArtRoute(webServer) {
       const name = raw.startsWith(ART_ROUTE + '/') ? raw.slice(ART_ROUTE.length + 1) : ''
       // Only the files this package ships: a fixed, boring name pattern, so
       // nothing from the request can ever walk out of ./assets.
-      if (!/^[a-z][a-z0-9-]{0,31}\.svg$/.test(name)) return sendJson(res, 404, { error: 'not found' })
+      if (!/^[a-z][a-z0-9-]{0,63}\.svg$/.test(name)) return sendJson(res, 404, { error: 'not found' })
       try {
-        const svg = readFileSync(new URL('./assets/' + name, import.meta.url))
+        const custom = name.startsWith('custom-') ? customSkinArt(store.filePath, name) : null
+        const svg = custom ?? readFileSync(new URL('./assets/' + name, import.meta.url))
         res.writeHead(200, { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'no-cache' })
         res.end(svg)
       } catch (error) {
         console.warn(`[dsh-piggy] sprite missing: name="${name}" reason="${error instanceof Error ? error.message : String(error)}"`)
         sendJson(res, 404, { error: 'not found' })
+      }
+    },
+  })
+}
+
+function registerSkinRoute(webServer, store) {
+  return webServer.register({
+    kind: 'exact', path: SKIN_ROUTE,
+    handler: async (req, res) => {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed; use POST' }, { allow: 'POST' })
+      const zip = await readBuffer(req, SKIN_LIMIT_BYTES)
+      if (zip === null) return sendJson(res, 413, { ok: false, reason: 'too-large', errors: ['ZIP 不能超过 2 MB'] })
+      try {
+        const result = installSkinPack(store.filePath, zip)
+        if (!result.ok || result.metadata === undefined) return sendJson(res, 400, { ok: false, reason: 'invalid-pack', errors: result.errors })
+        const metadata = result.metadata
+        const selected = store.registerCustomSkin(metadata)
+        sendJson(res, selected.ok === false ? 400 : 200, { ...snapshot(store), ok: selected.ok !== false, imported: metadata.key })
+      } catch (error) {
+        sendJson(res, 400, { ok: false, reason: 'invalid-pack', errors: [error instanceof Error ? error.message : String(error)] })
       }
     },
   })
@@ -201,7 +237,8 @@ export function registerRoutes(ctx, store) {
     const disposers = []
     try {
       disposers.push(registerStateRoute(webServer, store))
-      disposers.push(registerArtRoute(webServer))
+      disposers.push(registerArtRoute(webServer, store))
+      disposers.push(registerSkinRoute(webServer, store))
       disposers.push(registerActRoute(webServer, store))
     } catch (error) {
       // A route already taken: the pig stays command-only rather than breaking

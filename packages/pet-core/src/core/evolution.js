@@ -14,6 +14,7 @@ import { announce, remember } from './effects.js'
 import { decay } from './settlement.js'
 import { recordDex } from './dex.js'
 import { weightStageView } from './weight.js'
+import { skinStageView } from './skins.js'
 
 /** The level a stage starts at (成年猪 → 40). */
 function stageLevel(stageKey) {
@@ -145,6 +146,6 @@ export function signContract(state, formKey, nowMs) {
 export function formStageView(state, nowMs) {
   const life = lifeStageFor(state, nowMs)
   const form = state === null ? null : formByKey(state.form)
-  if (form === null || life.key !== form.stage) return weightStageView(state, { ...life, actionArt: false, hides: [] }, nowMs)
+  if (form === null || life.key !== form.stage) return skinStageView(state, weightStageView(state, { ...life, actionArt: false, hides: [] }, nowMs))
   return { ...life, label: form.label, art: form.art, line: form.line, actionArt: form.actionArt, hides: [...form.hides] }
 }

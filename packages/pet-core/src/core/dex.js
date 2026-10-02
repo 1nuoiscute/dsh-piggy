@@ -1,7 +1,7 @@
 // @ts-check
 /** 图鉴的持久记录与面板视图。新增字段按需补齐，不升级存档版本。 */
 
-import { ALL_SOUVENIRS, FISH, FORMS, SHOP } from '../data.js'
+import { ALL_SOUVENIRS, FISH, FORMS, SHOP, SKINS } from '../data.js'
 
 export const DEX_SECTIONS = Object.freeze(['forms', 'skins', 'fish', 'items', 'souvenirs'])
 
@@ -90,7 +90,17 @@ export function dexView(state, formView, nowMs = 0) {
         requirements: progress?.requirements ?? [],
       }
     }),
-    skins: [],
+    skins: [
+      { key: 'default', label: '默认小猪', emoji: '🐷', art: 'piglet', description: '熟悉的小猪。', custom: false },
+      ...SKINS,
+      ...(Array.isArray(state.customSkins) ? state.customSkins : []),
+    ].map(skin => {
+      const record = found(dex, 'skins', skin.key)
+      return {
+        ...skin, acquired: true, firstAt: record?.firstAt ?? null, count: record?.count ?? 1,
+        hint: '换一种颜色，也还是熟悉的它。', condition: skin.custom ? '玩家导入' : '随版本收录',
+      }
+    }),
     fish: FISH.map(fish => {
       const record = found(dex, 'fish', fish.key)
       const behavior = { smooth: '游姿平稳', dash: '动作敏捷', sink: '喜欢往深处钻', rise: '常往水面游', mixed: '行踪难以捉摸' }[fish.behavior]

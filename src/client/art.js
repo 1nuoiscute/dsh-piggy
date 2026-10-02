@@ -8,7 +8,7 @@
 import { ART_URL } from './constants.js'
 
 var REACTION_ART = { feed: 'eat', bathe: 'bathe', play: 'play', pet: 'pet', cure: 'relaxed', levelup: 'relaxed' }
-var ACTIVITY_ART = { work: 'work', study: 'study', interest: 'study', trip: 'trip' }
+var ACTIVITY_ART = { work: 'work', study: 'study', interest: 'study', trip: 'trip', fishing: 'fish' }
 
 /**
  * Point the pig's <img> at the sprite its attributes call for. Only touches
@@ -22,7 +22,8 @@ export function syncPigArt(pig, image) {
   var art = base
   if (pig.getAttribute('data-art-actions') === 'true') {
     var action = REACTION_ART[pig.getAttribute('data-react')] || ACTIVITY_ART[pig.getAttribute('data-activity')]
-    if (action) art += '-' + action
+    var scenes = String(pig.getAttribute('data-art-scenes') || '').split(',')
+    if (action && (scenes[0] === '' || scenes.indexOf(action) >= 0)) art += '-' + action
   }
   var src = ART_URL + art + '.svg'
   if (image.getAttribute('src') !== src) image.src = src

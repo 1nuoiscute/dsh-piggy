@@ -55,6 +55,8 @@ import {
   sellFish as coreSellFish,
   skipFishingWait as coreSkipFishingWait,
   startAutoFishing as coreStartAutoFishing,
+  selectSkin as coreSelectSkin,
+  registerCustomSkin as coreRegisterCustomSkin,
 } from '../core.js'
 
 /**
@@ -149,6 +151,8 @@ export function createApi(control) {
     startAutoFishing: minutes => mutate(live => coreStartAutoFishing(live, Number(minutes), now())),
     grantFish: key => mutate(live => ({ ok: coreGrantFish(live, key, now()) !== null })),
     skipFishingWait: () => mutate(live => coreSkipFishingWait(live, now())),
+    selectSkin: key => mutate(live => coreSelectSkin(live, key, now())),
+    registerCustomSkin: metadata => mutate(live => coreRegisterCustomSkin(live, metadata, now())),
 
     /** Bring the pig home early (work forfeits pay; study/trips are refunded). */
     callOffActivity: () => mutate(live => coreCallOff(live, now())),

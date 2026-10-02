@@ -9,6 +9,7 @@
 import { button, el } from '../dom.js'
 import { num } from '../values.js'
 import { FISH } from '../../../packages/pet-core/src/data/fish.js'
+import { SKINS } from '../../../packages/pet-core/src/data/skins.js'
 
 export function renderDevTab(ui) {
   // 关掉调试模式就靠这个按钮（C1：没有快捷键，也不写 localStorage）。
@@ -73,6 +74,11 @@ export function renderDevTab(ui) {
     ui.content.appendChild(el('div', 'dp-empty', '还没有猪。先「拆开纸盒」再调。'))
     return
   }
+
+  var skinRows = ui.view.skins?.entries?.length > 0 ? ui.view.skins.entries : SKINS
+  group('皮肤', skinRows.map(function (skin) {
+    return { key: 'skin:' + skin.key, label: skin.emoji + ' ' + skin.label, run: function () { ui.send('skin', { skin: skin.key }) } }
+  }), '形态显示优先于皮肤；恢复普通形态即可看到皮肤。')
 
   group('道具', forms.filter(function (form) { return form.item !== '' }).map(function (form) {
     return {

@@ -10,6 +10,7 @@ import { CSS_TILES } from './css-tiles.js'
 import { CSS_CARD } from './css-card.js'
 import { CSS_DEX } from './css-dex.js'
 import { CSS_FISHING } from './css-fishing.js'
+import { CSS_SKINS } from './css-skins.js'
 
 /** The whole stylesheet, in the order it must be applied. */
-export const CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING
+export const CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS

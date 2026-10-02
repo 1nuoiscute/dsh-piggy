@@ -20,6 +20,7 @@ import { applyUpgrades } from './upgrades.js'
 import { ensureDex } from './dex.js'
 import { ensureBodyWeight } from './weight.js'
 import { ensureFishing } from './fishing.js'
+import { ensureSkins } from './skins.js'
 
 /** Fill in anything a hand-edited or older save is missing. */
 export function migrate(input, nowMs) {
@@ -89,6 +90,7 @@ export function migrate(input, nowMs) {
   ensureDex(state, nowMs)
   ensureBodyWeight(state)
   ensureFishing(state)
+  ensureSkins(state)
   return state
 }
 
