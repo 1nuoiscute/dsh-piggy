@@ -9,6 +9,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ### Added
 - GitHub 仓库补充 `dsh-plugin` topic；新增可安装的 `dsh-plugin-piggy` 别名包，供按包名前缀检索的第三方社区目录发现。别名包依赖原始 `dsh-piggy`，两者共用玩法与存档，每个 DSH profile 只需安装其中一个。
+- 按社区规则向 dsh-plugin.org [提交收录申请](https://github.com/dshplugin/dsh-plugin-hub/issues/79)，并向 awesome-dsh-plugin [提交作者自荐](https://github.com/bruc3van/awesome-dsh-plugin/pull/134)；目录均由第三方维护，收录仍待对方审核。
 
 ### Changed
 - README 的 DSH 安装说明改为可直接复制的 npm 包安装命令，GitHub 源码安装留作备选。
