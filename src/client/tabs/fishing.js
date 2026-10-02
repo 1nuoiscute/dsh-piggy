@@ -1,28 +1,36 @@
 // @ts-check
-/** C5 fishing App: charge, bite reflex and a 60fps vertical catch game. */
+/** C5 fishing App: charge, bite reflex and a circular skill-check QTE. */
 import { button, el } from '../dom.js'
 
 let frame = 0
 let activeUi = null
 let resolving = false
+let qteSession = null
 const raf = fn => typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : 0
 const caf = id => { if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(id) }
 
-function stopLoop() { if (frame) caf(frame); frame = 0; activeUi = null; resolving = false }
+function stopLoop(clearSession = false) {
+  if (frame) caf(frame)
+  frame = 0
+  activeUi = null
+  if (clearSession) qteSession = null
+}
 
 /** Closing the panel during a hooked game is a loss and stops its animation. */
 export function closeFishing(ui) {
   const playing = activeUi === ui && ui.view.fishing.pending?.phase === 'hooked'
-  stopLoop()
+  stopLoop(true)
   if (playing) ui.send('fishResolve', { success: false })
 }
 
 export function renderFishingTab(ui) {
   stopLoop()
   const pending = ui.view.fishing.pending
-  if (ui.view.activity?.kind === 'fishing') return renderAway(ui)
-  if (pending?.phase === 'waiting') return renderWaiting(ui, pending)
+  if (pending?.phase !== 'hooked') resolving = false
+  if (ui.view.activity?.kind === 'fishing') { qteSession = null; return renderAway(ui) }
+  if (pending?.phase === 'waiting') { qteSession = null; return renderWaiting(ui, pending) }
   if (pending?.phase === 'hooked') return renderGame(ui, pending)
+  qteSession = null
   if (pending?.phase === 'caught') return renderResult(ui, pending)
   renderReady(ui)
 }
@@ -90,50 +98,107 @@ function renderWaiting(ui, pending) {
   frame = raf(tick)
 }
 
+function qteRules(rawDifficulty) {
+  const difficulty = Math.max(1, Math.min(100, Number(rawDifficulty) || 1))
+  return {
+    zoneDegrees: Math.round(96 - difficulty * .52),
+    perfectDegrees: Math.round(16 - difficulty * .06),
+    rotationsPerSecond: .48 + difficulty * .0048,
+    hitsNeeded: difficulty >= 80 ? 4 : difficulty >= 45 ? 3 : 2,
+  }
+}
+
+function newQteRound(session) {
+  session.zoneStart = 105 + Math.random() * 135
+  session.angle = 0
+  session.startedAt = 0
+  session.locked = false
+  session.feedback = '看准绿色区域'
+}
+
 function renderGame(ui, fish) {
-  const wrap = el('div', 'dp-fish-game')
-  const track = el('div', 'dp-fish-track')
-  const bar = el('i', 'dp-fish-bar')
-  const icon = el('span', 'dp-fish-target', fish.emoji)
-  const progress = el('div', 'dp-fish-progress')
-  const progressFill = el('i')
-  progress.appendChild(progressFill)
-  track.appendChild(bar); track.appendChild(icon); wrap.appendChild(track); wrap.appendChild(progress)
-  wrap.appendChild(el('div', 'dp-fish-help', '按住鼠标或空格让绿条上升，松开会下落'))
+  const rules = qteRules(fish.difficulty)
+  if (qteSession?.id !== fish.id) {
+    qteSession = { id: fish.id, hits: 0, ...rules }
+    newQteRound(qteSession)
+  }
+  const session = qteSession
+  const wrap = button('dp-fish-qte', {
+    'data-fish-qte': 'true',
+    'data-qte-difficulty': String(fish.difficulty),
+    'data-qte-needed': String(session.hitsNeeded),
+    'aria-label': '钓鱼技能检定，指针进入绿色区域时点击',
+  }, hit)
+  const title = el('div', 'dp-fish-qte-title', fish.emoji + '　咬紧了！')
+  const ring = el('div', 'dp-fish-qte-ring')
+  const needle = el('i', 'dp-fish-qte-needle')
+  const core = el('span', 'dp-fish-qte-core', fish.emoji)
+  const score = el('b', 'dp-fish-qte-score')
+  const feedback = el('span', 'dp-fish-qte-feedback')
+  ring.appendChild(needle); ring.appendChild(core)
+  wrap.appendChild(title); wrap.appendChild(ring); wrap.appendChild(score); wrap.appendChild(feedback)
+  wrap.appendChild(el('div', 'dp-fish-help', '指针进入绿色区域时点击或按空格 · 黄色为完美判定'))
+  wrap.setAttribute('tabindex', '0')
+  wrap.addEventListener('keydown', event => {
+    if ((event.code === 'Space' || event.key === ' ' || event.key === 'Enter') && !event.repeat) hit(event)
+  })
   ui.content.appendChild(wrap)
-  let held = false
-  let player = .35
-  let velocity = 0
-  let target = .55
-  let targetVelocity = 0
-  let capture = .3
-  let last = 0
-  let changeAt = 0
-  const setHeld = value => event => { event?.preventDefault?.(); held = value }
-  wrap.addEventListener('pointerdown', setHeld(true)); wrap.addEventListener('pointerup', setHeld(false)); wrap.addEventListener('pointercancel', setHeld(false))
-  wrap.setAttribute('tabindex', '0'); wrap.addEventListener('keydown', event => { if (event.code === 'Space') setHeld(true)(event) }); wrap.addEventListener('keyup', event => { if (event.code === 'Space') setHeld(false)(event) })
   activeUi = ui
-  function finish(success) { if (resolving) return; resolving = true; stopLoop(); ui.send('fishResolve', { success }) }
+
+  function paint() {
+    const perfectEnd = session.zoneStart + session.perfectDegrees
+    const zoneEnd = session.zoneStart + session.zoneDegrees
+    ring.style.background = `conic-gradient(from 0deg,#dce8e9 0deg ${session.zoneStart}deg,#ffd45d ${session.zoneStart}deg ${perfectEnd}deg,#6bd47b ${perfectEnd}deg ${zoneEnd}deg,#dce8e9 ${zoneEnd}deg 360deg)`
+    needle.style.transform = `translateX(-50%) rotate(${session.angle}deg)`
+    score.textContent = `技能检定 ${Math.min(session.hits, session.hitsNeeded)} / ${session.hitsNeeded}`
+    feedback.textContent = session.feedback
+    wrap.setAttribute('data-qte-angle', session.angle.toFixed(1))
+    wrap.setAttribute('data-qte-zone-start', session.zoneStart.toFixed(1))
+    wrap.setAttribute('data-qte-zone-size', String(session.zoneDegrees))
+  }
+
+  function finish(success) {
+    if (resolving) return
+    resolving = true
+    stopLoop(true)
+    ui.send('fishResolve', { success })
+  }
+
+  function hit(event) {
+    event?.preventDefault?.()
+    if (session.locked || activeUi !== ui) return
+    const offset = session.angle - session.zoneStart
+    if (offset < 0 || offset > session.zoneDegrees) {
+      session.feedback = '失手了，鱼跑掉了…'
+      paint()
+      return finish(false)
+    }
+    const perfect = offset <= session.perfectDegrees
+    session.hits += perfect ? 2 : 1
+    session.feedback = perfect ? '完美！进度 +2' : '命中！'
+    session.locked = true
+    paint()
+    if (session.hits >= session.hitsNeeded) return setTimeout(() => finish(true), 260)
+    setTimeout(() => {
+      if (qteSession !== session || resolving) return
+      newQteRound(session)
+      paint()
+    }, 380)
+  }
+
   function tick(now) {
     if (activeUi !== ui || ui.host.getAttribute('data-open') !== 'true') return finish(false)
-    const dt = Math.min(.04, last === 0 ? .016 : (now - last) / 1000); last = now
-    velocity += (held ? 1.9 : -1.45) * dt; velocity *= .965; player = Math.max(0, Math.min(.82, player + velocity * dt))
-    if (now >= changeAt) {
-      const force = .12 + fish.difficulty / 180
-      const bias = fish.behavior === 'sink' ? -.35 : fish.behavior === 'rise' ? .35 : 0
-      targetVelocity = (Math.random() * 2 - 1 + bias) * force
-      if (fish.behavior === 'dash' || fish.behavior === 'mixed') targetVelocity *= 1.7
-      changeAt = now + Math.max(180, 1200 - fish.difficulty * 9) + Math.random() * 500
+    if (!session.startedAt) session.startedAt = now
+    if (!session.locked) session.angle = (now - session.startedAt) * session.rotationsPerSecond * .36
+    paint()
+    if (!session.locked && session.angle > session.zoneStart + session.zoneDegrees + 8) {
+      session.feedback = '错过时机，鱼跑掉了…'
+      paint()
+      return finish(false)
     }
-    targetVelocity *= .992; target += targetVelocity * dt
-    if (target < .02 || target > .96) { target = Math.max(.02, Math.min(.96, target)); targetVelocity *= -.8 }
-    const inside = target >= player && target <= player + .18
-    capture += (inside ? .16 : -.11 - fish.difficulty / 1200) * dt
-    bar.style.bottom = Math.round(player * 100) + '%'; icon.style.bottom = Math.round(target * 100) + '%'; progressFill.style.height = Math.round(Math.max(0, Math.min(1, capture)) * 100) + '%'
-    if (capture >= 1) return finish(true)
-    if (capture <= 0) return finish(false)
     frame = raf(tick)
   }
+  paint()
   frame = raf(tick)
 }
 

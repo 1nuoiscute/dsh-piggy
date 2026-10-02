@@ -1799,7 +1799,7 @@
   // src/client/css-fishing.js
   var CSS_FISHING = `
 .dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-charge{height:12px;border-radius:8px;background:#e6ecee;overflow:hidden;margin:12px 0}.dp-fish-charge i{display:block;width:0;height:100%;background:linear-gradient(90deg,#77d86e,#ffd252,#ff746b)}.dp-fish-cast{touch-action:none}.dp-fish-auto{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border-radius:12px;background:#f5fafb}.dp-fish-auto span{width:100%;font-size:11px;color:#718188}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
-.dp-fish-game{position:relative;height:320px;padding-bottom:22px;box-sizing:border-box;display:flex;justify-content:center;gap:12px;align-items:stretch;touch-action:none;outline:0}.dp-fish-track{position:relative;width:72px;border-radius:18px;background:linear-gradient(#bceeff,#3d9fc6);overflow:hidden;border:3px solid #fff;box-shadow:0 2px 9px #347c9b55}.dp-fish-bar{position:absolute;left:7px;right:7px;height:18%;bottom:35%;border-radius:10px;background:#75dc75aa;border:2px solid #3baf57}.dp-fish-target{position:absolute;left:50%;bottom:55%;transform:translate(-50%,50%);font-size:26px;filter:drop-shadow(0 1px 1px #fff)}.dp-fish-progress{position:relative;width:14px;border-radius:9px;background:#e4e9e8;overflow:hidden}.dp-fish-progress i{position:absolute;left:0;right:0;bottom:0;height:30%;background:#ffb83e}.dp-fish-help{position:absolute;left:0;right:0;bottom:0;text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
+.dp-fish-qte{width:100%;min-height:318px;border:0;border-radius:18px;padding:15px 12px 12px;box-sizing:border-box;background:linear-gradient(155deg,#eefcff,#d8f3f8);display:flex;flex-direction:column;align-items:center;gap:9px;color:#294950;cursor:pointer;touch-action:manipulation;outline:0}.dp-fish-qte:focus-visible{box-shadow:0 0 0 3px #43b96f}.dp-fish-qte-title{font-size:15px;font-weight:800}.dp-fish-qte-ring{position:relative;width:178px;height:178px;border-radius:50%;box-shadow:0 3px 12px #246a7a44,inset 0 0 0 2px #fff;transform:rotate(-90deg)}.dp-fish-qte-ring:after{content:"";position:absolute;inset:17px;border-radius:50%;background:#f8feff;box-shadow:inset 0 2px 8px #8ab7c044}.dp-fish-qte-needle{position:absolute;z-index:3;left:50%;bottom:50%;width:4px;height:47%;border-radius:4px;background:#ed5d55;box-shadow:0 0 0 1px #fff,0 0 6px #d64a45;transform-origin:50% 100%}.dp-fish-qte-needle:after{content:"";position:absolute;top:-5px;left:-3px;width:10px;height:10px;border-radius:50%;background:#ed5d55}.dp-fish-qte-core{position:absolute;z-index:4;inset:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#fff 0 48%,#e9f9fb 70%);font-size:42px;transform:rotate(90deg)}.dp-fish-qte-score{font-size:14px}.dp-fish-qte-feedback{min-height:18px;font-size:12px;color:#55727a}.dp-fish-help{text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
 `;
 
   // src/client/styles.js
@@ -3249,27 +3249,36 @@
   var frame = 0;
   var activeUi = null;
   var resolving = false;
+  var qteSession = null;
   var raf = (fn) => typeof requestAnimationFrame === "function" ? requestAnimationFrame(fn) : 0;
   var caf = (id) => {
     if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(id);
   };
-  function stopLoop() {
+  function stopLoop(clearSession = false) {
     if (frame) caf(frame);
     frame = 0;
     activeUi = null;
-    resolving = false;
+    if (clearSession) qteSession = null;
   }
   function closeFishing(ui) {
     const playing = activeUi === ui && ui.view.fishing.pending?.phase === "hooked";
-    stopLoop();
+    stopLoop(true);
     if (playing) ui.send("fishResolve", { success: false });
   }
   function renderFishingTab(ui) {
     stopLoop();
     const pending = ui.view.fishing.pending;
-    if (ui.view.activity?.kind === "fishing") return renderAway(ui);
-    if (pending?.phase === "waiting") return renderWaiting(ui, pending);
+    if (pending?.phase !== "hooked") resolving = false;
+    if (ui.view.activity?.kind === "fishing") {
+      qteSession = null;
+      return renderAway(ui);
+    }
+    if (pending?.phase === "waiting") {
+      qteSession = null;
+      return renderWaiting(ui, pending);
+    }
     if (pending?.phase === "hooked") return renderGame(ui, pending);
+    qteSession = null;
     if (pending?.phase === "caught") return renderResult(ui, pending);
     renderReady(ui);
   }
@@ -3367,78 +3376,105 @@
     }
     frame = raf(tick);
   }
-  function renderGame(ui, fish2) {
-    const wrap = el("div", "dp-fish-game");
-    const track = el("div", "dp-fish-track");
-    const bar = el("i", "dp-fish-bar");
-    const icon = el("span", "dp-fish-target", fish2.emoji);
-    const progress = el("div", "dp-fish-progress");
-    const progressFill = el("i");
-    progress.appendChild(progressFill);
-    track.appendChild(bar);
-    track.appendChild(icon);
-    wrap.appendChild(track);
-    wrap.appendChild(progress);
-    wrap.appendChild(el("div", "dp-fish-help", "\u6309\u4F4F\u9F20\u6807\u6216\u7A7A\u683C\u8BA9\u7EFF\u6761\u4E0A\u5347\uFF0C\u677E\u5F00\u4F1A\u4E0B\u843D"));
-    ui.content.appendChild(wrap);
-    let held = false;
-    let player = 0.35;
-    let velocity = 0;
-    let target = 0.55;
-    let targetVelocity = 0;
-    let capture = 0.3;
-    let last = 0;
-    let changeAt = 0;
-    const setHeld = (value) => (event) => {
-      event?.preventDefault?.();
-      held = value;
+  function qteRules(rawDifficulty) {
+    const difficulty = Math.max(1, Math.min(100, Number(rawDifficulty) || 1));
+    return {
+      zoneDegrees: Math.round(96 - difficulty * 0.52),
+      perfectDegrees: Math.round(16 - difficulty * 0.06),
+      rotationsPerSecond: 0.48 + difficulty * 48e-4,
+      hitsNeeded: difficulty >= 80 ? 4 : difficulty >= 45 ? 3 : 2
     };
-    wrap.addEventListener("pointerdown", setHeld(true));
-    wrap.addEventListener("pointerup", setHeld(false));
-    wrap.addEventListener("pointercancel", setHeld(false));
+  }
+  function newQteRound(session) {
+    session.zoneStart = 105 + Math.random() * 135;
+    session.angle = 0;
+    session.startedAt = 0;
+    session.locked = false;
+    session.feedback = "\u770B\u51C6\u7EFF\u8272\u533A\u57DF";
+  }
+  function renderGame(ui, fish2) {
+    const rules = qteRules(fish2.difficulty);
+    if (qteSession?.id !== fish2.id) {
+      qteSession = { id: fish2.id, hits: 0, ...rules };
+      newQteRound(qteSession);
+    }
+    const session = qteSession;
+    const wrap = button("dp-fish-qte", {
+      "data-fish-qte": "true",
+      "data-qte-difficulty": String(fish2.difficulty),
+      "data-qte-needed": String(session.hitsNeeded),
+      "aria-label": "\u9493\u9C7C\u6280\u80FD\u68C0\u5B9A\uFF0C\u6307\u9488\u8FDB\u5165\u7EFF\u8272\u533A\u57DF\u65F6\u70B9\u51FB"
+    }, hit);
+    const title = el("div", "dp-fish-qte-title", fish2.emoji + "\u3000\u54AC\u7D27\u4E86\uFF01");
+    const ring = el("div", "dp-fish-qte-ring");
+    const needle = el("i", "dp-fish-qte-needle");
+    const core = el("span", "dp-fish-qte-core", fish2.emoji);
+    const score = el("b", "dp-fish-qte-score");
+    const feedback = el("span", "dp-fish-qte-feedback");
+    ring.appendChild(needle);
+    ring.appendChild(core);
+    wrap.appendChild(title);
+    wrap.appendChild(ring);
+    wrap.appendChild(score);
+    wrap.appendChild(feedback);
+    wrap.appendChild(el("div", "dp-fish-help", "\u6307\u9488\u8FDB\u5165\u7EFF\u8272\u533A\u57DF\u65F6\u70B9\u51FB\u6216\u6309\u7A7A\u683C \xB7 \u9EC4\u8272\u4E3A\u5B8C\u7F8E\u5224\u5B9A"));
     wrap.setAttribute("tabindex", "0");
     wrap.addEventListener("keydown", (event) => {
-      if (event.code === "Space") setHeld(true)(event);
+      if ((event.code === "Space" || event.key === " " || event.key === "Enter") && !event.repeat) hit(event);
     });
-    wrap.addEventListener("keyup", (event) => {
-      if (event.code === "Space") setHeld(false)(event);
-    });
+    ui.content.appendChild(wrap);
     activeUi = ui;
+    function paint() {
+      const perfectEnd = session.zoneStart + session.perfectDegrees;
+      const zoneEnd = session.zoneStart + session.zoneDegrees;
+      ring.style.background = `conic-gradient(from 0deg,#dce8e9 0deg ${session.zoneStart}deg,#ffd45d ${session.zoneStart}deg ${perfectEnd}deg,#6bd47b ${perfectEnd}deg ${zoneEnd}deg,#dce8e9 ${zoneEnd}deg 360deg)`;
+      needle.style.transform = `translateX(-50%) rotate(${session.angle}deg)`;
+      score.textContent = `\u6280\u80FD\u68C0\u5B9A ${Math.min(session.hits, session.hitsNeeded)} / ${session.hitsNeeded}`;
+      feedback.textContent = session.feedback;
+      wrap.setAttribute("data-qte-angle", session.angle.toFixed(1));
+      wrap.setAttribute("data-qte-zone-start", session.zoneStart.toFixed(1));
+      wrap.setAttribute("data-qte-zone-size", String(session.zoneDegrees));
+    }
     function finish(success) {
       if (resolving) return;
       resolving = true;
-      stopLoop();
+      stopLoop(true);
       ui.send("fishResolve", { success });
+    }
+    function hit(event) {
+      event?.preventDefault?.();
+      if (session.locked || activeUi !== ui) return;
+      const offset = session.angle - session.zoneStart;
+      if (offset < 0 || offset > session.zoneDegrees) {
+        session.feedback = "\u5931\u624B\u4E86\uFF0C\u9C7C\u8DD1\u6389\u4E86\u2026";
+        paint();
+        return finish(false);
+      }
+      const perfect = offset <= session.perfectDegrees;
+      session.hits += perfect ? 2 : 1;
+      session.feedback = perfect ? "\u5B8C\u7F8E\uFF01\u8FDB\u5EA6 +2" : "\u547D\u4E2D\uFF01";
+      session.locked = true;
+      paint();
+      if (session.hits >= session.hitsNeeded) return setTimeout(() => finish(true), 260);
+      setTimeout(() => {
+        if (qteSession !== session || resolving) return;
+        newQteRound(session);
+        paint();
+      }, 380);
     }
     function tick(now) {
       if (activeUi !== ui || ui.host.getAttribute("data-open") !== "true") return finish(false);
-      const dt = Math.min(0.04, last === 0 ? 0.016 : (now - last) / 1e3);
-      last = now;
-      velocity += (held ? 1.9 : -1.45) * dt;
-      velocity *= 0.965;
-      player = Math.max(0, Math.min(0.82, player + velocity * dt));
-      if (now >= changeAt) {
-        const force = 0.12 + fish2.difficulty / 180;
-        const bias = fish2.behavior === "sink" ? -0.35 : fish2.behavior === "rise" ? 0.35 : 0;
-        targetVelocity = (Math.random() * 2 - 1 + bias) * force;
-        if (fish2.behavior === "dash" || fish2.behavior === "mixed") targetVelocity *= 1.7;
-        changeAt = now + Math.max(180, 1200 - fish2.difficulty * 9) + Math.random() * 500;
+      if (!session.startedAt) session.startedAt = now;
+      if (!session.locked) session.angle = (now - session.startedAt) * session.rotationsPerSecond * 0.36;
+      paint();
+      if (!session.locked && session.angle > session.zoneStart + session.zoneDegrees + 8) {
+        session.feedback = "\u9519\u8FC7\u65F6\u673A\uFF0C\u9C7C\u8DD1\u6389\u4E86\u2026";
+        paint();
+        return finish(false);
       }
-      targetVelocity *= 0.992;
-      target += targetVelocity * dt;
-      if (target < 0.02 || target > 0.96) {
-        target = Math.max(0.02, Math.min(0.96, target));
-        targetVelocity *= -0.8;
-      }
-      const inside = target >= player && target <= player + 0.18;
-      capture += (inside ? 0.16 : -0.11 - fish2.difficulty / 1200) * dt;
-      bar.style.bottom = Math.round(player * 100) + "%";
-      icon.style.bottom = Math.round(target * 100) + "%";
-      progressFill.style.height = Math.round(Math.max(0, Math.min(1, capture)) * 100) + "%";
-      if (capture >= 1) return finish(true);
-      if (capture <= 0) return finish(false);
       frame = raf(tick);
     }
+    paint();
     frame = raf(tick);
   }
   function renderResult(ui, fish2) {
