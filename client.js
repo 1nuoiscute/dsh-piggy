@@ -3600,7 +3600,13 @@
     busy: null,
     fraction: 0,
     message: null,
-    listening: false
+    listening: false,
+    shellStatus: null,
+    shellBusy: false,
+    shellReady: null,
+    shellFraction: 0,
+    shellMessage: null,
+    shellListening: false
   };
   function updatesBridge() {
     var shell = (
@@ -3621,16 +3627,60 @@
         ui.renderContent();
       });
     }
-    Promise.all([shell.updates.current(), shell.updates.list()]).then(function(got) {
+    if (shell.shellUpdates && !state.shellListening) {
+      state.shellListening = true;
+      shell.shellUpdates.onProgress(function(fraction) {
+        state.shellFraction = fraction;
+        ui.renderContent();
+      });
+    }
+    Promise.all([shell.updates.current(), shell.updates.list(), shell.shellUpdates ? shell.shellUpdates.status() : null]).then(function(got) {
       state.current = got[0];
       if (got[1] && got[1].ok) state.list = got[1].releases;
       else state.error = got[1] && got[1].reason || "\u6CA1\u95EE\u5230";
+      state.shellStatus = got[2];
     }, function() {
       state.error = "\u6CA1\u95EE\u5230";
     }).then(function() {
       state.loading = false;
       ui.renderContent();
     });
+  }
+  function downloadShell(ui, version) {
+    var shell = updatesBridge();
+    if (!shell || !shell.shellUpdates || state.shellBusy) return;
+    state.shellBusy = true;
+    state.shellFraction = 0;
+    state.shellMessage = null;
+    ui.renderContent();
+    shell.shellUpdates.download(version).then(function(result) {
+      if (result.ok) {
+        state.shellReady = result.version;
+        state.shellMessage = "\u5916\u58F3\u5DF2\u4E0B\u8F7D\uFF0C\u91CD\u542F\u732A\u732A\u540E\u5B89\u88C5\u3002\u5B58\u6863\u4F1A\u5148\u5907\u4EFD\u3002";
+      } else state.shellMessage = result.reason || "\u5916\u58F3\u4E0B\u8F7D\u5931\u8D25";
+      state.shellBusy = false;
+      ui.renderContent();
+    }, function(error) {
+      state.shellBusy = false;
+      state.shellMessage = String(error);
+      ui.renderContent();
+    });
+  }
+  function installShell(ui) {
+    var shell = updatesBridge();
+    if (!shell || !shell.shellUpdates) return;
+    shell.shellUpdates.install().then(function(result) {
+      if (!result.ok) {
+        state.shellMessage = result.reason;
+        ui.renderContent();
+      }
+    });
+  }
+  function shellManualReason(mode) {
+    if (mode === "portable") return "Windows \u4FBF\u643A\u7248\u9700\u8981\u4E0B\u8F7D\u5E76\u66FF\u6362\u65E7 EXE\u3002";
+    if (mode === "unsigned-mac") return "macOS \u5305\u6682\u672A\u7B7E\u540D\uFF0C\u65E0\u6CD5\u5728\u5E94\u7528\u5185\u81EA\u52A8\u66F4\u65B0\uFF1B\u8BF7\u4E0B\u8F7D DMG \u5E76\u66FF\u6362\u5E94\u7528\u3002";
+    if (mode === "manual") return "\u8FD9\u79CD Linux \u5B89\u88C5\u65B9\u5F0F\u9700\u8981\u4ECE\u53D1\u5E03\u9875\u4E0B\u8F7D\u65B0\u5305\u3002";
+    return "\u5F53\u524D\u7248\u672C\u8FD8\u4E0D\u652F\u6301\u5E94\u7528\u5185\u66F4\u65B0\u5916\u58F3\uFF0C\u9700\u8981\u624B\u52A8\u5B89\u88C5\u4E00\u6B21\u65B0\u7248\u3002";
   }
   function install(ui, version) {
     var shell = updatesBridge();
@@ -3664,18 +3714,26 @@
     if (state.current === null && state.list === null && state.error === null) refresh(ui);
     var cur = state.current;
     var head = el("div", "dp-pick dp-tile-card dp-update-now");
-    head.appendChild(el("div", "dp-pick-head", cur === null ? "\u6B63\u5728\u770B\u73B0\u5728\u7684\u7248\u672C\u2026" : "\u73B0\u5728 v" + cur.version + (cur.bundled ? "\uFF08\u5B89\u88C5\u5305\u81EA\u5E26\uFF09" : "")));
-    if (cur !== null) head.appendChild(el("div", "dp-dim", "\u5B89\u88C5\u5305 " + cur.shell));
+    head.appendChild(el("div", "dp-pick-head", cur === null ? "\u6B63\u5728\u770B\u73B0\u5728\u7684\u7248\u672C\u2026" : "\u6E38\u620F v" + cur.version + (cur.bundled ? "\uFF08\u5B89\u88C5\u5305\u81EA\u5E26\uFF09" : "")));
+    if (cur !== null) head.appendChild(el("div", "dp-dim", "\u684C\u9762\u5916\u58F3 v" + cur.shell + " \xB7 \u6E38\u620F\u73A9\u6CD5\u548C\u7A97\u53E3\u529F\u80FD\u5206\u522B\u66F4\u65B0"));
     if (state.message !== null) head.appendChild(el("div", "dp-req", state.message));
     var shellRelease = state.list === null ? null : state.list.find(function(r) {
       return r.shellUpdate && !r.prerelease;
     }) || null;
     if (shellRelease !== null) {
-      head.appendChild(el("div", "dp-req", "\u684C\u9762\u5916\u58F3\u53EF\u66F4\u65B0\u5230 v" + (shellRelease.latestShell || shellRelease.version)));
+      var shellVersion = shellRelease.latestShell;
+      var mode = state.shellStatus && state.shellStatus.mode;
+      head.appendChild(el("div", "dp-req", "\u684C\u9762\u5916\u58F3 v" + cur.shell + " \u2192 v" + shellVersion));
+      if (mode !== "automatic") head.appendChild(el("div", "dp-dim", shellManualReason(mode)));
+      if (state.shellMessage !== null) head.appendChild(el("div", "dp-req", state.shellMessage));
+      if (state.shellBusy) head.appendChild(el("div", "dp-dim", "\u6B63\u5728\u4E0B\u8F7D\u684C\u9762\u5916\u58F3 " + Math.round(state.shellFraction * 100) + "%"));
       var shellGo = button("dp-btn dp-btn-wide", { "data-update-shell": shellRelease.version }, function() {
-        updatesBridge().openPage(shellRelease.page);
+        if (mode !== "automatic") updatesBridge().openPage(shellRelease.page);
+        else if (state.shellReady === shellVersion) installShell(ui);
+        else downloadShell(ui, shellVersion);
       });
-      shellGo.textContent = "\u4E0B\u8F7D\u65B0\u5B89\u88C5\u5305";
+      shellGo.textContent = mode !== "automatic" ? "\u6253\u5F00\u53D1\u5E03\u9875\u4E0B\u8F7D" : state.shellReady === shellVersion ? "\u91CD\u542F\u5E76\u5B89\u88C5\u684C\u9762\u5916\u58F3" : "\u4E0B\u8F7D\u684C\u9762\u5916\u58F3 v" + shellVersion;
+      shellGo.disabled = state.shellBusy || state.busy !== null;
       head.appendChild(shellGo);
     }
     if (state.busy !== null && state.message === null) {
@@ -3795,8 +3853,9 @@
       go.textContent = "\u6B63\u5728\u7528\u8FD9\u4E2A";
       go.disabled = true;
     } else if (release.blocked === "shell") {
-      box.appendChild(el("div", "dp-req", "\u2717 \u8981\u5148\u88C5 " + release.minShell + " \u4EE5\u4E0A\u7684\u5B89\u88C5\u5305"));
-      go.textContent = "\u53BB\u4E0B\u8F7D\u65B0\u5B89\u88C5\u5305";
+      box.appendChild(el("div", "dp-req", "\u2717 \u6E38\u620F v" + release.version + " \u8981\u6C42\u684C\u9762\u5916\u58F3\u81F3\u5C11 v" + release.minShell));
+      go.textContent = state.shellStatus && state.shellStatus.mode === "automatic" ? "\u5148\u66F4\u65B0\u4E0A\u9762\u7684\u684C\u9762\u5916\u58F3" : "\u53BB\u4E0B\u8F7D\u65B0\u5B89\u88C5\u5305";
+      if (state.shellStatus && state.shellStatus.mode === "automatic") go.disabled = true;
     } else if (release.blocked === "save") {
       box.appendChild(el("div", "dp-req", "\u2717 \u5B58\u6863\u592A\u65B0\uFF0C\u8FD9\u4E2A\u7248\u672C\u8BFB\u4E0D\u4E86"));
       go.textContent = "\u6362\u4E0D\u4E86";

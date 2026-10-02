@@ -10,13 +10,22 @@ DSH 插件不能安全地重写用户本地仓库，所以它只显示新版本�
 
 ## 桌面外壳
 
-`apps/desktop/package.json` 的版本号是外壳版本，例如 `0.1.3`。外壳负责 Electron、窗口、托盘、预加载桥和本地更新器。Windows EXE、Linux AppImage 和 macOS App 都属于这一层。
+`apps/desktop/package.json` 的版本号是外壳版本，例如 `0.2.0`。外壳负责 Electron、窗口、托盘、预加载桥和本地更新器。Windows EXE、Linux AppImage 和 macOS App 都属于这一层。
 
-游戏包更新器不能替换正在运行的可执行文件，也没有集成 Electron 安装器自动更新。因此，窗口或系统集成发生变化时必须下载新安装包：Windows 安装版覆盖安装，便携版替换 EXE，Linux 替换 AppImage，macOS 替换应用。存档位于系统应用数据目录，不在可执行文件中，正常覆盖不会清空猪。
+更新 App 会分别显示**游戏版本**和**桌面外壳版本**。游戏版本升级沿用下载、校验、备份存档和回退；外壳版本升级负责窗口、托盘等系统功能。从外壳 v0.2.0 起，支持以下方式：
+
+| 安装方式 | 外壳更新 |
+| --- | --- |
+| Windows 安装版（setup.exe） | 在更新 App 下载，完成后点击“重启并安装” |
+| Linux AppImage | 在更新 App 下载，完成后点击“重启并安装”；AppImage 所在目录需可写 |
+| Windows 便携版（portable.exe） | 更新 App 说明原因并打开发布页；下载后替换旧 EXE |
+| macOS 未签名 DMG | 更新 App 说明尚未签名并打开发布页；下载后替换应用 |
+
+此前发布的外壳 v0.1.x 没有安装器更新功能，仍需**手动覆盖安装一次**带新更新器的版本。此后支持的安装方式才能在 App 内升级外壳。存档位于系统应用数据目录，不在可执行文件中，正常覆盖不会清空猪。
 
 Release 的游戏清单包含两个外壳字段：
 
 - `minShell`：运行该游戏包所需的最低外壳版本，低于它时禁止热更新。
-- `shellVersion`：发布该游戏包时推荐的外壳版本，用来提醒已有用户更新安装包。
+- `shellVersion`：发布该游戏包时推荐的外壳版本，用来提醒已有用户更新外壳。
 
-以后若加入安装器级自动更新，外壳也可一键升级；当前版本会明确跳转到 Release 下载页。
+发版时，外壳有改动就先提高 `apps/desktop/package.json` 的版本，再和游戏包一起打包。Windows 安装版的 `latest.yml`、Linux AppImage 的 `latest-linux.yml` 必须和对应安装包上传到**同一个游戏版本标签**的 GitHub Release；更新器用这些清单核验安装包。游戏包没有外壳改动时，外壳版本号保持不变。

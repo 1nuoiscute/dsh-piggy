@@ -26,6 +26,12 @@ contextBridge.exposeInMainWorld('piggyShell', {
     rollback: () => ipcRenderer.invoke('piggy:updates:rollback'),
     onProgress: callback => { ipcRenderer.on('piggy:progress', (event, fraction) => callback(fraction)) },
   },
+  shellUpdates: {
+    status: () => ipcRenderer.invoke('piggy:shell:status'),
+    download: version => ipcRenderer.invoke('piggy:shell:download', String(version)),
+    install: () => ipcRenderer.invoke('piggy:shell:install'),
+    onProgress: callback => { ipcRenderer.on('piggy:shell-progress', (event, fraction) => callback(fraction)) },
+  },
   openPage: url => ipcRenderer.invoke('piggy:open', String(url)),
   /** 主屏「退出」：存好档再关。 */
   quit: () => ipcRenderer.invoke('piggy:quit'),

@@ -2,6 +2,7 @@
 #   1. 跑测试
 #   2. 生成桌面版热更新用的游戏包 game-<版本>.json.gz + manifest
 #   3. 在 Linux 上打 AppImage、在 Windows 上打安装包和免安装版、在 macOS 上打 dmg（未签名）
+#   4. 一同发布 Windows/Linux 外壳更新清单，供新版本的桌面版点击更新
 # 全部挂到这个标签的 GitHub Release 上。
 name: release
 
@@ -39,7 +40,7 @@ jobs:
           - **Linux**：`dsh-piggy-*.AppImage`（加执行权限后双击）
           - **macOS**：`dsh-piggy-*-arm64.dmg`（M 系列芯片）或 `-x64.dmg`（Intel）。没有签名，第一次打开要在「访达」里**右键 → 打开**；或者终端执行 `xattr -dr com.apple.quarantine /Applications/dsh-piggy.app`
           - **DSH 插件**：`dsh plugin --profile web add dsh-piggy`，装完重启 dsh
-          - 已装桌面版的：主屏「🔄 更新」一键升级
+          - 已装桌面版的：主屏「🔄 更新」可升级游戏包；新安装的 Windows 安装版和 Linux AppImage 也能升级桌面外壳。Windows 便携版、未签名 macOS 版需从本页手动下载。
           NOTES
       - name: 建 Release 并上传游戏包
         env: { GH_TOKEN: '${{ github.token }}' }
@@ -72,10 +73,13 @@ jobs:
         run: |
           node scripts/pack-game.mjs
           npx electron-builder ${{ matrix.target }} --publish never
-      - name: 上传安装包
+      - name: 上传安装包与外壳更新清单
         shell: bash
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
+          if [[ "${{ matrix.target }}" == "--win" ]]; then test -s dist/latest.yml; fi
+          if [[ "${{ matrix.target }}" == "--linux" ]]; then test -s dist/latest-linux.yml; fi
           shopt -s nullglob
-          files=(dist/*.AppImage dist/*.exe dist/*.dmg)
+          files=(dist/*.AppImage dist/*.exe dist/*.dmg dist/latest*.yml)
+          test "${#files[@]}" -gt 0
           gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber

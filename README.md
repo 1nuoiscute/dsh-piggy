@@ -49,7 +49,7 @@ macOS 包暂未签名，第一次打开请在访达中右键应用并选择“�
 - [文档中心](docs/README.md)
 - [玩法与养成规则](docs/guides/gameplay.md)
 - [桌面版安装、存档与更新](docs/guides/desktop.md)
-- [为什么有时需要替换 EXE](docs/guides/updates.md)
+- [游戏包与桌面外壳怎样更新](docs/guides/updates.md)
 - [开发与调试](docs/DEVELOPMENT.md)
 - [版本记录](CHANGELOG.md)
 

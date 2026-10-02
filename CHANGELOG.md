@@ -5,6 +5,12 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## Unreleased · 桌面外壳自动更新
+
+### Added
+- 更新 App 分开显示游戏版本和桌面外壳版本；Windows 安装版与 Linux AppImage 可下载新版外壳，确认重启后安装。Windows 便携版与未签名 macOS 版显示对应的手动替换说明。
+- 桌面外壳升至 0.2.0；发版流程将 `latest.yml` / `latest-linux.yml` 与安装包上传到相同的游戏版本 Release。旧版外壳需手动升级一次才能使用这一能力。游戏存档版本不变。
+
 ## [0.26.1] — 2026-10-02 · 更新提醒与文档整理
 
 ### Added

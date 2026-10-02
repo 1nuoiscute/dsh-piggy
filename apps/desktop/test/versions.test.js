@@ -77,7 +77,7 @@ test('installing checks the download, switches to it, and rollback goes back', a
   try {
     const out = join(dir, 'rel')
     const manifest = await releaseGame(ROOT, out, '0.1.0')
-    assert.equal(manifest.shellVersion, '0.1.3')
+    assert.equal(manifest.shellVersion, '0.2.0')
     const pack = readFileSync(join(out, `game-${manifest.version}.json.gz`))
     const files = { [`m-${manifest.version}`]: JSON.stringify(manifest), [`p-${manifest.version}`]: pack }
     const gh = fakeGithub(files, [release(manifest.version)])

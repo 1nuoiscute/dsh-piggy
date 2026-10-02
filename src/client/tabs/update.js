@@ -15,6 +15,7 @@ import { tile, tileGrid } from '../widgets.js'
 var state = {
   current: null, list: null, error: null, loading: false,
   pick: null, busy: null, fraction: 0, message: null, listening: false,
+  shellStatus: null, shellBusy: false, shellReady: null, shellFraction: 0, shellMessage: null, shellListening: false,
 }
 
 /** The desktop bridge, or null inside DSH. */
@@ -32,14 +33,55 @@ function refresh(ui) {
     state.listening = true
     shell.updates.onProgress(function (fraction) { state.fraction = fraction; ui.renderContent() })
   }
-  Promise.all([shell.updates.current(), shell.updates.list()]).then(function (got) {
+  if (shell.shellUpdates && !state.shellListening) {
+    state.shellListening = true
+    shell.shellUpdates.onProgress(function (fraction) { state.shellFraction = fraction; ui.renderContent() })
+  }
+  Promise.all([shell.updates.current(), shell.updates.list(), shell.shellUpdates ? shell.shellUpdates.status() : null]).then(function (got) {
     state.current = got[0]
     if (got[1] && got[1].ok) state.list = got[1].releases
     else state.error = (got[1] && got[1].reason) || '没问到'
+    state.shellStatus = got[2]
   }, function () { state.error = '没问到' }).then(function () {
     state.loading = false
     ui.renderContent()
   })
+}
+
+function downloadShell(ui, version) {
+  var shell = updatesBridge()
+  if (!shell || !shell.shellUpdates || state.shellBusy) return
+  state.shellBusy = true
+  state.shellFraction = 0
+  state.shellMessage = null
+  ui.renderContent()
+  shell.shellUpdates.download(version).then(function (result) {
+    if (result.ok) {
+      state.shellReady = result.version
+      state.shellMessage = '外壳已下载，重启猪猪后安装。存档会先备份。'
+    } else state.shellMessage = result.reason || '外壳下载失败'
+    state.shellBusy = false
+    ui.renderContent()
+  }, function (error) {
+    state.shellBusy = false
+    state.shellMessage = String(error)
+    ui.renderContent()
+  })
+}
+
+function installShell(ui) {
+  var shell = updatesBridge()
+  if (!shell || !shell.shellUpdates) return
+  shell.shellUpdates.install().then(function (result) {
+    if (!result.ok) { state.shellMessage = result.reason; ui.renderContent() }
+  })
+}
+
+function shellManualReason(mode) {
+  if (mode === 'portable') return 'Windows 便携版需要下载并替换旧 EXE。'
+  if (mode === 'unsigned-mac') return 'macOS 包暂未签名，无法在应用内自动更新；请下载 DMG 并替换应用。'
+  if (mode === 'manual') return '这种 Linux 安装方式需要从发布页下载新包。'
+  return '当前版本还不支持应用内更新外壳，需要手动安装一次新版。'
 }
 
 function install(ui, version) {
@@ -77,14 +119,24 @@ export function renderUpdateTab(ui) {
   var cur = state.current
   var head = el('div', 'dp-pick dp-tile-card dp-update-now')
   head.appendChild(el('div', 'dp-pick-head', cur === null ? '正在看现在的版本…'
-    : '现在 v' + cur.version + (cur.bundled ? '（安装包自带）' : '')))
-  if (cur !== null) head.appendChild(el('div', 'dp-dim', '安装包 ' + cur.shell))
+    : '游戏 v' + cur.version + (cur.bundled ? '（安装包自带）' : '')))
+  if (cur !== null) head.appendChild(el('div', 'dp-dim', '桌面外壳 v' + cur.shell + ' · 游戏玩法和窗口功能分别更新'))
   if (state.message !== null) head.appendChild(el('div', 'dp-req', state.message))
   var shellRelease = state.list === null ? null : state.list.find(function (r) { return r.shellUpdate && !r.prerelease }) || null
   if (shellRelease !== null) {
-    head.appendChild(el('div', 'dp-req', '桌面外壳可更新到 v' + (shellRelease.latestShell || shellRelease.version)))
-    var shellGo = button('dp-btn dp-btn-wide', { 'data-update-shell': shellRelease.version }, function () { updatesBridge().openPage(shellRelease.page) })
-    shellGo.textContent = '下载新安装包'
+    var shellVersion = shellRelease.latestShell
+    var mode = state.shellStatus && state.shellStatus.mode
+    head.appendChild(el('div', 'dp-req', '桌面外壳 v' + cur.shell + ' → v' + shellVersion))
+    if (mode !== 'automatic') head.appendChild(el('div', 'dp-dim', shellManualReason(mode)))
+    if (state.shellMessage !== null) head.appendChild(el('div', 'dp-req', state.shellMessage))
+    if (state.shellBusy) head.appendChild(el('div', 'dp-dim', '正在下载桌面外壳 ' + Math.round(state.shellFraction * 100) + '%'))
+    var shellGo = button('dp-btn dp-btn-wide', { 'data-update-shell': shellRelease.version }, function () {
+      if (mode !== 'automatic') updatesBridge().openPage(shellRelease.page)
+      else if (state.shellReady === shellVersion) installShell(ui)
+      else downloadShell(ui, shellVersion)
+    })
+    shellGo.textContent = mode !== 'automatic' ? '打开发布页下载' : state.shellReady === shellVersion ? '重启并安装桌面外壳' : '下载桌面外壳 v' + shellVersion
+    shellGo.disabled = state.shellBusy || state.busy !== null
     head.appendChild(shellGo)
   }
   if (state.busy !== null && state.message === null) {
@@ -192,8 +244,9 @@ function details(ui, release) {
     go.textContent = '正在用这个'
     go.disabled = true
   } else if (release.blocked === 'shell') {
-    box.appendChild(el('div', 'dp-req', '✗ 要先装 ' + release.minShell + ' 以上的安装包'))
-    go.textContent = '去下载新安装包'
+    box.appendChild(el('div', 'dp-req', '✗ 游戏 v' + release.version + ' 要求桌面外壳至少 v' + release.minShell))
+    go.textContent = state.shellStatus && state.shellStatus.mode === 'automatic' ? '先更新上面的桌面外壳' : '去下载新安装包'
+    if (state.shellStatus && state.shellStatus.mode === 'automatic') go.disabled = true
   } else if (release.blocked === 'save') {
     box.appendChild(el('div', 'dp-req', '✗ 存档太新，这个版本读不了'))
     go.textContent = '换不了'

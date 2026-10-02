@@ -17,10 +17,14 @@ import { dirname, extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, net, protocol, screen, shell } from 'electron'
+import updaterPackage from 'electron-updater'
 
 import { startHost } from './lib/host.js'
 import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, movedBounds } from './lib/window-geometry.js'
 import { RELEASES_PAGE, createVersions } from './lib/versions.js'
+import { createShellUpdates, shellUpdateMode } from './lib/shell-update.js'
+
+const { autoUpdater } = updaterPackage
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -86,6 +90,8 @@ function serveFile(root, rel) {
 let host = null
 /** @type {ReturnType<typeof createVersions> | null} */
 let versions = null
+/** @type {ReturnType<typeof createShellUpdates> | null} */
+let shellUpdates = null
 let win = null
 let tray = null
 
@@ -397,6 +403,22 @@ ipcMain.handle('piggy:updates:rollback', event => {
   if (result.ok) setTimeout(restartGame, 600)
   return result
 })
+ipcMain.handle('piggy:shell:status', event => (fromPage(event) ? shellUpdates?.status() : null))
+ipcMain.handle('piggy:shell:download', async (event, version) => {
+  if (!fromPage(event) || shellUpdates === null) return { ok: false, reason: '桌面外壳更新不可用' }
+  const target = releases.find(release => release.latestShell === version && release.shellUpdate && !release.prerelease)
+  if (target === undefined) return { ok: false, reason: '请先刷新版本列表' }
+  return shellUpdates.download(version)
+})
+ipcMain.handle('piggy:shell:install', event => {
+  if (!fromPage(event) || shellUpdates === null || shellUpdates.status().readyVersion === null) return { ok: false, reason: '还没有下载好桌面外壳' }
+  if (process.env.PIGGY_CAPTURE) return { ok: false, reason: '截图测试不会安装更新' }
+  backupSave('shell-v' + shellUpdates.status().readyVersion)
+  setTimeout(() => {
+    try { shellUpdates?.install() } catch (error) { log('shell update install failed', String(error)) }
+  }, 600)
+  return { ok: true }
+})
 ipcMain.handle('piggy:quit', (event) => { if (fromPage(event)) app.quit() })
 ipcMain.handle('piggy:open', (event, url) => {
   // Only this repo's own pages: the release notes and installers.
@@ -406,6 +428,12 @@ ipcMain.handle('piggy:open', (event, url) => {
 app.whenReady().then(async () => {
   if (needsX11) return
   log('start', app.getVersion(), process.platform, process.env.XDG_SESSION_TYPE ?? '')
+  shellUpdates = createShellUpdates({
+    mode: shellUpdateMode({ platform: process.platform, packaged: app.isPackaged,
+      portable: Boolean(process.env.PORTABLE_EXECUTABLE_FILE), appImage: process.env.APPIMAGE }),
+    currentVersion: app.getVersion(), updater: autoUpdater,
+    onProgress: fraction => win?.webContents.send('piggy:shell-progress', fraction),
+  })
   versions = createVersions({
     userData: app.getPath('userData'), bundledDir: bundledGameDir(), shellVersion: app.getVersion(),
     statePath: statePath(), releasesUrl: process.env.PIGGY_RELEASES_URL || undefined,

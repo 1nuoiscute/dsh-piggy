@@ -2054,7 +2054,7 @@ test('the 图鉴 tile sits next to 居民卡 and replaces the crown tile', async
 function fakeDesktop() {
   const calls = []
   const releases = [
-    { version: '0.26.0', date: '2026-10-02', notes: '要新安装包', current: false, blocked: 'shell', minShell: '0.2.0', page: 'https://github.com/CLICGGER-TYPES/dsh-piggy/releases/tag/v0.26.0', prerelease: false },
+    { version: '0.26.0', date: '2026-10-02', notes: '要新安装包', current: false, blocked: 'shell', minShell: '0.2.0', latestShell: '0.2.0', shellUpdate: true, page: 'https://github.com/CLICGGER-TYPES/dsh-piggy/releases/tag/v0.26.0', prerelease: false },
     { version: '0.25.0', date: '2026-10-01', notes: '加了更新', current: false, blocked: null, minShell: '0.1.0', page: 'p', prerelease: false },
     { version: '0.24.0', date: '2026-09-30', notes: '', current: true, blocked: null, minShell: '0.1.0', page: 'p', prerelease: false },
   ]
@@ -2110,8 +2110,46 @@ test('the 更新 app offers the newest version it can install, and a newer insta
   assert.deepEqual(calls.at(-1), ['install', '0.25.0'])
   await settle()
   tap(dom, 'data-release', '0.26.0')
-  assert.match(contentOf(dom).allText(), /要先装 0\.2\.0 以上的安装包/)
+  assert.match(contentOf(dom).allText(), /要求桌面外壳至少 v0\.2\.0/)
   tap(dom, 'data-update-install', '0.26.0')
+  assert.equal(calls.at(-1)[0], 'open')
+})
+
+test('installed desktop downloads a newer shell, then offers a restart; game update stays separate', async () => {
+  const { piggyShell, calls } = fakeDesktop()
+  piggyShell.shellUpdates = {
+    status: () => Promise.resolve({ mode: 'automatic', currentVersion: '0.1.0', readyVersion: null }),
+    download: version => { calls.push(['shell-download', version]); return Promise.resolve({ ok: true, version }) },
+    install: () => { calls.push(['shell-install']); return Promise.resolve({ ok: true }) },
+    onProgress: () => {},
+  }
+  const { registration, dom } = await loadClient({ windowExtra: { piggyShell } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'update')
+  await settle()
+  await settle()
+  assert.match(contentOf(dom).allText(), /游戏 v0\.24\.0/)
+  assert.match(contentOf(dom).allText(), /桌面外壳 v0\.1\.0 → v0\.2\.0/)
+  tap(dom, 'data-update-shell', '0.26.0')
+  assert.deepEqual(calls.at(-1), ['shell-download', '0.2.0'])
+  await settle()
+  assert.match(contentOf(dom).allText(), /重启并安装桌面外壳/)
+  tap(dom, 'data-update-shell', '0.26.0')
+  assert.deepEqual(calls.at(-1), ['shell-install'])
+})
+
+test('unsigned macOS desktop explains why its shell update opens the download page', async () => {
+  const { piggyShell, calls } = fakeDesktop()
+  piggyShell.shellUpdates = { status: () => Promise.resolve({ mode: 'unsigned-mac' }), onProgress: () => {} }
+  const { registration, dom } = await loadClient({ windowExtra: { piggyShell } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom, 'update')
+  await settle()
+  await settle()
+  assert.match(contentOf(dom).allText(), /macOS 包暂未签名/)
+  tap(dom, 'data-update-shell', '0.26.0')
   assert.equal(calls.at(-1)[0], 'open')
 })
 
