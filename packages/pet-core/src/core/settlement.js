@@ -17,6 +17,7 @@ import { rollerFor } from './random.js'
 import { noteToday } from './diary.js'
 import { recordDex } from './dex.js'
 import { reduceWorkWeight, settleWeight } from './weight.js'
+import { finishAutoFishing } from './fishing.js'
 
 export { currentIllness, die } from './illness.js'
 
@@ -176,6 +177,7 @@ export function finishActivity(state, nowMs, next = rollerFor(state)) {
   else if (activity.kind === 'study') finishStudy(state, activity, nowMs, next)
   else if (activity.kind === 'interest') finishInterest(state, activity, nowMs)
   else if (activity.kind === 'trip') finishTrip(state, activity, nowMs)
+  else if (activity.kind === 'fishing') finishAutoFishing(state, activity, nowMs, next)
 }
 
 export function finishInterest(state, activity, nowMs) {

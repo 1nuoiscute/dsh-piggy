@@ -25,7 +25,8 @@
     { key: "shop", label: "\u5546\u5E97", emoji: "\u{1F6D2}" },
     { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
     { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" },
-    { key: "pomodoro", label: "\u756A\u8304\u949F", emoji: "\u{1F345}" }
+    { key: "pomodoro", label: "\u756A\u8304\u949F", emoji: "\u{1F345}" },
+    { key: "fishing", label: "\u9493\u9C7C", emoji: "\u{1F3A3}" }
   ];
   var DEV_TAPS_TO_UNLOCK = 7;
   var DEV_TAP_WINDOW_MS = 3e3;
@@ -278,7 +279,8 @@
   var EXTRA = {
     dress: { emoji: "\u{1F455}", label: "\u88C5\u626E", color: "pink" },
     diary: { emoji: "\u{1F4D4}", label: "\u65E5\u8BB0", color: "brown" },
-    souvenir: { emoji: "\u{1F381}", label: "\u7EAA\u5FF5\u54C1", color: "blue" }
+    souvenir: { emoji: "\u{1F381}", label: "\u7EAA\u5FF5\u54C1", color: "blue" },
+    fish: { emoji: "\u{1F41F}", label: "\u9C7C\u7BD3", color: "teal" }
   };
   function shortDay(day) {
     return day.length >= 10 ? day.slice(5) : day;
@@ -288,6 +290,7 @@
     if (open === "dress") renderDress(ui);
     else if (open === "diary") renderDiary(ui);
     else if (open === "souvenir") renderSouvenirs(ui);
+    else if (open === "fish") renderFish(ui);
     else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open);
     else renderCategories(ui);
   }
@@ -326,7 +329,8 @@
         return item.owned;
       }).length,
       diary: ui.view.diary.length,
-      souvenir: ui.view.pig.souvenirs.length
+      souvenir: ui.view.pig.souvenirs.length,
+      fish: ui.view.fishing.bag.length
     };
     for (var key in EXTRA) {
       (function(category) {
@@ -345,6 +349,34 @@
       })(key);
     }
     ui.content.appendChild(grid);
+  }
+  function renderFish(ui) {
+    const list = ui.view.fishing.bag;
+    drillHeader(ui, "bag", "\u{1F41F} \u9C7C\u7BD3", list.length + " \u6761");
+    if (list.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u9C7C\u7BD3\u8FD8\u662F\u7A7A\u7684"));
+      return;
+    }
+    for (var i = 0; i < list.length; i += 1) {
+      (function(fish2) {
+        var card = el("div", "dp-pick dp-tile-card");
+        card.appendChild(el("div", "dp-pick-head", fish2.emoji + " " + fish2.label));
+        card.appendChild(el("div", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price));
+        var actions = el("div", "dp-dev-row");
+        var feed = button("dp-mini", { "data-fish-feed": fish2.id }, function() {
+          ui.send("fishFeed", { id: fish2.id });
+        });
+        feed.textContent = "\u{1F37D} \u5582";
+        var sell = button("dp-mini", { "data-fish-sell": fish2.id }, function() {
+          ui.send("fishSell", { id: fish2.id });
+        });
+        sell.textContent = "\u{1FA99} \u5356";
+        actions.appendChild(feed);
+        actions.appendChild(sell);
+        card.appendChild(actions);
+        ui.content.appendChild(card);
+      })(list[i]);
+    }
   }
   function renderItems(ui, kind) {
     var parts = shelfParts(kind);
@@ -486,6 +518,25 @@
     }
     ui.content.appendChild(story);
   }
+
+  // packages/pet-core/src/data/fish.js
+  var FISH = Object.freeze([
+    { key: "fish_crucian", label: "\u9CAB\u9C7C", emoji: "\u{1F41F}", rarity: "common", times: ["early", "noon", "evening"], behavior: "smooth", difficulty: 12, minCm: 12, maxCm: 32, price: 8 },
+    { key: "fish_carp", label: "\u9CA4\u9C7C", emoji: "\u{1F41F}", rarity: "common", times: ["noon", "evening"], behavior: "smooth", difficulty: 18, minCm: 20, maxCm: 55, price: 12 },
+    { key: "fish_sardine", label: "\u6C99\u4E01\u9C7C", emoji: "\u{1F41F}", rarity: "common", times: ["early", "noon"], behavior: "dash", difficulty: 22, minCm: 10, maxCm: 26, price: 14 },
+    { key: "fish_anchovy", label: "\u9CC0\u9C7C", emoji: "\u{1F41F}", rarity: "common", times: ["early", "evening"], behavior: "dash", difficulty: 25, minCm: 8, maxCm: 22, price: 16 },
+    { key: "fish_perch", label: "\u6CB3\u9C88", emoji: "\u{1F420}", rarity: "common", times: ["noon", "evening"], behavior: "sink", difficulty: 28, minCm: 16, maxCm: 38, price: 18 },
+    { key: "fish_bream", label: "\u9CCA\u9C7C", emoji: "\u{1F41F}", rarity: "common", times: ["early", "noon"], behavior: "rise", difficulty: 30, minCm: 18, maxCm: 42, price: 20 },
+    { key: "fish_catfish", label: "\u9CB6\u9C7C", emoji: "\u{1F421}", rarity: "common", times: ["evening", "night"], behavior: "sink", difficulty: 34, minCm: 24, maxCm: 68, price: 24 },
+    { key: "fish_mackerel", label: "\u9752\u82B1\u9C7C", emoji: "\u{1F41F}", rarity: "common", times: ["noon", "evening"], behavior: "mixed", difficulty: 38, minCm: 22, maxCm: 48, price: 28 },
+    { key: "fish_salmon", label: "\u9C91\u9C7C", emoji: "\u{1F41F}", rarity: "uncommon", times: ["early", "evening"], behavior: "dash", difficulty: 48, minCm: 38, maxCm: 92, price: 48 },
+    { key: "fish_puffer", label: "\u6CB3\u8C5A", emoji: "\u{1F421}", rarity: "uncommon", times: ["noon"], behavior: "mixed", difficulty: 55, minCm: 18, maxCm: 40, price: 62 },
+    { key: "fish_eel", label: "\u9CD7\u9C7C", emoji: "\u{1F40D}", rarity: "uncommon", times: ["evening", "night"], behavior: "rise", difficulty: 61, minCm: 42, maxCm: 110, price: 78 },
+    { key: "fish_tuna", label: "\u91D1\u67AA\u9C7C", emoji: "\u{1F41F}", rarity: "uncommon", times: ["early", "noon"], behavior: "dash", difficulty: 66, minCm: 70, maxCm: 180, price: 96 },
+    { key: "fish_sturgeon", label: "\u9C9F\u9C7C", emoji: "\u{1F41F}", rarity: "rare", times: ["night"], behavior: "sink", difficulty: 78, minCm: 85, maxCm: 220, price: 160 },
+    { key: "fish_koi", label: "\u9EC4\u91D1\u9526\u9CA4", emoji: "\u{1F38F}", rarity: "rare", times: ["early", "evening"], behavior: "mixed", difficulty: 86, minCm: 30, maxCm: 88, price: 220 },
+    { key: "fish_moon", label: "\u6708\u5F71\u9C7C", emoji: "\u{1F319}", rarity: "legend", times: ["night"], behavior: "mixed", difficulty: 100, minCm: 60, maxCm: 160, price: 300 }
+  ]);
 
   // src/client/tabs/dev.js
   function renderDevTab(ui) {
@@ -642,6 +693,15 @@
         patch({ pomodoro: { todayDone: 8 } });
       } }
     ]);
+    var fishEntries = FISH.map(function(fish2) {
+      return { key: "fish:" + fish2.key, label: fish2.emoji + " " + fish2.label, run: function() {
+        ui.send("fishGive", { fish: fish2.key });
+      } };
+    });
+    fishEntries.push({ key: "fish:skip", label: "\u2757 \u8DF3\u8FC7\u7B49\u5F85", run: function() {
+      ui.send("fishSkip");
+    } });
+    group("\u9493\u9C7C", fishEntries);
     group("\u8D44\u6E90", [
       { key: "coin100", label: "\u{1FA99} +100", run: function() {
         patch({ coins: p.coins + 100 });
@@ -1736,8 +1796,14 @@
     ".dp-dex-card-foil::after,.dp-dex-big-foil::after{display:none}}"
   ].join("");
 
+  // src/client/css-fishing.js
+  var CSS_FISHING = `
+.dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-charge{height:12px;border-radius:8px;background:#e6ecee;overflow:hidden;margin:12px 0}.dp-fish-charge i{display:block;width:0;height:100%;background:linear-gradient(90deg,#77d86e,#ffd252,#ff746b)}.dp-fish-cast{touch-action:none}.dp-fish-auto{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border-radius:12px;background:#f5fafb}.dp-fish-auto span{width:100%;font-size:11px;color:#718188}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
+.dp-fish-game{position:relative;height:320px;padding-bottom:22px;box-sizing:border-box;display:flex;justify-content:center;gap:12px;align-items:stretch;touch-action:none;outline:0}.dp-fish-track{position:relative;width:72px;border-radius:18px;background:linear-gradient(#bceeff,#3d9fc6);overflow:hidden;border:3px solid #fff;box-shadow:0 2px 9px #347c9b55}.dp-fish-bar{position:absolute;left:7px;right:7px;height:18%;bottom:35%;border-radius:10px;background:#75dc75aa;border:2px solid #3baf57}.dp-fish-target{position:absolute;left:50%;bottom:55%;transform:translate(-50%,50%);font-size:26px;filter:drop-shadow(0 1px 1px #fff)}.dp-fish-progress{position:relative;width:14px;border-radius:9px;background:#e4e9e8;overflow:hidden}.dp-fish-progress i{position:absolute;left:0;right:0;bottom:0;height:30%;background:#ffb83e}.dp-fish-help{position:absolute;left:0;right:0;bottom:0;text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
+`;
+
   // src/client/styles.js
-  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX;
+  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING;
 
   // src/client/tabs/travel.js
   function renderTravelTab(ui) {
@@ -2381,6 +2447,37 @@
     return { clampPig, fitPanel, visibleTabs, paintBar, buildIcon };
   }
 
+  // src/client/normalize-fishing.js
+  function fish(value) {
+    const entry = obj(value);
+    return {
+      id: str(entry.id, ""),
+      key: str(entry.key, ""),
+      label: str(entry.label, "\u9C7C"),
+      emoji: str(entry.emoji, "\u{1F41F}"),
+      rarity: str(entry.rarity, "common"),
+      behavior: str(entry.behavior, "smooth"),
+      difficulty: num(entry.difficulty, 1),
+      sizeCm: num(entry.sizeCm, 0),
+      price: num(entry.price, 0),
+      phase: str(entry.phase, ""),
+      castPower: num(entry.castPower, 0),
+      bitesAt: num(entry.bitesAt, 0),
+      hookUntil: num(entry.hookUntil, 0),
+      expiresAt: num(entry.expiresAt, 0)
+    };
+  }
+  function normalizeFishing(raw) {
+    const source = obj(raw);
+    return {
+      pending: isObj(source.pending) ? fish(source.pending) : null,
+      bag: arr(source.bag).map(fish).filter((entry) => entry.id !== ""),
+      period: str(source.period, ""),
+      autoTrips: num(source.autoTrips, 0),
+      autoLeft: num(source.autoLeft, 2)
+    };
+  }
+
   // src/client/normalize.js
   function normalize(raw) {
     var d = obj(raw);
@@ -2627,6 +2724,7 @@
       })).filter((item) => item.key !== ""),
       inventory: obj(d.inventory),
       dex: normalizeDex(d.dex),
+      fishing: normalizeFishing(d.fishing),
       daily: {
         canSignIn: obj(d.daily).canSignIn === true,
         signInDay: num(obj(d.daily).signInDay, 1),
@@ -2765,6 +2863,7 @@
           firstAt: typeof entry.firstAt === "number" ? entry.firstAt : null,
           count: num(entry.count, 0),
           condition: str(entry.condition, ""),
+          maxSizeCm: typeof entry.maxSizeCm === "number" ? entry.maxSizeCm : null,
           requirements: arr(entry.requirements).map(function(value2) {
             const requirement = obj(value2);
             return { key: str(requirement.key, ""), label: str(requirement.label, ""), have: num(requirement.have, 0), need: num(requirement.need, 0), met: requirement.met === true };
@@ -3099,7 +3198,7 @@
     card.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + section.label));
     if (entry.acquired) {
       card.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
-      card.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21"));
+      card.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
     } else {
       const riddle = el("div", "dp-dex-riddle");
       riddle.appendChild(el("b", null, "\u89E3\u9501\u8C1C\u9762"));
@@ -3146,6 +3245,219 @@
     });
   }
 
+  // src/client/tabs/fishing.js
+  var frame = 0;
+  var activeUi = null;
+  var resolving = false;
+  var raf = (fn) => typeof requestAnimationFrame === "function" ? requestAnimationFrame(fn) : 0;
+  var caf = (id) => {
+    if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(id);
+  };
+  function stopLoop() {
+    if (frame) caf(frame);
+    frame = 0;
+    activeUi = null;
+    resolving = false;
+  }
+  function closeFishing(ui) {
+    const playing = activeUi === ui && ui.view.fishing.pending?.phase === "hooked";
+    stopLoop();
+    if (playing) ui.send("fishResolve", { success: false });
+  }
+  function renderFishingTab(ui) {
+    stopLoop();
+    const pending = ui.view.fishing.pending;
+    if (ui.view.activity?.kind === "fishing") return renderAway(ui);
+    if (pending?.phase === "waiting") return renderWaiting(ui, pending);
+    if (pending?.phase === "hooked") return renderGame(ui, pending);
+    if (pending?.phase === "caught") return renderResult(ui, pending);
+    renderReady(ui);
+  }
+  function renderReady(ui) {
+    ui.content.appendChild(el("div", "dp-fish-scene", "\u{1F30A}\u3000\u{1F41F}\u3000\uFF5E\u3000\u{1F33F}"));
+    ui.content.appendChild(el("div", "dp-fish-copy", "\u6309\u4F4F\u629B\u7AFF\uFF0C\u677E\u624B\u51B3\u5B9A\u8DDD\u79BB\u3002\u629B\u5F97\u8D8A\u8FDC\uFF0C\u9047\u89C1\u7A00\u6709\u9C7C\u7684\u673A\u4F1A\u8D8A\u5927\u3002"));
+    const meter2 = el("div", "dp-fish-charge");
+    const fill = el("i");
+    meter2.appendChild(fill);
+    ui.content.appendChild(meter2);
+    let power = 0;
+    let direction = 1;
+    let charging = false;
+    let last = 0;
+    function tick(now) {
+      if (!charging) return;
+      const elapsed = last === 0 ? 16 : Math.min(40, now - last);
+      last = now;
+      power += direction * elapsed / 900;
+      if (power >= 1) {
+        power = 1;
+        direction = -1;
+      }
+      if (power <= 0) {
+        power = 0;
+        direction = 1;
+      }
+      fill.style.width = Math.round(power * 100) + "%";
+      frame = raf(tick);
+    }
+    const cast = button("dp-btn dp-btn-wide dp-fish-cast", { "data-fish": "cast" }, function() {
+    });
+    cast.textContent = "\u{1F3A3} \u6309\u4F4F\u84C4\u529B";
+    function start(event) {
+      event?.preventDefault?.();
+      if (charging) return;
+      charging = true;
+      cast.textContent = "\u677E\u624B\u629B\u7AFF\uFF01";
+      frame = raf(tick);
+    }
+    function release(event) {
+      event?.preventDefault?.();
+      if (!charging) return;
+      charging = false;
+      caf(frame);
+      frame = 0;
+      ui.send("fishCast", { power });
+    }
+    cast.addEventListener("pointerdown", start);
+    cast.addEventListener("pointerup", release);
+    cast.addEventListener("pointercancel", release);
+    cast.addEventListener("keydown", function(event) {
+      if (event.code === "Space" || event.key === " ") start(event);
+    });
+    cast.addEventListener("keyup", function(event) {
+      if (event.code === "Space" || event.key === " ") release(event);
+    });
+    ui.content.appendChild(cast);
+    const auto = el("div", "dp-fish-auto");
+    auto.appendChild(el("b", null, "\u81EA\u52A8\u9493\u9C7C"));
+    auto.appendChild(el("span", null, "\u4ECA\u5929\u8FD8\u53EF\u51FA\u53D1 " + ui.view.fishing.autoLeft + " \u6B21 \xB7 \u6536\u76CA\u6309 70% \u81EA\u52A8\u5356\u51FA"));
+    for (const minutes of [30, 60]) {
+      const go = button("dp-mini", { "data-fish-auto": String(minutes) }, function() {
+        ui.send("fishAuto", { minutes });
+      });
+      go.textContent = minutes + " \u5206\u949F";
+      go.disabled = ui.view.fishing.autoLeft <= 0 || ui.view.canGoOut !== true;
+      auto.appendChild(go);
+    }
+    ui.content.appendChild(auto);
+  }
+  function renderWaiting(ui, pending) {
+    const water = button("dp-fish-waiting", { "data-fish": "hook" }, function() {
+      if (Date.now() >= pending.bitesAt && Date.now() <= pending.hookUntil) ui.send("fishHook");
+    });
+    const mark = el("span", "dp-fish-bobber", "\u{1F3A3}");
+    const line = el("b", null, "\u5B89\u9759\u7B49\u9C7C\u54AC\u94A9\u2026");
+    water.appendChild(mark);
+    water.appendChild(line);
+    ui.content.appendChild(water);
+    activeUi = ui;
+    function tick() {
+      if (activeUi !== ui) return;
+      const now = Date.now();
+      if (now >= pending.bitesAt && now <= pending.hookUntil) {
+        mark.textContent = "\u2757";
+        line.textContent = "\u4E0A\u94A9\u4E86\uFF01\u5FEB\u70B9\uFF01";
+        water.setAttribute("data-bite", "true");
+      } else if (now > pending.hookUntil) {
+        stopLoop();
+        ui.send("fishHook");
+        return;
+      }
+      frame = raf(tick);
+    }
+    frame = raf(tick);
+  }
+  function renderGame(ui, fish2) {
+    const wrap = el("div", "dp-fish-game");
+    const track = el("div", "dp-fish-track");
+    const bar = el("i", "dp-fish-bar");
+    const icon = el("span", "dp-fish-target", fish2.emoji);
+    const progress = el("div", "dp-fish-progress");
+    const progressFill = el("i");
+    progress.appendChild(progressFill);
+    track.appendChild(bar);
+    track.appendChild(icon);
+    wrap.appendChild(track);
+    wrap.appendChild(progress);
+    wrap.appendChild(el("div", "dp-fish-help", "\u6309\u4F4F\u9F20\u6807\u6216\u7A7A\u683C\u8BA9\u7EFF\u6761\u4E0A\u5347\uFF0C\u677E\u5F00\u4F1A\u4E0B\u843D"));
+    ui.content.appendChild(wrap);
+    let held = false;
+    let player = 0.35;
+    let velocity = 0;
+    let target = 0.55;
+    let targetVelocity = 0;
+    let capture = 0.3;
+    let last = 0;
+    let changeAt = 0;
+    const setHeld = (value) => (event) => {
+      event?.preventDefault?.();
+      held = value;
+    };
+    wrap.addEventListener("pointerdown", setHeld(true));
+    wrap.addEventListener("pointerup", setHeld(false));
+    wrap.addEventListener("pointercancel", setHeld(false));
+    wrap.setAttribute("tabindex", "0");
+    wrap.addEventListener("keydown", (event) => {
+      if (event.code === "Space") setHeld(true)(event);
+    });
+    wrap.addEventListener("keyup", (event) => {
+      if (event.code === "Space") setHeld(false)(event);
+    });
+    activeUi = ui;
+    function finish(success) {
+      if (resolving) return;
+      resolving = true;
+      stopLoop();
+      ui.send("fishResolve", { success });
+    }
+    function tick(now) {
+      if (activeUi !== ui || ui.host.getAttribute("data-open") !== "true") return finish(false);
+      const dt = Math.min(0.04, last === 0 ? 0.016 : (now - last) / 1e3);
+      last = now;
+      velocity += (held ? 1.9 : -1.45) * dt;
+      velocity *= 0.965;
+      player = Math.max(0, Math.min(0.82, player + velocity * dt));
+      if (now >= changeAt) {
+        const force = 0.12 + fish2.difficulty / 180;
+        const bias = fish2.behavior === "sink" ? -0.35 : fish2.behavior === "rise" ? 0.35 : 0;
+        targetVelocity = (Math.random() * 2 - 1 + bias) * force;
+        if (fish2.behavior === "dash" || fish2.behavior === "mixed") targetVelocity *= 1.7;
+        changeAt = now + Math.max(180, 1200 - fish2.difficulty * 9) + Math.random() * 500;
+      }
+      targetVelocity *= 0.992;
+      target += targetVelocity * dt;
+      if (target < 0.02 || target > 0.96) {
+        target = Math.max(0.02, Math.min(0.96, target));
+        targetVelocity *= -0.8;
+      }
+      const inside = target >= player && target <= player + 0.18;
+      capture += (inside ? 0.16 : -0.11 - fish2.difficulty / 1200) * dt;
+      bar.style.bottom = Math.round(player * 100) + "%";
+      icon.style.bottom = Math.round(target * 100) + "%";
+      progressFill.style.height = Math.round(Math.max(0, Math.min(1, capture)) * 100) + "%";
+      if (capture >= 1) return finish(true);
+      if (capture <= 0) return finish(false);
+      frame = raf(tick);
+    }
+    frame = raf(tick);
+  }
+  function renderResult(ui, fish2) {
+    const card = el("div", "dp-fish-result");
+    card.appendChild(el("div", "dp-fish-result-emoji", fish2.emoji));
+    card.appendChild(el("b", null, "\u9493\u5230\u4E86 " + fish2.label + "\uFF01"));
+    card.appendChild(el("span", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price));
+    const keep = button("dp-btn dp-btn-wide", { "data-fish": "keep" }, function() {
+      ui.send("fishKeep");
+    });
+    keep.textContent = "\u{1F392} \u653E\u8FDB\u80CC\u5305";
+    card.appendChild(keep);
+    ui.content.appendChild(card);
+  }
+  function renderAway(ui) {
+    ui.content.appendChild(el("div", "dp-fish-away", "\u{1F3A3}"));
+    ui.content.appendChild(el("div", "dp-empty", ui.view.activity.label + " \xB7 \u56DE\u6765\u65F6\u4F1A\u81EA\u52A8\u5356\u9C7C"));
+  }
+
   // src/client/tabs/home.js
   var APP_COLOR = {
     status: "green",
@@ -3157,6 +3469,7 @@
     travel: "blue",
     bag: "teal",
     pomodoro: "red",
+    fishing: "blue",
     update: "lime",
     quit: "peach",
     dev: "brown"
@@ -3397,6 +3710,7 @@
       trip: "\u5728\u8DEF\u4E0A"
     };
     function setOpen(next) {
+      if (!next) closeFishing(ctx);
       ctx.isOpen = next;
       ctx.host.setAttribute("data-open", next ? "true" : "false");
       ctx.card.hidden = !next;
@@ -3493,6 +3807,7 @@
       else if (ctx.tab === "work") renderWorkTab(ctx);
       else if (ctx.tab === "shop") renderShopTab(ctx);
       else if (ctx.tab === "travel") renderTravelTab(ctx);
+      else if (ctx.tab === "fishing") renderFishingTab(ctx);
       else if (ctx.tab === "pomodoro") {
         renderPomodoroTab(ctx);
         if (typeof ctx.pomoTick === "function") ctx.pomoTick();

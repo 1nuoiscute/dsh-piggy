@@ -10,6 +10,7 @@ import { DEFAULT_TIME_SCALE, MAX } from '../data.js'
 import { BIRTH_WEIGHT_G, HATCH_WEIGHT_G, STATE_VERSION } from './constants.js'
 import { remember } from './effects.js'
 import { emptyDex } from './dex.js'
+import { emptyFishing } from './fishing.js'
 import { emptyDialogue } from './lines.js'
 import { assignPersonality } from './profile.js'
 import { roll } from './random.js'
@@ -49,6 +50,7 @@ export function layEgg(nowMs) {
     dress: [],
     worn: [],
     dex: emptyDex(),
+    fishing: emptyFishing(),
     traits: { intel: 0, charm: 0, strong: 0 },
     // Lessons taken per subject (B4): the count decides the subject's stage
     // and which jobs the pig qualifies for.
@@ -73,6 +75,7 @@ export function layEgg(nowMs) {
       levelUps: 0, feeds: 0, baths: 0, plays: 0, pets: 0,
       jobs: 0, coinsEarned: 0, purchases: 0, illnesses: 0, cures: 0, deaths: 0, revives: 0,
       courses: 0, lessons: 0, trips: 0, sales: 0, interests: 0,
+      fishCaught: 0, fishingAuto: 0,
     },
   }
 }

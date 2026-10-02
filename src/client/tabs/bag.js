@@ -21,6 +21,7 @@ var EXTRA = {
   dress: { emoji: '👕', label: '装扮', color: 'pink' },
   diary: { emoji: '📔', label: '日记', color: 'brown' },
   souvenir: { emoji: '🎁', label: '纪念品', color: 'blue' },
+  fish: { emoji: '🐟', label: '鱼篓', color: 'teal' },
 }
 
 /** 「2026-10-01」 → 「10-01」: the tile only has room for the month and day. */
@@ -33,6 +34,7 @@ export function renderBagTab(ui) {
   if (open === 'dress') renderDress(ui)
   else if (open === 'diary') renderDiary(ui)
   else if (open === 'souvenir') renderSouvenirs(ui)
+  else if (open === 'fish') renderFish(ui)
   else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open)
   else renderCategories(ui)
 }
@@ -64,6 +66,7 @@ function renderCategories(ui) {
     dress: ui.view.dress.filter(function (item) { return item.owned }).length,
     diary: ui.view.diary.length,
     souvenir: ui.view.pig.souvenirs.length,
+    fish: ui.view.fishing.bag.length,
   }
   for (var key in EXTRA) {
     (function (category) {
@@ -77,6 +80,25 @@ function renderCategories(ui) {
     })(key)
   }
   ui.content.appendChild(grid)
+}
+
+function renderFish(ui) {
+  const list = ui.view.fishing.bag
+  drillHeader(ui, 'bag', '🐟 鱼篓', list.length + ' 条')
+  if (list.length === 0) { ui.content.appendChild(el('div', 'dp-empty', '鱼篓还是空的')); return }
+  for (var i = 0; i < list.length; i += 1) {
+    (function (fish) {
+      var card = el('div', 'dp-pick dp-tile-card')
+      card.appendChild(el('div', 'dp-pick-head', fish.emoji + ' ' + fish.label))
+      card.appendChild(el('div', null, fish.sizeCm.toFixed(1) + ' cm · 🪙 ' + fish.price))
+      var actions = el('div', 'dp-dev-row')
+      var feed = button('dp-mini', { 'data-fish-feed': fish.id }, function () { ui.send('fishFeed', { id: fish.id }) })
+      feed.textContent = '🍽 喂'
+      var sell = button('dp-mini', { 'data-fish-sell': fish.id }, function () { ui.send('fishSell', { id: fish.id }) })
+      sell.textContent = '🪙 卖'
+      actions.appendChild(feed); actions.appendChild(sell); card.appendChild(actions); ui.content.appendChild(card)
+    })(list[i])
+  }
 }
 
 /** A consumable shelf: tap an item to use it. */

@@ -45,6 +45,7 @@ export const TABS = [
   { key: 'travel', label: '旅行', emoji: '🧳' },
   { key: 'bag', label: '背包', emoji: '🎒' },
   { key: 'pomodoro', label: '番茄钟', emoji: '🍅' },
+  { key: 'fishing', label: '钓鱼', emoji: '🎣' },
 ]
 
 // 调试模式（C1）：主屏版本号连点 7 次解锁，只在内存里记住 —— 刷新就关。

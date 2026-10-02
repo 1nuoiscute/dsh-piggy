@@ -191,7 +191,8 @@ function renderDetail(ui, section, entry) {
   card.appendChild(el('div', 'dp-dex-big-title', entry.acquired ? entry.emoji + ' ' + entry.label : '🔒 未知' + section.label))
   if (entry.acquired) {
     card.appendChild(el('div', 'dp-dex-story', entry.description || '这段故事还没有写进图鉴。'))
-    card.appendChild(el('div', 'dp-dex-foot', firstSeen(entry.firstAt) + ' · 获得 ' + entry.count + ' 次'))
+    card.appendChild(el('div', 'dp-dex-foot', firstSeen(entry.firstAt) + ' · 获得 ' + entry.count + ' 次'
+      + (typeof entry.maxSizeCm === 'number' ? ' · 最大 ' + entry.maxSizeCm.toFixed(1) + ' cm' : '')))
   } else {
     const riddle = el('div', 'dp-dex-riddle')
     riddle.appendChild(el('b', null, '解锁谜面'))

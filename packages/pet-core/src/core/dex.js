@@ -1,7 +1,7 @@
 // @ts-check
 /** 图鉴的持久记录与面板视图。新增字段按需补齐，不升级存档版本。 */
 
-import { ALL_SOUVENIRS, FORMS, SHOP } from '../data.js'
+import { ALL_SOUVENIRS, FISH, FORMS, SHOP } from '../data.js'
 
 export const DEX_SECTIONS = Object.freeze(['forms', 'skins', 'fish', 'items', 'souvenirs'])
 
@@ -13,7 +13,8 @@ function cleanRecord(value) {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
   const firstAt = Number.isFinite(value.firstAt) ? value.firstAt : null
   const count = Number.isFinite(value.count) ? Math.max(1, Math.floor(value.count)) : 0
-  return firstAt === null || count === 0 ? null : { firstAt, count }
+  if (firstAt === null || count === 0) return null
+  return { firstAt, count, ...(Number.isFinite(value.maxSizeCm) ? { maxSizeCm: Math.max(0.1, value.maxSizeCm) } : {}) }
 }
 
 /** Fill/sanitize the collection in place and seed things an old save already owns. */
@@ -90,7 +91,18 @@ export function dexView(state, formView, nowMs = 0) {
       }
     }),
     skins: [],
-    fish: [],
+    fish: FISH.map(fish => {
+      const record = found(dex, 'fish', fish.key)
+      const behavior = { smooth: '游姿平稳', dash: '动作敏捷', sink: '喜欢往深处钻', rise: '常往水面游', mixed: '行踪难以捉摸' }[fish.behavior]
+      return {
+        ...fish,
+        acquired: record !== null, firstAt: record?.firstAt ?? null,
+        count: record?.count ?? 0, maxSizeCm: record?.maxSizeCm ?? null,
+        description: `${behavior}的${fish.label}。`,
+        hint: '水面、钟声和抛竿的远近，都会悄悄改变相遇。',
+        condition: `${fish.times.join(' / ')} 出现 · 难度 ${fish.difficulty}`,
+      }
+    }),
     items: SHOP.map(item => {
       const record = found(dex, 'items', item.key)
       const gate = item.kind === 'dress' && (item.level ?? 1) > 1 ? ` · Lv.${item.level}` : ''

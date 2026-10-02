@@ -88,6 +88,15 @@
 
 验收：手动能钓上/会跑；稀有鱼明显更难；刷新时 pending 不重复发鱼；自动模式 30 分钟后结算；鱼可喂可卖，图鉴点亮。
 
+### 验证记录 — C5（Codex，2026-10-02）
+- `npm run build` 通过并重新生成 `client.js`（218188 bytes）；`npm test` 436/436；`npm run typecheck` 0 错误。核心随机只经 `rollerFor` / `chance`，小游戏的 `Math.random()` 仅在客户端动画中。
+- 鱼表见 `docs/tasks/numbers/C5-fish.md`：15 种，普通 8 / 少见 4 / 稀有 2 / 传说 1。存档仍为 v12；`ensureFishing(state)` 给老存档补 `pending`、鱼篓、序号和每日自动次数，并清洗坏数据，没有升存档版本。
+- 3084 隔离实例 + Python Playwright + `/usr/bin/chromium` 实测：按住蓄力后松开能抛竿，2–8 秒内出现「❗」，1 秒窗口内提竿进入小游戏；绿条有惯性，鱼会按行为和难度移动。实际跑到过成功结果卡，也跑到过捕获槽归零逃脱；关闭面板会发失败并停止 rAF。
+- 抛竿后刷新仍读到同一个 `pending.id`，不会重新抽鱼；成功只先进入结果卡，点「放进背包」后才记录鱼篓与图鉴，因此重复刷新/重复点击不会多发鱼。
+- 30 分钟自动钓鱼实测从 `activity.kind=fishing` 开始；调试快进 30 分钟后 `activity=null`，金币 90333→90449，已点亮鱼种 1→5。验收时同时发现并修复了调试快进没有推进活动结束时间的问题，新增红测守住。
+- 鱼篓实测「喂」后鱼从背包移除；调试给予黄金锦鲤后图鉴点亮并记录最大 `59.0 cm`；「卖」后金币 90449→90669、鱼从背包移除。调试页逐条提供 15 种鱼，并有「跳过等待」。
+- 截图：`docs/screenshots/c5-cast-auto.png`、`c5-minigame.png`、`c5-catch-result.png`、`c5-fish-bag.png`；10 秒录屏：`docs/screenshots/c5-fishing.webm`。Playwright 控制台与 page error 均为 0。
+
 ## C6 换肤（Codex）
 - `data/skins.js`：`{key, label, emoji, art, price, actionArt}`；默认皮肤 `default`（现有 piglet）。`state.skin`（`ensureSkin`），商店「🎨 皮肤」货架，买后背包「换上」。
 - 立绘查找顺序：形态（王/恶魔）> 皮肤 > 默认。**形态优先，皮肤被盖住**（用户说进化形态不管）。缺动作图时回落到该皮肤待机图。
@@ -110,6 +119,27 @@
 | 可选 | `-fish` | 钓鱼（C5 新增场景） |
 
 最少 5 张能上线，完整 10 张。可选的缺了用待机图。
+
+用户自定义皮肤统一交一个 ZIP，不要求逐张上传。包内根目录放 `skin.json` 和 SVG；最少 5 张、完整 10 张：
+
+```text
+my-skin.zip
+├── skin.json
+├── idle.svg
+├── eat.svg
+├── bathe.svg
+├── play.svg
+├── pet.svg
+├── relaxed.svg   # 可选
+├── work.svg      # 可选
+├── study.svg     # 可选
+├── trip.svg      # 可选
+└── fish.svg      # 可选
+```
+
+`skin.json` 至少写 `key`、`label`、`author`，可选 `description`；`key` 只允许小写字母、数字和连字符。导入时逐个校验 SVG 尺寸与禁用元素，文件缺失或格式不合格时列清单，不写入半套皮肤。C6 实现时同时提交 `docs/examples/skin-pack/` 和可直接下载的 `docs/examples/skin-pack-example.zip` 作为参考包。
+
+显示优先级固定为：**晋升形态 > 当前皮肤 > 默认猪**。猪猪王或恶魔猪启用时仍保留用户选择的皮肤状态，但画面由形态覆盖；恢复普通形态后自动显示原先选择的皮肤。
 
 ## C7 胖猪（Codex）
 - 体重分 3 档：正常 / 圆润（≥ 理想体重 ×1.3）/ 胖胖（≥ ×1.6）；理想体重按等级取（Codex 从现有 weightG 增长数据算一张表写进数值单）。

@@ -132,6 +132,12 @@ export function applyDevPatch(state, patch, nowMs) {
   if (typeof patch.__advanceMs === 'number' && Number.isFinite(patch.__advanceMs) && patch.__advanceMs > 0) {
     const advance = Math.min(patch.__advanceMs, 60 * 86_400_000)
     state.lastSeenAt = nowMs - advance
+    // Timed outings use wall-clock end timestamps too. Move the whole interval
+    // back so the debug clock can actually finish work, study, trips and fishing.
+    if (state.activity !== null) {
+      state.activity.startedAt -= advance
+      state.activity.endsAt -= advance
+    }
     // 番茄钟是墙上时钟的计时器：快进也要把它一起往前挪，否则「+1 小时」永远等不到结算
     // （验收：调试快进一小时后结算并发奖）。挪完立刻结算，响应里就能看到奖励。
     const pomo = ensurePomodoro(state)

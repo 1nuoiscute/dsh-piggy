@@ -19,6 +19,7 @@ import { isSeed, seedFor } from './random.js'
 import { applyUpgrades } from './upgrades.js'
 import { ensureDex } from './dex.js'
 import { ensureBodyWeight } from './weight.js'
+import { ensureFishing } from './fishing.js'
 
 /** Fill in anything a hand-edited or older save is missing. */
 export function migrate(input, nowMs) {
@@ -87,6 +88,7 @@ export function migrate(input, nowMs) {
   ensurePomodoro(state)
   ensureDex(state, nowMs)
   ensureBodyWeight(state)
+  ensureFishing(state)
   return state
 }
 
@@ -209,7 +211,7 @@ export function sanitizeActivity(raw) {
   if (source === null) return null
   if (!Number.isFinite(source.endsAt)) return null
   const kind = source.kind ?? 'work'
-  if (!['work', 'study', 'trip', 'interest'].includes(kind)) return null
+  if (!['work', 'study', 'trip', 'interest', 'fishing'].includes(kind)) return null
   // A shift from an older job table survives if the upgrade priced it.
   const known = kind === 'work'
     ? jobByKey(source.key ?? source.job) !== null || Number.isFinite(source.legacyCoins)
@@ -217,7 +219,9 @@ export function sanitizeActivity(raw) {
       ? subjectByKey(source.key) !== null
       : kind === 'interest'
         ? interestByKey(source.key) !== null
-        : tripByKey(source.key) !== null
+        : kind === 'fishing'
+          ? ['auto-30', 'auto-60'].includes(source.key)
+          : tripByKey(source.key) !== null
   if (!known) return null
   return {
     kind,

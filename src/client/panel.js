@@ -14,6 +14,7 @@ import { CSS } from './styles.js'
 import { renderBagTab } from './tabs/bag.js'
 import { renderCardTab } from './tabs/card.js'
 import { renderDexTab } from './tabs/dex.js'
+import { closeFishing, renderFishingTab } from './tabs/fishing.js'
 import { appHeader, renderHome } from './tabs/home.js'
 import { clockText, renderPomodoroTab } from './tabs/pomodoro.js'
 import { renderDevTab } from './tabs/dev.js'
@@ -36,6 +37,7 @@ export function createPanel(ctx) {
       }
 
       function setOpen(next) {
+        if (!next) closeFishing(ctx)
         ctx.isOpen = next
         ctx.host.setAttribute('data-open', next ? 'true' : 'false')
         // Collapsed must be the pig and *nothing else*. One switch hides the
@@ -154,6 +156,7 @@ export function createPanel(ctx) {
         else if (ctx.tab === 'work') renderWorkTab(ctx)
         else if (ctx.tab === 'shop') renderShopTab(ctx)
         else if (ctx.tab === 'travel') renderTravelTab(ctx)
+        else if (ctx.tab === 'fishing') renderFishingTab(ctx)
         else if (ctx.tab === 'pomodoro') { renderPomodoroTab(ctx); if (typeof ctx.pomoTick === 'function') ctx.pomoTick() }
         else if (ctx.tab === 'dev') renderDevTab(ctx)
         else if (ctx.tab === 'update') renderUpdateTab(ctx)

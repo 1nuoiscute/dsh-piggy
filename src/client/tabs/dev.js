@@ -8,6 +8,7 @@
 
 import { button, el } from '../dom.js'
 import { num } from '../values.js'
+import { FISH } from '../../../packages/pet-core/src/data/fish.js'
 
 export function renderDevTab(ui) {
   // 关掉调试模式就靠这个按钮（C1：没有快捷键，也不写 localStorage）。
@@ -124,6 +125,12 @@ export function renderDevTab(ui) {
     { key: 'pomoDone', label: '🍅 完成当前', run: function () { patch({ pomodoro: { finish: true } }) } },
     { key: 'pomoCap', label: '🔢 今天=8', run: function () { patch({ pomodoro: { todayDone: 8 } }) } },
   ])
+
+  var fishEntries = FISH.map(function (fish) {
+    return { key: 'fish:' + fish.key, label: fish.emoji + ' ' + fish.label, run: function () { ui.send('fishGive', { fish: fish.key }) } }
+  })
+  fishEntries.push({ key: 'fish:skip', label: '❗ 跳过等待', run: function () { ui.send('fishSkip') } })
+  group('钓鱼', fishEntries)
 
   group('资源', [
     { key: 'coin100', label: '🪙 +100', run: function () { patch({ coins: p.coins + 100 }) } },

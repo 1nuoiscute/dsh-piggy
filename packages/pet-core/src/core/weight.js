@@ -60,6 +60,11 @@ export function reduceWorkWeight(state, minutes) {
   reduceExcess(state, (1 - WEIGHT_RULES.workLossPerHour) ** (minutes / 60))
 }
 
+/** Fishing is continuous outdoor exercise and follows the work curve. */
+export function reduceFishingWeight(state, minutes) {
+  reduceWorkWeight(state, minutes)
+}
+
 /** Natural metabolism removes 2% of excess per pig day, including offline time. */
 export function settleWeight(state, pigMs) {
   if (!Number.isFinite(pigMs) || pigMs <= 0) return

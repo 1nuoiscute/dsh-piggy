@@ -7,11 +7,8 @@
  */
 import { MODES } from './constants.js'
 import { arr, isObj, num, obj, str } from './values.js'
-/**
- * Map any host payload — current, older, or truncated — onto the exact
- * shape the panel draws. Missing fields become defaults, never `undefined`.
- * @returns {object} a fully populated view model.
- */
+import { normalizeFishing } from './normalize-fishing.js'
+/** Map any host payload onto the fully populated view model. */
 export function normalize(raw) {
   var d = obj(raw)
   var pig = isObj(d.pig) ? d.pig : null
@@ -248,6 +245,7 @@ export function normalize(raw) {
     })).filter(item => item.key !== ''),
     inventory: obj(d.inventory),
     dex: normalizeDex(d.dex),
+    fishing: normalizeFishing(d.fishing),
     daily: {
       canSignIn: obj(d.daily).canSignIn === true,
       signInDay: num(obj(d.daily).signInDay, 1),
@@ -374,6 +372,7 @@ function normalizeDex(raw) {
         acquired: entry.acquired === true,
         firstAt: typeof entry.firstAt === 'number' ? entry.firstAt : null,
         count: num(entry.count, 0), condition: str(entry.condition, ''),
+        maxSizeCm: typeof entry.maxSizeCm === 'number' ? entry.maxSizeCm : null,
         requirements: arr(entry.requirements).map(function (value) {
           const requirement = obj(value)
           return { key: str(requirement.key, ''), label: str(requirement.label, ''), have: num(requirement.have, 0), need: num(requirement.need, 0), met: requirement.met === true }

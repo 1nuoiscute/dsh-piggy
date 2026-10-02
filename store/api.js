@@ -46,6 +46,15 @@ import {
   takeOff as coreTakeOff,
   useItem as coreUseItem,
   wearItem as coreWearItem,
+  castFishing as coreCastFishing,
+  feedFish as coreFeedFish,
+  grantFish as coreGrantFish,
+  hookFishing as coreHookFishing,
+  keepFish as coreKeepFish,
+  resolveFishing as coreResolveFishing,
+  sellFish as coreSellFish,
+  skipFishingWait as coreSkipFishingWait,
+  startAutoFishing as coreStartAutoFishing,
 } from '../core.js'
 
 /**
@@ -131,6 +140,15 @@ export function createApi(control) {
 
     /** Send the pig travelling. */
     startTrip: tripKey => mutate(live => coreStartTrip(live, tripKey, now())),
+    castFishing: power => mutate(live => coreCastFishing(live, Number(power), now())),
+    hookFishing: () => mutate(live => coreHookFishing(live, now())),
+    resolveFishing: success => mutate(live => coreResolveFishing(live, success === true, now())),
+    keepFish: () => mutate(live => coreKeepFish(live, now())),
+    feedFish: id => mutate(live => coreFeedFish(live, id, now())),
+    sellFish: id => mutate(live => coreSellFish(live, id, now())),
+    startAutoFishing: minutes => mutate(live => coreStartAutoFishing(live, Number(minutes), now())),
+    grantFish: key => mutate(live => ({ ok: coreGrantFish(live, key, now()) !== null })),
+    skipFishingWait: () => mutate(live => coreSkipFishingWait(live, now())),
 
     /** Bring the pig home early (work forfeits pay; study/trips are refunded). */
     callOffActivity: () => mutate(live => coreCallOff(live, now())),
