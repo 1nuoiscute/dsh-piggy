@@ -16,6 +16,7 @@ import { say } from './lines.js'
 import { rollerFor } from './random.js'
 import { noteToday } from './diary.js'
 import { recordDex } from './dex.js'
+import { unlockCareerLook } from './skins.js'
 import { reduceWorkWeight, settleWeight } from './weight.js'
 import { finishAutoFishing } from './fishing.js'
 
@@ -238,6 +239,11 @@ export function finishWork(state, activity, nowMs, next = rollerFor(state)) {
     ? `${state.name} 带病打工回来了，只赚到 ${coins} 金币 🤒${extra}`
     : `${state.name} 打工回来了！赚到 ${coins} 金币 💰${extra}`, nowMs)
   say(state, (state.outingStreak ?? 0) >= ILLNESS_ONSET.overworkStreak ? 'tired' : 'workDone', nowMs)
+  const career = unlockCareerLook(state, activity.key, nowMs)
+  if (career !== null) {
+    remember(state, `${career.emoji} 完成${label}工作，解锁了${career.label}外观`, nowMs)
+    announce(state, 'career', `${state.name} 解锁了${career.label}！去换肤或图鉴看看 ${career.emoji}`, nowMs)
+  }
 }
 
 /**

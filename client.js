@@ -544,6 +544,7 @@
   // packages/pet-core/src/data/skins.js
   var SKIN_SCENES = Object.freeze(["idle", "eat", "bathe", "play", "pet", "relaxed", "work", "study", "trip", "fish"]);
   var REQUIRED_SKIN_SCENES = Object.freeze(SKIN_SCENES.slice(0, 5));
+  var CHARACTER_SCENES = Object.freeze(SKIN_SCENES.filter((scene) => scene !== "fish"));
   var SKINS = Object.freeze([
     Object.freeze({
       key: "mint",
@@ -553,6 +554,70 @@
       author: "dsh-piggy",
       description: "\u50CF\u4E00\u53E3\u8584\u8377\u6C7D\u6C34\uFF0C\u6E05\u6E05\u51C9\u51C9\u3002",
       scenes: Object.freeze(["idle", "eat", "bathe", "play", "pet"]),
+      custom: false
+    }),
+    Object.freeze({
+      key: "chef",
+      label: "\u53A8\u5E08\u732A",
+      emoji: "\u{1F468}\u200D\u{1F373}",
+      art: "career-chef",
+      unlockJob: "chef",
+      author: "dsh-piggy",
+      description: "\u638C\u52FA\u5F52\u6765\uFF0C\u5E3D\u5B50\u4E0A\u8FD8\u6CBE\u7740\u4E00\u70B9\u9762\u7C89\u3002",
+      hint: "\u53A8\u623F\u91CC\u7684\u7B2C\u4E00\u73ED\u70DF\u706B\uFF0C\u4F1A\u9001\u6765\u4E00\u9876\u767D\u5E3D\u5B50\u3002",
+      scenes: CHARACTER_SCENES,
+      custom: false
+    }),
+    Object.freeze({
+      key: "astronaut",
+      label: "\u5B87\u822A\u5458\u732A",
+      emoji: "\u{1F680}",
+      art: "career-astronaut",
+      unlockJob: "astronaut",
+      author: "dsh-piggy",
+      description: "\u628A\u5730\u7403\u88C5\u8FDB\u5934\u76D4\u7684\u5012\u5F71\u91CC\u3002",
+      hint: "\u5B8C\u6210\u90A3\u8D9F\u79BB\u5929\u7A7A\u6700\u8FD1\u7684\u5DE5\u4F5C\uFF0C\u624D\u6709\u8D44\u683C\u6234\u4E0A\u5934\u76D4\u3002",
+      scenes: CHARACTER_SCENES,
+      custom: false
+    }),
+    Object.freeze({
+      key: "detective",
+      label: "\u4FA6\u63A2\u732A",
+      emoji: "\u{1F50E}",
+      art: "skin-detective",
+      author: "dsh-piggy",
+      description: "\u5C0F\u7EBF\u7D22\u603B\u8EB2\u4E0D\u8FC7\u5B83\u7684\u773C\u775B\u3002",
+      scenes: CHARACTER_SCENES,
+      custom: false
+    }),
+    Object.freeze({
+      key: "angel",
+      label: "\u5929\u4F7F\u732A",
+      emoji: "\u{1F607}",
+      art: "skin-angel",
+      author: "dsh-piggy",
+      description: "\u5149\u73AF\u5F88\u4EAE\uFF0C\u813E\u6C14\u8FD8\u662F\u8F6F\u8F6F\u7684\u3002",
+      scenes: CHARACTER_SCENES,
+      custom: false
+    }),
+    Object.freeze({
+      key: "pirate",
+      label: "\u6D77\u76D7\u732A",
+      emoji: "\u{1F3F4}\u200D\u2620\uFE0F",
+      art: "skin-pirate",
+      author: "dsh-piggy",
+      description: "\u51FA\u95E8\u627E\u5B9D\u85CF\uFF0C\u56DE\u5BB6\u627E\u665A\u996D\u3002",
+      scenes: CHARACTER_SCENES,
+      custom: false
+    }),
+    Object.freeze({
+      key: "wizard",
+      label: "\u5DEB\u5E08\u732A",
+      emoji: "\u{1FA84}",
+      art: "skin-wizard",
+      author: "dsh-piggy",
+      description: "\u5E3D\u5B50\u91CC\u6CA1\u6709\u9B54\u6CD5\uFF0C\u53EA\u6709\u597D\u5947\u5FC3\u3002",
+      scenes: CHARACTER_SCENES,
       custom: false
     })
   ]);
@@ -624,7 +689,8 @@
     var skinRows = ui.view.skins?.entries?.length > 0 ? ui.view.skins.entries : SKINS;
     group("\u76AE\u80A4", skinRows.map(function(skin) {
       return { key: "skin:" + skin.key, label: skin.emoji + " " + skin.label, run: function() {
-        ui.send("skin", { skin: skin.key });
+        if (skin.unlockJob) patch({ skin: skin.key });
+        else ui.send("skin", { skin: skin.key });
       } };
     }), "\u5F62\u6001\u663E\u793A\u4F18\u5148\u4E8E\u76AE\u80A4\uFF1B\u6062\u590D\u666E\u901A\u5F62\u6001\u5373\u53EF\u770B\u5230\u76AE\u80A4\u3002");
     group("\u9053\u5177", forms.filter(function(form) {
@@ -1836,7 +1902,7 @@
 
   // src/client/css-skins.js
   var CSS_SKINS = `
-.dp-skin-intro{display:grid;gap:4px;margin:0 0 10px}.dp-skin-intro span{font-size:10.5px;line-height:1.5;color:var(--ac-text-2)}.dp-skin-grid{display:flex;flex-direction:column;gap:7px}.dp-skin-row{min-height:62px;padding:7px 9px}.dp-skin-current{background:var(--ac-active);border-color:#9db0d6}.dp-skin-art{width:48px;height:48px;flex:none;object-fit:contain}.dp-skin-copy{display:grid;gap:3px}.dp-skin-copy b{font-size:10.5px}.dp-skin-copy small{line-height:1.35}.dp-skin-row>.dp-mini{flex:none;padding-inline:10px}.dp-skin-import{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;margin-top:10px;cursor:pointer}.dp-skin-import .dp-pick-head{margin:0}.dp-skin-import>.dp-dim{font-size:10px;line-height:1.4;color:var(--ac-text-2)}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{grid-column:2;grid-row:1/3;display:inline-flex!important;align-items:center;white-space:nowrap}
+.dp-skin-intro{display:grid;gap:4px;margin:0 0 10px}.dp-skin-intro span{font-size:10.5px;line-height:1.5;color:var(--ac-text-2)}.dp-skin-grid{display:flex;flex-direction:column;gap:7px}.dp-skin-row{min-height:62px;padding:7px 9px}.dp-skin-current{background:var(--ac-active);border-color:#9db0d6}.dp-skin-row[data-locked="true"] .dp-skin-art{filter:grayscale(1);opacity:.48}.dp-skin-art{width:48px;height:48px;flex:none;object-fit:contain}.dp-skin-copy{display:grid;gap:3px}.dp-skin-copy b{font-size:10.5px}.dp-skin-copy small{line-height:1.35}.dp-skin-row>.dp-mini{flex:none;padding-inline:10px}.dp-skin-import{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;margin-top:10px;cursor:pointer}.dp-skin-import .dp-pick-head{margin:0}.dp-skin-import>.dp-dim{font-size:10px;line-height:1.4;color:var(--ac-text-2)}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{grid-column:2;grid-row:1/3;display:inline-flex!important;align-items:center;white-space:nowrap}
 `;
 
   // src/client/styles.js
@@ -2534,6 +2600,8 @@
           description: str(entry.description, ""),
           custom: entry.custom === true,
           current: entry.current === true,
+          unlocked: entry.unlocked !== false,
+          unlockJob: str(entry.unlockJob, ""),
           scenes: arr(entry.scenes).filter((scene) => typeof scene === "string")
         };
       }).filter((entry) => entry.key !== "")
@@ -3953,7 +4021,7 @@
   function renderSkinsTab(ui) {
     const intro = el("div", "dp-pick dp-skin-intro");
     intro.appendChild(el("b", null, "\u7ED9\u732A\u732A\u6362\u4EF6\u65B0\u8863\u670D"));
-    intro.appendChild(el("span", null, "\u5F62\u6001\u4F1A\u4F18\u5148\u663E\u793A\uFF1B\u6062\u590D\u666E\u901A\u5F62\u6001\u540E\uFF0C\u9009\u4E2D\u7684\u76AE\u80A4\u4ECD\u4F1A\u4FDD\u7559\u3002"));
+    intro.appendChild(el("span", null, "\u53A8\u5E08\u4E0E\u5B87\u822A\u5458\u5B8C\u6210\u5BF9\u5E94\u5DE5\u4F5C\u540E\u89E3\u9501\uFF1B\u5176\u4ED6\u76AE\u80A4\u53EF\u76F4\u63A5\u4F7F\u7528\u3002\u5F62\u6001\u4F1A\u4F18\u5148\u663E\u793A\u3002"));
     ui.content.appendChild(intro);
     const grid = el("div", "dp-skin-grid");
     for (const skin of ui.view.skins.entries) grid.appendChild(skinCard(ui, skin));
@@ -3962,6 +4030,7 @@
   }
   function skinCard(ui, skin) {
     const card = el("div", "dp-item dp-skin-row" + (skin.current ? " dp-skin-current" : ""));
+    if (!skin.unlocked) card.setAttribute("data-locked", "true");
     const img = (
       /** @type {HTMLImageElement} */
       el("img", "dp-skin-art")
@@ -3970,14 +4039,14 @@
     img.alt = skin.label;
     card.appendChild(img);
     const copy = el("span", "dp-grow dp-skin-copy");
-    copy.appendChild(el("b", null, skin.emoji + " " + skin.label));
-    copy.appendChild(el("small", "dp-dim", skin.description || "\u4F5C\u8005\uFF1A" + skin.author));
+    copy.appendChild(el("b", null, (skin.unlocked ? skin.emoji : "\u{1F512}") + " " + (skin.unlockJob ? "\u804C\u4E1A \xB7 " : "") + skin.label));
+    copy.appendChild(el("small", "dp-dim", skin.unlocked ? skin.description || "\u4F5C\u8005\uFF1A" + skin.author : "\u5B8C\u6210" + (ui.view.jobs.find((job) => job.key === skin.unlockJob)?.label ?? skin.label.replace(/猪$/, "")) + "\u5DE5\u4F5C\u540E\u89E3\u9501"));
     card.appendChild(copy);
     const pick = button("dp-mini", { "data-skin": skin.key }, function() {
-      ui.send("skin", { skin: skin.key });
+      if (skin.unlocked) ui.send("skin", { skin: skin.key });
     });
-    pick.textContent = skin.current ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
-    pick.disabled = skin.current;
+    pick.textContent = !skin.unlocked ? "\u672A\u89E3\u9501" : skin.current ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
+    pick.disabled = !skin.unlocked || skin.current;
     card.appendChild(pick);
     return card;
   }

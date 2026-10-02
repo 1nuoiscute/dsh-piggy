@@ -77,7 +77,10 @@ export function renderDevTab(ui) {
 
   var skinRows = ui.view.skins?.entries?.length > 0 ? ui.view.skins.entries : SKINS
   group('皮肤', skinRows.map(function (skin) {
-    return { key: 'skin:' + skin.key, label: skin.emoji + ' ' + skin.label, run: function () { ui.send('skin', { skin: skin.key }) } }
+    return { key: 'skin:' + skin.key, label: skin.emoji + ' ' + skin.label, run: function () {
+      if (skin.unlockJob) patch({ skin: skin.key })
+      else ui.send('skin', { skin: skin.key })
+    } }
   }), '形态显示优先于皮肤；恢复普通形态即可看到皮肤。')
 
   group('道具', forms.filter(function (form) { return form.item !== '' }).map(function (form) {

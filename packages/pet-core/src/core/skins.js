@@ -1,7 +1,7 @@
 // @ts-check
 
 import { REQUIRED_SKIN_SCENES, SKINS, skinByKey } from '../data.js'
-import { recordDex } from './dex.js'
+import { ensureDex, recordDex } from './dex.js'
 
 const KEY = /^[a-z0-9](?:[a-z0-9-]{0,22}[a-z0-9])?$/
 
@@ -37,7 +37,24 @@ export function allSkins(state) {
 export function skinView(state) {
   if (state === null) return { current: 'default', entries: [] }
   ensureSkins(state)
-  return { current: state.skin, entries: allSkins(state).map(skin => ({ ...skin, current: skin.key === state.skin })) }
+  return { current: state.skin, entries: allSkins(state).map(skin => ({
+    ...skin, current: skin.key === state.skin,
+    unlocked: skinUnlocked(state, skin),
+  })) }
+}
+
+function skinUnlocked(state, skin) {
+  return !('unlockJob' in skin) || state.dex?.skins?.[skin.key] !== undefined
+}
+
+/** Completing the corresponding real job unlocks its look once, permanently. */
+export function unlockCareerLook(state, jobKey, nowMs) {
+  const skin = SKINS.find(entry => 'unlockJob' in entry && entry.unlockJob === jobKey)
+  if (skin === undefined) return null
+  ensureDex(state, nowMs)
+  if (state.dex.skins[skin.key] !== undefined) return null
+  recordDex(state, 'skins', skin.key, nowMs)
+  return skin
 }
 
 export function selectSkin(state, key, nowMs) {
@@ -45,8 +62,10 @@ export function selectSkin(state, key, nowMs) {
   ensureSkins(state)
   const skin = allSkins(state).find(entry => entry.key === key)
   if (!skin) return { ok: false, reason: 'unknown' }
+  if (!skinUnlocked(state, skin)) return { ok: false, reason: 'locked', job: skin.unlockJob }
+  // Switching an already owned look is not another acquisition.
+  if (state.dex?.skins?.[skin.key] === undefined) recordDex(state, 'skins', skin.key, nowMs)
   state.skin = skin.key
-  recordDex(state, 'skins', skin.key, nowMs)
   return { ok: true, skin: skin.key }
 }
 
@@ -59,8 +78,8 @@ export function registerCustomSkin(state, raw, nowMs) {
   const at = state.customSkins.findIndex(entry => entry.key === skin.key)
   if (at < 0) state.customSkins.push(skin)
   else state.customSkins[at] = skin
-  state.skin = skin.key
   recordDex(state, 'skins', skin.key, nowMs)
+  state.skin = skin.key
   return { ok: true, skin: skin.key }
 }
 

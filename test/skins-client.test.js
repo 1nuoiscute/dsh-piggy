@@ -29,3 +29,15 @@ test('C6 main menu has a skin app with switching and ZIP import', async () => {
   assert.match(input.getAttribute('accept'), /zip/)
   assert.match(input.parentNode.className, /\bdp-pick\b/, '导入区应使用全站标准操作卡')
 })
+
+test('locked career looks show their unlock route and cannot be selected early', async () => {
+  const career = { key: 'chef', label: '厨师猪', emoji: '👨‍🍳', art: 'career-chef', current: false,
+    custom: false, unlocked: false, unlockJob: 'chef', author: 'dsh-piggy', description: '完成厨师工作后解锁', scenes: ['idle'] }
+  const { dom, calls } = await mount({ status: { ...SNAPSHOT, skins: { current: 'default', entries: [...skins.entries, career] } } })
+  openPanel(dom, 'skins')
+  const pick = findByAttr(contentOf(dom), 'data-skin', 'chef')
+  assert.ok(pick.disabled)
+  assert.match(pick.parentNode.allText(), /完成厨师工作/)
+  pick.fire('click')
+  assert.equal(calls.some(call => call.method === 'POST'), false)
+})

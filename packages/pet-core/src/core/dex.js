@@ -33,6 +33,12 @@ export function ensureDex(state, nowMs = 0) {
   if (typeof state.form === 'string' && state.form !== '' && dex.forms[state.form] === undefined) {
     dex.forms[state.form] = { firstAt: nowMs, count: 1 }
   }
+  // A selected look in an older or partially recovered save is already owned.
+  if (typeof state.skin === 'string' && state.skin !== 'default' && dex.skins[state.skin] === undefined
+    && (SKINS.some(skin => skin.key === state.skin)
+      || (Array.isArray(state.customSkins) && state.customSkins.some(skin => skin?.key === state.skin)))) {
+    dex.skins[state.skin] = { firstAt: nowMs, count: 1 }
+  }
   for (const [key, count] of Object.entries(state.inventory ?? {})) {
     if (Number.isFinite(count) && count > 0 && dex.items[key] === undefined) {
       dex.items[key] = { firstAt: nowMs, count: Math.floor(count) }
@@ -97,8 +103,10 @@ export function dexView(state, formView, nowMs = 0) {
     ].map(skin => {
       const record = found(dex, 'skins', skin.key)
       return {
-        ...skin, acquired: true, firstAt: record?.firstAt ?? null, count: record?.count ?? 1,
-        hint: '换一种颜色，也还是熟悉的它。', condition: skin.custom ? '玩家导入' : '随版本收录',
+        ...skin, acquired: !('unlockJob' in skin) || record !== null,
+        firstAt: record?.firstAt ?? null, count: record?.count ?? ('unlockJob' in skin ? 0 : 1),
+        hint: 'hint' in skin ? skin.hint : '换一种颜色，也还是熟悉的它。',
+        condition: 'unlockJob' in skin ? `完成${skin.label.replace(/猪$/, '')}工作解锁` : (skin.custom ? '玩家导入' : '随版本收录'),
       }
     }),
     fish: FISH.map(fish => {

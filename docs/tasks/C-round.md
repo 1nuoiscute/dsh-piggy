@@ -24,6 +24,7 @@
 | C5 | 钓鱼 App（手动圆盘 QTE + 自动） | Codex | C4 合入后接图鉴「鱼」分区（先做本体） |
 | C6 | 换肤框架 + 占位皮肤 | Codex | C3 |
 | C7 | 胖猪（体重分档换立绘） | Codex | **等用户给圆猪图**，先不开工 |
+| C8 | 六款角色外观：厨师／宇航员职业解锁，侦探／天使／海盗／巫师内置皮肤 | Codex | C6；用户 2026-10-03 确认 2 职业 + 4 皮肤 |
 
 协作规则（沿用 `docs/tasks/README.md`，以下为本轮补充）：
 - DSH 在原目录 main 直接提交；Codex 用 worktree `/zyx/DSH/workspaces/dsh-pig-codex` 分支 `codex/next`，每卡完成 rebase 到 main 再快进合入。
@@ -658,3 +659,11 @@ DSH 的判断方向对：剩下的 13/25 DIP 是「翻锚边」那一步没被�
 | 版本：插件 0.25.2，桌面外壳 0.1.2 | 两个 `package.json` | 下次发版前 CHANGELOG 写 `## [x.y.z] — 日期 · 主题` 小节 |
 
 **验收方式也变了**：桌面版改动 Claude 会用 Electron 调试端口驱动 + python-xlib 截 X 窗口**真实像素**、读 XShape 可点区域，四个角各开一次面板逐张看图。只报坐标数字不算过。
+
+### C8 六款角色外观 · 验证记录（Codex，2026-10-03）
+
+- 用户确认厨师猪、宇航员猪由完成对应工作一次解锁；侦探猪、天使猪、海盗猪、巫师猪作为免费内置皮肤。54 张 SVG 均为 64 × 64、透明背景，覆盖待机及八个动作；钓鱼时回退本套待机图。
+- 职业外观解锁后在换肤和图鉴切换，未解锁时换肤列表禁用按钮、图鉴显示灰影和谜面。晋升形态仍优先；调试页每套都有入口，职业按钮可一次解锁并预览。
+- 职业解锁沿用 `state.dex.skins` 记录，不增加存档字段，版本保持 v12。旧存档此前没有按职业保存完成次数，需再完成对应工作一次；已选外观及已有图鉴记录读档后保留。
+- `npm run build`、`npm test`（40 个测试文件全部通过）、`npm run typecheck` 通过。3084 隔离实例 + `/usr/bin/chromium` 的 Playwright 实测：两款职业图加载成功、四款免费皮肤可见、未解锁厨师不可选、图鉴灰影和提示正常、调试按钮切换立绘，浏览器 page error 为 0。
+- 截图：[未解锁职业列表](../screenshots/c8-career-locked.png)、[图鉴九宫格](../screenshots/c8-looks-dex.png)、[厨师调试预览](../screenshots/c8-chef-preview.png)、[宇航员调试预览](../screenshots/c8-astronaut-preview.png)。

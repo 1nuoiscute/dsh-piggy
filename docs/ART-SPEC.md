@@ -278,3 +278,7 @@ xdg-open tools/style-check.html
 ### 胖猪
 
 圆润、最胖各一套，张数和场景同上表（待机加 8 个动作），文件名 `pig-round*.svg`、`pig-fat*.svg`，例如 `pig-round-eat.svg`。`pig-round` 使用 PR #4 原胖猪素材，`pig-fat` 使用后续更胖的 9 图素材；只用于普通形态的默认皮肤，晋升形态和自选皮肤优先。
+
+### 六款角色外观
+
+`pig-characters-54-svg.zip` 提供厨师、宇航员、侦探、天使、海盗、巫师各 9 张。职业外观命名为 `career-chef*.svg`、`career-astronaut*.svg`；自由皮肤命名为 `skin-detective*.svg` 等。每套包含待机、放松、摸摸、吃饭、洗澡、玩耍、工作、学习、旅行；没有钓鱼图，钓鱼时使用本套待机图。两款职业外观由对应工作完成一次后解锁，其他四款直接可用。

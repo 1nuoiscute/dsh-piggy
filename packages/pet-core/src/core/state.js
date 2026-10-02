@@ -6,7 +6,7 @@
  * @module dsh-piggy/core/state
  */
 
-import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, formByKey, itemByKey, xpForLevel } from '../data.js'
+import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, formByKey, itemByKey, skinByKey, xpForLevel } from '../data.js'
 import { dayKeyFor, lifeStageFor } from './clock.js'
 import { MEMORY_LIMIT } from './constants.js'
 import { announce, clamp, remember } from './effects.js'
@@ -203,6 +203,12 @@ export function applyDevPatch(state, patch, nowMs) {
   else if (typeof patch.form === 'string' && formByKey(patch.form) !== null) {
     recordDex(state, 'forms', patch.form, nowMs)
     state.form = patch.form
+  }
+
+  // Preview any built-in look, including a career the current pig has not earned yet.
+  if (typeof patch.skin === 'string' && skinByKey(patch.skin) !== null) {
+    recordDex(state, 'skins', patch.skin, nowMs)
+    state.skin = patch.skin
   }
 
   if (patch.activity === null) state.activity = null

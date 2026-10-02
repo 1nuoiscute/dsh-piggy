@@ -7,7 +7,7 @@ import { button, el } from '../dom.js'
 export function renderSkinsTab(ui) {
   const intro = el('div', 'dp-pick dp-skin-intro')
   intro.appendChild(el('b', null, '给猪猪换件新衣服'))
-  intro.appendChild(el('span', null, '形态会优先显示；恢复普通形态后，选中的皮肤仍会保留。'))
+  intro.appendChild(el('span', null, '厨师与宇航员完成对应工作后解锁；其他皮肤可直接使用。形态会优先显示。'))
   ui.content.appendChild(intro)
 
   const grid = el('div', 'dp-skin-grid')
@@ -18,17 +18,22 @@ export function renderSkinsTab(ui) {
 
 function skinCard(ui, skin) {
   const card = el('div', 'dp-item dp-skin-row' + (skin.current ? ' dp-skin-current' : ''))
+  if (!skin.unlocked) card.setAttribute('data-locked', 'true')
   const img = /** @type {HTMLImageElement} */ (el('img', 'dp-skin-art'))
   img.src = ART_URL + skin.art + '.svg'
   img.alt = skin.label
   card.appendChild(img)
   const copy = el('span', 'dp-grow dp-skin-copy')
-  copy.appendChild(el('b', null, skin.emoji + ' ' + skin.label))
-  copy.appendChild(el('small', 'dp-dim', skin.description || ('作者：' + skin.author)))
+  copy.appendChild(el('b', null, (skin.unlocked ? skin.emoji : '🔒') + ' ' + (skin.unlockJob ? '职业 · ' : '') + skin.label))
+  copy.appendChild(el('small', 'dp-dim', skin.unlocked
+    ? (skin.description || ('作者：' + skin.author))
+    : ('完成' + (ui.view.jobs.find(job => job.key === skin.unlockJob)?.label ?? skin.label.replace(/猪$/, '')) + '工作后解锁')))
   card.appendChild(copy)
-  const pick = button('dp-mini', { 'data-skin': skin.key }, function () { ui.send('skin', { skin: skin.key }) })
-  pick.textContent = skin.current ? '使用中' : '使用'
-  pick.disabled = skin.current
+  const pick = button('dp-mini', { 'data-skin': skin.key }, function () {
+    if (skin.unlocked) ui.send('skin', { skin: skin.key })
+  })
+  pick.textContent = !skin.unlocked ? '未解锁' : (skin.current ? '使用中' : '使用')
+  pick.disabled = !skin.unlocked || skin.current
   card.appendChild(pick)
   return card
 }

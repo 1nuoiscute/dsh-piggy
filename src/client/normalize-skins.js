@@ -10,7 +10,8 @@ export function normalizeSkins(raw) {
       return {
         key: str(entry.key, ''), label: str(entry.label, '皮肤'), emoji: str(entry.emoji, '🎨'), art: str(entry.art, ''),
         author: str(entry.author, ''), description: str(entry.description, ''), custom: entry.custom === true,
-        current: entry.current === true, scenes: arr(entry.scenes).filter(scene => typeof scene === 'string'),
+        current: entry.current === true, unlocked: entry.unlocked !== false,
+        unlockJob: str(entry.unlockJob, ''), scenes: arr(entry.scenes).filter(scene => typeof scene === 'string'),
       }
     }).filter(entry => entry.key !== ''),
   }
