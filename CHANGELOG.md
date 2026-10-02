@@ -17,8 +17,8 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - README 精简为项目介绍、安装、快速开始和文档入口；养成规则、调试模式、开发命令及更新原理移入文档中心。
 - 桌面外壳升至 0.1.3，以支持外壳更新提醒。存档版本保持 v12。
 
-### Contributors
-- 本版继续包含 [@1nuoiscute](https://github.com/1nuoiscute) 在 PR [#3](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/3) 与 [#4](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/4) 提供的恶魔猪、体型与胖胖猪立绘成果，感谢其持续贡献。
+## Contributors
+- 本版继续包含 @1nuoiscute 在 PR [#3](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/3) 与 [#4](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/4) 提供的恶魔猪、体型与胖胖猪立绘成果，感谢其持续贡献。
 
 ## [0.26.0] — 2026-10-02 · 图鉴、体型、钓鱼与换肤
 
@@ -35,8 +35,8 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - 普通形态的默认皮肤进入胖胖档后使用贡献者 1nuoiscute 在 PR #4 提供的待机与动作立绘；王、恶魔和其他皮肤保持原样。圆润档先沿用普通立绘，等待对应素材。
 - 玩耍每次减少超重部分 3%（每日最多 10 次），打工每实际小时减少 3%，自然代谢每猪日减少 2%；只减超出理想体重的部分。新增的每日玩耍记录由 `ensureBodyWeight` 补齐，存档仍为 v12。
 
-### Contributors
-- 感谢 [@1nuoiscute](https://github.com/1nuoiscute) 在 PR [#4](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/4) 提供肥猪体型与减重系统的原始实现，并补充胖胖猪待机及动作立绘；本版在此基础上整理规则、兼容存档并接入调试页。
+## Contributors
+- 感谢 @1nuoiscute 在 PR [#4](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/4) 提供肥猪体型与减重系统的原始实现，并补充胖胖猪待机及动作立绘；本版在此基础上整理规则、兼容存档并接入调试页。
 
 ## [0.25.2] — 2026-10-01 · 桌面版不再拖卡浏览器，新增 macOS 包
 
@@ -94,8 +94,8 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - 形态按钮会顺手把等级拉到该形态所在阶段的起始等级（从 `data/life.js` 读，不写死数字），
   否则换了形态立绘不动；等级够了就只改形态。纸盒或已去世时按钮置灰并写明「先孵化」/「先复活」。
 
-### Contributors
-- 感谢 [@1nuoiscute](https://github.com/1nuoiscute) 在 PR [#3](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/3) 提供恶魔猪形态及完整动作立绘；其原作者提交在合入时保持不变。
+## Contributors
+- 感谢 @1nuoiscute 在 PR [#3](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/3) 提供恶魔猪形态及完整动作立绘；其原作者提交在合入时保持不变。
 
 ## [0.25.1] — 2026-10-01 · 桌面版退出与托盘
 

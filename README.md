@@ -66,4 +66,4 @@ npm run typecheck
 
 ## 致谢与许可
 
-特别感谢 [@1nuoiscute](https://github.com/1nuoiscute) 贡献猪猪王原型、恶魔猪、肥猪体型与胖胖猪动作立绘。视觉风格参考 [animal-island-ui](https://github.com/guokaigdg/animal-island-ui)，玩法数值参考资料见 [THIRD-PARTY.md](THIRD-PARTY.md)。项目采用 [MIT License](LICENSE)。
+特别感谢 @1nuoiscute 贡献猪猪王原型、恶魔猪、肥猪体型与胖胖猪动作立绘。视觉风格参考 [animal-island-ui](https://github.com/guokaigdg/animal-island-ui)，玩法数值参考资料见 [THIRD-PARTY.md](THIRD-PARTY.md)。项目采用 [MIT License](LICENSE)。
