@@ -61,8 +61,8 @@
     bath: "\u6CA1\u6709\u6D17\u6D74\u7528\u54C1\u4E86\uFF0C\u53BB\u4E70\u70B9\u5427 \u{1F9FC}",
     toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
   };
-  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B", promotion: "\u2728 \u664B\u5347" };
-  var KIND_ORDER = ["food", "bath", "toy", "dress", "medicine", "revive", "promotion"];
+  var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", bait: "\u{1F3A3} \u9C7C\u9975", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B", promotion: "\u2728 \u664B\u5347" };
+  var KIND_ORDER = ["food", "bath", "toy", "bait", "dress", "medicine", "revive", "promotion"];
   var STAGES = [
     { key: "preschool", label: "\u5E7C\u513F\u56ED" },
     { key: "extracurricular", label: "\u8BFE\u5916" },
@@ -199,7 +199,7 @@
   }
 
   // src/client/tabs/shop.js
-  var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", dress: "pink", medicine: "green", revive: "purple", promotion: "blue" };
+  var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", bait: "blue", dress: "pink", medicine: "green", revive: "purple", promotion: "blue" };
   function shelfParts(kind) {
     var title = KIND_TITLE[kind] ?? kind;
     var space = title.indexOf(" ");
@@ -1822,8 +1822,8 @@
 
   // src/client/css-fishing.js
   var CSS_FISHING = `
-.dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-cast{touch-action:manipulation}.dp-fish-auto{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border-radius:12px;background:#f5fafb}.dp-fish-auto span{width:100%;font-size:11px;color:#718188}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
-.dp-fish-qte{width:100%;min-height:318px;border:0;border-radius:18px;padding:15px 12px 12px;box-sizing:border-box;background:linear-gradient(155deg,#eefcff,#d8f3f8);display:flex;flex-direction:column;align-items:center;gap:9px;color:#294950;cursor:pointer;touch-action:manipulation;outline:0}.dp-fish-qte:focus-visible{box-shadow:0 0 0 3px #43b96f}.dp-fish-qte-title{font-size:15px;font-weight:800}.dp-fish-qte-ring{position:relative;width:178px;height:178px;border-radius:50%;box-shadow:0 3px 12px #246a7a44,inset 0 0 0 2px #fff;transform:rotate(-90deg)}.dp-fish-qte-ring:after{content:"";position:absolute;inset:17px;border-radius:50%;background:#f8feff;box-shadow:inset 0 2px 8px #8ab7c044}.dp-fish-qte-needle{position:absolute;z-index:3;left:50%;bottom:50%;width:4px;height:47%;border-radius:4px;background:#ed5d55;box-shadow:0 0 0 1px #fff,0 0 6px #d64a45;transform-origin:50% 100%}.dp-fish-qte-needle:after{content:"";position:absolute;top:-5px;left:-3px;width:10px;height:10px;border-radius:50%;background:#ed5d55}.dp-fish-qte-core{position:absolute;z-index:4;inset:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#fff 0 48%,#e9f9fb 70%);font-size:42px;transform:rotate(90deg)}.dp-fish-qte-score{font-size:14px}.dp-fish-qte-feedback{min-height:18px;font-size:12px;color:#55727a}.dp-fish-help{text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
+.dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-cast{touch-action:manipulation}.dp-fish-bait[aria-pressed=true]{background:#d7f3e2;border-color:#4ca678;color:#245d43}.dp-fish-auto{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border-radius:12px;background:#f5fafb}.dp-fish-auto span{width:100%;font-size:11px;color:#718188}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
+.dp-fish-qte{width:100%;min-height:318px;border:0;border-radius:18px;padding:15px 12px 12px;box-sizing:border-box;background:linear-gradient(155deg,#eefcff,#d8f3f8);display:flex;flex-direction:column;align-items:center;gap:9px;color:#294950;cursor:pointer;touch-action:manipulation;outline:0}.dp-fish-qte:focus-visible{box-shadow:0 0 0 3px #43b96f}.dp-fish-qte-title{font-size:15px;font-weight:800}.dp-fish-qte-ring{position:relative;width:178px;height:178px;border-radius:50%;box-shadow:0 3px 12px #246a7a44,inset 0 0 0 2px #fff;transform:rotate(-90deg)}.dp-fish-qte-ring:after{content:"";position:absolute;inset:17px;border-radius:50%;background:#f8feff;box-shadow:inset 0 2px 8px #8ab7c044}.dp-fish-qte-needle{position:absolute;z-index:3;left:50%;bottom:50%;width:4px;height:47%;border-radius:4px;background:#ed5d55;box-shadow:0 0 0 1px #fff,0 0 6px #d64a45;transform-origin:50% 100%}.dp-fish-qte-needle:after{content:"";position:absolute;top:-5px;left:-3px;width:10px;height:10px;border-radius:50%;background:#ed5d55}.dp-fish-qte-core{position:absolute;z-index:4;inset:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#fff 0 48%,#e9f9fb 70%);font-size:42px;transform:rotate(90deg)}.dp-fish-qte-score{font-size:14px}.dp-fish-qte-feedback{min-height:18px;font-size:12px;color:#55727a}.dp-fish-qte[data-qte-feedback^="\u8FD8\u6CA1\u5230"] .dp-fish-qte-feedback,.dp-fish-qte[data-qte-feedback^="\u5DF2\u7ECF\u5212\u8FC7"] .dp-fish-qte-feedback{color:#bd5545;font-weight:700}.dp-fish-help{text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
 `;
 
   // src/client/css-skins.js
@@ -2325,6 +2325,8 @@
             away: "\u5B83\u5728\u5916\u9762",
             weak: "\u592A\u865A\u5F31\u4E86\uFF0C\u5148\u517B\u597D\u518D\u51FA\u95E8",
             hungry: "\u592A\u997F\u4E86",
+            "no-bait": "\u9C7C\u9975\u4E0D\u591F" + (next.need ? "\uFF0C\u672C\u6B21\u9700\u8981 " + num(next.need, 0) + " \u4E2A" : "") + "\uFF0C\u53BB\u5546\u5E97\u7684\u9C7C\u9975\u8D27\u67B6\u4E70",
+            escaped: "\u9C7C\u8DD1\u6389\u4E86\uFF0C\u518D\u629B\u4E00\u6B21\u5427",
             "wrong-medicine": "\u836F\u4E0D\u5BF9\u75C7\uFF0C\u75C5\u60C5\u52A0\u91CD\u4E86\u2026",
             empty: "\u80CC\u5305\u91CC\u6CA1\u6709",
             "not-sick": "\u5B83\u6CA1\u751F\u75C5",
@@ -3311,6 +3313,7 @@
   var activeUi = null;
   var resolving = false;
   var qteSession = null;
+  var selectedBait = null;
   var raf = (fn) => typeof requestAnimationFrame === "function" ? requestAnimationFrame(fn) : 0;
   var caf = (id) => {
     if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(id);
@@ -3345,28 +3348,47 @@
   }
   function renderReady(ui) {
     ui.content.appendChild(el("div", "dp-fish-scene", "\u{1F30A}\u3000\u{1F41F}\u3000\uFF5E\u3000\u{1F33F}"));
-    ui.content.appendChild(el("div", "dp-fish-copy", "\u70B9\u51FB\u629B\u7AFF\uFF0C\u770B\u5230\u300C\u2757\u300D\u540E\u53CA\u65F6\u63D0\u7AFF\u3002"));
+    ui.content.appendChild(el("div", "dp-fish-copy", "\u6BCF\u6B21\u629B\u7AFF\u6D88\u8017 1 \u4E2A\u9C7C\u9975\u3002\u770B\u5230\u300C\u2757\u300D\u540E\u53CA\u65F6\u63D0\u7AFF\u3002"));
+    const baits = ui.view.shop.filter((item) => item.kind === "bait" && (ui.view.inventory[item.key] ?? 0) > 0);
+    if (!baits.some((item) => item.key === selectedBait)) selectedBait = baits[0]?.key ?? null;
+    const choices = el("div", "dp-dev-row");
+    for (const bait of baits) {
+      const choice = button("dp-mini dp-fish-bait", { "data-fish-bait": bait.key }, function() {
+        selectedBait = bait.key;
+        ui.renderContent();
+      });
+      choice.textContent = `${bait.emoji} ${bait.label} \xD7${ui.view.inventory[bait.key]}`;
+      choice.setAttribute("aria-pressed", String(selectedBait === bait.key));
+      choices.appendChild(choice);
+    }
+    ui.content.appendChild(choices);
+    if (baits.length === 0) ui.content.appendChild(el("div", "dp-fish-copy", "\u6CA1\u6709\u9C7C\u9975\u4E86\uFF0C\u5148\u53BB\u5546\u5E97\u7684\u9C7C\u9975\u8D27\u67B6\u4E70\u3002"));
     const cast = button("dp-btn dp-btn-wide dp-fish-cast", { "data-fish": "cast" }, function() {
-      ui.send("fishCast", { power: 0.7 });
+      ui.send("fishCast", { power: 0.7, bait: selectedBait });
     });
     cast.textContent = "\u{1F3A3} \u629B\u7AFF";
+    cast.disabled = selectedBait === null;
     ui.content.appendChild(cast);
     const auto = el("div", "dp-fish-auto");
     auto.appendChild(el("b", null, "\u81EA\u52A8\u9493\u9C7C"));
-    auto.appendChild(el("span", null, "\u4ECA\u5929\u8FD8\u53EF\u51FA\u53D1 " + ui.view.fishing.autoLeft + " \u6B21 \xB7 \u6536\u76CA\u6309 70% \u81EA\u52A8\u5356\u51FA"));
+    auto.appendChild(el("span", null, "\u4ECA\u5929\u8FD8\u53EF\u51FA\u53D1 " + ui.view.fishing.autoLeft + " \u6B21 \xB7 \u6BCF 3 \u5206\u949F\u6D88\u8017 1 \u4E2A\u9C7C\u9975\uFF0C\u6536\u83B7\u653E\u8FDB\u9C7C\u7BD3"));
     for (const minutes of [30, 60]) {
       const go = button("dp-mini", { "data-fish-auto": String(minutes) }, function() {
-        ui.send("fishAuto", { minutes });
+        ui.send("fishAuto", { minutes, bait: selectedBait });
       });
-      go.textContent = minutes + " \u5206\u949F";
-      go.disabled = ui.view.fishing.autoLeft <= 0 || ui.view.canGoOut !== true;
+      go.textContent = `${minutes} \u5206\u949F\uFF08\u9C7C\u9975 ${minutes / 3} \u4E2A\uFF09`;
+      go.disabled = ui.view.fishing.autoLeft <= 0 || ui.view.canGoOut !== true || (ui.view.inventory[selectedBait] ?? 0) < minutes / 3;
       auto.appendChild(go);
     }
     ui.content.appendChild(auto);
   }
   function renderWaiting(ui, pending) {
     const water = button("dp-fish-waiting", { "data-fish": "hook" }, function() {
-      if (Date.now() >= pending.bitesAt && Date.now() <= pending.hookUntil) ui.send("fishHook");
+      if (Date.now() < pending.bitesAt) {
+        line.textContent = "\u8FD8\u6CA1\u4E0A\u94A9\uFF0C\u7EE7\u7EED\u7B49\u2026";
+        return;
+      }
+      ui.send("fishHook");
     });
     const mark = el("span", "dp-fish-bobber", "\u{1F3A3}");
     const line = el("b", null, "\u5B89\u9759\u7B49\u9C7C\u54AC\u94A9\u2026");
@@ -3393,9 +3415,9 @@
   function qteRules(rawDifficulty) {
     const difficulty = Math.max(1, Math.min(100, Number(rawDifficulty) || 1));
     return {
-      zoneDegrees: Math.round(96 - difficulty * 0.52),
+      zoneDegrees: Math.round(115 - difficulty * 0.38),
       perfectDegrees: Math.round(16 - difficulty * 0.06),
-      rotationsPerSecond: 0.48 + difficulty * 48e-4,
+      rotationsPerSecond: 0.28 + difficulty * 18e-4,
       hitsNeeded: difficulty >= 80 ? 4 : difficulty >= 45 ? 3 : 2
     };
   }
@@ -3419,7 +3441,15 @@
       "data-qte-difficulty": String(fish2.difficulty),
       "data-qte-needed": String(session.hitsNeeded),
       "aria-label": "\u9493\u9C7C\u6280\u80FD\u68C0\u5B9A\uFF0C\u6307\u9488\u8FDB\u5165\u7EFF\u8272\u533A\u57DF\u65F6\u70B9\u51FB"
-    }, hit);
+    }, function(event) {
+      if (event.detail > 0 && event.timeStamp - lastPointerAt < 700) return;
+      hit(event);
+    });
+    let lastPointerAt = -Infinity;
+    wrap.addEventListener("pointerdown", function(event) {
+      lastPointerAt = event.timeStamp;
+      hit(event);
+    });
     const title = el("div", "dp-fish-qte-title", fish2.emoji + "\u3000\u54AC\u7D27\u4E86\uFF01");
     const ring = el("div", "dp-fish-qte-ring");
     const needle = el("i", "dp-fish-qte-needle");
@@ -3434,9 +3464,6 @@
     wrap.appendChild(feedback);
     wrap.appendChild(el("div", "dp-fish-help", "\u6307\u9488\u8FDB\u5165\u7EFF\u8272\u533A\u57DF\u65F6\u70B9\u51FB\u6216\u6309\u7A7A\u683C \xB7 \u9EC4\u8272\u4E3A\u5B8C\u7F8E\u5224\u5B9A"));
     wrap.setAttribute("tabindex", "0");
-    wrap.addEventListener("keydown", (event) => {
-      if ((event.code === "Space" || event.key === " " || event.key === "Enter") && !event.repeat) hit(event);
-    });
     ui.content.appendChild(wrap);
     activeUi = ui;
     function paint() {
@@ -3451,6 +3478,8 @@
       wrap.setAttribute("data-qte-zone-start", session.zoneStart.toFixed(1));
       wrap.setAttribute("data-qte-zone-size", String(session.zoneDegrees));
       wrap.setAttribute("data-qte-misses", String(session.misses));
+      wrap.setAttribute("data-qte-speed", String(session.rotationsPerSecond));
+      wrap.setAttribute("data-qte-feedback", session.feedback);
     }
     function finish(success) {
       if (resolving) return;
@@ -3512,7 +3541,7 @@
   }
   function renderAway(ui) {
     ui.content.appendChild(el("div", "dp-fish-away", "\u{1F3A3}"));
-    ui.content.appendChild(el("div", "dp-empty", ui.view.activity.label + " \xB7 \u56DE\u6765\u65F6\u4F1A\u81EA\u52A8\u5356\u9C7C"));
+    ui.content.appendChild(el("div", "dp-empty", ui.view.activity.label + " \xB7 \u9493\u5230\u7684\u9C7C\u4F1A\u653E\u8FDB\u9C7C\u7BD3"));
   }
 
   // src/client/tabs/home.js
@@ -4777,6 +4806,8 @@
             y: event.clientY,
             lastX: typeof event.screenX === "number" ? event.screenX : event.clientX,
             lastY: typeof event.screenY === "number" ? event.screenY : event.clientY,
+            startX: typeof event.screenX === "number" ? event.screenX : event.clientX,
+            startY: typeof event.screenY === "number" ? event.screenY : event.clientY,
             right: parseFloat(getComputedStyle(host).right) || 18,
             bottom: parseFloat(getComputedStyle(host).bottom) || 18,
             moved: false
@@ -4788,11 +4819,11 @@
           if (drag === null) return;
           var dx = event.clientX - drag.x;
           var dy = event.clientY - drag.y;
-          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
           var shellNow = desktopShell();
           if (shellNow !== null) {
             var screenX = typeof event.screenX === "number" ? event.screenX : event.clientX;
             var screenY = typeof event.screenY === "number" ? event.screenY : event.clientY;
+            if (Math.abs(screenX - drag.startX) > 3 || Math.abs(screenY - drag.startY) > 3) drag.moved = true;
             var stepX = screenX - drag.lastX;
             var stepY = screenY - drag.lastY;
             drag.lastX = screenX;
@@ -4800,6 +4831,7 @@
             if (stepX !== 0 || stepY !== 0) shellNow.moveBy(stepX, stepY);
             return;
           }
+          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
           userRight = drag.right - dx;
           userBottom = drag.bottom - dy;
           clampPig();

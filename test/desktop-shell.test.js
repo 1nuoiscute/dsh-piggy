@@ -68,6 +68,18 @@ test('桌面版：拖动增量按屏幕坐标算（窗口自己在动，clientX 
   assert.deepEqual(calls.move, [{ dx: 40, dy: -40 }], '要按屏幕坐标算增量，不是 clientX')
 })
 
+test('桌面版：窗口跟随鼠标时，拖拽松开不能误判成摸猪', async () => {
+  const { shell } = fakeShell({ above: 900, below: 100, left: 900, right: 900, width: 1920, height: 1040 })
+  const { dom } = await mount({ windowExtra: { __dshPiggyShell: shell } })
+  const scene = sceneOf(dom)
+  const pig = findByClass(hostOf(dom), 'dp-pig')
+  pig.removeAttribute('data-react')
+  scene.fire('pointerdown', { button: 0, clientX: 60, clientY: 60, screenX: 1000, screenY: 800, pointerId: 1 })
+  scene.fire('pointermove', { clientX: 60, clientY: 60, screenX: 1040, screenY: 800, pointerId: 1 })
+  scene.fire('pointerup', { pointerId: 1 })
+  assert.equal(pig.getAttribute('data-react'), null)
+})
+
 test('桌面版：四个角挑边，host 上写 data-panel-side（猪才能待在对应那端）', async () => {
   const corners = [
     { name: '左上', room: { above: 40, below: 887, left: 28, right: 1819, width: 1920, height: 985 }, side: 'right' },

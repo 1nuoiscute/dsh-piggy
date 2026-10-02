@@ -35,6 +35,7 @@ export const DEFAULT_TOY = Object.freeze({
  * @property {string} [form]   契约类道具：签下它换成哪个形态（data/evolution.js 的 key）
  * @property {string} [useLabel] 背包中的操作文字
  * @property {string} [blurb]
+ * @property {number} [rarityBoost] 鱼饵提升少见、稀有、传说鱼权重的倍率
  */
 /**
  * 装扮的等级门槛按 B2 的 60 级曲线重排（2026-10-01）：Lv10 约 5 天、Lv20 约 20 天、
@@ -53,6 +54,10 @@ export const SHOP = Object.freeze([
   Object.freeze({ key: 'pumpkin', label: '南瓜粥', emoji: '🎃', price: 34, kind: 'food', satiety: 62, happiness: 13 }),
   Object.freeze({ key: 'skewer', label: '烤肉串', emoji: '🍢', price: 58, kind: 'food', satiety: 76, happiness: 21, cleanliness: -7 }),
   Object.freeze({ key: 'feast', label: '豪华大餐', emoji: '🍱', price: 130, kind: 'food', satiety: 100, happiness: 34, cleanliness: -10 }),
+  // --- fishing bait: one consumed for every cast or auto attempt -----------
+  Object.freeze({ key: 'bait_worm', label: '蚯蚓鱼饵', emoji: '🪱', price: 5, kind: 'bait', rarityBoost: 0 }),
+  Object.freeze({ key: 'bait_shrimp', label: '鲜虾鱼饵', emoji: '🦐', price: 15, kind: 'bait', rarityBoost: 0.6 }),
+  Object.freeze({ key: 'bait_glow', label: '夜光鱼饵', emoji: '✨', price: 40, kind: 'bait', rarityBoost: 1.5 }),
   // --- bath ---------------------------------------------------------------
   Object.freeze({ key: 'soap', label: '香皂', emoji: '🧼', price: 6, kind: 'bath', cleanliness: 35, happiness: 2 }),
   Object.freeze({ key: 'shower', label: '冲个澡', emoji: '🚿', price: 10, kind: 'bath', cleanliness: 50, happiness: 3 }),
@@ -105,12 +110,13 @@ export const SHOP = Object.freeze([
 ])
 
 /** Shop shelves, in the order the panel shows them. */
-export const KIND_ORDER = Object.freeze(['food', 'bath', 'toy', 'dress', 'medicine', 'revive', 'promotion'])
+export const KIND_ORDER = Object.freeze(['food', 'bath', 'toy', 'bait', 'dress', 'medicine', 'revive', 'promotion'])
 
 export const KIND_LABEL = Object.freeze({
   food: '食物',
   bath: '洗浴',
   toy: '玩具',
+  bait: '鱼饵',
   dress: '装扮',
   medicine: '药品',
   revive: '复活',

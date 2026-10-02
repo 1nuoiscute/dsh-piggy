@@ -3,6 +3,7 @@
 #   2. 生成桌面版热更新用的游戏包 game-<版本>.json.gz + manifest
 #   3. 在 Linux 上打 AppImage、在 Windows 上打安装包和免安装版、在 macOS 上打 dmg（未签名）
 #   4. 一同发布 Windows/Linux 外壳更新清单，供新版本的桌面版点击更新
+#   5. 将同版本插件发布到 npm（需要仓库 secret NPM_TOKEN）
 # 全部挂到这个标签的 GitHub Release 上。
 name: release
 
@@ -47,6 +48,28 @@ jobs:
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --generate-notes
           gh release upload "$GITHUB_REF_NAME" dist-game/* --clobber
+
+  npm:
+    needs: game
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: 标签要和 npm 包版本一致
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - name: 构建插件客户端
+        run: |
+          npm install --no-save --package-lock=false esbuild@0.28.2
+          npm run build
+      - name: 发布到 npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          test -n "$NODE_AUTH_TOKEN"
+          npm publish --access public
 
   desktop:
     needs: game

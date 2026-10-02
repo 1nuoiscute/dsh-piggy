@@ -14,7 +14,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, movedBounds, quantizeKey } from '../lib/window-geometry.js'
+import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, movedBounds, moveAcrossDisplays, quantizeKey } from '../lib/window-geometry.js'
 
 const SHELL = readFileSync(new URL('../renderer/shell.js', import.meta.url), 'utf8')
 
@@ -197,6 +197,16 @@ test('上报要带猪在窗口坐标里的位置（主进程第二步收敛靠�
   assert.equal(typeof box.pigWindow?.y, 'number', '要报 pigWindow.y')
 })
 
+test('猪布局位置差一像素也要上报，才能消掉右键展开后的残余偏移', () => {
+  const page = fakePage()
+  page.run()
+  page.tick(false)
+  const before = page.window.__shellCalls.content.length
+  page.pig.offsetLeft += 1
+  page.tick()
+  assert.ok(page.window.__shellCalls.content.length > before)
+})
+
 test('外壳要订阅几何并主动问一次（不然 room() 永远是 null）', () => {
   const page = fakePage()
   page.run()
@@ -266,6 +276,13 @@ test('拖猪：外壳把移动通道开给页面里的猪使用', () => {
 // ---------------------------------------------------------------------------
 
 const AREA = { x: 0, y: 0, width: 1920, height: 1040 }
+
+test('dragging can cross from one monitor to another while keeping pointer offset', () => {
+  const displays = [AREA, { x: 1920, y: 0, width: 1920, height: 1040 }]
+  const start = { x: 1880, y: 400, width: 120, height: 120 }
+  assert.equal(moveAcrossDisplays(start, 100, 0, displays).x, 1980)
+  assert.equal(moveAcrossDisplays(start, -3000, 0, displays).x, 0)
+})
 
 test('窗口盯住猪贴的那两条边：锚边不动，另一边长', () => {
   const win = { x: 1500, y: 700, width: 100, height: 120 }

@@ -281,20 +281,18 @@ test('the snapshot reports the package version', async () => {
 test('a refused operation reports ok:false instead of the snapshot\'s ok', async () => {
   const app = boot(nowMs => {
     const pig = hatchEgg(nowMs - 3 * MIN)
-    pig.inventory = { apple: 4, soap: 2 }
+    pig.inventory = { apple: 4, soap: 1 }
     return pig
   })
   try {
-    // A shift that has already ended: the pig is home, so this is a normal bath.
-    // (Feeding has no cooldown since 2026-10-01, so the bath is the one to test.)
+    // The pig is home; this bath spends its only soap.
     const fed = await app.post({ action: 'bathe', item: 'soap' })
     assert.equal(fed.ok, true, 'the first bath succeeds')
 
-    // The second one is on cooldown — this is the case the spread order broke.
+    // The next bath is refused because soap ran out.
     const again = await app.post({ action: 'bathe', item: 'soap' })
-    assert.equal(again.ok, false, 'a cooling-down action must not report success')
-    assert.equal(again.reason, 'cooldown')
-    assert.ok(again.wait > 0)
+    assert.equal(again.ok, false, 'an out-of-stock action must not report success')
+    assert.equal(again.reason, 'no-item')
     // …and the snapshot still rides along so the panel can repaint.
     assert.notEqual(again.pig, null)
     assert.equal(typeof again.actions.feed.ready, 'boolean')
@@ -449,7 +447,7 @@ test('the wear route dresses and undresses, and the shop is honest about 家当'
   })
   try {
     const board = await app.get()
-    assert.equal(board.shop.length, 63)
+    assert.equal(board.shop.length, 66)
     assert.equal(board.dress.length, 11)
     assert.equal(board.shop.find(item => item.key === 'scarf').owned, true)
     const wings = board.shop.find(item => item.key === 'wings')

@@ -20,7 +20,7 @@ import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, net, prot
 import updaterPackage from 'electron-updater'
 
 import { startHost } from './lib/host.js'
-import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, movedBounds } from './lib/window-geometry.js'
+import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, moveAcrossDisplays } from './lib/window-geometry.js'
 import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 import { createShellUpdates, shellUpdateMode } from './lib/shell-update.js'
 
@@ -174,8 +174,8 @@ function applyShape(rects) {
 }
 
 function createWindow() {
-  const area = pigDisplay().workArea
   const saved = readWindowState()
+  const area = saved === null ? pigDisplay().workArea : screen.getDisplayMatching(saved).workArea
   const width = saved === null ? FALLBACK_CONTENT.width + WINDOW_PADDING * 2 : saved.width
   const height = saved === null ? FALLBACK_CONTENT.height + WINDOW_PADDING * 2 : saved.height
   const anchorRight = saved === null ? 18 : null
@@ -274,7 +274,7 @@ ipcMain.on('piggy:move', (event, delta) => {
   const dy = Number(delta?.dy)
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return
   const bounds = win.getBounds()
-  applyBounds(movedBounds(bounds, dx, dy, workAreaFor(bounds)), 'move')
+  applyBounds(moveAcrossDisplays(bounds, dx, dy, screen.getAllDisplays().map(display => display.workArea)), 'move')
   // 窗口挪了，但内容框没变：记录里的猪跟着窗口一起动了，下一次算锚点还是对的。
 })
 

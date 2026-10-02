@@ -142,13 +142,13 @@ export function createApi(control) {
 
     /** Send the pig travelling. */
     startTrip: tripKey => mutate(live => coreStartTrip(live, tripKey, now())),
-    castFishing: power => mutate(live => coreCastFishing(live, Number(power), now())),
+    castFishing: (power, bait) => mutate(live => coreCastFishing(live, Number(power), now(), undefined, bait)),
     hookFishing: () => mutate(live => coreHookFishing(live, now())),
     resolveFishing: success => mutate(live => coreResolveFishing(live, success === true, now())),
     keepFish: () => mutate(live => coreKeepFish(live, now())),
     feedFish: id => mutate(live => coreFeedFish(live, id, now())),
     sellFish: id => mutate(live => coreSellFish(live, id, now())),
-    startAutoFishing: minutes => mutate(live => coreStartAutoFishing(live, Number(minutes), now())),
+    startAutoFishing: (minutes, bait) => mutate(live => coreStartAutoFishing(live, Number(minutes), now(), bait)),
     grantFish: key => mutate(live => ({ ok: coreGrantFish(live, key, now()) !== null })),
     skipFishingWait: () => mutate(live => coreSkipFishingWait(live, now())),
     selectSkin: key => mutate(live => coreSelectSkin(live, key, now())),

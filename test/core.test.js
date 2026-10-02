@@ -281,7 +281,7 @@ test('passive events feed the pig, and real work adds a little growth', () => {
   assert.deepEqual(feed(pig, 'not-a-thing', T0), [])
 })
 
-test('care actions apply their effects and honour per-action cooldowns', () => {
+test('care actions apply effects and spend items without cooldowns', () => {
   const pig = hatchEgg(T0)
   pig.cleanliness = 20
   // Washing spends soap; the pig has none until it buys some.
@@ -291,12 +291,11 @@ test('care actions apply their effects and honour per-action cooldowns', () => {
   assert.ok(pig.cleanliness > 60)
   assert.equal(pig.inventory.bubble, 1, 'one bubble bath was used up')
   const again = act(pig, 'bathe', T0 + 1000, 'bubble')
-  assert.equal(again.ok, false)
-  assert.equal(again.reason, 'cooldown')
-  assert.equal(act(pig, 'bathe', T0 + ACTIONS.bathe.cooldownMs, 'bubble').ok, true)
+  assert.equal(again.ok, true)
+  assert.equal(pig.inventory.bubble, undefined)
 
   // Cooldowns are per action, and the free default toy needs no purchase.
-  const played = act(pig, 'play', T0 + ACTIONS.bathe.cooldownMs)
+  const played = act(pig, 'play', T0 + 1001)
   assert.equal(played.ok, true)
   assert.equal(played.spent, false, 'the scruffy default ball is not consumed')
   assert.deepEqual(act(pig, 'dance', T0), { ok: false, reason: 'unknown' })
@@ -1080,16 +1079,16 @@ test('trait and course views always list everything', () => {
 // Shop
 // ===========================================================================
 
-test('the shop is well formed: 63 items across seven shelves, every cure stocked', () => {
-  assert.equal(SHOP.length, 63, 'C3 adds the crown and the contract; the old wearable crown is gone')
+test('the shop is well formed: 66 items across eight shelves, every cure stocked', () => {
+  assert.equal(SHOP.length, 66, 'three fishing baits join the existing items')
   const counts = {}
   for (const item of SHOP) {
     assert.equal(typeof item.key, 'string')
     assert.ok(item.price > 0)
-    assert.ok(['food', 'bath', 'toy', 'dress', 'medicine', 'revive', 'promotion'].includes(item.kind))
+    assert.ok(['food', 'bath', 'toy', 'bait', 'dress', 'medicine', 'revive', 'promotion'].includes(item.kind))
     counts[item.kind] = (counts[item.kind] ?? 0) + 1
   }
-  assert.deepEqual(counts, { food: 10, bath: 8, toy: 10, dress: 11, medicine: 21, revive: 1, promotion: 2 })
+  assert.deepEqual(counts, { food: 10, bath: 8, toy: 10, bait: 3, dress: 11, medicine: 21, revive: 1, promotion: 2 })
   // 装扮 is a different economy: level-gated, owned once, never counted.
   for (const item of SHOP.filter(entry => entry.kind === 'dress')) {
     assert.ok(Number.isInteger(item.level) && item.level >= 1, `${item.label} needs a level`)
@@ -1300,4 +1299,15 @@ test('feeding has no cooldown: each bite costs food, and a full belly is the bra
   assert.equal(act(pig, 'feed', T0).ok, true)
   assert.equal(act(pig, 'feed', T0 + 1).ok, true, 'straight away, no waiting')
   assert.equal(act(pig, 'bathe', T0).reason === 'no-item', true, 'bathing still spends soap')
+})
+
+test('washing and playing can immediately spend another owned item', () => {
+  const pig = hatchEgg(T0)
+  pig.inventory = { soap: 2, yoyo: 2 }
+  assert.equal(act(pig, 'bathe', T0, 'soap').ok, true)
+  assert.equal(act(pig, 'bathe', T0 + 1, 'soap').ok, true)
+  assert.equal(act(pig, 'play', T0, 'yoyo').ok, true)
+  assert.equal(act(pig, 'play', T0 + 1, 'yoyo').ok, true)
+  assert.equal(pig.inventory.soap, undefined)
+  assert.equal(pig.inventory.yoyo, undefined)
 })

@@ -79,6 +79,18 @@ export function movedBounds(windowBounds, dx, dy, area) {
   }, area)
 }
 
+/** During a drag the window may straddle monitors; clamp to the virtual desktop instead of the current screen. */
+export function moveAcrossDisplays(windowBounds, dx, dy, areas) {
+  if (!Array.isArray(areas) || areas.length === 0) return windowBounds
+  const union = {
+    x: Math.min(...areas.map(area => area.x)),
+    y: Math.min(...areas.map(area => area.y)),
+  }
+  const right = Math.max(...areas.map(area => area.x + area.width))
+  const bottom = Math.max(...areas.map(area => area.y + area.height))
+  return movedBounds(windowBounds, dx, dy, { ...union, width: right - union.x, height: bottom - union.y })
+}
+
 /** 收敛容差：猪的屏幕位置差这么点就不管了。 */
 export const ANCHOR_TOLERANCE = 1
 

@@ -67,6 +67,8 @@ export function createIo(ctx) {
               away: '它在外面',
               weak: '太虚弱了，先养好再出门',
               hungry: '太饿了',
+              'no-bait': '鱼饵不够' + (next.need ? '，本次需要 ' + num(next.need, 0) + ' 个' : '') + '，去商店的鱼饵货架买',
+              escaped: '鱼跑掉了，再抛一次吧',
               'wrong-medicine': '药不对症，病情加重了…',
               empty: '背包里没有',
               'not-sick': '它没生病',

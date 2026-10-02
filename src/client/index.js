@@ -239,6 +239,8 @@ import { arr, num, obj, str } from './values.js'
           x: event.clientX, y: event.clientY,
           lastX: typeof event.screenX === 'number' ? event.screenX : event.clientX,
           lastY: typeof event.screenY === 'number' ? event.screenY : event.clientY,
+          startX: typeof event.screenX === 'number' ? event.screenX : event.clientX,
+          startY: typeof event.screenY === 'number' ? event.screenY : event.clientY,
           right: parseFloat(getComputedStyle(host).right) || 18,
           bottom: parseFloat(getComputedStyle(host).bottom) || 18,
           moved: false,
@@ -250,7 +252,6 @@ import { arr, num, obj, str } from './values.js'
         if (drag === null) return
         var dx = event.clientX - drag.x
         var dy = event.clientY - drag.y
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true
         // 桌面版（D1）：窗口缩在猪身上，拖动＝把窗口按屏幕坐标挪走，页面里不动位置。
         var shellNow = desktopShell()
         if (shellNow !== null) {
@@ -258,6 +259,7 @@ import { arr, num, obj, str } from './values.js'
           // 屏幕坐标不受窗口位置影响（screenX/screenY）。
           var screenX = typeof event.screenX === 'number' ? event.screenX : event.clientX
           var screenY = typeof event.screenY === 'number' ? event.screenY : event.clientY
+          if (Math.abs(screenX - drag.startX) > 3 || Math.abs(screenY - drag.startY) > 3) drag.moved = true
           var stepX = screenX - drag.lastX
           var stepY = screenY - drag.lastY
           drag.lastX = screenX
@@ -265,6 +267,7 @@ import { arr, num, obj, str } from './values.js'
           if (stepX !== 0 || stepY !== 0) shellNow.moveBy(stepX, stepY)
           return
         }
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true
         userRight = drag.right - dx
         userBottom = drag.bottom - dy
         clampPig()

@@ -92,17 +92,15 @@ test('the contract shares the promotion shelf and its refusal does not spend it'
   assert.equal(state.inventory.contract, 1)
 })
 
-test('successful play reaches the threshold; rejected cooldown play does not count', () => {
+test('consecutive play actions reach the contract threshold', () => {
   const state = ready()
   state.stats.plays = 18
   assert.equal(act(state, 'play', NOW).ok, true)
   assert.equal(state.stats.plays, 19)
-  assert.equal(act(state, 'play', NOW).reason, 'cooldown')
-  assert.equal(state.stats.plays, 19)
   assert.equal(devil(state).ready, false)
-  assert.equal(act(state, 'play', NOW + 45_000).ok, true)
+  assert.equal(act(state, 'play', NOW).ok, true)
   assert.equal(state.stats.plays, 20)
-  assert.equal(signContract(state, 'devil', NOW + 45_000).ok, true)
+  assert.equal(signContract(state, 'devil', NOW).ok, true)
 })
 
 test('devil stays selected when unhappy, is idempotent, and can switch to king', () => {

@@ -234,6 +234,8 @@ export function sanitizeActivity(raw) {
     startedAt: Number(source.startedAt) || 0,
     endsAt: source.endsAt,
     cost: Number(source.cost) || 0,
+    ...(kind === 'fishing' && itemByKey(source.baitKey)?.kind === 'bait'
+      ? { baitKey: source.baitKey, baitCount: Math.max(0, Math.min(20, Math.floor(Number(source.baitCount) || 0))) } : {}),
     ...(Number.isFinite(source.legacyCoins) ? { legacyCoins: source.legacyCoins, minutes: Number(source.minutes) || 0 } : {}),
   }
 }

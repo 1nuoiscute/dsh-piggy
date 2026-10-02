@@ -4,7 +4,9 @@ import assert from 'node:assert/strict'
 import { SNAPSHOT, contentOf, findByAttr, findByClass, mount, openPanel, settle } from './helpers/bundle.js'
 
 const fishing = { pending: null, bag: [], period: 'evening', autoTrips: 0, autoLeft: 2 }
-const status = extra => ({ ...SNAPSHOT, fishing: { ...fishing, ...extra }, canGoOut: true })
+const bait = { key: 'bait_worm', kind: 'bait', label: '蚯蚓鱼饵', emoji: '🪱', price: 5 }
+const status = extra => ({ ...SNAPSHOT, fishing: { ...fishing, ...extra }, canGoOut: true,
+  shop: [...SNAPSHOT.shop, bait], inventory: { ...SNAPSHOT.inventory, bait_worm: 20 } })
 
 test('C5 home has a one-click cast and keeps both auto choices', async () => {
   const { dom, calls } = await mount({ status: status() })
@@ -15,9 +17,24 @@ test('C5 home has a one-click cast and keeps both auto choices', async () => {
   assert.equal(findByClass(contentOf(dom), 'dp-fish-charge'), undefined)
   cast.fire('click')
   await settle()
-  assert.deepEqual(JSON.parse(calls.at(-1).body), { action: 'fishCast', power: .7 })
+  assert.deepEqual(JSON.parse(calls.at(-1).body), { action: 'fishCast', power: .7, bait: 'bait_worm' })
   assert.notEqual(findByAttr(contentOf(dom), 'data-fish-auto', '30'), undefined)
   assert.notEqual(findByAttr(contentOf(dom), 'data-fish-auto', '60'), undefined)
+})
+
+test('fishing lets the player choose bait; no bait disables casting', async () => {
+  const shrimp = { key: 'bait_shrimp', kind: 'bait', label: '鲜虾鱼饵', emoji: '🦐', price: 15 }
+  const { dom, calls } = await mount({ status: { ...status(), shop: [...status().shop, shrimp],
+    inventory: { ...status().inventory, bait_shrimp: 20 } } })
+  openPanel(dom, 'fishing')
+  findByAttr(contentOf(dom), 'data-fish-bait', 'bait_shrimp').fire('click')
+  findByAttr(contentOf(dom), 'data-fish-auto', '30').fire('click')
+  await settle()
+  assert.deepEqual(JSON.parse(calls.at(-1).body), { action: 'fishAuto', minutes: 30, bait: 'bait_shrimp' })
+
+  const empty = await mount({ status: { ...status(), inventory: { ...SNAPSHOT.inventory } } })
+  openPanel(empty.dom, 'fishing')
+  assert.equal(findByAttr(contentOf(empty.dom), 'data-fish', 'cast').disabled, true)
 })
 
 test('C5 caught result shows fish facts and keeps it into the bag', async () => {
@@ -40,10 +57,13 @@ test('C5 hooked fish uses a circular skill-check QTE scaled by difficulty', asyn
   assert.equal(qte.getAttribute('data-qte-difficulty'), '86')
   assert.equal(findByClass(contentOf(dom), 'dp-fish-track'), undefined)
   assert.equal(qte.getAttribute('data-qte-misses'), '0')
+  assert.ok(Number(qte.getAttribute('data-qte-zone-size')) >= 75)
+  assert.ok(Number(qte.getAttribute('data-qte-speed')) <= 0.5)
   const callCount = calls.length
-  qte.fire('click') // 点早只提示，不应一击跑鱼。
+  qte.fire('pointerdown', { pointerType: 'mouse', timeStamp: 100 }) // 点早也要立刻反馈。
   await settle()
   assert.equal(calls.length, callCount)
+  assert.match(qte.getAttribute('data-qte-feedback'), /还没到时机/)
 })
 
 test('C5 fish bag exposes feed and sell on each individual catch', async () => {

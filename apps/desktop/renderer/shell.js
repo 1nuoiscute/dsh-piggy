@@ -230,7 +230,8 @@
       Math.floor(pigBox.x), Math.floor(pigBox.y)]
     for (var i = 0; i < shape.length; i += 1) parts.push(shape[i].x, shape[i].y, shape[i].width, shape[i].height)
     // 4px 一档：动画抖几像素不会换 key。
-    return parts.map(function (n) { return Math.floor(n / STEP) }).join(',')
+    return parts.slice(0, 4).concat(parts.slice(4, 6),
+      parts.slice(6).map(function (n) { return Math.floor(n / STEP) })).join(',')
   }
 
   // ---------------------------------------------------------------------------

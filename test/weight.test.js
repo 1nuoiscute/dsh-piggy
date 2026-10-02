@@ -61,8 +61,8 @@ test('C7 successful play reduces only excess weight by 3%, at most ten times per
   assert.equal(act(state, 'play', NOW).ok, true)
   assert.ok(Math.abs(state.weightG - (ideal + ideal * 0.6 * 0.97)) < 0.001)
   assert.equal(state.bodyWeight.plays, 1)
-  assert.equal(act(state, 'play', NOW).reason, 'cooldown')
-  assert.equal(state.bodyWeight.plays, 1)
+  assert.equal(act(state, 'play', NOW).ok, true)
+  assert.equal(state.bodyWeight.plays, 2)
   for (let count = 1; count < 10; count += 1) reducePlayWeight(state, NOW)
   const afterTen = state.weightG
   reducePlayWeight(state, NOW)

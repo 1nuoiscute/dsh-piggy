@@ -1,6 +1,6 @@
 // @ts-check
 /** C5 manual and automatic fishing; all core randomness comes through random.js. */
-import { FISH, fishByKey } from '../data.js'
+import { FISH, fishByKey, itemByKey } from '../data.js'
 import { begin, awayBlockedReason } from './activity.js'
 import { dayKeyFor } from './clock.js'
 import { clamp100, remember } from './effects.js'
@@ -44,10 +44,11 @@ export function fishingPeriod(nowMs) {
   return hour >= 5 && hour < 10 ? 'early' : hour >= 10 && hour < 16 ? 'noon' : hour >= 16 && hour < 21 ? 'evening' : 'night'
 }
 
-function weightedFish(nowMs, power, next) {
+function weightedFish(nowMs, power, next, baitBoost = 0) {
   const entries = FISH.filter(fish => fish.times.includes(fishingPeriod(nowMs))).map(fish => ({
     fish,
-    weight: WEIGHT[fish.rarity] * (fish.rarity === 'legend' ? 1 + power * 8 : fish.rarity === 'rare' ? 1 + power * 4 : fish.rarity === 'uncommon' ? 1 + power : 1),
+    weight: WEIGHT[fish.rarity] * (fish.rarity === 'legend' ? 1 + power * 8 : fish.rarity === 'rare' ? 1 + power * 4 : fish.rarity === 'uncommon' ? 1 + power : 1)
+      * (fish.rarity === 'legend' ? 1 + baitBoost * 3 : fish.rarity === 'rare' ? 1 + baitBoost * 2 : fish.rarity === 'uncommon' ? 1 + baitBoost : 1),
   }))
   let cursor = next() * entries.reduce((sum, entry) => sum + entry.weight, 0)
   for (const entry of entries) { cursor -= entry.weight; if (cursor < 0) return entry.fish }
@@ -60,18 +61,22 @@ function makeCatch(state, fish, nowMs, next) {
   return { id: `catch-${nowMs}-${fishing.seq}`, key: fish.key, sizeCm: Number((fish.minCm + next() * (fish.maxCm - fish.minCm)).toFixed(1)), price: fish.price, caughtAt: nowMs }
 }
 
-export function castFishing(state, power, nowMs, next = rollerFor(state)) {
+export function castFishing(state, power, nowMs, next = rollerFor(state), baitKey) {
   const fishing = ensureFishing(state)
   if (fishing.pending !== null && nowMs <= fishing.pending.expiresAt) return { ok: false, reason: 'pending' }
   fishing.pending = null
   const blocked = awayBlockedReason(state)
   if (blocked !== null) return { ok: false, reason: blocked }
   if (state.satiety < 1) return { ok: false, reason: 'hungry' }
+  const bait = itemByKey(baitKey)
+  if (bait?.kind !== 'bait' || (state.inventory?.[baitKey] ?? 0) < 1) return { ok: false, reason: 'no-bait' }
   const castPower = Number.isFinite(power) ? Math.max(0, Math.min(1, power)) : 0
-  const fish = weightedFish(nowMs, castPower, next)
+  const fish = weightedFish(nowMs, castPower, next, bait.rarityBoost ?? 0)
   const caught = makeCatch(state, fish, nowMs, next)
   const bitesAt = nowMs + 2000 + Math.floor(next() * 6001)
-  fishing.pending = { ...caught, phase: 'waiting', castPower, bitesAt, hookUntil: bitesAt + 1000, expiresAt: nowMs + 60_000 }
+  fishing.pending = { ...caught, phase: 'waiting', castPower, bitesAt, hookUntil: bitesAt + 2000, expiresAt: nowMs + 60_000 }
+  state.inventory[baitKey] -= 1
+  if (state.inventory[baitKey] === 0) delete state.inventory[baitKey]
   state.satiety = clamp100(state.satiety - 1)
   return { ok: true, fish, pending: fishing.pending }
 }
@@ -159,36 +164,41 @@ function resetAutoDay(fishing, nowMs) {
   if (fishing.autoDay !== day) { fishing.autoDay = day; fishing.autoTrips = 0 }
 }
 
-export function startAutoFishing(state, minutes, nowMs) {
+export function startAutoFishing(state, minutes, nowMs, baitKey) {
   const fishing = ensureFishing(state)
   resetAutoDay(fishing, nowMs)
   if (![30, 60].includes(minutes)) return { ok: false, reason: 'minutes' }
   if (fishing.autoTrips >= AUTO_LIMIT) return { ok: false, reason: 'daily-limit' }
-  const result = begin(state, { kind: 'fishing', key: `auto-${minutes}`, label: `自动钓鱼 ${minutes} 分钟`, emoji: '🎣', minutes, cost: 0 }, nowMs)
-  if (result.ok) fishing.autoTrips += 1
+  const bait = itemByKey(baitKey)
+  const attempts = minutes / 3
+  if (bait?.kind !== 'bait' || (state.inventory?.[baitKey] ?? 0) < attempts) return { ok: false, reason: 'no-bait', need: attempts }
+  const result = begin(state, { kind: 'fishing', key: `auto-${minutes}`, label: `自动钓鱼 ${minutes} 分钟`, emoji: '🎣', minutes, cost: 0, baitKey, baitCount: attempts }, nowMs)
+  if (result.ok) {
+    state.inventory[baitKey] -= attempts
+    if (state.inventory[baitKey] === 0) delete state.inventory[baitKey]
+    fishing.autoTrips += 1
+  }
   return result
 }
 
 export function finishAutoFishing(state, activity, nowMs, next = rollerFor(state)) {
   const attempts = Math.max(1, Math.floor((activity.endsAt - activity.startedAt) / 180_000))
   let count = 0
-  let coins = 0
+  const bait = itemByKey(activity.baitKey)
   for (let index = 0; index < attempts; index += 1) {
     const at = activity.startedAt + index * 180_000
-    const fish = weightedFish(at, 0.45, next)
+    const fish = weightedFish(at, 0.45, next, bait?.rarityBoost ?? 0)
     if (!chance(next, Math.max(0.2, 0.95 - fish.difficulty * 0.0075))) continue
     const caught = makeCatch(state, fish, at, next)
     recordFish(state, caught, nowMs)
+    ensureFishing(state).bag.push(caught)
     count += 1
-    coins += Math.floor(caught.price * 0.7)
   }
-  state.coins += coins
   state.stats.fishingAuto = (state.stats.fishingAuto ?? 0) + 1
   state.stats.fishCaught = (state.stats.fishCaught ?? 0) + count
-  state.stats.coinsEarned = (state.stats.coinsEarned ?? 0) + coins
   reduceFishingWeight(state, attempts * 3)
-  remember(state, `🎣 自动钓鱼回来，钓到 ${count} 条，卖了 ${coins} 金币`, nowMs)
-  return { count, coins }
+  remember(state, `🎣 自动钓鱼回来，钓到 ${count} 条，已放进鱼篓`, nowMs)
+  return { count }
 }
 
 export function fishingView(state, nowMs) {
@@ -203,6 +213,6 @@ export function skipFishingWait(state, nowMs) {
   const pending = ensureFishing(state).pending
   if (pending === null || pending.phase !== 'waiting') return { ok: false, reason: 'none' }
   pending.bitesAt = nowMs
-  pending.hookUntil = nowMs + 1000
+  pending.hookUntil = nowMs + 2000
   return { ok: true }
 }

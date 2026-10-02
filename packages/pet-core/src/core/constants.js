@@ -57,11 +57,11 @@ export const ACTIONS = Object.freeze({
   },
   bathe: {
     key: 'bathe', label: '洗澡', emoji: '🛁', verb: '洗了个澡 🛁',
-    cooldownMs: 90_000, satiety: -2, happiness: 8, cleanliness: 50, weightG: 0,
+    cooldownMs: 0, satiety: -2, happiness: 8, cleanliness: 50, weightG: 0,
   },
   play: {
     key: 'play', label: '玩耍', emoji: '🎾', verb: '玩了一会儿 🎾',
-    cooldownMs: 45_000, satiety: -5, happiness: 16, cleanliness: -4, weightG: 4,
+    cooldownMs: 0, satiety: -5, happiness: 16, cleanliness: -4, weightG: 4,
   },
   pet: {
     key: 'pet', label: '摸摸', emoji: '❤️', verb: '被摸了摸头 ❤️',

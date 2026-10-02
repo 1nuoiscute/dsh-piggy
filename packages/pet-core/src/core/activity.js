@@ -7,6 +7,7 @@
  */
 
 import { TOO_WEAK_HEALTH } from './constants.js'
+import { itemByKey } from '../data.js'
 import { remember } from './effects.js'
 import { decay } from './settlement.js'
 
@@ -63,6 +64,11 @@ export function callOffActivity(state, nowMs) {
   if (state.activity === null) return { ok: false, reason: 'idle' }
   const activity = state.activity
   state.activity = null
+  if (activity.kind === 'fishing' && itemByKey(activity.baitKey)?.kind === 'bait' && activity.baitCount > 0) {
+    state.inventory = { ...(state.inventory ?? {}), [activity.baitKey]: (state.inventory?.[activity.baitKey] ?? 0) + activity.baitCount }
+    remember(state, `🎣 提前回来，退回 ${activity.baitCount} 个鱼饵`, nowMs)
+    return { ok: true, baitRefunded: activity.baitCount }
+  }
   if (activity.kind !== 'work' && activity.cost > 0) {
     state.coins += activity.cost
     remember(state, `${activity.emoji} 从${activity.label}提前回来了，钱退回来了`, nowMs)
