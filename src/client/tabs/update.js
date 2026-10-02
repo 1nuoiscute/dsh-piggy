@@ -1,7 +1,6 @@
 // @ts-check
 /**
- * 更新 App（只在桌面版出现，见 apps/desktop）：现在是哪个版本，GitHub 上有哪些版本，
- * 一键更新到最新，或者挑一个版本换过去；换了还能回到上一个。
+ * 更新 App：桌面版可以下载、换版本和回滚；DSH 插件只提示 GitHub 新版本。
  *
  * 版本列表一格一个方块，点一个下面出详情卡（更新说明、能不能换、按钮）。
  * 读写都经过桌面版的 window.piggyShell.updates，不走游戏的路由。
@@ -71,7 +70,7 @@ function rollback(ui) {
 
 export function renderUpdateTab(ui) {
   if (updatesBridge() === null) {
-    ui.content.appendChild(el('div', 'dp-empty', '桌面版才有这个'))
+    renderDshUpdate(ui)
     return
   }
   if (state.current === null && state.list === null && state.error === null) refresh(ui)
@@ -81,6 +80,13 @@ export function renderUpdateTab(ui) {
     : '现在 v' + cur.version + (cur.bundled ? '（安装包自带）' : '')))
   if (cur !== null) head.appendChild(el('div', 'dp-dim', '安装包 ' + cur.shell))
   if (state.message !== null) head.appendChild(el('div', 'dp-req', state.message))
+  var shellRelease = state.list === null ? null : state.list.find(function (r) { return r.shellUpdate && !r.prerelease }) || null
+  if (shellRelease !== null) {
+    head.appendChild(el('div', 'dp-req', '桌面外壳可更新到 v' + (shellRelease.latestShell || shellRelease.version)))
+    var shellGo = button('dp-btn dp-btn-wide', { 'data-update-shell': shellRelease.version }, function () { updatesBridge().openPage(shellRelease.page) })
+    shellGo.textContent = '下载新安装包'
+    head.appendChild(shellGo)
+  }
   if (state.busy !== null && state.message === null) {
     head.appendChild(el('div', 'dp-dim', state.busy === 'rollback' ? '正在换回去…' : '下载中 ' + Math.round(state.fraction * 100) + '%'))
   }
@@ -110,6 +116,43 @@ export function renderUpdateTab(ui) {
     back.disabled = state.busy !== null
     ui.content.appendChild(back)
   }
+}
+
+/** DSH cannot replace plugin files safely; it only points to the new release. */
+function renderDshUpdate(ui) {
+  var notice = ui.updateNotice
+  var head = el('div', 'dp-pick dp-tile-card dp-update-now')
+  head.appendChild(el('div', 'dp-pick-head', '现在 v' + (ui.view.version || '未知')))
+  head.appendChild(el('div', 'dp-dim', 'DSH 插件只提醒新版本，不会自动改动本地文件。'))
+  ui.content.appendChild(head)
+  if (notice === null || notice === undefined) return
+  if (!notice.checked && !notice.checking && notice.error === null) notice.check()
+  if (notice.checking) {
+    ui.content.appendChild(el('div', 'dp-empty', '正在问 GitHub…'))
+    return
+  }
+  if (notice.error !== null) {
+    ui.content.appendChild(el('div', 'dp-empty', notice.error))
+    var retry = button('dp-btn dp-btn-wide', { 'data-update-retry': '' }, function () { notice.check() })
+    retry.textContent = '再试一次'
+    ui.content.appendChild(retry)
+    return
+  }
+  var release = notice.remote
+  if (release === null) return
+  if (notice.latest === null) {
+    ui.content.appendChild(el('div', 'dp-req dp-req-ok', '✓ 已经是最新'))
+    return
+  }
+  var box = el('div', 'dp-pick dp-tile-card dp-update-detail')
+  box.appendChild(el('div', 'dp-pick-head', '发现新版本 v' + release.version))
+  if (release.notes) box.appendChild(el('div', 'dp-update-notes', release.notes))
+  var go = button('dp-btn dp-btn-wide', { 'data-update-page': release.version }, function () {
+    window.open(release.page, '_blank', 'noopener')
+  })
+  go.textContent = '打开发布页'
+  box.appendChild(go)
+  ui.content.appendChild(box)
 }
 
 /** Every version as a tile; the picked one opens its notes and button below. */

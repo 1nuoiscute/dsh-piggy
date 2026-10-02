@@ -26,7 +26,8 @@ export function renderHome(ui, apps) {
     (function (app) {
       grid.appendChild(tile({
         emoji: app.emoji, label: app.label, color: APP_COLOR[app.key] ?? 'blue',
-        tag: alertFor(ui, app.key),
+        tag: app.key === 'update' ? '' : alertFor(ui, app.key),
+        badge: app.key === 'update' ? alertFor(ui, app.key) : '',
         data: { 'data-app': app.key },
         onPick: function () { ui.select(app.key) },
       }))
@@ -49,6 +50,7 @@ export function renderHome(ui, apps) {
  * alerts the panel already works out for the hidden icon bar.
  */
 function alertFor(ui, key) {
+  if (key === 'update') return ui.updateNotice?.unread ? '!' : ''
   var p = ui.view.pig
   if (key === 'status') {
     if (ui.view.dead) return '走了'

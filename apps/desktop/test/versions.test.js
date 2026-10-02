@@ -58,14 +58,15 @@ test('the list says which versions can be installed, and why not', async () => {
   const { dir, bundled, statePath } = setup({ version: 12 })
   try {
     const files = {
-      'm-0.26.0': JSON.stringify({ version: '0.26.0', stateVersion: 13, minShell: '0.2.0', sha256: 'x', size: 1 }),
-      'm-0.25.0': JSON.stringify({ version: '0.25.0', stateVersion: 12, minShell: '0.1.0', sha256: 'x', size: 1 }),
+      'm-0.26.0': JSON.stringify({ version: '0.26.0', stateVersion: 13, minShell: '0.2.0', shellVersion: '0.2.1', sha256: 'x', size: 1 }),
+      'm-0.25.0': JSON.stringify({ version: '0.25.0', stateVersion: 12, minShell: '0.1.0', shellVersion: '0.1.3', sha256: 'x', size: 1 }),
       'm-0.20.0': JSON.stringify({ version: '0.20.0', stateVersion: 10, minShell: '0.1.0', sha256: 'x', size: 1 }),
     }
     const gh = fakeGithub(files, [release('0.20.0'), release('0.26.0'), release('0.25.0'), { tag_name: 'v0.0.1', assets: [] }])
     const versions = createVersions({ userData: dir, bundledDir: bundled, shellVersion: '0.1.0', statePath, fetch: gh.fetch, releasesUrl: 'releases' })
     const list = await versions.list()
     assert.deepEqual(list.map(r => [r.version, r.blocked]), [['0.26.0', 'shell'], ['0.25.0', null], ['0.20.0', 'save']])
+    assert.deepEqual(list.slice(0, 2).map(r => [r.latestShell, r.shellUpdate]), [['0.2.1', true], ['0.1.3', true]])
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -76,6 +77,7 @@ test('installing checks the download, switches to it, and rollback goes back', a
   try {
     const out = join(dir, 'rel')
     const manifest = await releaseGame(ROOT, out, '0.1.0')
+    assert.equal(manifest.shellVersion, '0.1.3')
     const pack = readFileSync(join(out, `game-${manifest.version}.json.gz`))
     const files = { [`m-${manifest.version}`]: JSON.stringify(manifest), [`p-${manifest.version}`]: pack }
     const gh = fakeGithub(files, [release(manifest.version)])

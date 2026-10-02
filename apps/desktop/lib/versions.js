@@ -4,7 +4,7 @@
  * 下次启动就用它。安装包自带的那份是兜底；上一个版本留着，可以一键回退。
  *
  * 每个 Release 附两个文件（scripts/release-game.mjs 生成）：
- *   game-<版本>.manifest.json  { version, stateVersion, minShell, sha256, size }
+ *   game-<版本>.manifest.json  { version, stateVersion, minShell, shellVersion, sha256, size }
  *   game-<版本>.json.gz        gzip 过的 { files: { 相对路径: base64 内容 } }
  *
  * 纯 Node（fetch、zlib、fs），不依赖 Electron；网络、时间都能换，测试直接跑。
@@ -113,13 +113,15 @@ export function createVersions(options) {
       let blocked = null
       if (compareVersions(manifest.minShell ?? '0', options.shellVersion) > 0) blocked = 'shell'
       else if (Number(manifest.stateVersion ?? 0) < save) blocked = 'save'
+      const latestShell = manifest.shellVersion ?? manifest.minShell ?? null
       out.push({
         version, tag: release.tag_name, name: release.name || release.tag_name,
         date: String(release.published_at ?? '').slice(0, 10),
         notes: String(release.body ?? '').slice(0, 1200),
         prerelease: release.prerelease === true,
         current: version === here.version,
-        blocked, minShell: manifest.minShell ?? null,
+        blocked, minShell: manifest.minShell ?? null, latestShell,
+        shellUpdate: latestShell !== null && compareVersions(latestShell, options.shellVersion) > 0,
         page: release.html_url ?? RELEASES_PAGE,
         manifest, packUrl: packAsset.browser_download_url,
       })

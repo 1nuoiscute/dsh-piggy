@@ -60,7 +60,7 @@ export const DEV_TAP_HINT_MS = 1200
 export const DEV_KEY = 'dsh-piggy:dev'
 export const DEV_TAB = { key: 'dev', label: '调试', emoji: '🔧' }
 
-/** 桌面版独有：从 GitHub 更新、换版本（apps/desktop）。 */
+/** 桌面版可热更新；DSH 里只提示 GitHub 有新版本。 */
 export const UPDATE_TAB = { key: 'update', label: '更新', emoji: '🔄' }
 /** 桌面版独有：关掉桌面上的猪（存档会先存好）。 */
 export const QUIT_TAB = { key: 'quit', label: '退出', emoji: '👋' }

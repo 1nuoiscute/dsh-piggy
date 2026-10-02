@@ -33,6 +33,8 @@ import { desktopShell } from './desktop-shell.js'
 import { readPosition } from './position.js'
 import { createDevMode } from './dev-mode.js'
 import { readStore, writeStore } from './storage.js'
+import { attachUpdateNotice } from './update-notice.js'
+import { updatesBridge } from './tabs/update.js'
 import { arr, num, obj, str } from './values.js'
 
 /** @type {any} */ (window).__ModuleLoader__.load({
@@ -98,10 +100,6 @@ import { arr, num, obj, str } from './values.js'
        */
 
       var icons = {}
-
-      /** The tabs on show right now: the normal six, plus 调试 when dev mode is on. */
-
-      /** Rebuild the icon bar. Called whenever dev mode flips. */
 
       // ---- state ----
       var view = normalize(null)
@@ -211,11 +209,11 @@ import { arr, num, obj, str } from './values.js'
       ctx.send = send
       ctx.render = render
       ctx.renderContent = renderContent
-      ctx.send = send
-      ctx.renderContent = renderContent
       ctx.setOpen = setOpen
       ctx.fitPanel = fitPanel
       ctx.flash = flash
+
+      var updateNotice = attachUpdateNotice(ctx, updatesBridge)
 
       // 日常气泡（签到/礼包）的点击只在这里绑一次；它压在猪上面，事件不能冒泡给
       // 拖动和摸摸。
@@ -225,8 +223,6 @@ import { arr, num, obj, str } from './values.js'
         var action = dailyHint.getAttribute('data-action')
         if (action !== null && action !== '') send(action)
       })
-
-      // ---- open / close ----
 
       /**
        * Developer tab. Drives the pig into any state so a change can be looked at
@@ -376,6 +372,7 @@ import { arr, num, obj, str } from './values.js'
 
       function dispose() {
         stopped = true
+        updateNotice.stop()
         window.removeEventListener?.('resize', onResize)
         // #11: the console handle outlived the pig, so a reload could toggle a
         // panel that had already been disposed.

@@ -158,21 +158,23 @@ function fakeDom() {
   return { document, head, body, FakeElement }
 }
 
-function fakeNet(status, actResult) {
+function fakeNet(status, actResult, latestRelease) {
   const calls = []
   const fetch = async (url, options) => {
     const method = options?.method ?? 'GET'
     calls.push({ url, method, body: options?.body })
-    const payload = method === 'POST' ? (actResult ?? status) : status
+    const payload = String(url).startsWith('https://api.github.com/')
+      ? latestRelease
+      : method === 'POST' ? (actResult ?? status) : status
     return { ok: true, status: 200, async json() { return payload } }
   }
   return { fetch, calls }
 }
 
 async function loadClient(options) {
-  const { status = SNAPSHOT, actResult = null } = options ?? {}
+  const { status = SNAPSHOT, actResult = null, latestRelease = null } = options ?? {}
   const dom = fakeDom()
-  const net = fakeNet(status, actResult)
+  const net = fakeNet(status, actResult, latestRelease)
   const store = new Map()
 
   const windowListeners = {}
@@ -2070,12 +2072,21 @@ function fakeDesktop() {
   return { piggyShell, calls }
 }
 
-test('inside DSH there is no 更新 tile; in the desktop app there is', async () => {
-  const plain = await loadClient()
+test('DSH gets a notification-only 更新 app, while desktop keeps the updater', async () => {
+  const plain = await loadClient({ latestRelease: {
+    tag_name: 'v0.27.0', html_url: 'https://github.com/CLICGGER-TYPES/dsh-piggy/releases/tag/v0.27.0',
+    body: '更新说明', draft: false, prerelease: false,
+  } })
   plain.registration.factory(() => {}).apply({})
   await settle()
   openPanel(plain.dom, 'home')
-  assert.equal(findByAttr(contentOf(plain.dom), 'data-app', 'update'), undefined)
+  assert.notEqual(findByAttr(contentOf(plain.dom), 'data-app', 'update'), undefined)
+  tap(plain.dom, 'data-app', 'update')
+  await settle()
+  await settle()
+  assert.match(contentOf(plain.dom).allText(), /只提醒新版本/)
+  assert.match(contentOf(plain.dom).allText(), /v0\.27\.0/)
+  assert.notEqual(findByAttr(contentOf(plain.dom), 'data-update-page', '0.27.0'), undefined)
 
   const { piggyShell } = fakeDesktop()
   const desk = await loadClient({ windowExtra: { piggyShell } })

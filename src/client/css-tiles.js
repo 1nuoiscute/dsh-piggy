@@ -59,6 +59,7 @@ export const CSS_TILES = [
   '.dp-tile-badge,.dp-tile-tag{position:absolute;top:-5px;font-size:9px;font-weight:800;line-height:1;',
   'padding:3px 5px;border-radius:var(--ac-pill);white-space:nowrap;border:2px solid var(--ac-bg)}',
   '.dp-tile-badge{right:-6px;background:var(--ac-primary);color:#fff}',
+  '.dp-tile[data-app="update"] .dp-tile-badge{background:var(--tile-red)}',
   '.dp-tile-tag{left:-6px;background:var(--ac-warning);color:var(--ac-text)}',
   // Second layer: the same colour, a shade paler and a little smaller.
   // Sizes trimmed on 2026-10-01 (owner: the tiles were too big): 50px / 44px.

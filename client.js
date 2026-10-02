@@ -1629,6 +1629,7 @@
     ".dp-tile-badge,.dp-tile-tag{position:absolute;top:-5px;font-size:9px;font-weight:800;line-height:1;",
     "padding:3px 5px;border-radius:var(--ac-pill);white-space:nowrap;border:2px solid var(--ac-bg)}",
     ".dp-tile-badge{right:-6px;background:var(--ac-primary);color:#fff}",
+    '.dp-tile[data-app="update"] .dp-tile-badge{background:var(--tile-red)}',
     ".dp-tile-tag{left:-6px;background:var(--ac-warning);color:var(--ac-text)}",
     // Second layer: the same colour, a shade paler and a little smaller.
     // Sizes trimmed on 2026-10-01 (owner: the tiles were too big): 50px / 44px.
@@ -3544,7 +3545,8 @@
           emoji: app.emoji,
           label: app.label,
           color: APP_COLOR[app.key] ?? "blue",
-          tag: alertFor(ui, app.key),
+          tag: app.key === "update" ? "" : alertFor(ui, app.key),
+          badge: app.key === "update" ? alertFor(ui, app.key) : "",
           data: { "data-app": app.key },
           onPick: function() {
             ui.select(app.key);
@@ -3562,6 +3564,7 @@
     ui.content.appendChild(version);
   }
   function alertFor(ui, key) {
+    if (key === "update") return ui.updateNotice?.unread ? "!" : "";
     var p = ui.view.pig;
     if (key === "status") {
       if (ui.view.dead) return "\u8D70\u4E86";
@@ -3655,7 +3658,7 @@
   }
   function renderUpdateTab(ui) {
     if (updatesBridge() === null) {
-      ui.content.appendChild(el("div", "dp-empty", "\u684C\u9762\u7248\u624D\u6709\u8FD9\u4E2A"));
+      renderDshUpdate(ui);
       return;
     }
     if (state.current === null && state.list === null && state.error === null) refresh(ui);
@@ -3664,6 +3667,17 @@
     head.appendChild(el("div", "dp-pick-head", cur === null ? "\u6B63\u5728\u770B\u73B0\u5728\u7684\u7248\u672C\u2026" : "\u73B0\u5728 v" + cur.version + (cur.bundled ? "\uFF08\u5B89\u88C5\u5305\u81EA\u5E26\uFF09" : "")));
     if (cur !== null) head.appendChild(el("div", "dp-dim", "\u5B89\u88C5\u5305 " + cur.shell));
     if (state.message !== null) head.appendChild(el("div", "dp-req", state.message));
+    var shellRelease = state.list === null ? null : state.list.find(function(r) {
+      return r.shellUpdate && !r.prerelease;
+    }) || null;
+    if (shellRelease !== null) {
+      head.appendChild(el("div", "dp-req", "\u684C\u9762\u5916\u58F3\u53EF\u66F4\u65B0\u5230 v" + (shellRelease.latestShell || shellRelease.version)));
+      var shellGo = button("dp-btn dp-btn-wide", { "data-update-shell": shellRelease.version }, function() {
+        updatesBridge().openPage(shellRelease.page);
+      });
+      shellGo.textContent = "\u4E0B\u8F7D\u65B0\u5B89\u88C5\u5305";
+      head.appendChild(shellGo);
+    }
     if (state.busy !== null && state.message === null) {
       head.appendChild(el("div", "dp-dim", state.busy === "rollback" ? "\u6B63\u5728\u6362\u56DE\u53BB\u2026" : "\u4E0B\u8F7D\u4E2D " + Math.round(state.fraction * 100) + "%"));
     }
@@ -3699,6 +3713,43 @@
       back.disabled = state.busy !== null;
       ui.content.appendChild(back);
     }
+  }
+  function renderDshUpdate(ui) {
+    var notice = ui.updateNotice;
+    var head = el("div", "dp-pick dp-tile-card dp-update-now");
+    head.appendChild(el("div", "dp-pick-head", "\u73B0\u5728 v" + (ui.view.version || "\u672A\u77E5")));
+    head.appendChild(el("div", "dp-dim", "DSH \u63D2\u4EF6\u53EA\u63D0\u9192\u65B0\u7248\u672C\uFF0C\u4E0D\u4F1A\u81EA\u52A8\u6539\u52A8\u672C\u5730\u6587\u4EF6\u3002"));
+    ui.content.appendChild(head);
+    if (notice === null || notice === void 0) return;
+    if (!notice.checked && !notice.checking && notice.error === null) notice.check();
+    if (notice.checking) {
+      ui.content.appendChild(el("div", "dp-empty", "\u6B63\u5728\u95EE GitHub\u2026"));
+      return;
+    }
+    if (notice.error !== null) {
+      ui.content.appendChild(el("div", "dp-empty", notice.error));
+      var retry = button("dp-btn dp-btn-wide", { "data-update-retry": "" }, function() {
+        notice.check();
+      });
+      retry.textContent = "\u518D\u8BD5\u4E00\u6B21";
+      ui.content.appendChild(retry);
+      return;
+    }
+    var release = notice.remote;
+    if (release === null) return;
+    if (notice.latest === null) {
+      ui.content.appendChild(el("div", "dp-req dp-req-ok", "\u2713 \u5DF2\u7ECF\u662F\u6700\u65B0"));
+      return;
+    }
+    var box = el("div", "dp-pick dp-tile-card dp-update-detail");
+    box.appendChild(el("div", "dp-pick-head", "\u53D1\u73B0\u65B0\u7248\u672C v" + release.version));
+    if (release.notes) box.appendChild(el("div", "dp-update-notes", release.notes));
+    var go = button("dp-btn dp-btn-wide", { "data-update-page": release.version }, function() {
+      window.open(release.page, "_blank", "noopener");
+    });
+    go.textContent = "\u6253\u5F00\u53D1\u5E03\u9875";
+    box.appendChild(go);
+    ui.content.appendChild(box);
   }
   function renderList(ui, list) {
     if (list.length === 0) {
@@ -3851,6 +3902,7 @@
         if (desk !== null && desk.quit) desk.quit();
         return;
       }
+      if (next === "update") ctx.updateNotice?.markRead();
       ctx.tab = next;
       ctx.picker = null;
       if (next in ctx.drill) {
@@ -3905,7 +3957,7 @@
         return;
       }
       var shell = updatesBridge();
-      var apps = TABS.concat(shell !== null ? [UPDATE_TAB] : [], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
+      var apps = TABS.concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
       if (ctx.tab === "home") {
         renderHome(ctx, apps);
         ctx.fitPanel();
@@ -4084,6 +4136,7 @@
           ctx.burst(["\u{1F9F3}", "\u{1F381}"], 3);
         }
       }
+      ctx.updateNotice?.maybeBubble();
       if ((ctx.ownerEdit !== null || ctx.pigNameEdit !== null) && ctx.tab === "status") return;
       if (ctx.cardEdit !== null && ctx.tab === "card") return;
       renderContent();
@@ -4233,6 +4286,159 @@
     return { isOn: function() {
       return on;
     }, set, tap, install: install2, dispose };
+  }
+
+  // src/client/update-notice.js
+  var READ_KEY = "dsh-piggy:update-read";
+  var NOTIFIED_KEY = "dsh-piggy:update-notified";
+  var GITHUB_LATEST = "https://api.github.com/repos/CLICGGER-TYPES/dsh-piggy/releases/latest";
+  function compareVersions(a, b) {
+    const parts = (value) => String(value).replace(/^v/, "").split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+    const left = parts(a), right = parts(b);
+    for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
+      if ((left[i] ?? 0) !== (right[i] ?? 0)) return (left[i] ?? 0) - (right[i] ?? 0);
+    }
+    return 0;
+  }
+  function newestRelease(releases) {
+    return (Array.isArray(releases) ? releases : []).filter((release) => release && release.prerelease !== true).sort((a, b) => compareVersions(b.version, a.version))[0] ?? null;
+  }
+  async function fetchGithubLatest(doFetch = fetch) {
+    const response = await doFetch(GITHUB_LATEST, { headers: { accept: "application/vnd.github+json" }, cache: "no-store" });
+    if (!response.ok) throw new Error("GitHub " + response.status);
+    const release = await response.json();
+    if (release?.draft === true || release?.prerelease === true) return null;
+    const version = String(release?.tag_name ?? "").replace(/^v/, "");
+    if (version === "") return null;
+    return {
+      version,
+      page: String(release?.html_url ?? "https://github.com/CLICGGER-TYPES/dsh-piggy/releases"),
+      notes: String(release?.body ?? "").slice(0, 1200),
+      prerelease: false
+    };
+  }
+  function createUpdateNotice(options) {
+    let remote = null;
+    let latest = null;
+    let unread = false;
+    let checking = false;
+    let checked = false;
+    let error = null;
+    let timer = null;
+    let interval = null;
+    function signalId(candidate) {
+      if (candidate === null) return "";
+      return [candidate.kind, candidate.version, candidate.latestShell ?? ""].join(":");
+    }
+    function maybeBubble() {
+      if (!unread || latest === null || !options.canBubble()) return;
+      const id = signalId(latest);
+      if (options.read(NOTIFIED_KEY) === id) return;
+      const text = latest.kind === "shell" ? "\u684C\u9762\u7248\u6709\u66F4\u65B0\u5566\uFF0C\u53BB\u66F4\u65B0 App \u770B\u770B\u5427\uFF5E" : "\u6709\u65B0\u7248\u672C v" + latest.version + " \u5566\uFF0C\u53BB\u66F4\u65B0\u770B\u770B\u5427\uFF5E";
+      options.showBubble(text);
+      options.write(NOTIFIED_KEY, id);
+    }
+    function accept(candidate, newest) {
+      latest = candidate;
+      remote = newest;
+      const id = signalId(candidate);
+      unread = candidate !== null && options.read(READ_KEY) !== id;
+      if (unread && options.isViewing?.()) {
+        options.write(READ_KEY, id);
+        unread = false;
+      }
+      checking = false;
+      checked = true;
+      error = null;
+      maybeBubble();
+      options.changed();
+    }
+    async function check() {
+      if (checking) return;
+      checking = true;
+      error = null;
+      try {
+        const desktop = options.getDesktop();
+        if (desktop !== null && desktop?.updates) {
+          const [current, result] = await Promise.all([desktop.updates.current(), desktop.updates.list()]);
+          if (!result?.ok) throw new Error(result?.reason || "\u6CA1\u95EE\u5230 GitHub");
+          const newest2 = newestRelease(result.releases);
+          const gameNew = newest2 !== null && compareVersions(newest2.version, current?.version ?? options.currentVersion()) > 0;
+          const shellNew = newestRelease((result.releases ?? []).filter((release) => release.shellUpdate === true));
+          let candidate2 = null;
+          if (gameNew) candidate2 = { ...newest2, kind: newest2.blocked === "shell" ? "shell" : "game" };
+          else if (shellNew !== null) candidate2 = { ...shellNew, kind: "shell" };
+          accept(candidate2, newest2);
+          return;
+        }
+        const newest = await options.fetchLatest();
+        const candidate = newest !== null && compareVersions(newest.version, options.currentVersion()) > 0 ? { ...newest, kind: "game" } : null;
+        accept(candidate, newest);
+      } catch (caught) {
+        checking = false;
+        error = caught instanceof Error ? caught.message : "\u68C0\u67E5\u66F4\u65B0\u5931\u8D25";
+        options.changed();
+      }
+    }
+    function markRead() {
+      if (latest === null) return;
+      options.write(READ_KEY, signalId(latest));
+      unread = false;
+      options.changed();
+    }
+    function start() {
+      timer = window.setTimeout(check, 1e4);
+      interval = window.setInterval(check, 6 * 60 * 60 * 1e3);
+    }
+    function stop() {
+      if (timer !== null) window.clearTimeout(timer);
+      if (interval !== null) window.clearInterval(interval);
+      timer = null;
+      interval = null;
+    }
+    return {
+      check,
+      markRead,
+      maybeBubble,
+      start,
+      stop,
+      get latest() {
+        return latest;
+      },
+      get remote() {
+        return remote;
+      },
+      get unread() {
+        return unread;
+      },
+      get checking() {
+        return checking;
+      },
+      get checked() {
+        return checked;
+      },
+      get error() {
+        return error;
+      }
+    };
+  }
+  function attachUpdateNotice(ctx, getDesktop, doFetch = fetch) {
+    const notice = createUpdateNotice({
+      currentVersion: () => ctx.view.version,
+      getDesktop,
+      fetchLatest: () => fetchGithubLatest(doFetch),
+      read: readStore,
+      write: writeStore,
+      canBubble: () => ctx.view.pig !== null && ctx.bubble.hidden !== false,
+      showBubble: (text) => ctx.showBubble(text, 4e3),
+      isViewing: () => ctx.tab === "update",
+      changed: () => {
+        if (!ctx.stopped && ctx.isOpen && (ctx.tab === "home" || ctx.tab === "update")) ctx.renderContent();
+      }
+    });
+    ctx.updateNotice = notice;
+    notice.start();
+    return notice;
   }
 
   // src/client/index.js
@@ -4492,11 +4698,10 @@
         ctx.send = send;
         ctx.render = render;
         ctx.renderContent = renderContent;
-        ctx.send = send;
-        ctx.renderContent = renderContent;
         ctx.setOpen = setOpen;
         ctx.fitPanel = fitPanel;
         ctx.flash = flash;
+        var updateNotice = attachUpdateNotice(ctx, updatesBridge);
         dailyHint.addEventListener("pointerdown", function(event) {
           event.stopPropagation();
         });
@@ -4625,6 +4830,7 @@
         dev.install();
         function dispose() {
           stopped = true;
+          updateNotice.stop();
           window.removeEventListener?.("resize", onResize);
           dev.dispose();
           if (pollTimer !== null) window.clearInterval(pollTimer);

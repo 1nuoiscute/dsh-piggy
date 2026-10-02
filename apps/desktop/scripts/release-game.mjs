@@ -2,7 +2,7 @@
 /**
  * 生成一个版本的游戏包，挂到 GitHub Release 上给桌面版热更新用：
  *   game-<版本>.json.gz        gzip 过的 { files: { 相对路径: base64 } }（内容同 pack-game）
- *   game-<版本>.manifest.json  { version, stateVersion, minShell, sha256, size }
+ *   game-<版本>.manifest.json  { version, stateVersion, minShell, shellVersion, sha256, size }
  * 版本号取仓库根的 package.json；minShell 取本目录 package.json 的 piggy.minShell，
  * 也就是「这个游戏包至少要多新的安装包才能跑」。
  *
@@ -26,8 +26,9 @@ function walk(dir, base = dir) {
 }
 
 /** Build the package and its manifest for the repo at `root`, into `out`. */
-export async function releaseGame(root, out, minShell) {
+export async function releaseGame(root, out, minShell, shellVersion = null) {
   const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
+  const desktopVersion = shellVersion ?? JSON.parse(readFileSync(join(root, 'apps/desktop/package.json'), 'utf8')).version
   const { STATE_VERSION } = await import(pathToFileURL(join(root, 'packages/pet-core/src/core/constants.js')).href)
   const staging = mkdtempSync(join(tmpdir(), 'piggy-game-'))
   try {
@@ -36,7 +37,7 @@ export async function releaseGame(root, out, minShell) {
     for (const rel of walk(staging)) files[rel] = readFileSync(join(staging, rel)).toString('base64')
     const pack = gzipSync(Buffer.from(JSON.stringify({ files })), { level: 9 })
     const manifest = {
-      version, stateVersion: STATE_VERSION, minShell,
+      version, stateVersion: STATE_VERSION, minShell, shellVersion: desktopVersion,
       sha256: createHash('sha256').update(pack).digest('hex'), size: pack.length,
     }
     mkdirSync(out, { recursive: true })
@@ -52,6 +53,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const here = dirname(fileURLToPath(import.meta.url))
   const desktop = JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8'))
   const out = process.argv[2] ?? join(here, '..', 'dist-game')
-  const manifest = await releaseGame(join(here, '..', '..', '..'), out, desktop.piggy.minShell)
+  const manifest = await releaseGame(join(here, '..', '..', '..'), out, desktop.piggy.minShell, desktop.version)
   console.log(JSON.stringify(manifest))
 }

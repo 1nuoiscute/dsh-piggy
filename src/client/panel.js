@@ -75,6 +75,7 @@ export function createPanel(ctx) {
           if (desk !== null && desk.quit) desk.quit()
           return
         }
+        if (next === 'update') ctx.updateNotice?.markRead()
         ctx.tab = next
         ctx.picker = null
         // Opening a tile tab always starts at its top layer.
@@ -140,7 +141,7 @@ export function createPanel(ctx) {
         // B9: the home screen first; every app gets a 「‹」 back to it on its
         // top layer (inside a category the app's own 「‹」 goes up a layer).
         var shell = updatesBridge()
-        var apps = TABS.concat(shell !== null ? [UPDATE_TAB] : [], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : [])
+        var apps = TABS.concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : [])
         if (ctx.tab === 'home') {
           renderHome(ctx, apps)
           ctx.fitPanel()
@@ -344,6 +345,7 @@ export function createPanel(ctx) {
           else if (event.kind === 'study') { ctx.react('away', 900); ctx.burst(['📚', '✨'], 3) }
           else if (event.kind === 'trip') { ctx.react('away', 900); ctx.burst(['🧳', '🎁'], 3) }
         }
+        ctx.updateNotice?.maybeBubble()
 
         // Typing a new name: a repaint would drop the input and its focus.
         if ((ctx.ownerEdit !== null || ctx.pigNameEdit !== null) && ctx.tab === 'status') return
