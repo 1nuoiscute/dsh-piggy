@@ -2,8 +2,8 @@
 /**
  * 背包页签（B8：动森手机式方块，跟商店一个样子）。
  *
- * 第一层：食物 / 洗浴 / 玩具 / 药品 / 复活 / 装扮 / 日记 / 纪念品，右上角写件数，空的变灰。
- * 第二层：道具点一下就用；装扮点一下穿上或脱下；日记和纪念品点一下，下面显示全文 / 故事。
+ * 第一层：消耗品 / 日记 / 纪念品 / 鱼篓，右上角写件数，空的变灰。
+ * 第二层：道具点一下就用；日记和纪念品点一下，下面显示全文 / 故事。
  * @module dsh-piggy/client/tabs/bag
  */
 
@@ -13,12 +13,11 @@ import { num } from '../values.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
 import { SHELF_COLOR, shelfParts } from './shop.js'
 
-/** The consumable shelves, in shop order; 装扮 is its own category below. */
-var CONSUMABLES = KIND_ORDER.filter(function (kind) { return kind !== 'dress' })
+/** The consumable shelves, in shop order. */
+var CONSUMABLES = KIND_ORDER
 
 /** The non-shelf categories: what they are called and how they look. */
 var EXTRA = {
-  dress: { emoji: '👕', label: '装扮', color: 'pink' },
   diary: { emoji: '📔', label: '日记', color: 'brown' },
   souvenir: { emoji: '🎁', label: '纪念品', color: 'blue' },
   fish: { emoji: '🐟', label: '鱼篓', color: 'teal' },
@@ -31,8 +30,7 @@ function shortDay(day) {
 
 export function renderBagTab(ui) {
   var open = ui.drill.bag
-  if (open === 'dress') renderDress(ui)
-  else if (open === 'diary') renderDiary(ui)
+  if (open === 'diary') renderDiary(ui)
   else if (open === 'souvenir') renderSouvenirs(ui)
   else if (open === 'fish') renderFish(ui)
   else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open)
@@ -63,7 +61,6 @@ function renderCategories(ui) {
     })(CONSUMABLES[k])
   }
   var counts = {
-    dress: ui.view.dress.filter(function (item) { return item.owned }).length,
     diary: ui.view.diary.length,
     souvenir: ui.view.pig.souvenirs.length,
     fish: ui.view.fishing.bag.length,
@@ -121,29 +118,6 @@ function renderItems(ui, kind) {
         onPick: function () { ui.send('use', { item: item.key }) },
       }))
     })(items[i])
-  }
-  ui.content.appendChild(grid)
-}
-
-/** 家当: tap to put it on or take it off; one piece per slot. */
-function renderDress(ui) {
-  var owned = ui.view.dress.filter(function (item) { return item.owned })
-  var worn = owned.filter(function (item) { return item.worn }).length
-  drillHeader(ui, 'bag', '👕 装扮', worn + ' 件穿着')
-  if (owned.length === 0) {
-    ui.content.appendChild(el('div', 'dp-empty', '还没有装扮'))
-    return
-  }
-  var grid = tileGrid()
-  for (var i = 0; i < owned.length; i += 1) {
-    (function (item) {
-      grid.appendChild(tile({
-        emoji: item.emoji, label: item.label, color: EXTRA.dress.color, soft: true,
-        note: item.slotLabel, tag: item.worn ? '穿着' : '', active: item.worn,
-        data: { 'data-wear': item.key },
-        onPick: function () { ui.send('wear', { item: item.key, on: !item.worn }) },
-      }))
-    })(owned[i])
   }
   ui.content.appendChild(grid)
 }

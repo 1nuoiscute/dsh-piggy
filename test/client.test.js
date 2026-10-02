@@ -898,18 +898,20 @@ test('the bag tab lists the diary newest-first, folded until tapped', async () =
 // #10 — fields the panel silently dropped
 // ===========================================================================
 
-test('a worn dress says so in the shop', async () => {
+test('装扮 is temporarily absent from the shop and bag, while worn items stay on the pig', async () => {
   const scarf = {
     key: 'scarf', label: '围巾', emoji: '🧣', price: 30, kind: 'dress', tier: null, level: 1,
-    owned: true, unlocked: true, worn: true, blurb: '', affordable: false, needed: false,
+    owned: true, unlocked: true, worn: true, slot: 'neck', blurb: '', affordable: false, needed: false,
   }
-  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, shop: [scarf] } })
+  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, shop: [...SNAPSHOT.shop, scarf], dress: [scarf] } })
   registration.factory(() => {}).apply({})
   await settle()
+  assert.notEqual(findByAttr(hostOf(dom), 'data-slot', 'neck'), undefined, 'worn item survives')
   openPanel(dom)
   pickTab(dom, 'shop')
-  tap(dom, 'data-shelf', 'dress')
-  assert.ok(contentOf(dom).allText().includes('穿着'), contentOf(dom).allText())
+  assert.equal(findByAttr(contentOf(dom), 'data-shelf', 'dress'), undefined)
+  pickTab(dom, 'bag')
+  assert.equal(findByAttr(contentOf(dom), 'data-bag', 'dress'), undefined)
 })
 
 test('the shop shows how many of a consumable the pig already has', async () => {
@@ -999,46 +1001,6 @@ test('the status tab shows labelled bars, traits and the care buttons', async ()
   const play = findByAttr(contentOf(dom), 'data-action', 'play')
   assert.equal(play.disabled, true, 'cooling-down action is disabled')
   assert.ok(play.allText().includes('37'), play.allText())
-})
-
-test('the shop marks 家当 as 已拥有 or level-locked, and the bag can wear it', async () => {
-  const { registration, dom, net } = await loadClient({
-    status: {
-      ...SNAPSHOT,
-      dress: [
-        { key: 'scarf', label: '红围巾', emoji: '🧣', price: 80, level: 1, blurb: '脖子上暖乎乎的', owned: true, worn: false, unlocked: true },
-        { key: 'crown', label: '王冠', emoji: '👑', price: 5200, level: 13, blurb: '自己给自己加冕', owned: false, worn: false, unlocked: false },
-      ],
-      shop: [
-        { key: 'apple', label: '苹果', emoji: '🍎', price: 6, kind: 'food', affordable: true, needed: false },
-        { key: 'scarf', label: '红围巾', emoji: '🧣', price: 80, kind: 'dress', level: 1, owned: true, worn: false, unlocked: true },
-        { key: 'crown', label: '王冠', emoji: '👑', price: 5200, kind: 'dress', level: 13, owned: false, worn: false, unlocked: false },
-      ],
-    },
-  })
-  registration.factory(() => {}).apply({})
-  await settle()
-  openPanel(dom)
-  pickTab(dom, 'shop')
-  assert.ok(contentOf(dom).allText().includes('装扮'), 'the 装扮 shelf is a tile on the top layer')
-  tap(dom, 'data-shelf', 'dress')
-
-  const shopText = contentOf(dom).allText()
-  assert.ok(shopText.includes('已拥有'), shopText)
-  assert.ok(shopText.includes('🔒 Lv.13'), shopText)
-  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'scarf').disabled, true, 'owned 家当 is not for sale again')
-  assert.equal(findByAttr(contentOf(dom), 'data-buy', 'crown').disabled, false, 'a locked item still explains itself when tapped')
-
-  pickTab(dom, 'bag')
-  tap(dom, 'data-bag', 'dress')
-  const bagText = contentOf(dom).allText()
-  assert.ok(bagText.includes('👕 装扮'), bagText)
-  assert.ok(bagText.includes('红围巾'), bagText)
-  tap(dom, 'data-wear', 'scarf')
-  await settle()
-  await settle()
-  const post = net.calls.find(call => call.method === 'POST')
-  assert.deepEqual(JSON.parse(post.body), { action: 'wear', item: 'scarf', on: true })
 })
 
 test('a worn 装扮 is drawn on the pig at its slot, not printed on the name plate', async () => {
@@ -1922,26 +1884,6 @@ test('免打扰 keeps routine news quiet but lets illness through; the status ta
   assert.ok(text.includes('🔕 免打扰中'), text)
   assert.notEqual(findByAttr(contentOf(dom), 'data-owner-edit', 'true'), undefined, '改称呼 stays available')
   assert.notEqual(findByAttr(contentOf(dom), 'data-pig-edit', 'true'), undefined, 'and the pig can be renamed too')
-})
-
-test('装扮 cells in the shop are clickable: they must not wear the pig overlay class', async () => {
-  // `.dp-dress` is the pig's dress-up layer (absolute, pointer-events:none).
-  // The shop gave its 装扮 cells the same class, so a real mouse click went
-  // straight through them and nothing could be bought (2026-10-01).
-  const hat = { key: 'strawhat', label: '草帽', emoji: '👒', price: 150, kind: 'dress', level: 3, owned: false, worn: false, unlocked: true, affordable: true }
-  const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, shop: [...SNAPSHOT.shop, hat] } })
-  registration.factory(() => {}).apply({})
-  await settle()
-  openPanel(dom)
-  pickTab(dom, 'shop')
-  const cells = []
-  for (const shelf of ['food', 'dress']) {
-    tap(dom, 'data-shelf', shelf)
-    contentOf(dom).walk(node => { if (node.attributes?.['data-buy'] !== undefined) cells.push(node) })
-    tap(dom, 'data-back', 'shop')
-  }
-  assert.ok(cells.length > 0)
-  for (const cell of cells) assert.equal(cell.className.split(/\s+/).includes('dp-dress'), false, cell.attributes['data-buy'])
 })
 
 test('tile tabs: coloured top layer, back returns, a poll keeps you inside, a new visit starts at the top (B8)', async () => {

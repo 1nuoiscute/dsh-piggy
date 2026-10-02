@@ -64,7 +64,7 @@
     toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
   };
   var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", bait: "\u{1F3A3} \u9C7C\u9975", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B", promotion: "\u2728 \u664B\u5347" };
-  var KIND_ORDER = ["food", "bath", "toy", "bait", "dress", "medicine", "revive", "promotion"];
+  var KIND_ORDER = ["food", "bath", "toy", "bait", "medicine", "revive", "promotion"];
   var STAGES = [
     { key: "preschool", label: "\u5E7C\u513F\u56ED" },
     { key: "extracurricular", label: "\u8BFE\u5916" },
@@ -201,7 +201,7 @@
   }
 
   // src/client/tabs/shop.js
-  var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", bait: "blue", dress: "pink", medicine: "green", revive: "purple", promotion: "blue" };
+  var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", bait: "blue", medicine: "green", revive: "purple", promotion: "blue" };
   function shelfParts(kind) {
     var title = KIND_TITLE[kind] ?? kind;
     var space = title.indexOf(" ");
@@ -276,11 +276,8 @@
   }
 
   // src/client/tabs/bag.js
-  var CONSUMABLES = KIND_ORDER.filter(function(kind) {
-    return kind !== "dress";
-  });
+  var CONSUMABLES = KIND_ORDER;
   var EXTRA = {
-    dress: { emoji: "\u{1F455}", label: "\u88C5\u626E", color: "pink" },
     diary: { emoji: "\u{1F4D4}", label: "\u65E5\u8BB0", color: "brown" },
     souvenir: { emoji: "\u{1F381}", label: "\u7EAA\u5FF5\u54C1", color: "blue" },
     fish: { emoji: "\u{1F41F}", label: "\u9C7C\u7BD3", color: "teal" }
@@ -290,8 +287,7 @@
   }
   function renderBagTab(ui) {
     var open = ui.drill.bag;
-    if (open === "dress") renderDress(ui);
-    else if (open === "diary") renderDiary(ui);
+    if (open === "diary") renderDiary(ui);
     else if (open === "souvenir") renderSouvenirs(ui);
     else if (open === "fish") renderFish(ui);
     else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open);
@@ -328,9 +324,6 @@
       })(CONSUMABLES[k]);
     }
     var counts = {
-      dress: ui.view.dress.filter(function(item) {
-        return item.owned;
-      }).length,
       diary: ui.view.diary.length,
       souvenir: ui.view.pig.souvenirs.length,
       fish: ui.view.fishing.bag.length
@@ -406,38 +399,6 @@
           }
         }));
       })(items[i]);
-    }
-    ui.content.appendChild(grid);
-  }
-  function renderDress(ui) {
-    var owned = ui.view.dress.filter(function(item) {
-      return item.owned;
-    });
-    var worn = owned.filter(function(item) {
-      return item.worn;
-    }).length;
-    drillHeader(ui, "bag", "\u{1F455} \u88C5\u626E", worn + " \u4EF6\u7A7F\u7740");
-    if (owned.length === 0) {
-      ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u88C5\u626E"));
-      return;
-    }
-    var grid = tileGrid();
-    for (var i = 0; i < owned.length; i += 1) {
-      (function(item) {
-        grid.appendChild(tile({
-          emoji: item.emoji,
-          label: item.label,
-          color: EXTRA.dress.color,
-          soft: true,
-          note: item.slotLabel,
-          tag: item.worn ? "\u7A7F\u7740" : "",
-          active: item.worn,
-          data: { "data-wear": item.key },
-          onPick: function() {
-            ui.send("wear", { item: item.key, on: !item.worn });
-          }
-        }));
-      })(owned[i]);
     }
     ui.content.appendChild(grid);
   }
