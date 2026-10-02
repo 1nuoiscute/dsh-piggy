@@ -5,6 +5,14 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## Unreleased · 社区发现入口
+
+### Added
+- GitHub 仓库补充 `dsh-plugin` topic；新增可安装的 `dsh-plugin-piggy` 别名包，供按包名前缀检索的第三方社区目录发现。别名包依赖原始 `dsh-piggy`，两者共用玩法与存档，每个 DSH profile 只需安装其中一个。
+
+### Changed
+- README 的 DSH 安装说明改为可直接复制的 npm 包安装命令，GitHub 源码安装留作备选。
+
 ## [0.27.1] — 2026-10-03 · 桌面更新依赖安全修复
 
 ### Fixed

@@ -24,11 +24,12 @@
 ### DSH 插件
 
 ```sh
-git clone https://github.com/CLICGGER-TYPES/dsh-piggy.git
-dsh plugin --profile web add /path/to/dsh-piggy
+dsh plugin --profile web add dsh-piggy
 ```
 
-安装后重启 DSH，再刷新页面。
+安装后重启 DSH，再刷新页面。社区目录中也可找到同一插件的别名包 `dsh-plugin-piggy`，两个包选一个安装即可。
+
+如果想直接使用 GitHub 源码，可以克隆本仓库，再执行 `dsh plugin --profile web add /path/to/dsh-piggy`。
 
 ### 桌面版
 

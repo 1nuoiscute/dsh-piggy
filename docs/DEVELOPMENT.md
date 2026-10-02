@@ -46,6 +46,8 @@ npm run dist:mac
 
 游戏版本来自根 `package.json`，桌面外壳版本来自 `apps/desktop/package.json`。推送与游戏版本同名的标签（如 `v0.26.0`）后，`.github/workflows/release.yml` 会运行校验、生成游戏包，并构建 Linux、Windows 和 macOS 文件。
 
+社区目录使用的 `dsh-plugin-piggy` 是 `packages/dsh-plugin-piggy/` 里的独立 npm 包。它作为 DSH bundle 加载原始 `dsh-piggy` 依赖，不复制游戏代码；每次发布新版本，先发布主包，再同步别名包的 `version` 和 `dependencies.dsh-piggy` 并单独发布。发布后在隔离 profile 验证别名能解析到原插件，每个 profile 只安装其中一个包。
+
 ## 主要目录
 
 ```text

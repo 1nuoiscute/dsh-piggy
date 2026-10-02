@@ -1,0 +1,5 @@
+# Load the original plugin from this bundle's dsh-piggy dependency.
+- insert:
+    - id: dsh-piggy
+      name: dsh-piggy
+      config: {}
