@@ -6,16 +6,16 @@ import { SNAPSHOT, contentOf, findByAttr, findByClass, mount, openPanel, settle 
 const fishing = { pending: null, bag: [], period: 'evening', autoTrips: 0, autoLeft: 2 }
 const status = extra => ({ ...SNAPSHOT, fishing: { ...fishing, ...extra }, canGoOut: true })
 
-test('C5 home has a fishing App with charge cast and two auto choices', async () => {
+test('C5 home has a one-click cast and keeps both auto choices', async () => {
   const { dom, calls } = await mount({ status: status() })
   openPanel(dom)
   assert.notEqual(findByAttr(contentOf(dom), 'data-app', 'fishing'), undefined)
   findByAttr(contentOf(dom), 'data-app', 'fishing').fire('click')
   const cast = findByAttr(contentOf(dom), 'data-fish', 'cast')
-  cast.fire('pointerdown')
-  cast.fire('pointerup')
+  assert.equal(findByClass(contentOf(dom), 'dp-fish-charge'), undefined)
+  cast.fire('click')
   await settle()
-  assert.equal(JSON.parse(calls.at(-1).body).action, 'fishCast')
+  assert.deepEqual(JSON.parse(calls.at(-1).body), { action: 'fishCast', power: .7 })
   assert.notEqual(findByAttr(contentOf(dom), 'data-fish-auto', '30'), undefined)
   assert.notEqual(findByAttr(contentOf(dom), 'data-fish-auto', '60'), undefined)
 })
@@ -39,9 +39,11 @@ test('C5 hooked fish uses a circular skill-check QTE scaled by difficulty', asyn
   assert.equal(qte.getAttribute('data-qte-needed'), '4')
   assert.equal(qte.getAttribute('data-qte-difficulty'), '86')
   assert.equal(findByClass(contentOf(dom), 'dp-fish-track'), undefined)
-  qte.fire('click')
+  assert.equal(qte.getAttribute('data-qte-misses'), '0')
+  const callCount = calls.length
+  qte.fire('click') // 点早只提示，不应一击跑鱼。
   await settle()
-  assert.deepEqual(JSON.parse(calls.at(-1).body), { action: 'fishResolve', success: false })
+  assert.equal(calls.length, callCount)
 })
 
 test('C5 fish bag exposes feed and sell on each individual catch', async () => {

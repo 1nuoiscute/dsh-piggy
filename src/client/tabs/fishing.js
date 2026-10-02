@@ -37,34 +37,9 @@ export function renderFishingTab(ui) {
 
 function renderReady(ui) {
   ui.content.appendChild(el('div', 'dp-fish-scene', '🌊　🐟　～　🌿'))
-  ui.content.appendChild(el('div', 'dp-fish-copy', '按住抛竿，松手决定距离。抛得越远，遇见稀有鱼的机会越大。'))
-  const meter = el('div', 'dp-fish-charge')
-  const fill = el('i')
-  meter.appendChild(fill)
-  ui.content.appendChild(meter)
-  let power = 0
-  let direction = 1
-  let charging = false
-  let last = 0
-  function tick(now) {
-    if (!charging) return
-    const elapsed = last === 0 ? 16 : Math.min(40, now - last)
-    last = now
-    power += direction * elapsed / 900
-    if (power >= 1) { power = 1; direction = -1 }
-    if (power <= 0) { power = 0; direction = 1 }
-    fill.style.width = Math.round(power * 100) + '%'
-    frame = raf(tick)
-  }
-  const cast = button('dp-btn dp-btn-wide dp-fish-cast', { 'data-fish': 'cast' }, function () {})
-  cast.textContent = '🎣 按住蓄力'
-  function start(event) { event?.preventDefault?.(); if (charging) return; charging = true; cast.textContent = '松手抛竿！'; frame = raf(tick) }
-  function release(event) { event?.preventDefault?.(); if (!charging) return; charging = false; caf(frame); frame = 0; ui.send('fishCast', { power }) }
-  cast.addEventListener('pointerdown', start)
-  cast.addEventListener('pointerup', release)
-  cast.addEventListener('pointercancel', release)
-  cast.addEventListener('keydown', function (event) { if (event.code === 'Space' || event.key === ' ') start(event) })
-  cast.addEventListener('keyup', function (event) { if (event.code === 'Space' || event.key === ' ') release(event) })
+  ui.content.appendChild(el('div', 'dp-fish-copy', '点击抛竿，看到「❗」后及时提竿。'))
+  const cast = button('dp-btn dp-btn-wide dp-fish-cast', { 'data-fish': 'cast' }, function () { ui.send('fishCast', { power: .7 }) })
+  cast.textContent = '🎣 抛竿'
   ui.content.appendChild(cast)
   const auto = el('div', 'dp-fish-auto')
   auto.appendChild(el('b', null, '自动钓鱼'))
@@ -111,6 +86,7 @@ function qteRules(rawDifficulty) {
 function newQteRound(session) {
   session.zoneStart = 105 + Math.random() * 135
   session.angle = 0
+  session.completedCircles = 0
   session.startedAt = 0
   session.locked = false
   session.feedback = '看准绿色区域'
@@ -119,7 +95,7 @@ function newQteRound(session) {
 function renderGame(ui, fish) {
   const rules = qteRules(fish.difficulty)
   if (qteSession?.id !== fish.id) {
-    qteSession = { id: fish.id, hits: 0, ...rules }
+    qteSession = { id: fish.id, hits: 0, misses: 0, ...rules }
     newQteRound(qteSession)
   }
   const session = qteSession
@@ -146,15 +122,17 @@ function renderGame(ui, fish) {
   activeUi = ui
 
   function paint() {
+    const displayAngle = session.angle % 360
     const perfectEnd = session.zoneStart + session.perfectDegrees
     const zoneEnd = session.zoneStart + session.zoneDegrees
     ring.style.background = `conic-gradient(from 0deg,#dce8e9 0deg ${session.zoneStart}deg,#ffd45d ${session.zoneStart}deg ${perfectEnd}deg,#6bd47b ${perfectEnd}deg ${zoneEnd}deg,#dce8e9 ${zoneEnd}deg 360deg)`
-    needle.style.transform = `translateX(-50%) rotate(${session.angle}deg)`
+    needle.style.transform = `translateX(-50%) rotate(${displayAngle}deg)`
     score.textContent = `技能检定 ${Math.min(session.hits, session.hitsNeeded)} / ${session.hitsNeeded}`
-    feedback.textContent = session.feedback
-    wrap.setAttribute('data-qte-angle', session.angle.toFixed(1))
+    feedback.textContent = `${session.feedback} · 机会 ${'♥'.repeat(3 - session.misses)}${'♡'.repeat(session.misses)}`
+    wrap.setAttribute('data-qte-angle', displayAngle.toFixed(1))
     wrap.setAttribute('data-qte-zone-start', session.zoneStart.toFixed(1))
     wrap.setAttribute('data-qte-zone-size', String(session.zoneDegrees))
+    wrap.setAttribute('data-qte-misses', String(session.misses))
   }
 
   function finish(success) {
@@ -167,14 +145,15 @@ function renderGame(ui, fish) {
   function hit(event) {
     event?.preventDefault?.()
     if (session.locked || activeUi !== ui) return
-    const offset = session.angle - session.zoneStart
+    const offset = session.angle % 360 - session.zoneStart
     if (offset < 0 || offset > session.zoneDegrees) {
-      session.feedback = '失手了，鱼跑掉了…'
+      session.feedback = offset < 0 ? '还没到时机，再等等' : '已经划过去了，等下一圈'
       paint()
-      return finish(false)
+      return
     }
     const perfect = offset <= session.perfectDegrees
     session.hits += perfect ? 2 : 1
+    session.misses = 0
     session.feedback = perfect ? '完美！进度 +2' : '命中！'
     session.locked = true
     paint()
@@ -191,10 +170,13 @@ function renderGame(ui, fish) {
     if (!session.startedAt) session.startedAt = now
     if (!session.locked) session.angle = (now - session.startedAt) * session.rotationsPerSecond * .36
     paint()
-    if (!session.locked && session.angle > session.zoneStart + session.zoneDegrees + 8) {
-      session.feedback = '错过时机，鱼跑掉了…'
+    const completedCircles = Math.floor(session.angle / 360)
+    if (!session.locked && completedCircles > session.completedCircles) {
+      session.misses += completedCircles - session.completedCircles
+      session.completedCircles = completedCircles
+      session.feedback = session.misses >= 3 ? '连续空了三圈，鱼跑掉了…' : `空了一圈，还剩 ${3 - session.misses} 圈机会`
       paint()
-      return finish(false)
+      if (session.misses >= 3) return finish(false)
     }
     frame = raf(tick)
   }

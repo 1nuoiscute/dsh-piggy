@@ -1798,7 +1798,7 @@
 
   // src/client/css-fishing.js
   var CSS_FISHING = `
-.dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-charge{height:12px;border-radius:8px;background:#e6ecee;overflow:hidden;margin:12px 0}.dp-fish-charge i{display:block;width:0;height:100%;background:linear-gradient(90deg,#77d86e,#ffd252,#ff746b)}.dp-fish-cast{touch-action:none}.dp-fish-auto{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border-radius:12px;background:#f5fafb}.dp-fish-auto span{width:100%;font-size:11px;color:#718188}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
+.dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-cast{touch-action:manipulation}.dp-fish-auto{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border-radius:12px;background:#f5fafb}.dp-fish-auto span{width:100%;font-size:11px;color:#718188}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
 .dp-fish-qte{width:100%;min-height:318px;border:0;border-radius:18px;padding:15px 12px 12px;box-sizing:border-box;background:linear-gradient(155deg,#eefcff,#d8f3f8);display:flex;flex-direction:column;align-items:center;gap:9px;color:#294950;cursor:pointer;touch-action:manipulation;outline:0}.dp-fish-qte:focus-visible{box-shadow:0 0 0 3px #43b96f}.dp-fish-qte-title{font-size:15px;font-weight:800}.dp-fish-qte-ring{position:relative;width:178px;height:178px;border-radius:50%;box-shadow:0 3px 12px #246a7a44,inset 0 0 0 2px #fff;transform:rotate(-90deg)}.dp-fish-qte-ring:after{content:"";position:absolute;inset:17px;border-radius:50%;background:#f8feff;box-shadow:inset 0 2px 8px #8ab7c044}.dp-fish-qte-needle{position:absolute;z-index:3;left:50%;bottom:50%;width:4px;height:47%;border-radius:4px;background:#ed5d55;box-shadow:0 0 0 1px #fff,0 0 6px #d64a45;transform-origin:50% 100%}.dp-fish-qte-needle:after{content:"";position:absolute;top:-5px;left:-3px;width:10px;height:10px;border-radius:50%;background:#ed5d55}.dp-fish-qte-core{position:absolute;z-index:4;inset:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#fff 0 48%,#e9f9fb 70%);font-size:42px;transform:rotate(90deg)}.dp-fish-qte-score{font-size:14px}.dp-fish-qte-feedback{min-height:18px;font-size:12px;color:#55727a}.dp-fish-help{text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
 `;
 
@@ -3284,58 +3284,11 @@
   }
   function renderReady(ui) {
     ui.content.appendChild(el("div", "dp-fish-scene", "\u{1F30A}\u3000\u{1F41F}\u3000\uFF5E\u3000\u{1F33F}"));
-    ui.content.appendChild(el("div", "dp-fish-copy", "\u6309\u4F4F\u629B\u7AFF\uFF0C\u677E\u624B\u51B3\u5B9A\u8DDD\u79BB\u3002\u629B\u5F97\u8D8A\u8FDC\uFF0C\u9047\u89C1\u7A00\u6709\u9C7C\u7684\u673A\u4F1A\u8D8A\u5927\u3002"));
-    const meter2 = el("div", "dp-fish-charge");
-    const fill = el("i");
-    meter2.appendChild(fill);
-    ui.content.appendChild(meter2);
-    let power = 0;
-    let direction = 1;
-    let charging = false;
-    let last = 0;
-    function tick(now) {
-      if (!charging) return;
-      const elapsed = last === 0 ? 16 : Math.min(40, now - last);
-      last = now;
-      power += direction * elapsed / 900;
-      if (power >= 1) {
-        power = 1;
-        direction = -1;
-      }
-      if (power <= 0) {
-        power = 0;
-        direction = 1;
-      }
-      fill.style.width = Math.round(power * 100) + "%";
-      frame = raf(tick);
-    }
+    ui.content.appendChild(el("div", "dp-fish-copy", "\u70B9\u51FB\u629B\u7AFF\uFF0C\u770B\u5230\u300C\u2757\u300D\u540E\u53CA\u65F6\u63D0\u7AFF\u3002"));
     const cast = button("dp-btn dp-btn-wide dp-fish-cast", { "data-fish": "cast" }, function() {
+      ui.send("fishCast", { power: 0.7 });
     });
-    cast.textContent = "\u{1F3A3} \u6309\u4F4F\u84C4\u529B";
-    function start(event) {
-      event?.preventDefault?.();
-      if (charging) return;
-      charging = true;
-      cast.textContent = "\u677E\u624B\u629B\u7AFF\uFF01";
-      frame = raf(tick);
-    }
-    function release(event) {
-      event?.preventDefault?.();
-      if (!charging) return;
-      charging = false;
-      caf(frame);
-      frame = 0;
-      ui.send("fishCast", { power });
-    }
-    cast.addEventListener("pointerdown", start);
-    cast.addEventListener("pointerup", release);
-    cast.addEventListener("pointercancel", release);
-    cast.addEventListener("keydown", function(event) {
-      if (event.code === "Space" || event.key === " ") start(event);
-    });
-    cast.addEventListener("keyup", function(event) {
-      if (event.code === "Space" || event.key === " ") release(event);
-    });
+    cast.textContent = "\u{1F3A3} \u629B\u7AFF";
     ui.content.appendChild(cast);
     const auto = el("div", "dp-fish-auto");
     auto.appendChild(el("b", null, "\u81EA\u52A8\u9493\u9C7C"));
@@ -3388,6 +3341,7 @@
   function newQteRound(session) {
     session.zoneStart = 105 + Math.random() * 135;
     session.angle = 0;
+    session.completedCircles = 0;
     session.startedAt = 0;
     session.locked = false;
     session.feedback = "\u770B\u51C6\u7EFF\u8272\u533A\u57DF";
@@ -3395,7 +3349,7 @@
   function renderGame(ui, fish2) {
     const rules = qteRules(fish2.difficulty);
     if (qteSession?.id !== fish2.id) {
-      qteSession = { id: fish2.id, hits: 0, ...rules };
+      qteSession = { id: fish2.id, hits: 0, misses: 0, ...rules };
       newQteRound(qteSession);
     }
     const session = qteSession;
@@ -3425,15 +3379,17 @@
     ui.content.appendChild(wrap);
     activeUi = ui;
     function paint() {
+      const displayAngle = session.angle % 360;
       const perfectEnd = session.zoneStart + session.perfectDegrees;
       const zoneEnd = session.zoneStart + session.zoneDegrees;
       ring.style.background = `conic-gradient(from 0deg,#dce8e9 0deg ${session.zoneStart}deg,#ffd45d ${session.zoneStart}deg ${perfectEnd}deg,#6bd47b ${perfectEnd}deg ${zoneEnd}deg,#dce8e9 ${zoneEnd}deg 360deg)`;
-      needle.style.transform = `translateX(-50%) rotate(${session.angle}deg)`;
+      needle.style.transform = `translateX(-50%) rotate(${displayAngle}deg)`;
       score.textContent = `\u6280\u80FD\u68C0\u5B9A ${Math.min(session.hits, session.hitsNeeded)} / ${session.hitsNeeded}`;
-      feedback.textContent = session.feedback;
-      wrap.setAttribute("data-qte-angle", session.angle.toFixed(1));
+      feedback.textContent = `${session.feedback} \xB7 \u673A\u4F1A ${"\u2665".repeat(3 - session.misses)}${"\u2661".repeat(session.misses)}`;
+      wrap.setAttribute("data-qte-angle", displayAngle.toFixed(1));
       wrap.setAttribute("data-qte-zone-start", session.zoneStart.toFixed(1));
       wrap.setAttribute("data-qte-zone-size", String(session.zoneDegrees));
+      wrap.setAttribute("data-qte-misses", String(session.misses));
     }
     function finish(success) {
       if (resolving) return;
@@ -3444,14 +3400,15 @@
     function hit(event) {
       event?.preventDefault?.();
       if (session.locked || activeUi !== ui) return;
-      const offset = session.angle - session.zoneStart;
+      const offset = session.angle % 360 - session.zoneStart;
       if (offset < 0 || offset > session.zoneDegrees) {
-        session.feedback = "\u5931\u624B\u4E86\uFF0C\u9C7C\u8DD1\u6389\u4E86\u2026";
+        session.feedback = offset < 0 ? "\u8FD8\u6CA1\u5230\u65F6\u673A\uFF0C\u518D\u7B49\u7B49" : "\u5DF2\u7ECF\u5212\u8FC7\u53BB\u4E86\uFF0C\u7B49\u4E0B\u4E00\u5708";
         paint();
-        return finish(false);
+        return;
       }
       const perfect = offset <= session.perfectDegrees;
       session.hits += perfect ? 2 : 1;
+      session.misses = 0;
       session.feedback = perfect ? "\u5B8C\u7F8E\uFF01\u8FDB\u5EA6 +2" : "\u547D\u4E2D\uFF01";
       session.locked = true;
       paint();
@@ -3467,10 +3424,13 @@
       if (!session.startedAt) session.startedAt = now;
       if (!session.locked) session.angle = (now - session.startedAt) * session.rotationsPerSecond * 0.36;
       paint();
-      if (!session.locked && session.angle > session.zoneStart + session.zoneDegrees + 8) {
-        session.feedback = "\u9519\u8FC7\u65F6\u673A\uFF0C\u9C7C\u8DD1\u6389\u4E86\u2026";
+      const completedCircles = Math.floor(session.angle / 360);
+      if (!session.locked && completedCircles > session.completedCircles) {
+        session.misses += completedCircles - session.completedCircles;
+        session.completedCircles = completedCircles;
+        session.feedback = session.misses >= 3 ? "\u8FDE\u7EED\u7A7A\u4E86\u4E09\u5708\uFF0C\u9C7C\u8DD1\u6389\u4E86\u2026" : `\u7A7A\u4E86\u4E00\u5708\uFF0C\u8FD8\u5269 ${3 - session.misses} \u5708\u673A\u4F1A`;
         paint();
-        return finish(false);
+        if (session.misses >= 3) return finish(false);
       }
       frame = raf(tick);
     }
