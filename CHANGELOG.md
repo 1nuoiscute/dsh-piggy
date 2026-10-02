@@ -5,6 +5,12 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [0.27.1] — 2026-10-03 · 桌面更新依赖安全修复
+
+### Fixed
+- 桌面版 `electron-updater` 使用的 `builder-util-runtime` 升至 9.7.0，修复跨来源重定向时可能转发认证请求头的问题（CVE-2026-54673）。感谢 [@anupamme 的 PR #5](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/5) 报告并指出受影响的依赖。
+- 桌面外壳升至 0.2.1；使用桌面版的玩家需更新外壳，仅更新游戏包不能替换旧外壳。Windows 安装版和 Linux AppImage 可通过「更新」App 下载并重启安装；Windows 便携版和未签名 macOS 版需从发布页手动替换。
+
 ## [0.27.0] — 2026-10-03 · 角色外观、设置与桌面更新
 
 ### Added
