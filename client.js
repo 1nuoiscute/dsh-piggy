@@ -1827,7 +1827,7 @@
 
   // src/client/css-skins.js
   var CSS_SKINS = `
-.dp-skin-intro{display:grid;gap:4px;padding:10px 12px;margin-bottom:10px;border-radius:14px;background:#f3edff;color:#55426f}.dp-skin-intro span{font-size:11px;line-height:1.5}.dp-skin-grid{display:grid;gap:8px}.dp-skin-card{display:grid;grid-template-columns:64px 1fr auto;align-items:center;gap:9px;padding:8px;border:1px solid #eadff5;border-radius:14px;background:#fff}.dp-skin-current{border-color:#a883d0;box-shadow:0 0 0 2px #efe3ff inset}.dp-skin-art{width:60px;height:60px;object-fit:contain}.dp-skin-copy{display:grid;gap:3px;min-width:0}.dp-skin-copy small{color:#81758d;font-size:10px;line-height:1.35}.dp-skin-pick{border:0;border-radius:10px;padding:7px 9px;background:#8d67b6;color:#fff;font-weight:700}.dp-skin-pick:disabled{background:#ded4e8;color:#766a80}.dp-skin-import{display:grid;place-items:center;gap:5px;margin-top:10px;padding:14px 10px;border:1px dashed #a98ac8;border-radius:14px;background:#fbf8ff;color:#665276;text-align:center;cursor:pointer}.dp-skin-import span{font-size:10px}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{display:inline-block!important;padding:5px 12px;border-radius:9px;background:#8d67b6;color:#fff;font-weight:700}
+.dp-skin-intro{display:grid;gap:4px;margin:0 0 10px}.dp-skin-intro span{font-size:10.5px;line-height:1.5;color:var(--ac-text-2)}.dp-skin-grid{display:flex;flex-direction:column;gap:7px}.dp-skin-row{min-height:62px;padding:7px 9px}.dp-skin-current{background:var(--ac-active);border-color:#9db0d6}.dp-skin-art{width:48px;height:48px;flex:none;object-fit:contain}.dp-skin-copy{display:grid;gap:3px}.dp-skin-copy b{font-size:10.5px}.dp-skin-copy small{line-height:1.35}.dp-skin-row>.dp-mini{flex:none;padding-inline:10px}.dp-skin-import{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;margin-top:10px;cursor:pointer}.dp-skin-import .dp-pick-head{margin:0}.dp-skin-import>.dp-dim{font-size:10px;line-height:1.4;color:var(--ac-text-2)}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{grid-column:2;grid-row:1/3;display:inline-flex!important;align-items:center;white-space:nowrap}
 `;
 
   // src/client/styles.js
@@ -3252,7 +3252,7 @@
       card.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
       if (section.key === "skins") {
         const current = ui.view.skins.current === entry.key;
-        const pick = button("dp-skin-pick", { "data-dex-skin": entry.key }, function() {
+        const pick = button("dp-mini", { "data-dex-skin": entry.key }, function() {
           ui.send("skin", { skin: entry.key });
         });
         pick.textContent = current ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528\u8FD9\u6B3E\u76AE\u80A4";
@@ -3760,7 +3760,7 @@
 
   // src/client/tabs/skins.js
   function renderSkinsTab(ui) {
-    const intro = el("div", "dp-skin-intro");
+    const intro = el("div", "dp-pick dp-skin-intro");
     intro.appendChild(el("b", null, "\u7ED9\u732A\u732A\u6362\u4EF6\u65B0\u8863\u670D"));
     intro.appendChild(el("span", null, "\u5F62\u6001\u4F1A\u4F18\u5148\u663E\u793A\uFF1B\u6062\u590D\u666E\u901A\u5F62\u6001\u540E\uFF0C\u9009\u4E2D\u7684\u76AE\u80A4\u4ECD\u4F1A\u4FDD\u7559\u3002"));
     ui.content.appendChild(intro);
@@ -3770,7 +3770,7 @@
     ui.content.appendChild(importCard(ui));
   }
   function skinCard(ui, skin) {
-    const card = el("div", "dp-skin-card" + (skin.current ? " dp-skin-current" : ""));
+    const card = el("div", "dp-item dp-skin-row" + (skin.current ? " dp-skin-current" : ""));
     const img = (
       /** @type {HTMLImageElement} */
       el("img", "dp-skin-art")
@@ -3778,11 +3778,11 @@
     img.src = ART_URL + skin.art + ".svg";
     img.alt = skin.label;
     card.appendChild(img);
-    const copy = el("span", "dp-skin-copy");
+    const copy = el("span", "dp-grow dp-skin-copy");
     copy.appendChild(el("b", null, skin.emoji + " " + skin.label));
-    copy.appendChild(el("small", null, skin.description || "\u4F5C\u8005\uFF1A" + skin.author));
+    copy.appendChild(el("small", "dp-dim", skin.description || "\u4F5C\u8005\uFF1A" + skin.author));
     card.appendChild(copy);
-    const pick = button("dp-skin-pick", { "data-skin": skin.key }, function() {
+    const pick = button("dp-mini", { "data-skin": skin.key }, function() {
       ui.send("skin", { skin: skin.key });
     });
     pick.textContent = skin.current ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
@@ -3791,9 +3791,9 @@
     return card;
   }
   function importCard(ui) {
-    const wrap = el("label", "dp-skin-import");
-    wrap.appendChild(el("b", null, "\u{1F4E6} \u5BFC\u5165\u81EA\u5DF1\u7684\u76AE\u80A4"));
-    wrap.appendChild(el("span", null, "\u9009\u62E9\u6309\u6559\u7A0B\u5236\u4F5C\u7684 ZIP\uFF1B\u5BFC\u5165\u6210\u529F\u540E\u4F1A\u81EA\u52A8\u4F7F\u7528\u3002"));
+    const wrap = el("label", "dp-pick dp-tile-card dp-skin-import");
+    wrap.appendChild(el("b", "dp-pick-head", "\u{1F4E6} \u5BFC\u5165\u81EA\u5DF1\u7684\u76AE\u80A4"));
+    wrap.appendChild(el("span", "dp-dim", "\u9009\u62E9\u6309\u6559\u7A0B\u5236\u4F5C\u7684 ZIP\uFF1B\u5BFC\u5165\u6210\u529F\u540E\u4F1A\u81EA\u52A8\u4F7F\u7528\u3002"));
     const input = (
       /** @type {HTMLInputElement} */
       el("input")
@@ -3813,7 +3813,7 @@
       }).catch(() => ui.showBubble("\u5BFC\u5165\u5931\u8D25\uFF1A\u65E0\u6CD5\u8BFB\u53D6\u76AE\u80A4\u5305"));
     });
     wrap.appendChild(input);
-    wrap.appendChild(el("span", "dp-skin-file", "\u9009\u62E9 ZIP"));
+    wrap.appendChild(el("span", "dp-mini dp-skin-file", "\u9009\u62E9 ZIP"));
     return wrap;
   }
 

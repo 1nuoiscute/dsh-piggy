@@ -5,7 +5,7 @@ import { ART_URL } from '../constants.js'
 import { button, el } from '../dom.js'
 
 export function renderSkinsTab(ui) {
-  const intro = el('div', 'dp-skin-intro')
+  const intro = el('div', 'dp-pick dp-skin-intro')
   intro.appendChild(el('b', null, '给猪猪换件新衣服'))
   intro.appendChild(el('span', null, '形态会优先显示；恢复普通形态后，选中的皮肤仍会保留。'))
   ui.content.appendChild(intro)
@@ -17,16 +17,16 @@ export function renderSkinsTab(ui) {
 }
 
 function skinCard(ui, skin) {
-  const card = el('div', 'dp-skin-card' + (skin.current ? ' dp-skin-current' : ''))
+  const card = el('div', 'dp-item dp-skin-row' + (skin.current ? ' dp-skin-current' : ''))
   const img = /** @type {HTMLImageElement} */ (el('img', 'dp-skin-art'))
   img.src = ART_URL + skin.art + '.svg'
   img.alt = skin.label
   card.appendChild(img)
-  const copy = el('span', 'dp-skin-copy')
+  const copy = el('span', 'dp-grow dp-skin-copy')
   copy.appendChild(el('b', null, skin.emoji + ' ' + skin.label))
-  copy.appendChild(el('small', null, skin.description || ('作者：' + skin.author)))
+  copy.appendChild(el('small', 'dp-dim', skin.description || ('作者：' + skin.author)))
   card.appendChild(copy)
-  const pick = button('dp-skin-pick', { 'data-skin': skin.key }, function () { ui.send('skin', { skin: skin.key }) })
+  const pick = button('dp-mini', { 'data-skin': skin.key }, function () { ui.send('skin', { skin: skin.key }) })
   pick.textContent = skin.current ? '使用中' : '使用'
   pick.disabled = skin.current
   card.appendChild(pick)
@@ -34,9 +34,9 @@ function skinCard(ui, skin) {
 }
 
 function importCard(ui) {
-  const wrap = el('label', 'dp-skin-import')
-  wrap.appendChild(el('b', null, '📦 导入自己的皮肤'))
-  wrap.appendChild(el('span', null, '选择按教程制作的 ZIP；导入成功后会自动使用。'))
+  const wrap = el('label', 'dp-pick dp-tile-card dp-skin-import')
+  wrap.appendChild(el('b', 'dp-pick-head', '📦 导入自己的皮肤'))
+  wrap.appendChild(el('span', 'dp-dim', '选择按教程制作的 ZIP；导入成功后会自动使用。'))
   const input = /** @type {HTMLInputElement} */ (el('input'))
   input.type = 'file'
   input.accept = '.zip,application/zip'
@@ -56,6 +56,6 @@ function importCard(ui) {
       .catch(() => ui.showBubble('导入失败：无法读取皮肤包'))
   })
   wrap.appendChild(input)
-  wrap.appendChild(el('span', 'dp-skin-file', '选择 ZIP'))
+  wrap.appendChild(el('span', 'dp-mini dp-skin-file', '选择 ZIP'))
   return wrap
 }

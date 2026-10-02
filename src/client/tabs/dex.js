@@ -195,7 +195,7 @@ function renderDetail(ui, section, entry) {
       + (typeof entry.maxSizeCm === 'number' ? ' · 最大 ' + entry.maxSizeCm.toFixed(1) + ' cm' : '')))
     if (section.key === 'skins') {
       const current = ui.view.skins.current === entry.key
-      const pick = button('dp-skin-pick', { 'data-dex-skin': entry.key }, function () { ui.send('skin', { skin: entry.key }) })
+      const pick = button('dp-mini', { 'data-dex-skin': entry.key }, function () { ui.send('skin', { skin: entry.key }) })
       pick.textContent = current ? '使用中' : '使用这款皮肤'
       pick.disabled = current
       card.appendChild(pick)

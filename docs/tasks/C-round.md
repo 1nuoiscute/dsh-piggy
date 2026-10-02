@@ -149,6 +149,7 @@ my-skin.zip
 - 3084 实测优先级：选中 `mint-example` 时普通形态使用 `custom-mint-example`；调试切到猪猪王后仍保留 `skin=mint-example`，画面使用 `pig-king`；恢复普通形态后自动回到 `custom-mint-example`。动作文件缺失时客户端按场景清单回落到该皮肤待机图。
 - 老存档由 `ensureSkins(state)` 补 `skin='default'` 和 `customSkins=[]`，未知或损坏的皮肤记录会被清理；存档版本保持 v12，未升级。
 - 教程与参考包：`docs/CUSTOM-SKINS.md`、`docs/examples/skin-pack/`、`docs/examples/skin-pack-example.zip`。截图：`docs/screenshots/c6-skins.png`、`c6-import.png`、`c6-dex-switch.png`；Playwright 使用 `/usr/bin/chromium`，控制台错误和 page error 均为 0。
+- 验收反馈后统一视觉：换肤列表复用背包的 `dp-item` 货架行，使用中状态复用全站选中态，换肤、图鉴和导入按钮统一复用 `dp-mini`，导入区复用 `dp-pick` 操作卡；3084 重新切换并重拍三张截图。
 
 ## C7 胖猪（Codex）
 - 体重分 3 档：正常 / 圆润（≥ 理想体重 ×1.3）/ 胖胖（≥ ×1.6）；理想体重按等级取（Codex 从现有 weightG 增长数据算一张表写进数值单）。
