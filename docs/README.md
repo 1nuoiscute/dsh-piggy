@@ -19,6 +19,7 @@
 
 ## 项目资料
 
+- [最新交接记录与后续计划（2026-10-03）](HANDOFF-2026-10-03.md)
 - [开发、调试与打包](DEVELOPMENT.md)
 - [设计说明](DESIGN.md)
 - [开发约定](CONVENTIONS.md)
