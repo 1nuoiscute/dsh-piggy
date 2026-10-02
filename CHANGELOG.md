@@ -5,7 +5,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
-## [Unreleased] — 图鉴与体型
+## [0.26.0] — 2026-10-02 · 图鉴、体型、钓鱼与换肤
 
 ### Added
 - 新增「🎨 换肤」App：内置皮肤可直接切换，不进商店、不占背包；图鉴皮肤详情也能切换。显示顺序固定为晋升形态、当前皮肤、默认猪，形态结束后会恢复原皮肤。
