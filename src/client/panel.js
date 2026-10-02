@@ -23,6 +23,7 @@ import { renderShopTab } from './tabs/shop.js'
 import { renderStatusTab } from './tabs/status.js'
 import { renderStudyTab } from './tabs/study.js'
 import { renderSkinsTab } from './tabs/skins.js'
+import { renderSettingsTab } from './tabs/settings.js'
 import { renderTravelTab } from './tabs/travel.js'
 import { renderWorkTab } from './tabs/work.js'
 import { str } from './values.js'
@@ -163,6 +164,7 @@ export function createPanel(ctx) {
         else if (ctx.tab === 'pomodoro') { renderPomodoroTab(ctx); if (typeof ctx.pomoTick === 'function') ctx.pomoTick() }
         else if (ctx.tab === 'dev') renderDevTab(ctx)
         else if (ctx.tab === 'update') renderUpdateTab(ctx)
+        else if (ctx.tab === 'settings') renderSettingsTab(ctx)
         else renderBagTab(ctx)
 
         // Every tab is a different height, so the fit is recomputed after each

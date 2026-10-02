@@ -1,6 +1,7 @@
 // @ts-check
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { readFileSync } from 'node:fs'
 import {
   STATE_VERSION, act, applyDevPatch, bodyWeightClass, bodyWeightView, decay,
   ensureBodyWeight, formStageView, hatchEgg, idealWeightG, migrate,
@@ -91,18 +92,31 @@ test('C7 work and natural metabolism reduce only weight above ideal and compound
   assert.equal(lean.weightG, before)
 })
 
-test('C7 only the fat tier of a default ordinary pig switches to contributed artwork', () => {
+test('C7 round uses the original contributed artwork and fat uses the new larger set', () => {
   const round = pig(40, 1.3)
-  assert.notEqual(formStageView(round, NOW).art, 'pig-fat')
+  assert.equal(formStageView(round, NOW).art, 'pig-round')
+  assert.equal(bodyWeightView(round, NOW).visible, true)
   assert.equal(bodyWeightView(round, NOW).class, 'round')
   const fat = pig(40, 1.6)
   assert.equal(formStageView(fat, NOW).art, 'pig-fat')
   assert.equal(formStageView(fat, NOW).actionArt, true)
   assert.equal(bodyWeightView(fat, NOW).visible, true)
+  round.skin = 'chocolate'
+  assert.notEqual(formStageView(round, NOW).art, 'pig-round')
   for (const [form, art] of [['king', 'pig-king'], ['devil', 'pig-devil']]) {
     fat.form = form
     assert.equal(formStageView(fat, NOW).art, art)
     assert.equal(bodyWeightView(fat, NOW).visible, false)
+  }
+})
+
+test('both weight tiers ship every action sprite as distinct SVG art', () => {
+  for (const suffix of ['', '-relaxed', '-pet', '-eat', '-bathe', '-play', '-work', '-study', '-trip']) {
+    const round = readFileSync(new URL(`../assets/pig-round${suffix}.svg`, import.meta.url), 'utf8')
+    const fat = readFileSync(new URL(`../assets/pig-fat${suffix}.svg`, import.meta.url), 'utf8')
+    assert.match(round, /<svg\b/)
+    assert.match(fat, /<svg\b/)
+    assert.notEqual(round, fat)
   }
 })
 

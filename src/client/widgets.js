@@ -76,7 +76,7 @@ export function tileGrid() {
  * One tile: a coloured rounded square with a big emoji, one short line under
  * it, an optional second line, a count in the top-right corner and a small
  * tag in the top-left. `soft` is the paler second-layer look.
- * @param {{ emoji: string, label: string, color: string, note?: string, badge?: string, tag?: string,
+ * @param {{ emoji: string, icon?: HTMLElement, label: string, color: string, note?: string, badge?: string, tag?: string,
  *   soft?: boolean, locked?: boolean, dim?: boolean, disabled?: boolean, active?: boolean,
  *   data?: Record<string, string>, onPick: () => void }} spec
  */
@@ -88,7 +88,7 @@ export function tile(spec) {
   if (spec.active) node.setAttribute('data-active', 'true')
   if (spec.disabled === true) node.disabled = true
   var icon = el('span', 'dp-tile-icon')
-  icon.appendChild(el('span', 'dp-tile-e', spec.emoji))
+  icon.appendChild(spec.icon ?? el('span', 'dp-tile-e', spec.emoji))
   if (spec.badge) icon.appendChild(el('b', 'dp-tile-badge', spec.badge))
   if (spec.tag) icon.appendChild(el('b', 'dp-tile-tag', spec.tag))
   node.appendChild(icon)

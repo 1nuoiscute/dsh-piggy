@@ -64,6 +64,12 @@ test('an adult can fill a missing condition later; crowning spends one crown', (
   assert.equal(formStageView(state, NOW).art, 'pig-king')
 })
 
+test('successful coronation gives the king a spoken line', () => {
+  const state = adult()
+  assert.equal(crown(state, NOW).ok, true)
+  assert.ok(state.pending.some(entry => entry.kind === 'line' && entry.scene === 'coronation'))
+})
+
 test('work only counts when completed, including the tenth job at coronation', () => {
   const state = adult()
   state.stats.jobs = 9

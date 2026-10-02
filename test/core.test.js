@@ -1079,8 +1079,8 @@ test('trait and course views always list everything', () => {
 // Shop
 // ===========================================================================
 
-test('the shop is well formed: 66 items across eight shelves, every cure stocked', () => {
-  assert.equal(SHOP.length, 66, 'three fishing baits join the existing items')
+test('the shop is well formed: 76 items across eight shelves, every cure stocked', () => {
+  assert.equal(SHOP.length, 76, 'the expanded food, bath, toy and dress shelves are available')
   const counts = {}
   for (const item of SHOP) {
     assert.equal(typeof item.key, 'string')
@@ -1088,7 +1088,7 @@ test('the shop is well formed: 66 items across eight shelves, every cure stocked
     assert.ok(['food', 'bath', 'toy', 'bait', 'dress', 'medicine', 'revive', 'promotion'].includes(item.kind))
     counts[item.kind] = (counts[item.kind] ?? 0) + 1
   }
-  assert.deepEqual(counts, { food: 10, bath: 8, toy: 10, bait: 3, dress: 11, medicine: 21, revive: 1, promotion: 2 })
+  assert.deepEqual(counts, { food: 13, bath: 10, toy: 13, bait: 3, dress: 13, medicine: 21, revive: 1, promotion: 2 })
   // 装扮 is a different economy: level-gated, owned once, never counted.
   for (const item of SHOP.filter(entry => entry.kind === 'dress')) {
     assert.ok(Number.isInteger(item.level) && item.level >= 1, `${item.label} needs a level`)
@@ -1162,7 +1162,7 @@ test('grantAll hands over one of everything, for debugging', () => {
   pig.coins = 10
   const result = grantAll(pig, T0)
   assert.equal(result.ok, true)
-  assert.equal(pig.dress.length, 11)
+  assert.equal(pig.dress.length, 13)
   assert.equal(pig.coins, 99_999)
   for (const item of SHOP.filter(entry => entry.kind !== 'dress')) {
     assert.equal(pig.inventory[item.key], 20, `${item.label} should be in the bag`)

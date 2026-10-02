@@ -15,6 +15,7 @@ import { decay } from './settlement.js'
 import { recordDex } from './dex.js'
 import { weightStageView } from './weight.js'
 import { skinStageView } from './skins.js'
+import { say } from './lines.js'
 
 /** The level a stage starts at (成年猪 → 40). */
 function stageLevel(stageKey) {
@@ -59,6 +60,7 @@ function transform(state, form, nowMs, way) {
   state.form = form.key
   remember(state, `${way.emoji} ${way.verb}成为${form.label}，本事和生活都照旧`, nowMs)
   announce(state, way.kind, `${state.name} ${way.verb}成为${form.label}！`, nowMs)
+  say(state, way.kind, nowMs)
   return { ok: true, form: form.key }
 }
 

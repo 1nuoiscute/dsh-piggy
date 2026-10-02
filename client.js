@@ -10,6 +10,7 @@
   var MOUNTED = "data-dsh-pig";
   var OPEN_KEY = "dsh-piggy:open";
   var POSITION_KEY = "dsh-piggy:position";
+  var ICON_STYLE_KEY = "dsh-piggy:icon-style";
   var PANEL_WIDTH = 292;
   var PANEL_GAP = 8;
   var PANEL_MARGIN = 10;
@@ -27,7 +28,8 @@
     { key: "travel", label: "\u65C5\u884C", emoji: "\u{1F9F3}" },
     { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" },
     { key: "pomodoro", label: "\u756A\u8304\u949F", emoji: "\u{1F345}" },
-    { key: "fishing", label: "\u9493\u9C7C", emoji: "\u{1F3A3}" }
+    { key: "fishing", label: "\u9493\u9C7C", emoji: "\u{1F3A3}" },
+    { key: "settings", label: "\u8BBE\u7F6E", emoji: "\u2699\uFE0F" }
   ];
   var DEV_TAPS_TO_UNLOCK = 7;
   var DEV_TAP_WINDOW_MS = 3e3;
@@ -172,7 +174,7 @@
     if (spec.active) node.setAttribute("data-active", "true");
     if (spec.disabled === true) node.disabled = true;
     var icon = el("span", "dp-tile-icon");
-    icon.appendChild(el("span", "dp-tile-e", spec.emoji));
+    icon.appendChild(spec.icon ?? el("span", "dp-tile-e", spec.emoji));
     if (spec.badge) icon.appendChild(el("b", "dp-tile-badge", spec.badge));
     if (spec.tag) icon.appendChild(el("b", "dp-tile-tag", spec.tag));
     node.appendChild(icon);
@@ -641,13 +643,13 @@
       { key: "weight:normal", label: "\u2696\uFE0F \u6B63\u5E38", run: function() {
         patch({ weightClass: "normal" });
       } },
-      { key: "weight:round", label: "\u{1F437} \u5706\u6DA6", run: function() {
+      { key: "weight:round", label: "\u{1F437} \u80D6\u80D6\u732A", run: function() {
         patch({ weightClass: "round" });
       } },
-      { key: "weight:fat", label: "\u{1F416} \u80D6\u80D6", run: function() {
+      { key: "weight:fat", label: "\u{1F416} \u5927\u80A5\u732A", run: function() {
         patch({ weightClass: "fat" });
       } }
-    ], "\u5706\u6DA6\u6682\u7528\u666E\u901A\u7ACB\u7ED8\uFF1B\u80D6\u80D6\u4F7F\u7528 PR #4 \u7684\u52A8\u4F5C\u7ACB\u7ED8\u3002");
+    ], "\u5706\u6DA6\u4F7F\u7528\u539F\u80D6\u732A\u7ACB\u7ED8\uFF1B\u5927\u80A5\u732A\u4F7F\u7528\u66F4\u80D6\u7684\u65B0\u52A8\u4F5C\u7ACB\u7ED8\u3002");
     group("\u72B6\u6001", [
       { key: "full", label: "\u{1F60A} \u6EE1\u72B6\u6001", run: function() {
         patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 });
@@ -1617,6 +1619,12 @@
     "width:50px;height:50px;border-radius:15px;background:var(--tile-c,var(--ac-bg-content));",
     "box-shadow:0 3px 0 rgba(61,52,40,.16);transition:transform .15s var(--ac-ease),box-shadow .15s var(--ac-ease)}",
     ".dp-tile-e{font-size:24px;line-height:1;filter:drop-shadow(0 1px 1px rgba(61,52,40,.18))}",
+    ".dp-tile-svg{width:27px;height:27px;object-fit:contain}",
+    ".dp-app-title{display:inline-flex;align-items:center;gap:5px}",
+    ".dp-app-title-icon{font-size:14px;line-height:1}",
+    ".dp-app-title-icon.dp-tile-svg{width:17px;height:17px}",
+    ".dp-setting-row{margin-top:8px}",
+    ".dp-setting-emoji{font-size:22px;line-height:1;width:28px;text-align:center}",
     ".dp-tile:hover:not(:disabled) .dp-tile-icon{transform:translateY(-2px);box-shadow:0 5px 0 rgba(61,52,40,.16)}",
     ".dp-tile:active:not(:disabled) .dp-tile-icon{transform:translateY(2px);box-shadow:0 1px 0 rgba(61,52,40,.16)}",
     ".dp-tile:focus-visible{outline:none}",
@@ -3544,6 +3552,45 @@
     ui.content.appendChild(el("div", "dp-empty", ui.view.activity.label + " \xB7 \u9493\u5230\u7684\u9C7C\u4F1A\u653E\u8FDB\u9C7C\u7BD3"));
   }
 
+  // src/client/icon-style.js
+  var BUNDLED = /* @__PURE__ */ new Set([
+    "status",
+    "card",
+    "dex",
+    "skins",
+    "study",
+    "work",
+    "shop",
+    "travel",
+    "bag",
+    "pomodoro",
+    "fishing",
+    "settings",
+    "update",
+    "quit",
+    "dev"
+  ]);
+  function iconStyle() {
+    return readStore(ICON_STYLE_KEY) === "built-in" ? "built-in" : "system";
+  }
+  function setIconStyle(style) {
+    writeStore(ICON_STYLE_KEY, style === "built-in" ? "built-in" : "system");
+  }
+  function appIcon(key, emoji, className) {
+    if (iconStyle() !== "built-in" || !BUNDLED.has(key)) return el("span", className, emoji);
+    const img = (
+      /** @type {HTMLImageElement} */
+      el("img", className + " dp-tile-svg")
+    );
+    img.src = ART_URL + "ui-" + key + ".svg";
+    img.alt = emoji;
+    img.addEventListener("error", function() {
+      const replacement = el("span", className, emoji);
+      img.parentNode?.replaceChild(replacement, img);
+    });
+    return img;
+  }
+
   // src/client/tabs/home.js
   var APP_COLOR = {
     status: "green",
@@ -3557,6 +3604,7 @@
     bag: "teal",
     pomodoro: "red",
     fishing: "blue",
+    settings: "peach",
     update: "lime",
     quit: "peach",
     dev: "brown"
@@ -3572,6 +3620,7 @@
       (function(app) {
         grid.appendChild(tile({
           emoji: app.emoji,
+          icon: appIcon(app.key, app.emoji, "dp-tile-e"),
           label: app.label,
           color: APP_COLOR[app.key] ?? "blue",
           tag: app.key === "update" ? "" : alertFor(ui, app.key),
@@ -3614,7 +3663,10 @@
       ui.select("home");
     });
     row.appendChild(back);
-    row.appendChild(el("b", "dp-drill-title", app.emoji + " " + app.label));
+    var title = el("b", "dp-drill-title dp-app-title");
+    title.appendChild(appIcon(app.key, app.emoji, "dp-app-title-icon"));
+    title.appendChild(el("span", null, app.label));
+    row.appendChild(title);
     if (info) row.appendChild(el("span", "dp-drill-info", info));
     ui.content.appendChild(row);
   }
@@ -3956,6 +4008,34 @@
     return wrap;
   }
 
+  // src/client/tabs/settings.js
+  function renderSettingsTab(ui) {
+    const intro = el("div", "dp-pick");
+    intro.appendChild(el("b", null, "\u56FE\u6807\u663E\u793A"));
+    intro.appendChild(el("span", null, "\u9009\u62E9\u4E3B\u83DC\u5355 App \u56FE\u6807\u7684\u6837\u5B50\u3002\u5185\u7F6E\u56FE\u6807\u968F\u6E38\u620F\u63D0\u4F9B\uFF0C\u8BBE\u5907\u4E4B\u95F4\u770B\u8D77\u6765\u4E00\u81F4\u3002"));
+    ui.content.appendChild(intro);
+    const chosen = iconStyle();
+    for (const option of [
+      { key: "system", title: "\u7CFB\u7EDF Emoji", detail: "\u4F7F\u7528\u8FD9\u53F0\u8BBE\u5907\u81EA\u5E26\u7684\u8868\u60C5\u56FE\u6807", icon: "\u{1F416}" },
+      { key: "built-in", title: "\u5185\u7F6E\u56FE\u6807", detail: "\u4F7F\u7528\u6E38\u620F\u9644\u5E26\u7684\u624B\u7ED8 SVG \u56FE\u6807", icon: "\u{1F3A8}" }
+    ]) {
+      const row = el("div", "dp-item dp-setting-row");
+      row.appendChild(el("span", "dp-setting-emoji", option.icon));
+      const copy = el("span", "dp-grow");
+      copy.appendChild(el("b", null, option.title));
+      copy.appendChild(el("small", "dp-dim", option.detail));
+      row.appendChild(copy);
+      const pick = button("dp-mini", { "data-icon-style": option.key }, function() {
+        setIconStyle(option.key);
+        ui.renderContent();
+      });
+      pick.textContent = chosen === option.key ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
+      pick.disabled = chosen === option.key;
+      row.appendChild(pick);
+      ui.content.appendChild(row);
+    }
+  }
+
   // src/client/panel.js
   var URGENT_KINDS = ["sick", "worse", "death", "cured", "revived"];
   function createPanel(ctx) {
@@ -4070,6 +4150,7 @@
         if (typeof ctx.pomoTick === "function") ctx.pomoTick();
       } else if (ctx.tab === "dev") renderDevTab(ctx);
       else if (ctx.tab === "update") renderUpdateTab(ctx);
+      else if (ctx.tab === "settings") renderSettingsTab(ctx);
       else renderBagTab(ctx);
       ctx.fitPanel();
     }

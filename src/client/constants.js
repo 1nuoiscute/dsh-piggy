@@ -21,6 +21,7 @@ export const GREET_DELAY_MS = 1500
 export const MOUNTED = 'data-dsh-pig'
 export const OPEN_KEY = 'dsh-piggy:open'
 export const POSITION_KEY = 'dsh-piggy:position'
+export const ICON_STYLE_KEY = 'dsh-piggy:icon-style'
 // Must match `.dp-card{width}` — used to keep the panel inside the window.
 export const PANEL_WIDTH = 292
 export const PANEL_GAP = 8
@@ -47,6 +48,7 @@ export const TABS = [
   { key: 'bag', label: '背包', emoji: '🎒' },
   { key: 'pomodoro', label: '番茄钟', emoji: '🍅' },
   { key: 'fishing', label: '钓鱼', emoji: '🎣' },
+  { key: 'settings', label: '设置', emoji: '⚙️' },
 ]
 
 // 调试模式（C1）：主屏版本号连点 7 次解锁，只在内存里记住 —— 刷新就关。

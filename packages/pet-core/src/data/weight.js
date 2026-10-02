@@ -6,6 +6,7 @@ export const WEIGHT_RULES = Object.freeze({
   growthGPerXp: 90 * 4.8 / 22 / 100,
   roundRatio: 1.3,
   fatRatio: 1.6,
+  roundSizeMultiplier: 1.18,
   fatSizeMultiplier: 1.5,
   playLoss: 0.03,
   playsPerDay: 10,

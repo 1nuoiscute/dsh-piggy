@@ -78,7 +78,7 @@ export function setBodyWeightClass(state, bodyClass) {
   state.weightG = Math.round(idealWeightG(state) * ratios[bodyClass])
 }
 
-/** Read-only status data. Only fat + ordinary form + default skin changes artwork. */
+/** Read-only status data. Weight art only overlays the ordinary default pig. */
 export function bodyWeightView(state, nowMs) {
   if (state?.hatched !== true || state.dead === true) return null
   const ideal = idealWeightG(state)
@@ -89,8 +89,8 @@ export function bodyWeightView(state, nowMs) {
   const fatAtG = Math.round(ideal * WEIGHT_RULES.fatRatio)
   return {
     class: bodyClass,
-    label: bodyClass === 'fat' ? '胖胖' : (bodyClass === 'round' ? '圆润' : '正常'),
-    visible: bodyClass === 'fat' && state.form == null && hasDefaultSkin,
+    label: bodyClass === 'fat' ? '大肥猪' : (bodyClass === 'round' ? '胖胖猪' : '正常'),
+    visible: bodyClass !== 'normal' && state.form == null && hasDefaultSkin,
     idealG: ideal,
     roundAtG,
     fatAtG,
@@ -101,15 +101,17 @@ export function bodyWeightView(state, nowMs) {
   }
 }
 
-/** Lay contributed fat artwork over the ordinary default pig only. */
+/** Lay the two contributed weight sets over the ordinary default pig only. */
 export function weightStageView(state, life, nowMs) {
-  if (!bodyWeightView(state, nowMs)?.visible) return life
+  const weight = bodyWeightView(state, nowMs)
+  if (!weight?.visible) return life
+  const fat = weight.class === 'fat'
   return {
     ...life,
-    label: '胖胖猪',
-    art: 'pig-fat',
+    label: fat ? '大肥猪' : '胖胖猪',
+    art: fat ? 'pig-fat' : 'pig-round',
     actionArt: true,
-    size: Math.round(life.size * WEIGHT_RULES.fatSizeMultiplier),
-    line: '圆滚滚的，走两步肚子也跟着晃。',
+    size: Math.round(life.size * (fat ? WEIGHT_RULES.fatSizeMultiplier : WEIGHT_RULES.roundSizeMultiplier)),
+    line: fat ? '胖得像一朵会走路的云，尾巴还在后面努力摇。' : '肚子有点圆，走路一颠一颠的。',
   }
 }

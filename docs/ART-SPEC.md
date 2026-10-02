@@ -277,4 +277,4 @@ xdg-open tools/style-check.html
 
 ### 胖猪
 
-圆润、胖胖各一套，张数和场景同上表（最少 5 张：待机/吃/洗澡/玩/摸），文件名 `pig-round*.svg`、`pig-fat*.svg`，例如 `pig-round-eat.svg`。只用于普通形态的默认皮肤。
+圆润、最胖各一套，张数和场景同上表（待机加 8 个动作），文件名 `pig-round*.svg`、`pig-fat*.svg`，例如 `pig-round-eat.svg`。`pig-round` 使用 PR #4 原胖猪素材，`pig-fat` 使用后续更胖的 9 图素材；只用于普通形态的默认皮肤，晋升形态和自选皮肤优先。

@@ -84,6 +84,7 @@ test('the contract shares the promotion shelf and its refusal does not spend it'
   assert.equal(signed.form, 'devil')
   assert.equal(state.inventory.contract, 1, 'a signed contract is spent')
   assert.equal(state.form, 'devil')
+  assert.ok(state.pending.some(entry => entry.kind === 'line' && entry.scene === 'contract'))
 
   // Signing again is refused rather than silently burning another one.
   const again = useItem(state, 'contract', NOW)
