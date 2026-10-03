@@ -20,7 +20,7 @@
 <body>
 <div id="note">
   <b>dsh-piggy 客户端预览</b><br>
-  伪造宿主：不连真实 DSH，只喂一份快照给 <code>client.js</code>。<br>
+  伪造宿主：不连真实 DSH，只喂示例快照给 <code>client.js</code>；购买等操作不会真实存档。<br>
   用 <code>window.pigStub.setOpen(true/false)</code> 切换收起/展开。
 </div>
 
@@ -214,6 +214,47 @@
       { day: '2026-09-29', text: '出门打工 2 趟，赚了 120 金币！上了 1 节课，脑袋里又装进去一点东西。' },
       { day: '2026-09-28', text: '今天主人没来，我睡了一整天。' },
     ],
+  }
+
+  // Keep the local preview representative of the current host snapshot. Its
+  // values are examples for visual checks, not a playable save.
+  SNAPSHOT.version = '0.27.1'
+  SNAPSHOT.pig.stage = { key: 'middle', label: '圆滚猪', emoji: '🐖', size: 62, art: '../../assets/pig-round' }
+  SNAPSHOT.pig.levelInfo = { level: 3, percent: 48, toNext: 20, maxed: false, title: { label: '新来的', emoji: '🌱' } }
+  SNAPSHOT.profile = {
+    birthday: '9 月 28 日', zodiac: { emoji: '♎', label: '天秤座' },
+    personality: { emoji: '🌼', label: '乐天派' }, catchphrase: '哼哼', motto: '今天也要好好吃饭',
+    counts: { days: 6, certificates: 1, souvenirs: 2, graduations: 1 },
+  }
+  SNAPSHOT.pomodoro = {
+    active: false, minutes: 25, secondsLeft: 0, breakSecondsLeft: 0, breakMinutes: 5,
+    todayDone: 2, rewardedToday: 2, cap: 8, reward: { coins: 8, happiness: 6 }, options: [15, 25, 45],
+  }
+  SNAPSHOT.shop.push(
+    { key: 'bait_worm', label: '蚯蚓鱼饵', emoji: '🪱', price: 5, kind: 'bait', affordable: true },
+    { key: 'bait_shrimp', label: '鲜虾鱼饵', emoji: '🦐', price: 15, kind: 'bait', affordable: true },
+    { key: 'bait_glow', label: '夜光鱼饵', emoji: '✨', price: 40, kind: 'bait', affordable: true },
+  )
+  SNAPSHOT.inventory.bait_worm = 3
+  SNAPSHOT.inventory.bait_shrimp = 1
+  SNAPSHOT.fishing = { pending: null, bag: [
+    { id: 'preview-carp', key: 'carp', label: '鲤鱼', emoji: '🐟', rarity: 'common', sizeCm: 28, price: 16 },
+  ], autoLeft: 2 }
+  SNAPSHOT.skins = { current: 'mint', entries: [
+    { key: 'mint', label: '薄荷猪', emoji: '🌿', art: '../../assets/skin-mint', author: '社区', description: '清爽的薄荷色。', current: true, unlocked: true },
+    { key: 'chef', label: '厨师猪', emoji: '👨‍🍳', art: '../../assets/career-chef', unlockJob: 'dish', unlocked: false },
+  ] }
+  SNAPSHOT.dex = {
+    forms: [
+      { key: 'king', label: '猪猪王', emoji: '👑', art: '../../assets/pig-king', acquired: false, hint: '王冠在等一只准备好的猪。' },
+    ],
+    skins: [
+      { key: 'mint', label: '薄荷猪', emoji: '🌿', art: '../../assets/skin-mint', acquired: true, count: 1, description: '清爽的薄荷色。' },
+      { key: 'chef', label: '厨师猪', emoji: '👨‍🍳', art: '../../assets/career-chef', acquired: false, hint: '厨房里藏着下一件制服。' },
+    ],
+    fish: [{ key: 'carp', label: '鲤鱼', emoji: '🐟', acquired: true, count: 1, maxSizeCm: 28 }],
+    items: [{ key: 'apple', label: '苹果', emoji: '🍎', kind: 'food', kindLabel: '食物', acquired: true, count: 2 }],
+    souvenirs: [{ key: 'shell', label: '海螺', emoji: '🐚', acquired: true, count: 1 }],
   }
 
   // Capture the self-registration instead of loading it as a DSH client plugin.

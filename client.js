@@ -1706,7 +1706,8 @@
     ".dp-tile:disabled{cursor:default}",
     '.dp-tile[data-active="true"] .dp-tile-icon{outline:3px solid var(--ac-active);outline-offset:2px}',
     // The second layer's top row: back, title, one grey line.
-    ".dp-drill{display:flex;align-items:center;gap:7px;margin:0 0 10px}",
+    ".dp-drill{position:sticky;top:-12px;z-index:5;display:flex;align-items:center;gap:7px;",
+    "margin:-12px 0 10px;padding:12px 0 0;background:var(--ac-bg)}",
     ".dp-drill-back{font:inherit;font-size:16px;font-weight:800;line-height:1;width:26px;height:26px;",
     "flex:none;cursor:pointer;color:var(--ac-text);border-radius:50%;",
     "border:2px solid var(--ac-border-light);background:var(--ac-bg-input)}",
@@ -4138,7 +4139,10 @@
         ctx.drill.pick = null;
       }
       renderContent();
-      if (previous !== next && ctx.isOpen) animateAppEntry(ctx.content);
+      if (previous !== next) {
+        ctx.content.scrollTop = 0;
+        if (ctx.isOpen) animateAppEntry(ctx.content);
+      }
       for (var k in ctx.icons) ctx.icons[k].setAttribute("data-active", k === ctx.tab ? "true" : "false");
     }
     var pomodoroNotifiedAt = null;

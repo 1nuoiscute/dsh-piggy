@@ -84,7 +84,10 @@ export function createPanel(ctx) {
         // Opening a tile tab always starts at its top layer.
         if (next in ctx.drill) { ctx.drill[next] = null; ctx.drill.pick = null }
         renderContent()
-        if (previous !== next && ctx.isOpen) animateAppEntry(ctx.content)
+        if (previous !== next) {
+          ctx.content.scrollTop = 0
+          if (ctx.isOpen) animateAppEntry(ctx.content)
+        }
         for (var k in ctx.icons) ctx.icons[k].setAttribute('data-active', k === ctx.tab ? 'true' : 'false')
       }
 

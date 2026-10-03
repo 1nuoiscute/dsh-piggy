@@ -31,3 +31,12 @@ test('reduced motion skips interaction animations', async () => {
   findByAttr(contentOf(dom), 'data-app', 'shop').fire('click')
   assert.equal(count, 0)
 })
+
+test('returning from a long App opens the home screen at its top', async () => {
+  const { dom } = await mount()
+  openPanel(dom, 'shop')
+  const content = contentOf(dom)
+  content.scrollTop = 400
+  findByAttr(content, 'data-home', 'true').fire('click')
+  assert.equal(content.scrollTop, 0)
+})
