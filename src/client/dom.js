@@ -19,7 +19,7 @@ export function button(className, attrs, onClick) {
   for (var key in attrs) node.setAttribute(key, attrs[key])
   node.addEventListener('click', function (event) {
     event.stopPropagation()
-    onClick()
+    onClick(event)
   })
   return node
 }

@@ -55,7 +55,7 @@ function renderSkills(ui) {
   ui.content.appendChild(grid)
 }
 
-/** Job tiles; the picked one opens its details under the grid. */
+/** Job tiles; the picked job stays visible under the scrolling list. */
 function renderJobs(ui, jobs, color) {
   var grid = tileGrid()
   var picked = null
@@ -77,7 +77,10 @@ function renderJobs(ui, jobs, color) {
     })(jobs[i])
   }
   ui.content.appendChild(grid)
-  if (picked !== null) ui.content.appendChild(jobDetails(ui, picked))
+  if (picked !== null) {
+    ui.footer.appendChild(jobDetails(ui, picked))
+    ui.footer.hidden = false
+  }
 }
 
 /** 详情: every condition with a tick or a cross, what the job pays and costs, and 出发. */

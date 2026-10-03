@@ -108,6 +108,10 @@ export const CSS_TABS = [
 
   /* ---------- content ---------- */
   '.dp-content{padding:12px 13px 13px;overflow-y:auto;flex:1 1 auto;min-height:0}',
+  '[data-dsh-pig] .dp-panel-footer[hidden]{display:none}',
+  '.dp-panel-footer{flex:none;max-height:min(42vh,270px);overflow-y:auto;padding:10px 13px 12px;',
+  'border-top:2px solid var(--ac-border-light);background:var(--ac-bg)}',
+  '.dp-panel-footer .dp-job-detail{margin:0}',
   '.dp-content::-webkit-scrollbar{width:8px}',
   '.dp-content::-webkit-scrollbar-thumb{background:var(--ac-border-light);border-radius:4px}',
   '.dp-content::-webkit-scrollbar-track{background:transparent}',

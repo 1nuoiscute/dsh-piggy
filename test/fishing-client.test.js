@@ -37,6 +37,15 @@ test('fishing lets the player choose bait; no bait disables casting', async () =
   assert.equal(findByAttr(contentOf(empty.dom), 'data-fish', 'cast').disabled, true)
 })
 
+test('hungry pig gets an explicit casting reason and a route to feeding', async () => {
+  const { dom } = await mount({ status: { ...status(), pig: { ...SNAPSHOT.pig, satiety: 0 } } })
+  openPanel(dom, 'fishing')
+  const content = contentOf(dom)
+  assert.match(content.allText(), /饱食.*先.*喂食/)
+  assert.equal(findByAttr(content, 'data-fish', 'cast').disabled, true)
+  assert.notEqual(findByAttr(content, 'data-fish-care', 'feed'), undefined)
+})
+
 test('C5 caught result shows fish facts and keeps it into the bag', async () => {
   const caught = { id: 'catch-1', key: 'fish_carp', label: '鲤鱼', emoji: '🐟', sizeCm: 33.2, price: 12, phase: 'caught', difficulty: 18, behavior: 'smooth' }
   const { dom, calls } = await mount({ status: status({ pending: caught }) })
@@ -63,6 +72,15 @@ test('C5 hooked fish uses a circular skill-check QTE scaled by difficulty', asyn
   qte.fire('pointerdown', { pointerType: 'mouse', timeStamp: 100 }) // 点早也要立刻反馈。
   await settle()
   assert.equal(calls.length, callCount)
+  assert.match(qte.getAttribute('data-qte-feedback'), /还没到时机/)
+})
+
+test('QTE click and keyboard activation receive the event and show immediate feedback', async () => {
+  const hooked = { id: 'catch-keyboard', key: 'fish_carp', label: '鲤鱼', emoji: '🐟', phase: 'hooked', difficulty: 30 }
+  const { dom } = await mount({ status: status({ pending: hooked }) })
+  openPanel(dom, 'fishing')
+  const qte = findByAttr(contentOf(dom), 'data-fish-qte', 'true')
+  qte.fire('click', { detail: 0, timeStamp: 100 })
   assert.match(qte.getAttribute('data-qte-feedback'), /还没到时机/)
 })
 

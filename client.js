@@ -95,7 +95,7 @@
     for (var key in attrs) node.setAttribute(key, attrs[key]);
     node.addEventListener("click", function(event) {
       event.stopPropagation();
-      onClick();
+      onClick(event);
     });
     return node;
   }
@@ -1180,724 +1180,6 @@
     return rest === 0 ? hours + " \u5C0F\u65F6" : hours + " \u5C0F\u65F6" + rest + " \u5206";
   }
 
-  // src/client/css-base.js
-  var CSS_BASE = [
-    // ---------------------------------------------------------------------
-    // Animal Crossing design language, transcribed from
-    // guokaigdg/animal-island-ui docs/design-system (design-tokens.md and the
-    // standalone css-variables.md template).
-    //
-    // The tokens are declared on the widget root rather than :root: the host
-    // page must not inherit them, and they must not be clobbered by it.
-    //
-    // The rules that shape everything below:
-    //   · warm earth-brown text on cream parchment, never pure black or grey
-    //   · 12px minimum radius; buttons and inputs are 50px pills
-    //   · the thick 3D bottom shadow belongs to primary buttons only
-    //   · cards carry a border, not an elevation shadow
-    //   · motion is 0.15-0.35s on cubic-bezier(.4,0,.2,1)
-    //   · focus rings are yellow or teal, never blue
-    // ---------------------------------------------------------------------
-    "[data-dsh-pig]{",
-    '--ac-font:Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;',
-    "--ac-primary:#19c8b9;--ac-primary-hover:#3dd4c6;--ac-primary-active:#11a89b;",
-    "--ac-primary-bg:#e6f9f6;",
-    "--ac-text:#794f27;--ac-text-body:#725d42;--ac-text-2:#9f927d;--ac-text-muted:#8a7b66;",
-    "--ac-text-disabled:#c4b89e;",
-    "--ac-bg:#f8f8f0;--ac-bg-content:rgb(247,243,223);--ac-bg-input:#fffbe7;",
-    "--ac-bg-disabled:#f0ece2;",
-    "--ac-border:#c4b89e;--ac-border-light:#e5dcc6;--ac-border-hover:#a89878;",
-    "--ac-radius-sm:12px;--ac-radius-card:20px;--ac-pill:50px;",
-    "--ac-shadow-sm:0 2px 4px 0 rgba(61,52,40,.06);",
-    "--ac-shadow:0 3px 10px 0 rgba(61,52,40,.1);",
-    "--ac-shadow-lg:0 8px 24px 0 rgba(61,52,40,.16);",
-    "--ac-inset:inset 0 2px 4px rgba(114,93,66,.15);",
-    // sidebar tokens: the library uses these for the selected menu row, which
-    // is exactly the role the icon bar plays here.
-    "--ac-active:#b7c6e5;--ac-hover:#d6dff0;",
-    "--ac-success:#6fba2c;--ac-warning:#f5c31c;--ac-error:#e05a5a;",
-    "--ac-ease:cubic-bezier(.4,0,.2,1);",
-    // One place to size the pig; the scene and the panel cap derive from it.
-    "--pig-size:56px;--pig-gap-below:12px;--scene-open:132px;--panel-width:292px;",
-    "position:fixed;right:18px;bottom:18px;z-index:2147483000;",
-    "font-family:var(--ac-font);font-weight:500;letter-spacing:.01em;",
-    "-webkit-user-select:none;user-select:none;touch-action:none;",
-    // The wrapper spans a column wider and taller than what it paints (the
-    // scene's padding, the gap above the panel). Without this it swallows
-    // clicks aimed at the page underneath — which once looked like "sending a
-    // message does nothing" while the whole stack was healthy.
-    "pointer-events:none;",
-    // The pig is the only in-flow child, so the wrapper's box is exactly the
-    // pig's box and the panel can be parked anywhere around it without ever
-    // nudging the pig. `fitPanel` places the panel.
-    "display:block}",
-    "[data-dsh-pig] *{box-sizing:border-box}",
-    "[data-dsh-pig]>*{pointer-events:auto}",
-    // `hidden` MUST win. The UA sheet's `[hidden]{display:none}` ties on
-    // specificity with a single class, so any `.dp-x{display:grid|flex}` rule
-    // below silently beats it and the element keeps rendering. That is exactly
-    // how a collapsed panel ended up showing the icon bar and the hud while
-    // every `el.hidden === true` assertion still passed.
-    "[data-dsh-pig] .dp-card[hidden],[data-dsh-pig] .dp-bar[hidden],",
-    "[data-dsh-pig] .dp-content[hidden],[data-dsh-pig] .dp-hud[hidden],",
-    "[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],",
-    "[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],",
-    "[data-dsh-pig] .dp-poke-hint[hidden],[data-dsh-pig] .dp-daily[hidden],",
-    "[data-dsh-pig] .dp-pomo[hidden],",
-    "[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}",
-    /* ---------- the panel: cream parchment, border not shadow ---------- */
-    // Taken out of flow on purpose. In flow it would widen the wrapper, and a
-    // wider wrapper moves the pig — the exact thing this layout exists to
-    // prevent. Absolutely positioned, the wrapper's box stays the pig's box
-    // and `fitPanel` can put the panel on whichever side has room.
-    ".dp-card{position:absolute;right:0;bottom:calc(100% + 8px);width:var(--panel-width);",
-    "border-radius:var(--ac-radius-card);overflow:hidden;",
-    "display:flex;flex-direction:column;",
-    "background:var(--ac-bg);border:2px solid var(--ac-border-light);",
-    // 面板自己钉住基准字号与字体：不钉就会继承宿主页面的 16px，
-    // 详情框那种「没写 font-size 的容器」就会比周围大一倍（用户反馈 #2）。
-    "box-shadow:var(--ac-shadow-lg);color:var(--ac-text-body);font-family:var(--ac-font);font-size:11px}",
-    /* ---------- the pig: never moved, never boxed ---------- */
-    ".dp-scene{position:relative;height:var(--scene-open);background:none;cursor:grab;",
-    "overflow:visible;display:flex;align-items:flex-end;justify-content:flex-end;",
-    "padding:0 6px var(--pig-gap-below);width:max-content}",
-    '.dp-scene[data-dragging="true"]{cursor:grabbing}',
-    // Collapsed the scene is exactly the pig, so the wrapper paints nothing
-    // extra to click through. Open it widens to the panel so the hud and the
-    // speech bubble have somewhere to sit — the pig is right-aligned either
-    // way, so widening costs it no movement.
-    '[data-dsh-pig][data-open="true"] .dp-scene{width:var(--panel-width)}',
-    // 桌面版面板朝右开时（外壳把窗口贴着猪、右边有地方），猪改待在场景左端，
-    // 跟着猪定位的气泡和打工道具也要镜像 —— 网页版没有这个属性，规则不命中。
-    '[data-dsh-pig][data-panel-side="right"] .dp-scene{justify-content:flex-start}',
-    '[data-dsh-pig][data-panel-side="right"] .dp-bubble{right:auto;left:8px}',
-    '[data-dsh-pig][data-panel-side="right"] .dp-work{margin:0 0 6px 2px}',
-    // Collapsed the scene shrinks to just the pig. An explicit height rather
-    // than `auto` keeps the pig's line box identical in both states, so
-    // opening moves it by exactly zero pixels.
-    '[data-dsh-pig][data-open="false"] .dp-scene{height:calc(var(--pig-size) + var(--pig-gap-below));',
-    "cursor:pointer}",
-    // 阴影挂在立绘（不动的元素）上，而不是做 bob/breathe 的 .dp-pig 上：
-    // 动画只改 transform，滤镜跟着每帧重算在 Windows 上很贵（D1 第 4 条）。
-    ".dp-pig{line-height:1;transform-origin:50% 85%;cursor:pointer;position:relative;",
-    "animation:dp-bob 1.8s ease-in-out infinite}",
-    ".dp-pig-img,.dp-pig-emoji{filter:drop-shadow(0 4px 6px rgba(61,52,40,.28))}",
-    // 装扮点位：猪身上固定的几个锚点，每个点位挂一件。
-    // 以后换真立绘时，只改这里的偏移/尺寸，逻辑和存档都不用动。
-    ".dp-dress{position:absolute;inset:0;pointer-events:none;z-index:3}",
-    ".dp-slot{position:absolute;line-height:1;font-size:15px;transform:translate(-50%,-50%)}",
-    '.dp-slot[data-slot="head"]{left:50%;top:2%}',
-    '.dp-slot[data-slot="face"]{left:50%;top:32%}',
-    '.dp-slot[data-slot="neck"]{left:50%;top:60%}',
-    '.dp-slot[data-slot="body"]{left:50%;top:78%;font-size:19px}',
-    '.dp-slot[data-slot="back"]{left:14%;top:42%;font-size:19px}',
-    '.dp-slot[data-slot="feet"]{left:50%;top:99%}',
-    '[data-dsh-pig][data-open="false"] .dp-pig{filter:drop-shadow(0 5px 9px rgba(61,52,40,.26))}',
-    // A petting hand rather than an arrow. Drawn inline as an SVG data URI so
-    // it needs no asset and can carry the palette's warm outline; the hotspot
-    // sits in the palm, which is where a pat actually lands. The `pointer`
-    // after it is the fallback for browsers that refuse a custom cursor.
-    `.dp-pig{cursor:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="%23F7C9B6" stroke="%23794F27" stroke-width="1.7" stroke-linejoin="round"><rect x="10" y="13.5" width="14" height="12" rx="4.8"/><rect x="10.6" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="14.9" y="5.1" width="3.6" height="11.5" rx="1.8"/><rect x="19.2" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="5.7" y="12.4" width="3.4" height="7.8" rx="1.7" transform="rotate(-27 7.4 16.3)"/></g></svg>') 16 24, pointer}`,
-    // Transform-only keyframes: the pig is an ordinary flex item, so there is
-    // no translateX(-50%) centring to preserve.
-    "@keyframes dp-bob{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-7px) rotate(-2.5deg)}}",
-    "@keyframes dp-breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(1px) scale(1.09)}}",
-    "@keyframes dp-shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-4px) rotate(-5deg)}60%{transform:translateX(4px) rotate(5deg)}}",
-    "@keyframes dp-spin{0%{transform:rotate(0)}50%{transform:rotate(180deg) scale(1.2)}100%{transform:rotate(360deg)}}",
-    "@keyframes dp-jump{0%{transform:translateY(0)}30%{transform:translateY(-26px) scale(1.12)}60%{transform:translateY(0) scale(.92)}100%{transform:translateY(0)}}",
-    "@keyframes dp-wobble{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}55%{transform:rotate(14deg)}}",
-    "@keyframes dp-cough{0%,100%{transform:translateX(0)}30%{transform:translateX(-4px) rotate(-7deg)}70%{transform:translateX(4px) rotate(6deg)}}",
-    '.dp-pig[data-mood="happy"]{animation-duration:1.15s}',
-    '.dp-pig[data-mood="sleepy"]{animation-name:dp-breathe;animation-duration:3.6s}',
-    '.dp-pig[data-mood="hungry"]{animation-name:dp-shake;animation-duration:2.4s}',
-    '.dp-pig[data-mood="dirty"]{animation-name:dp-breathe;animation-duration:2.6s}',
-    '.dp-pig[data-mood="dirty"] .dp-pig-img,.dp-pig[data-mood="dirty"] .dp-pig-emoji{filter:sepia(.4) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
-    '.dp-pig[data-mood="sick"]{animation-name:dp-cough;animation-duration:2.2s}',
-    '.dp-pig[data-mood="sick"] .dp-pig-img,.dp-pig[data-mood="sick"] .dp-pig-emoji{filter:hue-rotate(-28deg) saturate(.75) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
-    // One pose per activity, so being away reads as a thing the pig is doing.
-    "@keyframes dp-typing{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(-1.5deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-2px) rotate(1.5deg)}}",
-    "@keyframes dp-reading{0%,100%{transform:translateY(0) rotate(0)}35%{transform:translateY(1px) rotate(-5deg)}70%{transform:translateY(1px) rotate(-2deg)}}",
-    "@keyframes dp-walking{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-6px) rotate(-4deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-6px) rotate(4deg)}}",
-    '.dp-pig[data-mood="working"]{animation-name:dp-typing;animation-duration:.7s}',
-    '.dp-pig[data-mood="studying"]{animation-name:dp-reading;animation-duration:2.4s}',
-    '.dp-pig[data-mood="traveling"]{animation-name:dp-walking;animation-duration:1s}',
-    '.dp-pig[data-mood="dead"]{animation:none}',
-    '.dp-pig[data-mood="dead"] .dp-pig-img,.dp-pig[data-mood="dead"] .dp-pig-emoji{filter:grayscale(1) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
-    ".dp-pig[data-react]{animation-duration:.85s;animation-iteration-count:1}",
-    '.dp-pig[data-react="feed"]{animation-name:dp-jump}',
-    '.dp-pig[data-react="bathe"]{animation-name:dp-wobble;animation-duration:1.05s}',
-    '.dp-pig[data-react="play"]{animation-name:dp-spin;animation-duration:.9s}',
-    '.dp-pig[data-react="away"]{animation-name:dp-jump;animation-duration:.9s}',
-    '.dp-pig[data-react="cure"]{animation-name:dp-spin;animation-duration:.9s}',
-    '.dp-pig[data-react="levelup"]{animation-name:dp-jump;animation-duration:.95s}',
-    '.dp-pig[data-react="refuse"]{animation-name:dp-shake;animation-duration:.5s}',
-    /* ---------- what the pig is off doing ---------- */
-    "[data-dsh-pig] .dp-work{display:flex;flex-direction:column;align-items:center;gap:4px;",
-    "margin:0 2px 6px 0}",
-    ".dp-prop{font-size:26px;line-height:1;filter:drop-shadow(0 3px 5px rgba(61,52,40,.22));",
-    "animation:dp-prop-bob 2.4s ease-in-out infinite}",
-    '[data-dsh-pig][data-away="study"] .dp-prop{animation-duration:3.4s}',
-    '[data-dsh-pig][data-away="trip"] .dp-prop{animation-name:dp-prop-swing;animation-duration:1.6s}',
-    '[data-dsh-pig][data-away="interest"] .dp-prop{animation-duration:3.4s}',
-    "@keyframes dp-prop-bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3px) rotate(3deg)}}",
-    "@keyframes dp-prop-swing{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-4px) rotate(8deg)}}",
-    ".dp-progress{width:42px;height:7px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
-    "box-shadow:var(--ac-inset);overflow:hidden}",
-    ".dp-progress i{display:block;height:100%;border-radius:var(--ac-pill);",
-    "background:var(--ac-primary);transition:width .5s var(--ac-ease)}",
-    // The scene needs room for the prop; it grows leftward, so the pig stays put.
-    '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
-    '[data-dsh-pig][data-away="interest"] .dp-scene,',
-    '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
-    // 加冕后的形态有动作立绘（桌子、书、行李都画在图里）：不再摆 emoji 道具，
-    // 动作也收小，免得把画里的东西甩来甩去（立绘与动作来自 PR #2）。
-    '[data-dsh-pig][data-art-actions="true"] .dp-prop{display:none}',
-    '.dp-pig[data-art-actions="true"][data-mood="working"]:not([data-react]){animation:dp-king-work 1.4s ease-in-out infinite}',
-    '.dp-pig[data-art-actions="true"][data-mood="studying"]:not([data-react]){animation:dp-king-study 2.4s ease-in-out infinite}',
-    '.dp-pig[data-art-actions="true"][data-mood="traveling"]:not([data-react]){animation:dp-king-walk .8s ease-in-out infinite}',
-    "@keyframes dp-king-work{0%,100%{transform:translateY(0)}50%{transform:translateY(1px) rotate(1deg)}}",
-    "@keyframes dp-king-study{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}",
-    "@keyframes dp-king-walk{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}",
-    /* ---------- hud: a cream tag beside the pig ---------- */
-    ".dp-hud{position:absolute;left:9px;top:7px;display:flex;flex-direction:column;gap:1px;",
-    "font-size:10.5px;font-weight:600;line-height:1.45;color:var(--ac-text);",
-    "background:var(--ac-bg);border:2px solid var(--ac-border-light);padding:5px 10px;",
-    "border-radius:var(--ac-radius-sm);box-shadow:var(--ac-shadow-sm)}",
-    ".dp-hud b{font-weight:700}",
-    // A drawn sprite is sized by the same variable as the emoji, so growing up
-    // works identically either way.
-    ".dp-pig-img{width:var(--pig-size);height:var(--pig-size);display:block;",
-    "-webkit-user-drag:none;user-select:none}",
-    ".dp-pig-emoji{font-size:var(--pig-size);line-height:1}",
-    // No drawings yet — every stage is the same pig, so age reads as size plus
-    // a faded coat on the last one.
-    '[data-dsh-pig][data-faded="true"] .dp-pig-emoji{filter:grayscale(.5) opacity(.72)}',
-    // The box advertises itself: a slow breathing glow plus a label, so it
-    // does not read as scenery.
-    '[data-dsh-pig][data-unhatched="true"] .dp-pig{cursor:pointer;',
-    "animation:dp-box-breathe 2.4s ease-in-out infinite}",
-    '[data-dsh-pig][data-unhatched="true"] .dp-pig-emoji{',
-    "filter:drop-shadow(0 0 0 rgba(255,214,102,0)) drop-shadow(0 4px 6px rgba(61,52,40,.28))}",
-    "@keyframes dp-box-breathe{0%,100%{transform:translateY(0) scale(1)}",
-    "50%{transform:translateY(-3px) scale(1.06)}}",
-    ".dp-poke-hint{position:absolute;right:2px;bottom:-2px;display:flex;align-items:center;gap:3px;",
-    "font-size:9.5px;font-weight:700;color:var(--ac-text);background:var(--ac-bg);",
-    "border:1.5px solid var(--ac-border-light);border-radius:var(--ac-pill);padding:1px 7px;",
-    "box-shadow:0 2px 0 rgba(61,52,40,.12);pointer-events:none;white-space:nowrap;z-index:3;",
-    "animation:dp-hint-bob 1.6s ease-in-out infinite}",
-    "@keyframes dp-hint-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}",
-    // Each poke shakes it harder; the third one opens it instead.
-    '[data-dsh-pig] .dp-pig[data-mood="poke"],',
-    "[data-dsh-pig][data-poke] .dp-pig{animation-name:dp-poke-shake}",
-    '[data-dsh-pig][data-poke="2"] .dp-pig{animation-duration:.28s}',
-    "@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}",
-    "50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}"
-    // The shop's tiles live in css-tiles.js since B8.
-  ].join("");
-
-  // src/client/css-tabs.js
-  var CSS_TABS = [
-    /* ---------- developer tab ---------- */
-    ".dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}",
-    ".dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}",
-    ".dp-dev-btn{flex:0 0 auto;font-size:10px;padding:3px 8px}",
-    ".dp-on{background:var(--ac-primary);color:#fff;border-color:var(--ac-primary)}",
-    '[data-dsh-pig][data-dev="true"] .dp-ico[data-tab="dev"]{color:var(--ac-primary)}',
-    /* ---------- the soul that settles on an unclaimed grave ---------- */
-    ".dp-soul{position:absolute;left:50%;transform:translateX(-50%);top:-4px;font-size:22px;",
-    "line-height:1;opacity:.9;pointer-events:none;z-index:1;",
-    "animation:dp-haunt 3.4s ease-in-out infinite}",
-    "@keyframes dp-haunt{0%,100%{transform:translate(-50%,0) scale(1);opacity:.75}",
-    "50%{transform:translate(-50%,-9px) scale(1.08);opacity:1}}",
-    // A grave does not bob about like a living pig.
-    '.dp-pig[data-stage="grave"]{animation:none;filter:grayscale(.35) drop-shadow(0 4px 6px rgba(61,52,40,.3))}',
-    '.dp-pig[data-stage="box"]{animation:dp-box-wobble 3.2s ease-in-out infinite}',
-    "@keyframes dp-box-wobble{0%,100%{transform:rotate(0)}30%{transform:rotate(-4deg)}",
-    "45%{transform:rotate(3deg)}60%{transform:rotate(-2deg)}}",
-    // Patting squashes the pig flat. Short, so rapid clicking keeps up.
-    '[data-dsh-pig] .dp-pig[data-react="pet"]{animation-name:dp-squash;animation-duration:.42s}',
-    "@keyframes dp-squash{0%{transform:scale(1,1)}35%{transform:scale(1.16,.74) translateY(2px)}",
-    "60%{transform:scale(.94,1.08) translateY(-3px)}100%{transform:scale(1,1)}}",
-    /* ---------- speech bubble ---------- */
-    // `z-index` matters: the pig comes later in the DOM, so without it the pig
-    // paints over the bubble whenever the two boxes overlap — which is exactly
-    // what happened when collapsed and the scene was only as wide as the pig.
-    ".dp-bubble{position:absolute;right:8px;top:7px;z-index:2;max-width:162px;padding:6px 10px;",
-    '[data-dsh-pig][data-panel-side="right"] .dp-bubble::after{left:auto;right:14px}',
-    "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.45;",
-    "color:var(--ac-text-body);background:var(--ac-bg-input);",
-    "border:2px solid var(--ac-border-light);box-shadow:var(--ac-shadow-sm)}",
-    // Tail drawn as a small rotated square so the 2px border stays continuous.
-    '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
-    "background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);",
-    "border-bottom:2px solid var(--ac-border-light);transform:rotate(45deg)}",
-    // Reply buttons under a line: small pills, the mint of the primary colour
-    // without the 3D base, which the spec keeps for real primary buttons.
-    ".dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
-    // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
-    // 挂在场景**上方**（不是 top 边缘）：折叠时场景就是猪本身，用 top:-6px
-    // 会让气泡叠在猪头上（用户反馈 #6）。
-    ".dp-daily{position:absolute;bottom:calc(100% + 7px);left:50%;width:36px;margin-left:-18px;",
-    "font:inherit;font-size:15px;line-height:1;padding:3px 0;cursor:pointer;text-align:center;",
-    "border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);",
-    "box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-daily-bob 2.4s var(--ac-ease) infinite}",
-    // 折叠时场景就剩猪本身（而且它还在上下浮动 ±7px），再多让开一点。
-    '[data-dsh-pig][data-open="false"] .dp-daily{bottom:calc(100% + 16px)}',
-    // 展开时场景有面板那么宽、那么高，挂在场景上方会压到图标栏（B8 截图里压在「商店」上）：
-    // 改成蹲在猪左边、贴着猪身子（再高会碰到左边的名字框）。
-    '[data-dsh-pig][data-open="true"] .dp-daily{left:auto;margin-left:0;',
-    "right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + 4px)}",
-    // 桌面版面板朝右开时猪在左端：日历跟着镜像到猪右边。
-    '[data-dsh-pig][data-panel-side="right"][data-open="true"] .dp-daily{right:auto;left:calc(6px + var(--pig-size) + 10px)}',
-    ".dp-daily:hover{border-color:var(--ac-border-hover)}",
-    ".dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
-    // 名字必须独占：叫 dp-bob 会覆盖猪的待机动画（css-base.js），
-    // 而那个动画的 transform 一被替掉，猪就会横跳半个身位。
-    // 只上下浮：横向居中改用 margin，展开时才能挪到猪旁边。
-    "@keyframes dp-daily-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}",
-    // 日记：折叠时只有首句，展开是全文。
-    ".dp-diary{cursor:pointer}",
-    '.dp-diary[data-open="true"] .dp-diary-full{display:block}',
-    ".dp-diary-full{margin-top:4px;line-height:1.5}",
-    ".dp-reply{font:inherit;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;",
-    "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);background:var(--ac-bg);",
-    "color:var(--ac-text);transition:border-color .15s var(--ac-ease)}",
-    ".dp-reply:hover{border-color:var(--ac-border-hover)}",
-    ".dp-reply:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
-    // Collapsed, the scene is exactly the pig, so a bubble drawn inside it
-    // would sit on the pig's face. Float it above the head with the tail
-    // pointing down, anchored to the right edge so it can never run off the
-    // window. The hearts rise from behind it.
-    '[data-dsh-pig][data-open="false"] .dp-bubble{top:auto;bottom:calc(100% + 8px);',
-    "left:auto;right:0;max-width:230px}",
-    '[data-dsh-pig][data-open="false"] .dp-bubble::after{left:auto;right:26px;',
-    "top:100%;bottom:auto;margin:0;transform:rotate(45deg);",
-    "border:0;border-right:2px solid var(--ac-border-light);",
-    "border-bottom:2px solid var(--ac-border-light)}",
-    /* ---------- icon bar: the library sidebar, laid on its side ---------- */
-    ".dp-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:8px;",
-    "background:var(--ac-bg-content);border-top:2px solid var(--ac-border-light);",
-    "border-bottom:2px solid var(--ac-border-light)}",
-    ".dp-ico{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;",
-    "font:inherit;font-size:9.5px;font-weight:600;color:var(--ac-text-muted);background:none;",
-    "border:2px solid transparent;border-radius:var(--ac-radius-sm);padding:5px 1px;",
-    "transition:all .2s var(--ac-ease)}",
-    ".dp-ico span.dp-ico-e{font-size:18px;line-height:1}",
-    ".dp-ico:hover{background:var(--ac-hover)}",
-    '.dp-ico[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
-    "color:var(--ac-text);font-weight:700}",
-    ".dp-ico:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
-    "@keyframes dp-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}",
-    '.dp-ico[data-alert="true"] span.dp-ico-e{animation:dp-pulse 1.4s ease-in-out infinite}',
-    /* ---------- content ---------- */
-    ".dp-content{padding:12px 13px 13px;overflow-y:auto;flex:1 1 auto;min-height:0}",
-    ".dp-content::-webkit-scrollbar{width:8px}",
-    ".dp-content::-webkit-scrollbar-thumb{background:var(--ac-border-light);border-radius:4px}",
-    ".dp-content::-webkit-scrollbar-track{background:transparent}",
-    ".dp-title{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;",
-    "margin-bottom:8px}",
-    ".dp-title b{font-weight:700;color:var(--ac-text)}",
-    ".dp-title span{color:var(--ac-text-2);font-size:10.5px;font-weight:600}",
-    ".dp-row{display:flex;justify-content:space-between;font-size:11px;font-weight:600;",
-    "color:var(--ac-text-body);margin:2px 0}",
-    ".dp-row b{font-weight:700;color:var(--ac-text)}",
-    /* ---------- attribute bars: pill track with an inset well ---------- */
-    ".dp-meter{height:9px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
-    "box-shadow:var(--ac-inset);overflow:hidden;margin:3px 0 8px}",
-    ".dp-meter i{display:block;height:100%;border-radius:var(--ac-pill);",
-    "background:var(--ac-warning);transition:width .35s var(--ac-ease)}",
-    ".dp-meter.dp-mood i{background:#f8a6b2}",
-    ".dp-meter.dp-clean i{background:#82d5bb}",
-    ".dp-meter.dp-health i{background:#8ac68a}",
-    ".dp-traits{display:flex;gap:10px;font-size:10.5px;font-weight:600;color:var(--ac-text-2);",
-    "margin:8px 0 3px}",
-    /* ---------- banners ---------- */
-    ".dp-alert{margin:0 0 9px;padding:8px 10px;border-radius:var(--ac-radius-sm);",
-    "font-size:10.5px;font-weight:600;line-height:1.55;border:2px solid}",
-    ".dp-alert b{font-weight:700;color:var(--ac-text)}",
-    ".dp-alert.dp-sick{background:#fdeeee;border-color:#f2c2c2}",
-    ".dp-alert.dp-work{background:#eef1fb;border-color:#c3cdf0}",
-    ".dp-alert.dp-dead{background:var(--ac-bg-disabled);border-color:var(--ac-border-light)}",
-    ".dp-alert.dp-legacy{background:#fdf7e2;border-color:#f0dfa8}",
-    /* ---------- buttons: secondary is a cream pill with soft elevation ---- */
-    ".dp-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}",
-    ".dp-btn{display:flex;align-items:center;justify-content:center;gap:5px;font:inherit;",
-    "font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--ac-text-body);",
-    "cursor:pointer;padding:8px 6px;border-radius:var(--ac-pill);",
-    "border:2px solid var(--ac-border);background:var(--ac-bg-input);",
-    "box-shadow:var(--ac-shadow-sm);transition:all .2s var(--ac-ease)}",
-    ".dp-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--ac-shadow);",
-    "border-color:var(--ac-border-hover)}",
-    ".dp-btn:active:not(:disabled){transform:translateY(2px);box-shadow:var(--ac-shadow-sm)}",
-    ".dp-btn:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
-    ".dp-btn:disabled{background:var(--ac-bg-disabled);color:var(--ac-text-disabled);",
-    "border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}",
-    ".dp-btn-wide{grid-column:1/-1}",
-    ".dp-btn .dp-wait{color:var(--ac-text-2);font-size:10px;font-weight:600}",
-    /* ---------- segmented control ---------- */
-    ".dp-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:9px}",
-    ".dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);",
-    "cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);",
-    "border:2px solid var(--ac-border-light);background:var(--ac-bg-input);",
-    // One line, always: a label that wraps makes its button taller than the rest.
-    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;",
-    "transition:all .2s var(--ac-ease)}",
-    ".dp-seg button:hover{background:var(--ac-hover)}",
-    // The work tab has three skills, not four stages.
-    ".dp-seg.dp-seg-3{grid-template-columns:repeat(3,minmax(0,1fr))}",
-    // Work rows: two small buttons on the right, 详情 opens the checklist below.
-    ".dp-job-locked{opacity:.75}",
-    ".dp-job-detail{margin-top:-2px}",
-    ".dp-req{font-size:10.5px;font-weight:600;color:var(--ac-error);line-height:1.6}",
-    ".dp-req.dp-req-ok{color:var(--ac-success)}",
-    '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
-    "color:var(--ac-text);font-weight:700}",
-    /* ---------- list rows ---------- */
-    // minmax(0,1fr): a long nowrap line must ellipsize, not widen the panel.
-    ".dp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}",
-    ".dp-list{display:flex;flex-direction:column;gap:7px}",
-    ".dp-shelf{margin:9px 0 1px;font-size:10px;font-weight:700;color:var(--ac-text-2);",
-    "letter-spacing:.04em}",
-    ".dp-shelf:first-child{margin-top:0}",
-    ".dp-item{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;",
-    "color:var(--ac-text-body);padding:7px 9px;border-radius:var(--ac-radius-sm);",
-    "background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
-    ".dp-item .dp-grow{flex:1;min-width:0}",
-    ".dp-item .dp-dim{color:var(--ac-text-2);font-size:10px;font-weight:500;overflow:hidden;",
-    "text-overflow:ellipsis;white-space:nowrap}",
-    ".dp-item.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
-    // B6 talk row: name + 改 + 免打扰, and the inline name input.
-    ".dp-talk{gap:6px;margin-top:8px}",
-    ".dp-talk>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-    ".dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}",
-    ".dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}",
-    ".dp-input{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 8px;border-radius:var(--ac-pill);",
-    "border:2px solid var(--ac-border);background:var(--ac-bg-input);color:var(--ac-text)}",
-    ".dp-input:focus{outline:2px solid var(--ac-primary);outline-offset:1px}",
-    /* ---------- primary buttons: teal pill with the game 3D bottom edge --- */
-    ".dp-mini{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#fff;",
-    "cursor:pointer;padding:6px 13px;border-radius:var(--ac-pill);",
-    "border:2px solid var(--ac-primary-active);background:var(--ac-primary);",
-    "box-shadow:0 3px 0 0 var(--ac-primary-active);transition:all .15s var(--ac-ease)}",
-    ".dp-mini:hover:not(:disabled){background:var(--ac-primary-hover);transform:translateY(-1px);",
-    "box-shadow:0 4px 0 0 var(--ac-primary-active)}",
-    ".dp-mini:active:not(:disabled){transform:translateY(2px);",
-    "box-shadow:0 1px 0 0 var(--ac-primary-active)}",
-    ".dp-mini:focus-visible{outline:2px solid var(--ac-primary);outline-offset:2px}",
-    ".dp-mini:disabled{background:var(--ac-bg-disabled);color:var(--ac-text-disabled);",
-    "border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}",
-    /* ---------- the care item picker ---------- */
-    ".dp-pick{margin-top:9px;padding:9px 10px;border-radius:var(--ac-radius-sm);font-size:10.5px;",
-    "background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
-    ".dp-pick-head{font-size:10.5px;font-weight:700;color:var(--ac-text);margin-bottom:7px}",
-    ".dp-cancel{display:block;width:100%;margin-top:8px;font:inherit;font-size:10.5px;",
-    "font-weight:600;color:var(--ac-text-2);cursor:pointer;padding:5px;",
-    "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);",
-    "background:var(--ac-bg-input);transition:all .2s var(--ac-ease)}",
-    ".dp-cancel:hover{background:var(--ac-hover);color:var(--ac-text)}",
-    ".dp-count{margin-left:2px;font-size:9px;font-weight:700;color:var(--ac-text-2);",
-    "background:var(--ac-bg-content);border-radius:var(--ac-pill);padding:0 5px}",
-    '.dp-btn[data-open-picker="true"]{background:var(--ac-active);border-color:#9db0d6}',
-    '.dp-seg button[data-locked="true"]{color:var(--ac-text-disabled);',
-    "border-style:dashed;background:var(--ac-bg-disabled)}",
-    '.dp-seg button[data-locked="true"]:hover{background:var(--ac-bg-disabled)}',
-    ".dp-locked{margin:0 0 8px;font-size:10.5px;font-weight:600;line-height:1.5;",
-    "color:var(--ac-text-body);background:#fdf7e2;border:2px solid #f0dfa8;",
-    "border-radius:var(--ac-radius-sm);padding:6px 9px}",
-    // The per-job gate reads as a lock, not as another grey stat line: a
-    // threshold the pig cannot see is indistinguishable from a broken button.
-    ".dp-lock{font-size:10px;font-weight:700;line-height:1.5;color:#9a6b1f}",
-    ".dp-empty{color:var(--ac-text-2);font-size:10.5px;font-weight:500;line-height:1.65;",
-    "margin-top:4px}",
-    ".dp-memo{margin-top:9px;padding-top:8px;border-top:2px solid var(--ac-border-light);",
-    "color:var(--ac-text-muted);font-size:10px;font-weight:500;line-height:1.55;",
-    "white-space:pre-wrap;word-break:break-word}",
-    /* ---------- particles and toast ---------- */
-    ".dp-transform{position:fixed;inset:0;z-index:2147483647;pointer-events:none;overflow:hidden}",
-    ".dp-transform-fall{position:absolute;top:-48px;font-size:28px;opacity:0;",
-    "animation:dp-transform-fall 1.35s var(--delay) ease-in forwards}",
-    "@keyframes dp-transform-fall{0%{opacity:0;transform:translate3d(0,-20px,0) rotate(-15deg)}",
-    "12%{opacity:1}100%{opacity:0;transform:translate3d(var(--drift),105vh,0) rotate(30deg)}}",
-    ".dp-transform-pop{position:absolute;font-size:72px;line-height:1;filter:drop-shadow(0 3px 8px #fff);",
-    "animation:dp-transform-pop 1.3s ease-out forwards}",
-    "@keyframes dp-transform-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.15)}",
-    "35%{opacity:1;transform:translate(-50%,-50%) scale(1.25)}",
-    "70%{opacity:1;transform:translate(-50%,-50%) scale(1)}",
-    "100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}",
-    ".dp-fx{position:absolute;z-index:1;pointer-events:none;font-size:17px;",
-    "animation:dp-rise 1.1s ease-out forwards}",
-    "@keyframes dp-rise{0%{opacity:0;transform:translate(var(--dx0,0),4px) scale(.5)}18%{opacity:1}",
-    "100%{opacity:0;transform:translate(var(--dx,0),-56px) scale(1.15)}}",
-    ".dp-toast{position:absolute;left:9px;right:9px;top:8px;padding:8px 11px;",
-    "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.5;",
-    "color:var(--ac-text);background:var(--ac-bg-input);border:2px solid var(--ac-border);",
-    "box-shadow:var(--ac-shadow);pointer-events:none;white-space:normal;",
-    "animation:dp-toast 4.6s var(--ac-ease) forwards}",
-    "@keyframes dp-toast{0%{opacity:0;transform:translateY(-8px)}8%{opacity:1;transform:translateY(0)}",
-    "82%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}"
-  ].join("");
-
-  // src/client/css-tiles.js
-  var CSS_TILES = [
-    // 番茄钟角标（C2 返工）：贴在猪立绘右上角，跟着猪一起动。
-    // 高度 = 13 + 2 = 15px，再往上 2px，所以顶多高出猪头 17px（要求 20px 以内）；
-    // z-index:1 低于说话气泡（2）、也低于装扮层（3），面板打开时更够不着面板。
-    ".dp-pomo{position:absolute;bottom:calc(100% + 2px);right:-4px;z-index:1;",
-    "font-size:9.5px;font-weight:800;color:#fff;background:var(--tile-red);",
-    "border-radius:var(--ac-pill);padding:1px 5px;line-height:13px;white-space:nowrap;pointer-events:none;",
-    "box-shadow:0 2px 0 rgba(61,52,40,.16)}",
-    ".dp-pomo-live{display:flex;flex-direction:column;align-items:center;gap:3px;margin:6px 0 10px}",
-    ".dp-pomo-clock{font-size:26px;font-weight:800;color:var(--ac-text);letter-spacing:1px}",
-    // 主屏底部的版本号：一行灰字，不占格子（连点 7 次解锁调试模式，见 C1）。
-    ".dp-version{margin-top:8px;text-align:center;font-size:9.5px;font-weight:600;",
-    "color:var(--ac-text-muted);cursor:default;user-select:none}",
-    "[data-dsh-pig]{--tile-pink:#f8a6b2;--tile-purple:#b77dee;--tile-blue:#889df0;",
-    "--tile-yellow:#f7cd67;--tile-orange:#e59266;--tile-teal:#82d5bb;--tile-green:#8ac68a;",
-    "--tile-red:#fc736d;--tile-lime:#d1da49;--tile-peach:#e18c6f;--tile-brown:#9a835a}",
-    '.dp-tile[data-color="pink"]{--tile-c:var(--tile-pink)}',
-    '.dp-tile[data-color="purple"]{--tile-c:var(--tile-purple)}',
-    '.dp-tile[data-color="blue"]{--tile-c:var(--tile-blue)}',
-    '.dp-tile[data-color="yellow"]{--tile-c:var(--tile-yellow)}',
-    '.dp-tile[data-color="orange"]{--tile-c:var(--tile-orange)}',
-    '.dp-tile[data-color="teal"]{--tile-c:var(--tile-teal)}',
-    '.dp-tile[data-color="green"]{--tile-c:var(--tile-green)}',
-    '.dp-tile[data-color="red"]{--tile-c:var(--tile-red)}',
-    '.dp-tile[data-color="lime"]{--tile-c:var(--tile-lime)}',
-    '.dp-tile[data-color="peach"]{--tile-c:var(--tile-peach)}',
-    '.dp-tile[data-color="brown"]{--tile-c:var(--tile-brown)}',
-    // The grid: three columns that can never be widened by their content.
-    ".dp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:4px 2px 2px}",
-    // A tile is a column: the coloured square, then its name, then a note.
-    ".dp-tile{font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;",
-    "padding:0;margin:0;border:0;background:none;cursor:pointer;color:var(--ac-text)}",
-    ".dp-tile-icon{position:relative;display:flex;align-items:center;justify-content:center;",
-    "width:50px;height:50px;border-radius:15px;background:var(--tile-c,var(--ac-bg-content));",
-    "box-shadow:0 3px 0 rgba(61,52,40,.16);transition:transform .15s var(--ac-ease),box-shadow .15s var(--ac-ease)}",
-    ".dp-tile-e{font-size:24px;line-height:1;filter:drop-shadow(0 1px 1px rgba(61,52,40,.18))}",
-    ".dp-tile-svg{width:27px;height:27px;object-fit:contain}",
-    ".dp-app-title{display:inline-flex;align-items:center;gap:5px}",
-    ".dp-app-title-icon{font-size:14px;line-height:1}",
-    ".dp-app-title-icon.dp-tile-svg{width:17px;height:17px}",
-    ".dp-setting-row{margin-top:8px}",
-    ".dp-setting-emoji{font-size:22px;line-height:1;width:28px;text-align:center}",
-    ".dp-tile:hover:not(:disabled) .dp-tile-icon{transform:translateY(-2px);box-shadow:0 5px 0 rgba(61,52,40,.16)}",
-    ".dp-tile:active:not(:disabled) .dp-tile-icon{transform:translateY(2px);box-shadow:0 1px 0 rgba(61,52,40,.16)}",
-    ".dp-tile:focus-visible{outline:none}",
-    ".dp-tile:focus-visible .dp-tile-icon{outline:2px solid var(--ac-primary);outline-offset:2px}",
-    // One line each, never wrapping: every tile in a row stays the same height.
-    ".dp-tile-n,.dp-tile-note{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.25}",
-    ".dp-tile-n{font-size:10.5px;font-weight:700}",
-    ".dp-tile-note{font-size:9.5px;font-weight:600;color:var(--ac-text-2);margin-top:-2px}",
-    // Corner marks on the square: a count top-right, a word top-left.
-    ".dp-tile-badge,.dp-tile-tag{position:absolute;top:-5px;font-size:9px;font-weight:800;line-height:1;",
-    "padding:3px 5px;border-radius:var(--ac-pill);white-space:nowrap;border:2px solid var(--ac-bg)}",
-    ".dp-tile-badge{right:-6px;background:var(--ac-primary);color:#fff}",
-    '.dp-tile[data-app="update"] .dp-tile-badge{background:var(--tile-red)}',
-    ".dp-tile-tag{left:-6px;background:var(--ac-warning);color:var(--ac-text)}",
-    // Second layer: the same colour, a shade paler and a little smaller.
-    // Sizes trimmed on 2026-10-01 (owner: the tiles were too big): 50px / 44px.
-    ".dp-tile-soft .dp-tile-icon{width:44px;height:44px;border-radius:13px;",
-    "background:color-mix(in srgb,var(--tile-c) 42%,#fffbe7)}",
-    ".dp-tile-soft .dp-tile-e{font-size:21px}",
-    // Locked: greyed but still openable (a stage can be looked into before it opens).
-    '.dp-tile[data-locked="true"] .dp-tile-icon{filter:grayscale(.75);opacity:.6}',
-    '.dp-tile[data-dim="true"] .dp-tile-icon,.dp-tile:disabled .dp-tile-icon{opacity:.45;box-shadow:none}',
-    '.dp-tile[data-dim="true"] .dp-tile-n,.dp-tile:disabled .dp-tile-n{color:var(--ac-text-2)}',
-    ".dp-tile:disabled{cursor:default}",
-    '.dp-tile[data-active="true"] .dp-tile-icon{outline:3px solid var(--ac-active);outline-offset:2px}',
-    // The second layer's top row: back, title, one grey line.
-    ".dp-drill{position:sticky;top:-12px;z-index:5;display:flex;align-items:center;gap:7px;",
-    "margin:-12px 0 10px;padding:12px 0 0;background:var(--ac-bg)}",
-    ".dp-drill-back{font:inherit;font-size:16px;font-weight:800;line-height:1;width:26px;height:26px;",
-    "flex:none;cursor:pointer;color:var(--ac-text);border-radius:50%;",
-    "border:2px solid var(--ac-border-light);background:var(--ac-bg-input)}",
-    ".dp-drill-back:hover{border-color:var(--ac-border-hover)}",
-    ".dp-drill-title{font-size:12px;font-weight:800;color:var(--ac-text);white-space:nowrap}",
-    ".dp-drill-info{flex:1;min-width:0;text-align:right;font-size:10px;font-weight:600;",
-    "color:var(--ac-text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-    // B9: the home screen replaces the bottom icon bar. The bar still exists
-    // (its icons carry the alert state the home tiles read) but is not shown.
-    "[data-dsh-pig] .dp-card .dp-bar{display:none}",
-    ".dp-app-head{margin-bottom:12px}",
-    // Out working, the collapsed scene shrinks to pig + prop; open, it must stay
-    // as wide as the panel, or the name plate is squeezed onto the pig.
-    '[data-dsh-pig][data-open="true"][data-away] .dp-scene{width:var(--panel-width)}',
-    // Banners only live on the status tab now, with room to breathe below.
-    "[data-dsh-pig] .dp-alert{margin-bottom:14px}",
-    "[data-dsh-pig] .dp-alert + .dp-actions{margin-bottom:14px}",
-    ".dp-job-go{display:block;width:100%;margin-top:9px}",
-    // A picked tile's details (a diary page, a souvenir's story) sit under the grid.
-    ".dp-tile-card{margin-top:12px}",
-    // 更新 App: the release notes keep their line breaks but stay short.
-    ".dp-update-notes{white-space:pre-wrap;font-size:10.5px;line-height:1.5;color:var(--ac-text-2);max-height:120px;overflow:auto;margin:4px 0 6px}",
-    ".dp-update-back{margin-top:10px;width:100%}",
-    ".dp-update-now{margin-bottom:12px}",
-    ".dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}"
-  ].join("");
-
-  // src/client/css-card.js
-  var CSS_CARD = [
-    ".dp-vcard{position:relative;padding:14px 14px 12px;border-radius:20px;color:var(--ac-text-body);",
-    "--vc-dot:rgba(196,184,158,.15);--vc-dot2:rgba(196,184,158,.1);--vc-bg:rgb(247,243,223);--vc-line:#d4c4a8;",
-    "background:radial-gradient(circle,var(--vc-dot) 1.5px,transparent 1.5px),",
-    "radial-gradient(circle,var(--vc-dot2) 1px,transparent 1px),var(--vc-bg);",
-    "background-size:28px 28px,14px 14px;background-position:0 0,7px 7px;border:1.5px solid var(--vc-line)}",
-    '.dp-vcard[data-sex="girl"]{--vc-dot:rgba(248,166,178,.18);--vc-dot2:rgba(255,200,210,.12);--vc-bg:#fde4e8;--vc-line:#f8a6b2}',
-    '.dp-vcard[data-sex="boy"]{--vc-dot:rgba(136,157,240,.18);--vc-dot2:rgba(180,195,255,.12);--vc-bg:#e8edff;--vc-line:#889df0}',
-    // Top: the photo and who it is.
-    ".dp-vcard-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}",
-    ".dp-vcard-avatar{flex:none;width:72px;height:72px;border-radius:18px;display:flex;align-items:center;",
-    "justify-content:center;background:#fffbe7;border:2px solid var(--vc-line);box-shadow:0 3px 0 rgba(61,52,40,.12)}",
-    ".dp-vcard-img{width:56px;height:56px;display:block}",
-    ".dp-vcard-e{font-size:40px;line-height:1}",
-    ".dp-vcard-who{display:flex;flex-direction:column;gap:3px;min-width:0}",
-    ".dp-vcard-name{font-size:15px;font-weight:800;color:var(--ac-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    ".dp-vcard-sub{font-size:10.5px;font-weight:600;color:var(--ac-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    // 「标签：值」 rows.
-    ".dp-vcard-row{display:flex;align-items:center;gap:6px;margin-top:7px;min-width:0}",
-    ".dp-vcard-label{flex:none;width:44px;font-size:10.5px;font-weight:700;color:var(--ac-text)}",
-    ".dp-vcard-value{flex:1;min-width:0;padding:5px 11px;border-radius:var(--ac-pill);background:#faf8f2;",
-    "font-size:11px;font-weight:600;color:var(--ac-text-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    // The motto is the pig talking: a bubble that may take two lines.
-    ".dp-vcard-motto-row{align-items:flex-start}",
-    ".dp-vcard-motto-row .dp-vcard-label{margin-top:6px}",
-    ".dp-vcard-value.dp-vcard-motto{border-radius:12px;white-space:normal;line-height:1.45}",
-    ".dp-vcard-edit{flex:none;font:inherit;font-size:12px;line-height:1;width:24px;height:24px;padding:0;cursor:pointer;",
-    "border-radius:50%;border:2px solid var(--vc-line);background:#fffbe7}",
-    ".dp-vcard-edit:hover{background:var(--ac-hover)}",
-    ".dp-vcard-input{flex:1;min-width:0;padding:3px 9px;font-size:11px}",
-    // In-place editing: the two buttons stay as small as the pencil they replace.
-    ".dp-vcard-row .dp-mini{flex:none;padding:3px 9px;font-size:10px;box-shadow:none}",
-    "[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}",
-    ".dp-vcard-foot{margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--vc-line);",
-    "font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    // 加冕 App: one cream box per form, its picture on the left, conditions as small chips.
-    ".dp-crown{margin-bottom:10px;padding:10px 12px;border-radius:16px;background:#fffbe7;border:2px dashed #e8c66a}",
-    ".dp-crown.dp-crown-now{border-style:solid;background:#fdf3d0}",
-    ".dp-crown-top{display:flex;gap:10px;align-items:flex-start}",
-    ".dp-crown-pic{flex:none;width:58px;height:58px;border-radius:14px;display:flex;align-items:center;justify-content:center;",
-    "background:#fff;border:2px solid #f0dca0;font-size:30px}",
-    ".dp-crown-img{width:50px;height:50px;display:block}",
-    ".dp-crown-side{flex:1;min-width:0}",
-    ".dp-crown-head{font-size:12px;font-weight:800;color:var(--ac-text);margin-bottom:6px}",
-    ".dp-crown-done{font-size:11px;font-weight:700;color:#3f8a62}",
-    ".dp-crown-reqs{display:flex;flex-wrap:wrap;gap:4px}",
-    ".dp-crown-req{padding:2px 7px;border-radius:var(--ac-pill);font-size:10px;font-weight:700;white-space:nowrap;",
-    "background:#f3ece0;color:var(--ac-text-2)}",
-    ".dp-crown-req.dp-crown-ok{background:#dff3e8;color:#3f8a62}",
-    ".dp-crown .dp-btn{width:100%;margin-top:9px}"
-  ].join("");
-
-  // src/client/css-dex.js
-  var CSS_DEX = [
-    // Category dashboard: existing app tiles plus a thin museum-style progress rail.
-    ".dp-dex-sections .dp-tile{gap:3px}",
-    ".dp-dex-progress{display:block;width:42px;height:3px;margin-top:1px;border-radius:4px;overflow:hidden;",
-    "background:rgba(61,52,40,.12)}",
-    ".dp-dex-progress i{display:block;height:100%;border-radius:inherit;background:var(--tile-c,var(--ac-primary));",
-    "transition:width .25s var(--ac-ease)}",
-    // Forms and skins: three genuinely small collectible cards.
-    ".dp-dex-flash-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;perspective:700px}",
-    ".dp-dex-card{position:relative;min-width:0;aspect-ratio:4/5;padding:4px;border:1.5px solid rgba(117,91,48,.3);",
-    "border-radius:11px;overflow:hidden;cursor:pointer;color:var(--ac-text);font:inherit;",
-    "background:linear-gradient(145deg,#fff9dc 0%,#f5dd9e 38%,#e8bfcf 68%,#b9ddec 100%);",
-    "box-shadow:0 3px 0 rgba(61,52,40,.13),0 6px 12px rgba(91,67,37,.09);",
-    "transform:rotateX(var(--dex-rx,0deg)) rotateY(var(--dex-ry,0deg));transform-style:preserve-3d;",
-    "transition:transform .18s var(--ac-ease),box-shadow .18s var(--ac-ease)}",
-    ".dp-dex-card:hover{transform:translateY(-2px) rotateX(var(--dex-rx,-2deg)) rotateY(var(--dex-ry,3deg));",
-    "box-shadow:0 5px 0 rgba(61,52,40,.11),0 9px 16px rgba(91,67,37,.14)}",
-    ".dp-dex-card:focus-visible,.dp-dex-museum-item:focus-visible,.dp-dex-row:focus-visible{outline:2px solid var(--ac-primary);outline-offset:2px}",
-    '.dp-dex-card-foil::after,.dp-dex-big-foil::after{content:"";position:absolute;inset:-45%;pointer-events:none;',
-    "background:linear-gradient(112deg,transparent 32%,rgba(255,255,255,.08) 42%,rgba(255,255,255,.7) 49%,",
-    "rgba(155,224,255,.3) 54%,transparent 66%);transform:translateX(-58%) rotate(5deg);",
-    "transition:transform .65s ease;mix-blend-mode:screen}",
-    ".dp-dex-card-foil:hover::after,.dp-dex-big-foil:hover::after{transform:translateX(58%) rotate(5deg)}",
-    ".dp-dex-card-locked{background:linear-gradient(145deg,#e4e2dc,#bbbcb9 52%,#d4d0ca);border-color:#aaa7a0}",
-    ".dp-dex-artbox{position:relative;height:calc(100% - 19px);display:flex;align-items:center;justify-content:center;",
-    "border-radius:8px;background:rgba(255,255,255,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.7);overflow:hidden}",
-    ".dp-dex-art{display:block;width:88%;height:88%;object-fit:contain;filter:drop-shadow(0 3px 2px rgba(61,52,40,.16));",
-    "transform:translateZ(10px);transition:transform .18s var(--ac-ease)}",
-    ".dp-dex-card-foil:hover .dp-dex-art{transform:translateZ(13px) scale(1.04)}",
-    ".dp-dex-card-locked .dp-dex-art,.dp-dex-big-locked .dp-dex-art,.dp-dex-museum-locked .dp-dex-art,",
-    ".dp-dex-info-locked .dp-dex-art{filter:grayscale(1) brightness(0);opacity:.3}",
-    ".dp-dex-emoji{font-size:27px;line-height:1;filter:drop-shadow(0 2px 1px rgba(61,52,40,.14))}",
-    ".dp-dex-emoji-large{font-size:42px}",
-    ".dp-dex-lock{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;",
-    "align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;font-size:12px;",
-    "background:rgba(58,57,54,.78);border:1.5px solid rgba(255,255,255,.82);box-shadow:0 2px 6px rgba(0,0,0,.16)}",
-    ".dp-dex-caption{position:relative;z-index:1;display:block;margin-top:4px;font-size:8.5px;font-weight:800;",
-    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}",
-    ".dp-dex-card-locked .dp-dex-caption{color:#615f5b;letter-spacing:.04em}",
-    // Fish and souvenirs: pastel three-column museum shelf, no foil or 3D.
-    ".dp-dex-museum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 8px}",
-    ".dp-dex-museum-item{font:inherit;min-width:0;height:82px;padding:5px;border:0;border-radius:13px;cursor:pointer;",
-    "display:flex;flex-direction:column;align-items:center;justify-content:space-between;color:var(--ac-text);",
-    "background:var(--ac-bg-content);box-shadow:inset 0 0 0 1.5px var(--ac-border-light)}",
-    ".dp-dex-museum-item:nth-child(4n+1){background:#e5f3f5}.dp-dex-museum-item:nth-child(4n+2){background:#f5e6ef}",
-    ".dp-dex-museum-item:nth-child(4n+3){background:#eef3df}.dp-dex-museum-item:nth-child(4n){background:#f8efd9}",
-    ".dp-dex-museum-art{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:54px}",
-    ".dp-dex-museum-art .dp-dex-art{width:48px;height:48px}",
-    ".dp-dex-museum-lock{position:absolute;right:1px;top:1px;font-size:10px}",
-    ".dp-dex-museum-name{display:block;width:100%;font-size:8.5px;font-weight:800;white-space:nowrap;",
-    "overflow:hidden;text-overflow:ellipsis;text-align:center}",
-    ".dp-dex-museum-locked{filter:grayscale(.45);color:var(--ac-text-2)}",
-    // Item catalogue: search + wraparound category chips + dense rows.
-    ".dp-dex-catalog-tools{margin-bottom:8px}",
-    ".dp-dex-search{width:100%;height:28px;margin:0 0 6px;padding:4px 10px;font-size:10px}",
-    ".dp-dex-filters{display:flex;gap:4px;overflow-x:auto;padding:1px 0 3px;scrollbar-width:none}",
-    ".dp-dex-filters::-webkit-scrollbar{display:none}",
-    ".dp-dex-filter{font:inherit;flex:none;border:1.5px solid var(--ac-border-light);border-radius:var(--ac-pill);",
-    "background:var(--ac-bg-input);color:var(--ac-text-2);padding:3px 8px;font-size:9px;font-weight:700;cursor:pointer}",
-    '.dp-dex-filter[data-active="true"]{background:var(--tile-orange);border-color:#cc7950;color:#fff}',
-    ".dp-dex-catalog{display:flex;flex-direction:column;gap:5px}",
-    ".dp-dex-row{font:inherit;width:100%;min-width:0;border:1.5px solid var(--ac-border-light);border-radius:10px;",
-    "background:var(--ac-bg-content);color:var(--ac-text);padding:5px 8px;display:flex;align-items:center;gap:8px;cursor:pointer;text-align:left}",
-    ".dp-dex-row-emoji{flex:none;width:25px;text-align:center;font-size:19px}",
-    ".dp-dex-row-text{flex:1;min-width:0;display:flex;flex-direction:column}",
-    ".dp-dex-row-text b{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-    ".dp-dex-row-text small{font-size:8.5px;color:var(--ac-text-2)}",
-    ".dp-dex-row-count{flex:none;font-size:9px;font-weight:800;color:var(--ac-text-2)}",
-    ".dp-dex-row-locked{color:var(--ac-text-2);background:#efeee9}",
-    '.dp-dex-row[data-search-hidden="true"]{display:none}',
-    // A detail replaces the shelf instead of stretching it underneath.
-    ".dp-dex-detail{perspective:800px}",
-    ".dp-dex-big,.dp-dex-info{position:relative;overflow:hidden;padding:12px;border-radius:18px;",
-    "border:2px solid rgba(177,127,43,.4);background:linear-gradient(145deg,#fff8cf 0%,#f6d48c 32%,#efb8d1 61%,#a9d9ec 100%);",
-    "box-shadow:0 4px 0 rgba(61,52,40,.13),0 10px 22px rgba(91,67,37,.12)}",
-    ".dp-dex-big{transform-style:preserve-3d;transform:rotateX(var(--dex-rx,0deg)) rotateY(var(--dex-ry,0deg));transition:transform .18s ease}",
-    ".dp-dex-big-locked{background:linear-gradient(145deg,#e9e7e1,#c5c5c1 56%,#ddd9d3);border-color:#aaa7a0}",
-    ".dp-dex-info{background:#fffaf0;border-color:var(--ac-border-light)}",
-    ".dp-dex-info-locked{background:#e9e7e1;border-color:#aaa7a0}",
-    ".dp-dex-big-art,.dp-dex-info-art{position:relative;height:112px;display:flex;align-items:center;justify-content:center;",
-    "border-radius:14px;background:rgba(255,255,255,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.76);overflow:hidden}",
-    ".dp-dex-info-art{height:92px}.dp-dex-big-art .dp-dex-art{width:106px;height:106px}",
-    ".dp-dex-info-art .dp-dex-art{width:82px;height:82px}",
-    ".dp-dex-big-title{position:relative;z-index:1;margin-top:9px;font-size:14px;font-weight:900;text-align:center;color:var(--ac-text)}",
-    ".dp-dex-riddle{position:relative;z-index:1;margin-top:8px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.55);",
-    "font-size:10.5px;font-weight:600;line-height:1.55;color:var(--ac-text-body)}",
-    ".dp-dex-riddle b{display:block;margin-bottom:2px;font-size:9px;letter-spacing:.14em;color:#766f65}",
-    ".dp-dex-story{position:relative;z-index:1;margin-top:7px;font-size:10.5px;font-weight:600;line-height:1.5;",
-    "text-align:center;color:var(--ac-text-body)}",
-    ".dp-dex-foot{position:relative;z-index:1;margin-top:8px;padding-top:7px;border-top:1px dashed rgba(87,69,42,.3);",
-    "font-size:9.5px;font-weight:700;text-align:center;color:var(--ac-text-2)}",
-    "@media (prefers-reduced-motion:reduce){.dp-dex-card,.dp-dex-big,.dp-dex-art{transition:none!important;transform:none!important}",
-    ".dp-dex-card-foil::after,.dp-dex-big-foil::after{display:none}}"
-  ].join("");
-
-  // src/client/css-fishing.js
-  var CSS_FISHING = `
-.dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-cast{touch-action:manipulation}.dp-fish-bait[aria-pressed=true]{background:#d7f3e2;border-color:#4ca678;color:#245d43}.dp-fish-auto{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border-radius:12px;background:#f5fafb}.dp-fish-auto span{width:100%;font-size:11px;color:#718188}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
-.dp-fish-qte{width:100%;min-height:318px;border:0;border-radius:18px;padding:15px 12px 12px;box-sizing:border-box;background:linear-gradient(155deg,#eefcff,#d8f3f8);display:flex;flex-direction:column;align-items:center;gap:9px;color:#294950;cursor:pointer;touch-action:manipulation;outline:0}.dp-fish-qte:focus-visible{box-shadow:0 0 0 3px #43b96f}.dp-fish-qte-title{font-size:15px;font-weight:800}.dp-fish-qte-ring{position:relative;width:178px;height:178px;border-radius:50%;box-shadow:0 3px 12px #246a7a44,inset 0 0 0 2px #fff;transform:rotate(-90deg)}.dp-fish-qte-ring:after{content:"";position:absolute;inset:17px;border-radius:50%;background:#f8feff;box-shadow:inset 0 2px 8px #8ab7c044}.dp-fish-qte-needle{position:absolute;z-index:3;left:50%;bottom:50%;width:4px;height:47%;border-radius:4px;background:#ed5d55;box-shadow:0 0 0 1px #fff,0 0 6px #d64a45;transform-origin:50% 100%}.dp-fish-qte-needle:after{content:"";position:absolute;top:-5px;left:-3px;width:10px;height:10px;border-radius:50%;background:#ed5d55}.dp-fish-qte-core{position:absolute;z-index:4;inset:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#fff 0 48%,#e9f9fb 70%);font-size:42px;transform:rotate(90deg)}.dp-fish-qte-score{font-size:14px}.dp-fish-qte-feedback{min-height:18px;font-size:12px;color:#55727a}.dp-fish-qte[data-qte-feedback^="\u8FD8\u6CA1\u5230"] .dp-fish-qte-feedback,.dp-fish-qte[data-qte-feedback^="\u5DF2\u7ECF\u5212\u8FC7"] .dp-fish-qte-feedback{color:#bd5545;font-weight:700}.dp-fish-help{text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
-`;
-
-  // src/client/css-skins.js
-  var CSS_SKINS = `
-.dp-skin-intro{display:grid;gap:4px;margin:0 0 10px}.dp-skin-intro span{font-size:10.5px;line-height:1.5;color:var(--ac-text-2)}.dp-skin-grid{display:flex;flex-direction:column;gap:7px}.dp-skin-row{min-height:62px;padding:7px 9px}.dp-skin-current{background:var(--ac-active);border-color:#9db0d6}.dp-skin-row[data-locked="true"] .dp-skin-art{filter:grayscale(1);opacity:.48}.dp-skin-art{width:48px;height:48px;flex:none;object-fit:contain}.dp-skin-copy{display:grid;gap:3px}.dp-skin-copy b{font-size:10.5px}.dp-skin-copy small{line-height:1.35}.dp-skin-row>.dp-mini{flex:none;padding-inline:10px}.dp-skin-import{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;margin-top:10px;cursor:pointer}.dp-skin-import .dp-pick-head{margin:0}.dp-skin-import>.dp-dim{font-size:10px;line-height:1.4;color:var(--ac-text-2)}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{grid-column:2;grid-row:1/3;display:inline-flex!important;align-items:center;white-space:nowrap}
-`;
-
-  // src/client/styles.js
-  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS;
-
   // src/client/tabs/travel.js
   function renderTravelTab(ui) {
     if (ui.view.trips.length === 0) {
@@ -1923,48 +1205,6 @@
       })(ui.view.trips[i]);
     }
     ui.content.appendChild(list);
-    var souvenirs = ui.view.pig.souvenirs;
-    var head = el("div", "dp-title");
-    head.style.marginTop = "10px";
-    head.appendChild(el("b", null, "\u{1F381} \u7EAA\u5FF5\u54C1 " + souvenirs.length));
-    ui.content.appendChild(head);
-    if (souvenirs.length === 0) {
-      ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u51FA\u8FC7\u8FDC\u95E8\u3002"));
-      return;
-    }
-    var chips = el("div", "dp-grid");
-    for (var s = 0; s < souvenirs.length; s += 1) {
-      (function(entry) {
-        var chip = button("dp-item", { "data-souvenir": entry.key }, function() {
-          ui.souvenirPick = ui.souvenirPick === entry.key ? null : entry.key;
-          ui.renderContent();
-        });
-        chip.appendChild(el("span", null, entry.emoji));
-        var grow = el("div", "dp-grow");
-        grow.appendChild(el("div", null, entry.label));
-        grow.appendChild(el("div", "dp-dim", entry.rarityEmoji + entry.rarityLabel + (entry.price > 0 ? " \xB7 \u503C " + entry.price + " \u{1FA99}" : "")));
-        chip.appendChild(grow);
-        chips.appendChild(chip);
-      })(souvenirs[s]);
-    }
-    ui.content.appendChild(chips);
-    var picked = null;
-    for (var q = 0; q < souvenirs.length; q += 1) if (souvenirs[q].key === ui.souvenirPick) picked = souvenirs[q];
-    if (picked !== null) {
-      var souvenirCard = el("div", "dp-locked");
-      souvenirCard.appendChild(el("div", null, picked.emoji + " " + picked.label + " \xB7 " + picked.rarityEmoji + picked.rarityLabel + (picked.fromLabel === "" ? "" : " \xB7 \u6765\u81EA" + picked.fromLabel)));
-      souvenirCard.appendChild(el("div", null, picked.story === "" ? "\uFF08\u8FD9\u53EA\u7EAA\u5FF5\u54C1\u662F\u65E7\u7248\u672C\u5E26\u56DE\u6765\u7684\uFF0C\u6CA1\u6709\u7559\u4E0B\u6545\u4E8B\u3002\uFF09" : "\u300C" + picked.story + "\u300D"));
-      if (picked.price > 0) {
-        var sell = button("dp-mini", { "data-sell": picked.key }, function() {
-          ui.souvenirPick = null;
-          ui.send("sell", { souvenir: picked.key });
-        });
-        sell.textContent = "\u5356\u6389 +" + picked.price + " \u{1FA99}";
-        sell.style.marginTop = "6px";
-        souvenirCard.appendChild(sell);
-      }
-      ui.content.appendChild(souvenirCard);
-    }
   }
 
   // src/client/tabs/work.js
@@ -2045,7 +1285,10 @@
       })(jobs[i]);
     }
     ui.content.appendChild(grid);
-    if (picked !== null) ui.content.appendChild(jobDetails(ui, picked));
+    if (picked !== null) {
+      ui.footer.appendChild(jobDetails(ui, picked));
+      ui.footer.hidden = false;
+    }
   }
   function jobDetails(ui, job) {
     var box = el("div", "dp-pick dp-tile-card dp-job-detail");
@@ -3025,6 +2268,729 @@
     }
   }
 
+  // src/client/css-base.js
+  var CSS_BASE = [
+    // ---------------------------------------------------------------------
+    // Animal Crossing design language, transcribed from
+    // guokaigdg/animal-island-ui docs/design-system (design-tokens.md and the
+    // standalone css-variables.md template).
+    //
+    // The tokens are declared on the widget root rather than :root: the host
+    // page must not inherit them, and they must not be clobbered by it.
+    //
+    // The rules that shape everything below:
+    //   · warm earth-brown text on cream parchment, never pure black or grey
+    //   · 12px minimum radius; buttons and inputs are 50px pills
+    //   · the thick 3D bottom shadow belongs to primary buttons only
+    //   · cards carry a border, not an elevation shadow
+    //   · motion is 0.15-0.35s on cubic-bezier(.4,0,.2,1)
+    //   · focus rings are yellow or teal, never blue
+    // ---------------------------------------------------------------------
+    "[data-dsh-pig]{",
+    '--ac-font:Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;',
+    "--ac-primary:#19c8b9;--ac-primary-hover:#3dd4c6;--ac-primary-active:#11a89b;",
+    "--ac-primary-bg:#e6f9f6;",
+    "--ac-text:#794f27;--ac-text-body:#725d42;--ac-text-2:#9f927d;--ac-text-muted:#8a7b66;",
+    "--ac-text-disabled:#c4b89e;",
+    "--ac-bg:#f8f8f0;--ac-bg-content:rgb(247,243,223);--ac-bg-input:#fffbe7;",
+    "--ac-bg-disabled:#f0ece2;",
+    "--ac-border:#c4b89e;--ac-border-light:#e5dcc6;--ac-border-hover:#a89878;",
+    "--ac-radius-sm:12px;--ac-radius-card:20px;--ac-pill:50px;",
+    "--ac-shadow-sm:0 2px 4px 0 rgba(61,52,40,.06);",
+    "--ac-shadow:0 3px 10px 0 rgba(61,52,40,.1);",
+    "--ac-shadow-lg:0 8px 24px 0 rgba(61,52,40,.16);",
+    "--ac-inset:inset 0 2px 4px rgba(114,93,66,.15);",
+    // sidebar tokens: the library uses these for the selected menu row, which
+    // is exactly the role the icon bar plays here.
+    "--ac-active:#b7c6e5;--ac-hover:#d6dff0;",
+    "--ac-success:#6fba2c;--ac-warning:#f5c31c;--ac-error:#e05a5a;",
+    "--ac-ease:cubic-bezier(.4,0,.2,1);",
+    // One place to size the pig; the scene and the panel cap derive from it.
+    "--pig-size:56px;--pig-gap-below:12px;--scene-open:132px;--panel-width:292px;",
+    "position:fixed;right:18px;bottom:18px;z-index:2147483000;",
+    "font-family:var(--ac-font);font-weight:500;letter-spacing:.01em;",
+    "-webkit-user-select:none;user-select:none;touch-action:none;",
+    // The wrapper spans a column wider and taller than what it paints (the
+    // scene's padding, the gap above the panel). Without this it swallows
+    // clicks aimed at the page underneath — which once looked like "sending a
+    // message does nothing" while the whole stack was healthy.
+    "pointer-events:none;",
+    // The pig is the only in-flow child, so the wrapper's box is exactly the
+    // pig's box and the panel can be parked anywhere around it without ever
+    // nudging the pig. `fitPanel` places the panel.
+    "display:block}",
+    "[data-dsh-pig] *{box-sizing:border-box}",
+    "[data-dsh-pig]>*{pointer-events:auto}",
+    // `hidden` MUST win. The UA sheet's `[hidden]{display:none}` ties on
+    // specificity with a single class, so any `.dp-x{display:grid|flex}` rule
+    // below silently beats it and the element keeps rendering. That is exactly
+    // how a collapsed panel ended up showing the icon bar and the hud while
+    // every `el.hidden === true` assertion still passed.
+    "[data-dsh-pig] .dp-card[hidden],[data-dsh-pig] .dp-bar[hidden],",
+    "[data-dsh-pig] .dp-content[hidden],[data-dsh-pig] .dp-hud[hidden],",
+    "[data-dsh-pig] .dp-bubble[hidden],[data-dsh-pig] .dp-scene[hidden],",
+    "[data-dsh-pig] .dp-work[hidden],[data-dsh-pig] .dp-soul[hidden],",
+    "[data-dsh-pig] .dp-poke-hint[hidden],[data-dsh-pig] .dp-daily[hidden],",
+    "[data-dsh-pig] .dp-pomo[hidden],",
+    "[data-dsh-pig] .dp-pig-img[hidden],[data-dsh-pig] .dp-pig-emoji[hidden]{display:none}",
+    /* ---------- the panel: cream parchment, border not shadow ---------- */
+    // Taken out of flow on purpose. In flow it would widen the wrapper, and a
+    // wider wrapper moves the pig — the exact thing this layout exists to
+    // prevent. Absolutely positioned, the wrapper's box stays the pig's box
+    // and `fitPanel` can put the panel on whichever side has room.
+    ".dp-card{position:absolute;right:0;bottom:calc(100% + 8px);width:var(--panel-width);",
+    "border-radius:var(--ac-radius-card);overflow:hidden;",
+    "display:flex;flex-direction:column;",
+    "background:var(--ac-bg);border:2px solid var(--ac-border-light);",
+    // 面板自己钉住基准字号与字体：不钉就会继承宿主页面的 16px，
+    // 详情框那种「没写 font-size 的容器」就会比周围大一倍（用户反馈 #2）。
+    "box-shadow:var(--ac-shadow-lg);color:var(--ac-text-body);font-family:var(--ac-font);font-size:11px}",
+    /* ---------- the pig: never moved, never boxed ---------- */
+    ".dp-scene{position:relative;height:var(--scene-open);background:none;cursor:grab;",
+    "overflow:visible;display:flex;align-items:flex-end;justify-content:flex-end;",
+    "padding:0 6px var(--pig-gap-below);width:max-content}",
+    '.dp-scene[data-dragging="true"]{cursor:grabbing}',
+    // Collapsed the scene is exactly the pig, so the wrapper paints nothing
+    // extra to click through. Open it widens to the panel so the hud and the
+    // speech bubble have somewhere to sit — the pig is right-aligned either
+    // way, so widening costs it no movement.
+    '[data-dsh-pig][data-open="true"] .dp-scene{width:var(--panel-width)}',
+    // 桌面版面板朝右开时（外壳把窗口贴着猪、右边有地方），猪改待在场景左端，
+    // 跟着猪定位的气泡和打工道具也要镜像 —— 网页版没有这个属性，规则不命中。
+    '[data-dsh-pig][data-panel-side="right"] .dp-scene{justify-content:flex-start}',
+    '[data-dsh-pig][data-panel-side="right"] .dp-bubble{right:auto;left:8px}',
+    '[data-dsh-pig][data-panel-side="right"] .dp-work{margin:0 0 6px 2px}',
+    // Collapsed the scene shrinks to just the pig. An explicit height rather
+    // than `auto` keeps the pig's line box identical in both states, so
+    // opening moves it by exactly zero pixels.
+    '[data-dsh-pig][data-open="false"] .dp-scene{height:calc(var(--pig-size) + var(--pig-gap-below));',
+    "cursor:pointer}",
+    // 阴影挂在立绘（不动的元素）上，而不是做 bob/breathe 的 .dp-pig 上：
+    // 动画只改 transform，滤镜跟着每帧重算在 Windows 上很贵（D1 第 4 条）。
+    ".dp-pig{line-height:1;transform-origin:50% 85%;cursor:pointer;position:relative;",
+    "animation:dp-bob 1.8s ease-in-out infinite}",
+    ".dp-pig-img,.dp-pig-emoji{filter:drop-shadow(0 4px 6px rgba(61,52,40,.28))}",
+    // 装扮点位：猪身上固定的几个锚点，每个点位挂一件。
+    // 以后换真立绘时，只改这里的偏移/尺寸，逻辑和存档都不用动。
+    ".dp-dress{position:absolute;inset:0;pointer-events:none;z-index:3}",
+    ".dp-slot{position:absolute;line-height:1;font-size:15px;transform:translate(-50%,-50%)}",
+    '.dp-slot[data-slot="head"]{left:50%;top:2%}',
+    '.dp-slot[data-slot="face"]{left:50%;top:32%}',
+    '.dp-slot[data-slot="neck"]{left:50%;top:60%}',
+    '.dp-slot[data-slot="body"]{left:50%;top:78%;font-size:19px}',
+    '.dp-slot[data-slot="back"]{left:14%;top:42%;font-size:19px}',
+    '.dp-slot[data-slot="feet"]{left:50%;top:99%}',
+    '[data-dsh-pig][data-open="false"] .dp-pig{filter:drop-shadow(0 5px 9px rgba(61,52,40,.26))}',
+    // A petting hand rather than an arrow. Drawn inline as an SVG data URI so
+    // it needs no asset and can carry the palette's warm outline; the hotspot
+    // sits in the palm, which is where a pat actually lands. The `pointer`
+    // after it is the fallback for browsers that refuse a custom cursor.
+    `.dp-pig{cursor:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="%23F7C9B6" stroke="%23794F27" stroke-width="1.7" stroke-linejoin="round"><rect x="10" y="13.5" width="14" height="12" rx="4.8"/><rect x="10.6" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="14.9" y="5.1" width="3.6" height="11.5" rx="1.8"/><rect x="19.2" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="5.7" y="12.4" width="3.4" height="7.8" rx="1.7" transform="rotate(-27 7.4 16.3)"/></g></svg>') 16 24, pointer}`,
+    // Transform-only keyframes: the pig is an ordinary flex item, so there is
+    // no translateX(-50%) centring to preserve.
+    "@keyframes dp-bob{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-7px) rotate(-2.5deg)}}",
+    "@keyframes dp-breathe{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(1px) scale(1.09)}}",
+    "@keyframes dp-shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-4px) rotate(-5deg)}60%{transform:translateX(4px) rotate(5deg)}}",
+    "@keyframes dp-spin{0%{transform:rotate(0)}50%{transform:rotate(180deg) scale(1.2)}100%{transform:rotate(360deg)}}",
+    "@keyframes dp-jump{0%{transform:translateY(0)}30%{transform:translateY(-26px) scale(1.12)}60%{transform:translateY(0) scale(.92)}100%{transform:translateY(0)}}",
+    "@keyframes dp-wobble{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}55%{transform:rotate(14deg)}}",
+    "@keyframes dp-cough{0%,100%{transform:translateX(0)}30%{transform:translateX(-4px) rotate(-7deg)}70%{transform:translateX(4px) rotate(6deg)}}",
+    '.dp-pig[data-mood="happy"]{animation-duration:1.15s}',
+    '.dp-pig[data-mood="sleepy"]{animation-name:dp-breathe;animation-duration:3.6s}',
+    '.dp-pig[data-mood="hungry"]{animation-name:dp-shake;animation-duration:2.4s}',
+    '.dp-pig[data-mood="dirty"]{animation-name:dp-breathe;animation-duration:2.6s}',
+    '.dp-pig[data-mood="dirty"] .dp-pig-img,.dp-pig[data-mood="dirty"] .dp-pig-emoji{filter:sepia(.4) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
+    '.dp-pig[data-mood="sick"]{animation-name:dp-cough;animation-duration:2.2s}',
+    '.dp-pig[data-mood="sick"] .dp-pig-img,.dp-pig[data-mood="sick"] .dp-pig-emoji{filter:hue-rotate(-28deg) saturate(.75) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
+    // One pose per activity, so being away reads as a thing the pig is doing.
+    "@keyframes dp-typing{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(-1.5deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-2px) rotate(1.5deg)}}",
+    "@keyframes dp-reading{0%,100%{transform:translateY(0) rotate(0)}35%{transform:translateY(1px) rotate(-5deg)}70%{transform:translateY(1px) rotate(-2deg)}}",
+    "@keyframes dp-walking{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-6px) rotate(-4deg)}50%{transform:translateY(0) rotate(0)}75%{transform:translateY(-6px) rotate(4deg)}}",
+    '.dp-pig[data-mood="working"]{animation-name:dp-typing;animation-duration:.7s}',
+    '.dp-pig[data-mood="studying"]{animation-name:dp-reading;animation-duration:2.4s}',
+    '.dp-pig[data-mood="traveling"]{animation-name:dp-walking;animation-duration:1s}',
+    '.dp-pig[data-mood="dead"]{animation:none}',
+    '.dp-pig[data-mood="dead"] .dp-pig-img,.dp-pig[data-mood="dead"] .dp-pig-emoji{filter:grayscale(1) drop-shadow(0 4px 6px rgba(61,52,40,.28))}',
+    ".dp-pig[data-react]{animation-duration:.85s;animation-iteration-count:1}",
+    '.dp-pig[data-react="feed"]{animation-name:dp-jump}',
+    '.dp-pig[data-react="bathe"]{animation-name:dp-wobble;animation-duration:1.05s}',
+    '.dp-pig[data-react="play"]{animation-name:dp-spin;animation-duration:.9s}',
+    '.dp-pig[data-react="away"]{animation-name:dp-jump;animation-duration:.9s}',
+    '.dp-pig[data-react="cure"]{animation-name:dp-spin;animation-duration:.9s}',
+    '.dp-pig[data-react="levelup"]{animation-name:dp-jump;animation-duration:.95s}',
+    '.dp-pig[data-react="refuse"]{animation-name:dp-shake;animation-duration:.5s}',
+    /* ---------- what the pig is off doing ---------- */
+    "[data-dsh-pig] .dp-work{display:flex;flex-direction:column;align-items:center;gap:4px;",
+    "margin:0 2px 6px 0}",
+    ".dp-prop{font-size:26px;line-height:1;filter:drop-shadow(0 3px 5px rgba(61,52,40,.22));",
+    "animation:dp-prop-bob 2.4s ease-in-out infinite}",
+    '[data-dsh-pig][data-away="study"] .dp-prop{animation-duration:3.4s}',
+    '[data-dsh-pig][data-away="trip"] .dp-prop{animation-name:dp-prop-swing;animation-duration:1.6s}',
+    '[data-dsh-pig][data-away="interest"] .dp-prop{animation-duration:3.4s}',
+    "@keyframes dp-prop-bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3px) rotate(3deg)}}",
+    "@keyframes dp-prop-swing{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-4px) rotate(8deg)}}",
+    ".dp-progress{width:42px;height:7px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
+    "box-shadow:var(--ac-inset);overflow:hidden}",
+    ".dp-progress i{display:block;height:100%;border-radius:var(--ac-pill);",
+    "background:var(--ac-primary);transition:width .5s var(--ac-ease)}",
+    // The scene needs room for the prop; it grows leftward, so the pig stays put.
+    '[data-dsh-pig][data-away="work"] .dp-scene,[data-dsh-pig][data-away="study"] .dp-scene,',
+    '[data-dsh-pig][data-away="interest"] .dp-scene,',
+    '[data-dsh-pig][data-away="trip"] .dp-scene{width:max-content;min-width:132px}',
+    // 加冕后的形态有动作立绘（桌子、书、行李都画在图里）：不再摆 emoji 道具，
+    // 动作也收小，免得把画里的东西甩来甩去（立绘与动作来自 PR #2）。
+    '[data-dsh-pig][data-art-actions="true"] .dp-prop{display:none}',
+    '.dp-pig[data-art-actions="true"][data-mood="working"]:not([data-react]){animation:dp-king-work 1.4s ease-in-out infinite}',
+    '.dp-pig[data-art-actions="true"][data-mood="studying"]:not([data-react]){animation:dp-king-study 2.4s ease-in-out infinite}',
+    '.dp-pig[data-art-actions="true"][data-mood="traveling"]:not([data-react]){animation:dp-king-walk .8s ease-in-out infinite}',
+    "@keyframes dp-king-work{0%,100%{transform:translateY(0)}50%{transform:translateY(1px) rotate(1deg)}}",
+    "@keyframes dp-king-study{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}",
+    "@keyframes dp-king-walk{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-3px) rotate(2deg)}}",
+    /* ---------- hud: a cream tag beside the pig ---------- */
+    ".dp-hud{position:absolute;left:9px;top:7px;display:flex;flex-direction:column;gap:1px;",
+    "font-size:10.5px;font-weight:600;line-height:1.45;color:var(--ac-text);",
+    "background:var(--ac-bg);border:2px solid var(--ac-border-light);padding:5px 10px;",
+    "border-radius:var(--ac-radius-sm);box-shadow:var(--ac-shadow-sm)}",
+    ".dp-hud b{font-weight:700}",
+    // A drawn sprite is sized by the same variable as the emoji, so growing up
+    // works identically either way.
+    ".dp-pig-img{width:var(--pig-size);height:var(--pig-size);display:block;",
+    "-webkit-user-drag:none;user-select:none}",
+    ".dp-pig-emoji{font-size:var(--pig-size);line-height:1}",
+    // No drawings yet — every stage is the same pig, so age reads as size plus
+    // a faded coat on the last one.
+    '[data-dsh-pig][data-faded="true"] .dp-pig-emoji{filter:grayscale(.5) opacity(.72)}',
+    // The box advertises itself: a slow breathing glow plus a label, so it
+    // does not read as scenery.
+    '[data-dsh-pig][data-unhatched="true"] .dp-pig{cursor:pointer;',
+    "animation:dp-box-breathe 2.4s ease-in-out infinite}",
+    '[data-dsh-pig][data-unhatched="true"] .dp-pig-emoji{',
+    "filter:drop-shadow(0 0 0 rgba(255,214,102,0)) drop-shadow(0 4px 6px rgba(61,52,40,.28))}",
+    "@keyframes dp-box-breathe{0%,100%{transform:translateY(0) scale(1)}",
+    "50%{transform:translateY(-3px) scale(1.06)}}",
+    ".dp-poke-hint{position:absolute;right:2px;bottom:-2px;display:flex;align-items:center;gap:3px;",
+    "font-size:9.5px;font-weight:700;color:var(--ac-text);background:var(--ac-bg);",
+    "border:1.5px solid var(--ac-border-light);border-radius:var(--ac-pill);padding:1px 7px;",
+    "box-shadow:0 2px 0 rgba(61,52,40,.12);pointer-events:none;white-space:nowrap;z-index:3;",
+    "animation:dp-hint-bob 1.6s ease-in-out infinite}",
+    "@keyframes dp-hint-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}",
+    // Each poke shakes it harder; the third one opens it instead.
+    '[data-dsh-pig] .dp-pig[data-mood="poke"],',
+    "[data-dsh-pig][data-poke] .dp-pig{animation-name:dp-poke-shake}",
+    '[data-dsh-pig][data-poke="2"] .dp-pig{animation-duration:.28s}',
+    "@keyframes dp-poke-shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}",
+    "50%{transform:rotate(6deg)}75%{transform:rotate(-4deg)}}"
+    // The shop's tiles live in css-tiles.js since B8.
+  ].join("");
+
+  // src/client/css-tabs.js
+  var CSS_TABS = [
+    /* ---------- developer tab ---------- */
+    ".dp-dev-note{font-size:10px;color:var(--ac-text-2);margin:4px 0 2px;line-height:1.5}",
+    ".dp-dev-row{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 2px}",
+    ".dp-dev-btn{flex:0 0 auto;font-size:10px;padding:3px 8px}",
+    ".dp-on{background:var(--ac-primary);color:#fff;border-color:var(--ac-primary)}",
+    '[data-dsh-pig][data-dev="true"] .dp-ico[data-tab="dev"]{color:var(--ac-primary)}',
+    /* ---------- the soul that settles on an unclaimed grave ---------- */
+    ".dp-soul{position:absolute;left:50%;transform:translateX(-50%);top:-4px;font-size:22px;",
+    "line-height:1;opacity:.9;pointer-events:none;z-index:1;",
+    "animation:dp-haunt 3.4s ease-in-out infinite}",
+    "@keyframes dp-haunt{0%,100%{transform:translate(-50%,0) scale(1);opacity:.75}",
+    "50%{transform:translate(-50%,-9px) scale(1.08);opacity:1}}",
+    // A grave does not bob about like a living pig.
+    '.dp-pig[data-stage="grave"]{animation:none;filter:grayscale(.35) drop-shadow(0 4px 6px rgba(61,52,40,.3))}',
+    '.dp-pig[data-stage="box"]{animation:dp-box-wobble 3.2s ease-in-out infinite}',
+    "@keyframes dp-box-wobble{0%,100%{transform:rotate(0)}30%{transform:rotate(-4deg)}",
+    "45%{transform:rotate(3deg)}60%{transform:rotate(-2deg)}}",
+    // Patting squashes the pig flat. Short, so rapid clicking keeps up.
+    '[data-dsh-pig] .dp-pig[data-react="pet"]{animation-name:dp-squash;animation-duration:.42s}',
+    "@keyframes dp-squash{0%{transform:scale(1,1)}35%{transform:scale(1.16,.74) translateY(2px)}",
+    "60%{transform:scale(.94,1.08) translateY(-3px)}100%{transform:scale(1,1)}}",
+    /* ---------- speech bubble ---------- */
+    // `z-index` matters: the pig comes later in the DOM, so without it the pig
+    // paints over the bubble whenever the two boxes overlap — which is exactly
+    // what happened when collapsed and the scene was only as wide as the pig.
+    ".dp-bubble{position:absolute;right:8px;top:7px;z-index:2;max-width:162px;padding:6px 10px;",
+    '[data-dsh-pig][data-panel-side="right"] .dp-bubble::after{left:auto;right:14px}',
+    "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.45;",
+    "color:var(--ac-text-body);background:var(--ac-bg-input);",
+    "border:2px solid var(--ac-border-light);box-shadow:var(--ac-shadow-sm)}",
+    // Tail drawn as a small rotated square so the 2px border stays continuous.
+    '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
+    "background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);",
+    "border-bottom:2px solid var(--ac-border-light);transform:rotate(45deg)}",
+    // Reply buttons under a line: small pills, the mint of the primary colour
+    // without the 3D base, which the spec keeps for real primary buttons.
+    ".dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
+    // 猪头上的日常气泡（签到 / 礼包）：不用新颜色，沿用主色与卡片底色。
+    // 挂在场景**上方**（不是 top 边缘）：折叠时场景就是猪本身，用 top:-6px
+    // 会让气泡叠在猪头上（用户反馈 #6）。
+    ".dp-daily{position:absolute;bottom:calc(100% + 7px);left:50%;width:36px;margin-left:-18px;",
+    "font:inherit;font-size:15px;line-height:1;padding:3px 0;cursor:pointer;text-align:center;",
+    "border:2px solid var(--ac-border);border-radius:50px;background:var(--ac-bg-input);",
+    "box-shadow:0 3px 0 rgba(61,52,40,.14);animation:dp-daily-bob 2.4s var(--ac-ease) infinite}",
+    // 折叠时场景就剩猪本身（而且它还在上下浮动 ±7px），再多让开一点。
+    '[data-dsh-pig][data-open="false"] .dp-daily{bottom:calc(100% + 16px)}',
+    // 展开时场景有面板那么宽、那么高，挂在场景上方会压到图标栏（B8 截图里压在「商店」上）：
+    // 改成蹲在猪左边、贴着猪身子（再高会碰到左边的名字框）。
+    '[data-dsh-pig][data-open="true"] .dp-daily{left:auto;margin-left:0;',
+    "right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + 4px)}",
+    // 桌面版面板朝右开时猪在左端：日历跟着镜像到猪右边。
+    '[data-dsh-pig][data-panel-side="right"][data-open="true"] .dp-daily{right:auto;left:calc(6px + var(--pig-size) + 10px)}',
+    ".dp-daily:hover{border-color:var(--ac-border-hover)}",
+    ".dp-daily:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
+    // 名字必须独占：叫 dp-bob 会覆盖猪的待机动画（css-base.js），
+    // 而那个动画的 transform 一被替掉，猪就会横跳半个身位。
+    // 只上下浮：横向居中改用 margin，展开时才能挪到猪旁边。
+    "@keyframes dp-daily-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}",
+    // 日记：折叠时只有首句，展开是全文。
+    ".dp-diary{cursor:pointer}",
+    '.dp-diary[data-open="true"] .dp-diary-full{display:block}',
+    ".dp-diary-full{margin-top:4px;line-height:1.5}",
+    ".dp-reply{font:inherit;font-size:10px;font-weight:700;padding:2px 9px;cursor:pointer;",
+    "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);background:var(--ac-bg);",
+    "color:var(--ac-text);transition:border-color .15s var(--ac-ease)}",
+    ".dp-reply:hover{border-color:var(--ac-border-hover)}",
+    ".dp-reply:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
+    // Collapsed, the scene is exactly the pig, so a bubble drawn inside it
+    // would sit on the pig's face. Float it above the head with the tail
+    // pointing down, anchored to the right edge so it can never run off the
+    // window. The hearts rise from behind it.
+    '[data-dsh-pig][data-open="false"] .dp-bubble{top:auto;bottom:calc(100% + 8px);',
+    "left:auto;right:0;max-width:230px}",
+    '[data-dsh-pig][data-open="false"] .dp-bubble::after{left:auto;right:26px;',
+    "top:100%;bottom:auto;margin:0;transform:rotate(45deg);",
+    "border:0;border-right:2px solid var(--ac-border-light);",
+    "border-bottom:2px solid var(--ac-border-light)}",
+    /* ---------- icon bar: the library sidebar, laid on its side ---------- */
+    ".dp-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:8px;",
+    "background:var(--ac-bg-content);border-top:2px solid var(--ac-border-light);",
+    "border-bottom:2px solid var(--ac-border-light)}",
+    ".dp-ico{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;",
+    "font:inherit;font-size:9.5px;font-weight:600;color:var(--ac-text-muted);background:none;",
+    "border:2px solid transparent;border-radius:var(--ac-radius-sm);padding:5px 1px;",
+    "transition:all .2s var(--ac-ease)}",
+    ".dp-ico span.dp-ico-e{font-size:18px;line-height:1}",
+    ".dp-ico:hover{background:var(--ac-hover)}",
+    '.dp-ico[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
+    "color:var(--ac-text);font-weight:700}",
+    ".dp-ico:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
+    "@keyframes dp-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}",
+    '.dp-ico[data-alert="true"] span.dp-ico-e{animation:dp-pulse 1.4s ease-in-out infinite}',
+    /* ---------- content ---------- */
+    ".dp-content{padding:12px 13px 13px;overflow-y:auto;flex:1 1 auto;min-height:0}",
+    "[data-dsh-pig] .dp-panel-footer[hidden]{display:none}",
+    ".dp-panel-footer{flex:none;max-height:min(42vh,270px);overflow-y:auto;padding:10px 13px 12px;",
+    "border-top:2px solid var(--ac-border-light);background:var(--ac-bg)}",
+    ".dp-panel-footer .dp-job-detail{margin:0}",
+    ".dp-content::-webkit-scrollbar{width:8px}",
+    ".dp-content::-webkit-scrollbar-thumb{background:var(--ac-border-light);border-radius:4px}",
+    ".dp-content::-webkit-scrollbar-track{background:transparent}",
+    ".dp-title{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;",
+    "margin-bottom:8px}",
+    ".dp-title b{font-weight:700;color:var(--ac-text)}",
+    ".dp-title span{color:var(--ac-text-2);font-size:10.5px;font-weight:600}",
+    ".dp-row{display:flex;justify-content:space-between;font-size:11px;font-weight:600;",
+    "color:var(--ac-text-body);margin:2px 0}",
+    ".dp-row b{font-weight:700;color:var(--ac-text)}",
+    /* ---------- attribute bars: pill track with an inset well ---------- */
+    ".dp-meter{height:9px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled);",
+    "box-shadow:var(--ac-inset);overflow:hidden;margin:3px 0 8px}",
+    ".dp-meter i{display:block;height:100%;border-radius:var(--ac-pill);",
+    "background:var(--ac-warning);transition:width .35s var(--ac-ease)}",
+    ".dp-meter.dp-mood i{background:#f8a6b2}",
+    ".dp-meter.dp-clean i{background:#82d5bb}",
+    ".dp-meter.dp-health i{background:#8ac68a}",
+    ".dp-traits{display:flex;gap:10px;font-size:10.5px;font-weight:600;color:var(--ac-text-2);",
+    "margin:8px 0 3px}",
+    /* ---------- banners ---------- */
+    ".dp-alert{margin:0 0 9px;padding:8px 10px;border-radius:var(--ac-radius-sm);",
+    "font-size:10.5px;font-weight:600;line-height:1.55;border:2px solid}",
+    ".dp-alert b{font-weight:700;color:var(--ac-text)}",
+    ".dp-alert.dp-sick{background:#fdeeee;border-color:#f2c2c2}",
+    ".dp-alert.dp-work{background:#eef1fb;border-color:#c3cdf0}",
+    ".dp-alert.dp-dead{background:var(--ac-bg-disabled);border-color:var(--ac-border-light)}",
+    ".dp-alert.dp-legacy{background:#fdf7e2;border-color:#f0dfa8}",
+    /* ---------- buttons: secondary is a cream pill with soft elevation ---- */
+    ".dp-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}",
+    ".dp-btn{display:flex;align-items:center;justify-content:center;gap:5px;font:inherit;",
+    "font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--ac-text-body);",
+    "cursor:pointer;padding:8px 6px;border-radius:var(--ac-pill);",
+    "border:2px solid var(--ac-border);background:var(--ac-bg-input);",
+    "box-shadow:var(--ac-shadow-sm);transition:all .2s var(--ac-ease)}",
+    ".dp-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--ac-shadow);",
+    "border-color:var(--ac-border-hover)}",
+    ".dp-btn:active:not(:disabled){transform:translateY(2px);box-shadow:var(--ac-shadow-sm)}",
+    ".dp-btn:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
+    ".dp-btn:disabled{background:var(--ac-bg-disabled);color:var(--ac-text-disabled);",
+    "border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}",
+    ".dp-btn-wide{grid-column:1/-1}",
+    ".dp-btn .dp-wait{color:var(--ac-text-2);font-size:10px;font-weight:600}",
+    /* ---------- segmented control ---------- */
+    ".dp-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:9px}",
+    ".dp-seg button{font:inherit;font-size:10.5px;font-weight:600;color:var(--ac-text-muted);",
+    "cursor:pointer;padding:6px 2px;border-radius:var(--ac-pill);",
+    "border:2px solid var(--ac-border-light);background:var(--ac-bg-input);",
+    // One line, always: a label that wraps makes its button taller than the rest.
+    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;",
+    "transition:all .2s var(--ac-ease)}",
+    ".dp-seg button:hover{background:var(--ac-hover)}",
+    // The work tab has three skills, not four stages.
+    ".dp-seg.dp-seg-3{grid-template-columns:repeat(3,minmax(0,1fr))}",
+    // Work rows: two small buttons on the right, 详情 opens the checklist below.
+    ".dp-job-locked{opacity:.75}",
+    ".dp-job-detail{margin-top:-2px}",
+    ".dp-req{font-size:10.5px;font-weight:600;color:var(--ac-error);line-height:1.6}",
+    ".dp-req.dp-req-ok{color:var(--ac-success)}",
+    '.dp-seg button[data-active="true"]{background:var(--ac-active);border-color:#9db0d6;',
+    "color:var(--ac-text);font-weight:700}",
+    /* ---------- list rows ---------- */
+    // minmax(0,1fr): a long nowrap line must ellipsize, not widen the panel.
+    ".dp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}",
+    ".dp-list{display:flex;flex-direction:column;gap:7px}",
+    ".dp-shelf{margin:9px 0 1px;font-size:10px;font-weight:700;color:var(--ac-text-2);",
+    "letter-spacing:.04em}",
+    ".dp-shelf:first-child{margin-top:0}",
+    ".dp-item{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;",
+    "color:var(--ac-text-body);padding:7px 9px;border-radius:var(--ac-radius-sm);",
+    "background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
+    ".dp-item .dp-grow{flex:1;min-width:0}",
+    ".dp-item .dp-dim{color:var(--ac-text-2);font-size:10px;font-weight:500;overflow:hidden;",
+    "text-overflow:ellipsis;white-space:nowrap}",
+    ".dp-item.dp-wanted{background:#fdf7e2;border-color:var(--ac-warning)}",
+    // B6 talk row: name + 改 + 免打扰, and the inline name input.
+    ".dp-talk{gap:6px;margin-top:8px}",
+    ".dp-talk>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}",
+    ".dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}",
+    ".dp-input{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 8px;border-radius:var(--ac-pill);",
+    "border:2px solid var(--ac-border);background:var(--ac-bg-input);color:var(--ac-text)}",
+    ".dp-input:focus{outline:2px solid var(--ac-primary);outline-offset:1px}",
+    /* ---------- primary buttons: teal pill with the game 3D bottom edge --- */
+    ".dp-mini{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#fff;",
+    "cursor:pointer;padding:6px 13px;border-radius:var(--ac-pill);",
+    "border:2px solid var(--ac-primary-active);background:var(--ac-primary);",
+    "box-shadow:0 3px 0 0 var(--ac-primary-active);transition:all .15s var(--ac-ease)}",
+    ".dp-mini:hover:not(:disabled){background:var(--ac-primary-hover);transform:translateY(-1px);",
+    "box-shadow:0 4px 0 0 var(--ac-primary-active)}",
+    ".dp-mini:active:not(:disabled){transform:translateY(2px);",
+    "box-shadow:0 1px 0 0 var(--ac-primary-active)}",
+    ".dp-mini:focus-visible{outline:2px solid var(--ac-primary);outline-offset:2px}",
+    ".dp-mini:disabled{background:var(--ac-bg-disabled);color:var(--ac-text-disabled);",
+    "border-color:var(--ac-border-light);box-shadow:none;cursor:not-allowed}",
+    /* ---------- the care item picker ---------- */
+    ".dp-pick{margin-top:9px;padding:9px 10px;border-radius:var(--ac-radius-sm);font-size:10.5px;",
+    "background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
+    ".dp-pick-head{font-size:10.5px;font-weight:700;color:var(--ac-text);margin-bottom:7px}",
+    ".dp-cancel{display:block;width:100%;margin-top:8px;font:inherit;font-size:10.5px;",
+    "font-weight:600;color:var(--ac-text-2);cursor:pointer;padding:5px;",
+    "border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);",
+    "background:var(--ac-bg-input);transition:all .2s var(--ac-ease)}",
+    ".dp-cancel:hover{background:var(--ac-hover);color:var(--ac-text)}",
+    ".dp-count{margin-left:2px;font-size:9px;font-weight:700;color:var(--ac-text-2);",
+    "background:var(--ac-bg-content);border-radius:var(--ac-pill);padding:0 5px}",
+    '.dp-btn[data-open-picker="true"]{background:var(--ac-active);border-color:#9db0d6}',
+    '.dp-seg button[data-locked="true"]{color:var(--ac-text-disabled);',
+    "border-style:dashed;background:var(--ac-bg-disabled)}",
+    '.dp-seg button[data-locked="true"]:hover{background:var(--ac-bg-disabled)}',
+    ".dp-locked{margin:0 0 8px;font-size:10.5px;font-weight:600;line-height:1.5;",
+    "color:var(--ac-text-body);background:#fdf7e2;border:2px solid #f0dfa8;",
+    "border-radius:var(--ac-radius-sm);padding:6px 9px}",
+    // The per-job gate reads as a lock, not as another grey stat line: a
+    // threshold the pig cannot see is indistinguishable from a broken button.
+    ".dp-lock{font-size:10px;font-weight:700;line-height:1.5;color:#9a6b1f}",
+    ".dp-empty{color:var(--ac-text-2);font-size:10.5px;font-weight:500;line-height:1.65;",
+    "margin-top:4px}",
+    ".dp-memo{margin-top:9px;padding-top:8px;border-top:2px solid var(--ac-border-light);",
+    "color:var(--ac-text-muted);font-size:10px;font-weight:500;line-height:1.55;",
+    "white-space:pre-wrap;word-break:break-word}",
+    /* ---------- particles and toast ---------- */
+    ".dp-transform{position:fixed;inset:0;z-index:2147483647;pointer-events:none;overflow:hidden}",
+    ".dp-transform-fall{position:absolute;top:-48px;font-size:28px;opacity:0;",
+    "animation:dp-transform-fall 1.35s var(--delay) ease-in forwards}",
+    "@keyframes dp-transform-fall{0%{opacity:0;transform:translate3d(0,-20px,0) rotate(-15deg)}",
+    "12%{opacity:1}100%{opacity:0;transform:translate3d(var(--drift),105vh,0) rotate(30deg)}}",
+    ".dp-transform-pop{position:absolute;font-size:72px;line-height:1;filter:drop-shadow(0 3px 8px #fff);",
+    "animation:dp-transform-pop 1.3s ease-out forwards}",
+    "@keyframes dp-transform-pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.15)}",
+    "35%{opacity:1;transform:translate(-50%,-50%) scale(1.25)}",
+    "70%{opacity:1;transform:translate(-50%,-50%) scale(1)}",
+    "100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}",
+    ".dp-fx{position:absolute;z-index:1;pointer-events:none;font-size:17px;",
+    "animation:dp-rise 1.1s ease-out forwards}",
+    "@keyframes dp-rise{0%{opacity:0;transform:translate(var(--dx0,0),4px) scale(.5)}18%{opacity:1}",
+    "100%{opacity:0;transform:translate(var(--dx,0),-56px) scale(1.15)}}",
+    ".dp-toast{position:absolute;left:9px;right:9px;top:8px;padding:8px 11px;",
+    "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.5;",
+    "color:var(--ac-text);background:var(--ac-bg-input);border:2px solid var(--ac-border);",
+    "box-shadow:var(--ac-shadow);pointer-events:none;white-space:normal;",
+    "animation:dp-toast 4.6s var(--ac-ease) forwards}",
+    "@keyframes dp-toast{0%{opacity:0;transform:translateY(-8px)}8%{opacity:1;transform:translateY(0)}",
+    "82%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}"
+  ].join("");
+
+  // src/client/css-tiles.js
+  var CSS_TILES = [
+    // 番茄钟角标（C2 返工）：贴在猪立绘右上角，跟着猪一起动。
+    // 高度 = 13 + 2 = 15px，再往上 2px，所以顶多高出猪头 17px（要求 20px 以内）；
+    // z-index:1 低于说话气泡（2）、也低于装扮层（3），面板打开时更够不着面板。
+    ".dp-pomo{position:absolute;bottom:calc(100% + 2px);right:-4px;z-index:1;",
+    "font-size:9.5px;font-weight:800;color:#fff;background:var(--tile-red);",
+    "border-radius:var(--ac-pill);padding:1px 5px;line-height:13px;white-space:nowrap;pointer-events:none;",
+    "box-shadow:0 2px 0 rgba(61,52,40,.16)}",
+    ".dp-pomo-live{display:flex;flex-direction:column;align-items:center;gap:3px;margin:6px 0 10px}",
+    ".dp-pomo-clock{font-size:26px;font-weight:800;color:var(--ac-text);letter-spacing:1px}",
+    // 主屏底部的版本号：一行灰字，不占格子（连点 7 次解锁调试模式，见 C1）。
+    ".dp-version{margin-top:8px;text-align:center;font-size:9.5px;font-weight:600;",
+    "color:var(--ac-text-muted);cursor:default;user-select:none}",
+    "[data-dsh-pig]{--tile-pink:#f8a6b2;--tile-purple:#b77dee;--tile-blue:#889df0;",
+    "--tile-yellow:#f7cd67;--tile-orange:#e59266;--tile-teal:#82d5bb;--tile-green:#8ac68a;",
+    "--tile-red:#fc736d;--tile-lime:#d1da49;--tile-peach:#e18c6f;--tile-brown:#9a835a}",
+    '.dp-tile[data-color="pink"]{--tile-c:var(--tile-pink)}',
+    '.dp-tile[data-color="purple"]{--tile-c:var(--tile-purple)}',
+    '.dp-tile[data-color="blue"]{--tile-c:var(--tile-blue)}',
+    '.dp-tile[data-color="yellow"]{--tile-c:var(--tile-yellow)}',
+    '.dp-tile[data-color="orange"]{--tile-c:var(--tile-orange)}',
+    '.dp-tile[data-color="teal"]{--tile-c:var(--tile-teal)}',
+    '.dp-tile[data-color="green"]{--tile-c:var(--tile-green)}',
+    '.dp-tile[data-color="red"]{--tile-c:var(--tile-red)}',
+    '.dp-tile[data-color="lime"]{--tile-c:var(--tile-lime)}',
+    '.dp-tile[data-color="peach"]{--tile-c:var(--tile-peach)}',
+    '.dp-tile[data-color="brown"]{--tile-c:var(--tile-brown)}',
+    // The grid: three columns that can never be widened by their content.
+    ".dp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:4px 2px 2px}",
+    // A tile is a column: the coloured square, then its name, then a note.
+    ".dp-tile{font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;",
+    "padding:0;margin:0;border:0;background:none;cursor:pointer;color:var(--ac-text)}",
+    ".dp-tile-icon{position:relative;display:flex;align-items:center;justify-content:center;",
+    "width:50px;height:50px;border-radius:15px;background:var(--tile-c,var(--ac-bg-content));",
+    "box-shadow:0 3px 0 rgba(61,52,40,.16);transition:transform .15s var(--ac-ease),box-shadow .15s var(--ac-ease)}",
+    ".dp-tile-e{font-size:24px;line-height:1;filter:drop-shadow(0 1px 1px rgba(61,52,40,.18))}",
+    ".dp-tile-svg{width:27px;height:27px;object-fit:contain}",
+    ".dp-app-title{display:inline-flex;align-items:center;gap:5px}",
+    ".dp-app-title-icon{font-size:14px;line-height:1}",
+    ".dp-app-title-icon.dp-tile-svg{width:17px;height:17px}",
+    ".dp-setting-row{margin-top:8px}",
+    ".dp-setting-emoji{font-size:22px;line-height:1;width:28px;text-align:center}",
+    ".dp-tile:hover:not(:disabled) .dp-tile-icon{transform:translateY(-2px);box-shadow:0 5px 0 rgba(61,52,40,.16)}",
+    ".dp-tile:active:not(:disabled) .dp-tile-icon{transform:translateY(2px);box-shadow:0 1px 0 rgba(61,52,40,.16)}",
+    ".dp-tile:focus-visible{outline:none}",
+    ".dp-tile:focus-visible .dp-tile-icon{outline:2px solid var(--ac-primary);outline-offset:2px}",
+    // One line each, never wrapping: every tile in a row stays the same height.
+    ".dp-tile-n,.dp-tile-note{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.25}",
+    ".dp-tile-n{font-size:10.5px;font-weight:700}",
+    ".dp-tile-note{font-size:9.5px;font-weight:600;color:var(--ac-text-2);margin-top:-2px}",
+    // Corner marks on the square: a count top-right, a word top-left.
+    ".dp-tile-badge,.dp-tile-tag{position:absolute;top:-5px;font-size:9px;font-weight:800;line-height:1;",
+    "padding:3px 5px;border-radius:var(--ac-pill);white-space:nowrap;border:2px solid var(--ac-bg)}",
+    ".dp-tile-badge{right:-6px;background:var(--ac-primary);color:#fff}",
+    '.dp-tile[data-app="update"] .dp-tile-badge{background:var(--tile-red)}',
+    ".dp-tile-tag{left:-6px;background:var(--ac-warning);color:var(--ac-text)}",
+    // Second layer: the same colour, a shade paler and a little smaller.
+    // Sizes trimmed on 2026-10-01 (owner: the tiles were too big): 50px / 44px.
+    ".dp-tile-soft .dp-tile-icon{width:44px;height:44px;border-radius:13px;",
+    "background:color-mix(in srgb,var(--tile-c) 42%,#fffbe7)}",
+    ".dp-tile-soft .dp-tile-e{font-size:21px}",
+    // Locked: greyed but still openable (a stage can be looked into before it opens).
+    '.dp-tile[data-locked="true"] .dp-tile-icon{filter:grayscale(.75);opacity:.6}',
+    '.dp-tile[data-dim="true"] .dp-tile-icon,.dp-tile:disabled .dp-tile-icon{opacity:.45;box-shadow:none}',
+    '.dp-tile[data-dim="true"] .dp-tile-n,.dp-tile:disabled .dp-tile-n{color:var(--ac-text-2)}',
+    ".dp-tile:disabled{cursor:default}",
+    '.dp-tile[data-active="true"] .dp-tile-icon{outline:3px solid var(--ac-active);outline-offset:2px}',
+    // The second layer's top row: back, title, one grey line.
+    ".dp-drill{position:sticky;top:-12px;z-index:5;display:flex;align-items:center;gap:7px;",
+    "margin:-12px 0 10px;padding:12px 0 0;background:var(--ac-bg)}",
+    ".dp-drill-back{font:inherit;font-size:16px;font-weight:800;line-height:1;width:26px;height:26px;",
+    "flex:none;cursor:pointer;color:var(--ac-text);border-radius:50%;",
+    "border:2px solid var(--ac-border-light);background:var(--ac-bg-input)}",
+    ".dp-drill-back:hover{border-color:var(--ac-border-hover)}",
+    ".dp-drill-title{font-size:12px;font-weight:800;color:var(--ac-text);white-space:nowrap}",
+    ".dp-drill-info{flex:1;min-width:0;text-align:right;font-size:10px;font-weight:600;",
+    "color:var(--ac-text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    // B9: the home screen replaces the bottom icon bar. The bar still exists
+    // (its icons carry the alert state the home tiles read) but is not shown.
+    "[data-dsh-pig] .dp-card .dp-bar{display:none}",
+    ".dp-app-head{margin-bottom:12px}",
+    // Out working, the collapsed scene shrinks to pig + prop; open, it must stay
+    // as wide as the panel, or the name plate is squeezed onto the pig.
+    '[data-dsh-pig][data-open="true"][data-away] .dp-scene{width:var(--panel-width)}',
+    // Banners only live on the status tab now, with room to breathe below.
+    "[data-dsh-pig] .dp-alert{margin-bottom:14px}",
+    "[data-dsh-pig] .dp-alert + .dp-actions{margin-bottom:14px}",
+    ".dp-job-go{display:block;width:100%;margin-top:9px}",
+    // A picked tile's details (a diary page, a souvenir's story) sit under the grid.
+    ".dp-tile-card{margin-top:12px}",
+    // 更新 App: the release notes keep their line breaks but stay short.
+    ".dp-update-notes{white-space:pre-wrap;font-size:10.5px;line-height:1.5;color:var(--ac-text-2);max-height:120px;overflow:auto;margin:4px 0 6px}",
+    ".dp-update-back{margin-top:10px;width:100%}",
+    ".dp-update-now{margin-bottom:12px}",
+    ".dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}"
+  ].join("");
+
+  // src/client/css-card.js
+  var CSS_CARD = [
+    ".dp-vcard{position:relative;padding:14px 14px 12px;border-radius:20px;color:var(--ac-text-body);",
+    "--vc-dot:rgba(196,184,158,.15);--vc-dot2:rgba(196,184,158,.1);--vc-bg:rgb(247,243,223);--vc-line:#d4c4a8;",
+    "background:radial-gradient(circle,var(--vc-dot) 1.5px,transparent 1.5px),",
+    "radial-gradient(circle,var(--vc-dot2) 1px,transparent 1px),var(--vc-bg);",
+    "background-size:28px 28px,14px 14px;background-position:0 0,7px 7px;border:1.5px solid var(--vc-line)}",
+    '.dp-vcard[data-sex="girl"]{--vc-dot:rgba(248,166,178,.18);--vc-dot2:rgba(255,200,210,.12);--vc-bg:#fde4e8;--vc-line:#f8a6b2}',
+    '.dp-vcard[data-sex="boy"]{--vc-dot:rgba(136,157,240,.18);--vc-dot2:rgba(180,195,255,.12);--vc-bg:#e8edff;--vc-line:#889df0}',
+    // Top: the photo and who it is.
+    ".dp-vcard-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}",
+    ".dp-vcard-avatar{flex:none;width:72px;height:72px;border-radius:18px;display:flex;align-items:center;",
+    "justify-content:center;background:#fffbe7;border:2px solid var(--vc-line);box-shadow:0 3px 0 rgba(61,52,40,.12)}",
+    ".dp-vcard-img{width:56px;height:56px;display:block}",
+    ".dp-vcard-e{font-size:40px;line-height:1}",
+    ".dp-vcard-who{display:flex;flex-direction:column;gap:3px;min-width:0}",
+    ".dp-vcard-name{font-size:15px;font-weight:800;color:var(--ac-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".dp-vcard-sub{font-size:10.5px;font-weight:600;color:var(--ac-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    // 「标签：值」 rows.
+    ".dp-vcard-row{display:flex;align-items:center;gap:6px;margin-top:7px;min-width:0}",
+    ".dp-vcard-label{flex:none;width:44px;font-size:10.5px;font-weight:700;color:var(--ac-text)}",
+    ".dp-vcard-value{flex:1;min-width:0;padding:5px 11px;border-radius:var(--ac-pill);background:#faf8f2;",
+    "font-size:11px;font-weight:600;color:var(--ac-text-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    // The motto is the pig talking: a bubble that may take two lines.
+    ".dp-vcard-motto-row{align-items:flex-start}",
+    ".dp-vcard-motto-row .dp-vcard-label{margin-top:6px}",
+    ".dp-vcard-value.dp-vcard-motto{border-radius:12px;white-space:normal;line-height:1.45}",
+    ".dp-vcard-edit{flex:none;font:inherit;font-size:12px;line-height:1;width:24px;height:24px;padding:0;cursor:pointer;",
+    "border-radius:50%;border:2px solid var(--vc-line);background:#fffbe7}",
+    ".dp-vcard-edit:hover{background:var(--ac-hover)}",
+    ".dp-vcard-input{flex:1;min-width:0;padding:3px 9px;font-size:11px}",
+    // In-place editing: the two buttons stay as small as the pencil they replace.
+    ".dp-vcard-row .dp-mini{flex:none;padding:3px 9px;font-size:10px;box-shadow:none}",
+    "[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}",
+    ".dp-vcard-foot{margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--vc-line);",
+    "font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    // 加冕 App: one cream box per form, its picture on the left, conditions as small chips.
+    ".dp-crown{margin-bottom:10px;padding:10px 12px;border-radius:16px;background:#fffbe7;border:2px dashed #e8c66a}",
+    ".dp-crown.dp-crown-now{border-style:solid;background:#fdf3d0}",
+    ".dp-crown-top{display:flex;gap:10px;align-items:flex-start}",
+    ".dp-crown-pic{flex:none;width:58px;height:58px;border-radius:14px;display:flex;align-items:center;justify-content:center;",
+    "background:#fff;border:2px solid #f0dca0;font-size:30px}",
+    ".dp-crown-img{width:50px;height:50px;display:block}",
+    ".dp-crown-side{flex:1;min-width:0}",
+    ".dp-crown-head{font-size:12px;font-weight:800;color:var(--ac-text);margin-bottom:6px}",
+    ".dp-crown-done{font-size:11px;font-weight:700;color:#3f8a62}",
+    ".dp-crown-reqs{display:flex;flex-wrap:wrap;gap:4px}",
+    ".dp-crown-req{padding:2px 7px;border-radius:var(--ac-pill);font-size:10px;font-weight:700;white-space:nowrap;",
+    "background:#f3ece0;color:var(--ac-text-2)}",
+    ".dp-crown-req.dp-crown-ok{background:#dff3e8;color:#3f8a62}",
+    ".dp-crown .dp-btn{width:100%;margin-top:9px}"
+  ].join("");
+
+  // src/client/css-dex.js
+  var CSS_DEX = [
+    // Category dashboard: existing app tiles plus a thin museum-style progress rail.
+    ".dp-dex-sections .dp-tile{gap:3px}",
+    ".dp-dex-progress{display:block;width:42px;height:3px;margin-top:1px;border-radius:4px;overflow:hidden;",
+    "background:rgba(61,52,40,.12)}",
+    ".dp-dex-progress i{display:block;height:100%;border-radius:inherit;background:var(--tile-c,var(--ac-primary));",
+    "transition:width .25s var(--ac-ease)}",
+    // Forms and skins: three genuinely small collectible cards.
+    ".dp-dex-flash-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;perspective:700px}",
+    ".dp-dex-card{position:relative;min-width:0;aspect-ratio:4/5;padding:4px;border:1.5px solid rgba(117,91,48,.3);",
+    "border-radius:11px;overflow:hidden;cursor:pointer;color:var(--ac-text);font:inherit;",
+    "background:linear-gradient(145deg,#fff9dc 0%,#f5dd9e 38%,#e8bfcf 68%,#b9ddec 100%);",
+    "box-shadow:0 3px 0 rgba(61,52,40,.13),0 6px 12px rgba(91,67,37,.09);",
+    "transform:rotateX(var(--dex-rx,0deg)) rotateY(var(--dex-ry,0deg));transform-style:preserve-3d;",
+    "transition:transform .18s var(--ac-ease),box-shadow .18s var(--ac-ease)}",
+    ".dp-dex-card:hover{transform:translateY(-2px) rotateX(var(--dex-rx,-2deg)) rotateY(var(--dex-ry,3deg));",
+    "box-shadow:0 5px 0 rgba(61,52,40,.11),0 9px 16px rgba(91,67,37,.14)}",
+    ".dp-dex-card:focus-visible,.dp-dex-museum-item:focus-visible,.dp-dex-row:focus-visible{outline:2px solid var(--ac-primary);outline-offset:2px}",
+    '.dp-dex-card-foil::after,.dp-dex-big-foil::after{content:"";position:absolute;inset:-45%;pointer-events:none;',
+    "background:linear-gradient(112deg,transparent 32%,rgba(255,255,255,.08) 42%,rgba(255,255,255,.7) 49%,",
+    "rgba(155,224,255,.3) 54%,transparent 66%);transform:translateX(-58%) rotate(5deg);",
+    "transition:transform .65s ease;mix-blend-mode:screen}",
+    ".dp-dex-card-foil:hover::after,.dp-dex-big-foil:hover::after{transform:translateX(58%) rotate(5deg)}",
+    ".dp-dex-card-locked{background:linear-gradient(145deg,#e4e2dc,#bbbcb9 52%,#d4d0ca);border-color:#aaa7a0}",
+    ".dp-dex-artbox{position:relative;height:calc(100% - 19px);display:flex;align-items:center;justify-content:center;",
+    "border-radius:8px;background:rgba(255,255,255,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.7);overflow:hidden}",
+    ".dp-dex-art{display:block;width:88%;height:88%;object-fit:contain;filter:drop-shadow(0 3px 2px rgba(61,52,40,.16));",
+    "transform:translateZ(10px);transition:transform .18s var(--ac-ease)}",
+    ".dp-dex-card-foil:hover .dp-dex-art{transform:translateZ(13px) scale(1.04)}",
+    ".dp-dex-card-locked .dp-dex-art,.dp-dex-big-locked .dp-dex-art,.dp-dex-museum-locked .dp-dex-art,",
+    ".dp-dex-info-locked .dp-dex-art{filter:grayscale(1) brightness(0);opacity:.3}",
+    ".dp-dex-emoji{font-size:27px;line-height:1;filter:drop-shadow(0 2px 1px rgba(61,52,40,.14))}",
+    ".dp-dex-emoji-large{font-size:42px}",
+    ".dp-dex-lock{position:absolute;z-index:2;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;",
+    "align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;font-size:12px;",
+    "background:rgba(58,57,54,.78);border:1.5px solid rgba(255,255,255,.82);box-shadow:0 2px 6px rgba(0,0,0,.16)}",
+    ".dp-dex-caption{position:relative;z-index:1;display:block;margin-top:4px;font-size:8.5px;font-weight:800;",
+    "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}",
+    ".dp-dex-card-locked .dp-dex-caption{color:#615f5b;letter-spacing:.04em}",
+    // Fish and souvenirs: pastel three-column museum shelf, no foil or 3D.
+    ".dp-dex-museum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 8px}",
+    ".dp-dex-museum-item{font:inherit;min-width:0;height:82px;padding:5px;border:0;border-radius:13px;cursor:pointer;",
+    "display:flex;flex-direction:column;align-items:center;justify-content:space-between;color:var(--ac-text);",
+    "background:var(--ac-bg-content);box-shadow:inset 0 0 0 1.5px var(--ac-border-light)}",
+    ".dp-dex-museum-item:nth-child(4n+1){background:#e5f3f5}.dp-dex-museum-item:nth-child(4n+2){background:#f5e6ef}",
+    ".dp-dex-museum-item:nth-child(4n+3){background:#eef3df}.dp-dex-museum-item:nth-child(4n){background:#f8efd9}",
+    ".dp-dex-museum-art{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:54px}",
+    ".dp-dex-museum-art .dp-dex-art{width:48px;height:48px}",
+    ".dp-dex-museum-lock{position:absolute;right:1px;top:1px;font-size:10px}",
+    ".dp-dex-museum-name{display:block;width:100%;font-size:8.5px;font-weight:800;white-space:nowrap;",
+    "overflow:hidden;text-overflow:ellipsis;text-align:center}",
+    ".dp-dex-museum-locked{filter:grayscale(.45);color:var(--ac-text-2)}",
+    // Item catalogue: search + wraparound category chips + dense rows.
+    ".dp-dex-catalog-tools{margin-bottom:8px}",
+    ".dp-dex-search{width:100%;height:28px;margin:0 0 6px;padding:4px 10px;font-size:10px}",
+    ".dp-dex-filters{display:flex;gap:4px;overflow-x:auto;padding:1px 0 3px;scrollbar-width:none}",
+    ".dp-dex-filters::-webkit-scrollbar{display:none}",
+    ".dp-dex-filter{font:inherit;flex:none;border:1.5px solid var(--ac-border-light);border-radius:var(--ac-pill);",
+    "background:var(--ac-bg-input);color:var(--ac-text-2);padding:3px 8px;font-size:9px;font-weight:700;cursor:pointer}",
+    '.dp-dex-filter[data-active="true"]{background:var(--tile-orange);border-color:#cc7950;color:#fff}',
+    ".dp-dex-catalog{display:flex;flex-direction:column;gap:5px}",
+    ".dp-dex-row{font:inherit;width:100%;min-width:0;border:1.5px solid var(--ac-border-light);border-radius:10px;",
+    "background:var(--ac-bg-content);color:var(--ac-text);padding:5px 8px;display:flex;align-items:center;gap:8px;cursor:pointer;text-align:left}",
+    ".dp-dex-row-emoji{flex:none;width:25px;text-align:center;font-size:19px}",
+    ".dp-dex-row-text{flex:1;min-width:0;display:flex;flex-direction:column}",
+    ".dp-dex-row-text b{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    ".dp-dex-row-text small{font-size:8.5px;color:var(--ac-text-2)}",
+    ".dp-dex-row-count{flex:none;font-size:9px;font-weight:800;color:var(--ac-text-2)}",
+    ".dp-dex-row-locked{color:var(--ac-text-2);background:#efeee9}",
+    '.dp-dex-row[data-search-hidden="true"]{display:none}',
+    // A detail replaces the shelf instead of stretching it underneath.
+    ".dp-dex-detail{perspective:800px}",
+    ".dp-dex-big,.dp-dex-info{position:relative;overflow:hidden;padding:12px;border-radius:18px;",
+    "border:2px solid rgba(177,127,43,.4);background:linear-gradient(145deg,#fff8cf 0%,#f6d48c 32%,#efb8d1 61%,#a9d9ec 100%);",
+    "box-shadow:0 4px 0 rgba(61,52,40,.13),0 10px 22px rgba(91,67,37,.12)}",
+    ".dp-dex-big{transform-style:preserve-3d;transform:rotateX(var(--dex-rx,0deg)) rotateY(var(--dex-ry,0deg));transition:transform .18s ease}",
+    ".dp-dex-big-locked{background:linear-gradient(145deg,#e9e7e1,#c5c5c1 56%,#ddd9d3);border-color:#aaa7a0}",
+    ".dp-dex-info{background:#fffaf0;border-color:var(--ac-border-light)}",
+    ".dp-dex-info-locked{background:#e9e7e1;border-color:#aaa7a0}",
+    ".dp-dex-big-art,.dp-dex-info-art{position:relative;height:112px;display:flex;align-items:center;justify-content:center;",
+    "border-radius:14px;background:rgba(255,255,255,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.76);overflow:hidden}",
+    ".dp-dex-info-art{height:92px}.dp-dex-big-art .dp-dex-art{width:106px;height:106px}",
+    ".dp-dex-info-art .dp-dex-art{width:82px;height:82px}",
+    ".dp-dex-big-title{position:relative;z-index:1;margin-top:9px;font-size:14px;font-weight:900;text-align:center;color:var(--ac-text)}",
+    ".dp-dex-riddle{position:relative;z-index:1;margin-top:8px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.55);",
+    "font-size:10.5px;font-weight:600;line-height:1.55;color:var(--ac-text-body)}",
+    ".dp-dex-riddle b{display:block;margin-bottom:2px;font-size:9px;letter-spacing:.14em;color:#766f65}",
+    ".dp-dex-story{position:relative;z-index:1;margin-top:7px;font-size:10.5px;font-weight:600;line-height:1.5;",
+    "text-align:center;color:var(--ac-text-body)}",
+    ".dp-dex-foot{position:relative;z-index:1;margin-top:8px;padding-top:7px;border-top:1px dashed rgba(87,69,42,.3);",
+    "font-size:9.5px;font-weight:700;text-align:center;color:var(--ac-text-2)}",
+    "@media (prefers-reduced-motion:reduce){.dp-dex-card,.dp-dex-big,.dp-dex-art{transition:none!important;transform:none!important}",
+    ".dp-dex-card-foil::after,.dp-dex-big-foil::after{display:none}}"
+  ].join("");
+
+  // src/client/css-fishing.js
+  var CSS_FISHING = `
+.dp-fish-baits{margin:12px 0 16px;gap:8px}.dp-fish-blocked{margin:10px 0 6px;padding:9px 11px;border-radius:10px;background:#fff1df;color:#8f5123;font-size:12px;font-weight:700}.dp-fish-care{margin-bottom:8px}.dp-fish-cast{display:block;width:100%;min-height:44px;margin-top:12px;touch-action:manipulation}
+.dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-cast{touch-action:manipulation}.dp-fish-bait[aria-pressed=true]{background:#d7f3e2;border-color:#4ca678;color:#245d43}.dp-fish-auto{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border-radius:12px;background:#f5fafb}.dp-fish-auto span{width:100%;font-size:11px;color:#718188}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
+.dp-fish-qte{width:100%;min-height:318px;border:0;border-radius:18px;padding:15px 12px 12px;box-sizing:border-box;background:linear-gradient(155deg,#eefcff,#d8f3f8);display:flex;flex-direction:column;align-items:center;gap:9px;color:#294950;cursor:pointer;touch-action:manipulation;outline:0}.dp-fish-qte:focus-visible{box-shadow:0 0 0 3px #43b96f}.dp-fish-qte-title{font-size:15px;font-weight:800}.dp-fish-qte-ring{position:relative;width:178px;height:178px;border-radius:50%;box-shadow:0 3px 12px #246a7a44,inset 0 0 0 2px #fff;transform:rotate(-90deg)}.dp-fish-qte-ring:after{content:"";position:absolute;inset:17px;border-radius:50%;background:#f8feff;box-shadow:inset 0 2px 8px #8ab7c044}.dp-fish-qte-needle{position:absolute;z-index:3;left:50%;bottom:50%;width:4px;height:47%;border-radius:4px;background:#ed5d55;box-shadow:0 0 0 1px #fff,0 0 6px #d64a45;transform-origin:50% 100%}.dp-fish-qte-needle:after{content:"";position:absolute;top:-5px;left:-3px;width:10px;height:10px;border-radius:50%;background:#ed5d55}.dp-fish-qte-core{position:absolute;z-index:4;inset:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#fff 0 48%,#e9f9fb 70%);font-size:42px;transform:rotate(90deg)}.dp-fish-qte-score{font-size:14px}.dp-fish-qte-feedback{min-height:18px;font-size:12px;color:#55727a}.dp-fish-qte[data-qte-feedback^="\u8FD8\u6CA1\u5230"] .dp-fish-qte-feedback,.dp-fish-qte[data-qte-feedback^="\u5DF2\u7ECF\u5212\u8FC7"] .dp-fish-qte-feedback{color:#bd5545;font-weight:700}.dp-fish-help{text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
+`;
+
+  // src/client/css-skins.js
+  var CSS_SKINS = `
+.dp-skin-intro{display:grid;gap:4px;margin:0 0 10px}.dp-skin-intro span{font-size:10.5px;line-height:1.5;color:var(--ac-text-2)}.dp-skin-grid{display:flex;flex-direction:column;gap:7px}.dp-skin-row{min-height:62px;padding:7px 9px}.dp-skin-current{background:var(--ac-active);border-color:#9db0d6}.dp-skin-row[data-locked="true"] .dp-skin-art{filter:grayscale(1);opacity:.48}.dp-skin-art{width:48px;height:48px;flex:none;object-fit:contain}.dp-skin-copy{display:grid;gap:3px}.dp-skin-copy b{font-size:10.5px}.dp-skin-copy small{line-height:1.35}.dp-skin-row>.dp-mini{flex:none;padding-inline:10px}.dp-skin-import{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;margin-top:10px;cursor:pointer}.dp-skin-import .dp-pick-head{margin:0}.dp-skin-import>.dp-dim{font-size:10px;line-height:1.4;color:var(--ac-text-2)}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{grid-column:2;grid-row:1/3;display:inline-flex!important;align-items:center;white-space:nowrap}
+`;
+
+  // src/client/styles.js
+  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS;
+
   // src/client/tabs/card.js
   var LIMITS = { catchphrase: 6, motto: 24 };
   function renderCardTab(ui) {
@@ -3418,7 +3384,7 @@
     ui.content.appendChild(el("div", "dp-fish-copy", "\u6BCF\u6B21\u629B\u7AFF\u6D88\u8017 1 \u4E2A\u9C7C\u9975\u3002\u770B\u5230\u300C\u2757\u300D\u540E\u53CA\u65F6\u63D0\u7AFF\u3002"));
     const baits = ui.view.shop.filter((item) => item.kind === "bait" && (ui.view.inventory[item.key] ?? 0) > 0);
     if (!baits.some((item) => item.key === selectedBait)) selectedBait = baits[0]?.key ?? null;
-    const choices = el("div", "dp-dev-row");
+    const choices = el("div", "dp-dev-row dp-fish-baits");
     for (const bait of baits) {
       const choice = button("dp-mini dp-fish-bait", { "data-fish-bait": bait.key }, function() {
         selectedBait = bait.key;
@@ -3430,11 +3396,20 @@
     }
     ui.content.appendChild(choices);
     if (baits.length === 0) ui.content.appendChild(el("div", "dp-fish-copy", "\u6CA1\u6709\u9C7C\u9975\u4E86\uFF0C\u5148\u53BB\u5546\u5E97\u7684\u9C7C\u9975\u8D27\u67B6\u4E70\u3002"));
+    const hungry = (ui.view.pig?.satiety ?? 0) < 1;
+    if (hungry) {
+      ui.content.appendChild(el("div", "dp-fish-blocked", "\u9971\u98DF\u4E3A 0\uFF0C\u5148\u5582\u98DF\u624D\u80FD\u629B\u7AFF\u3002"));
+      const care = button("dp-mini dp-fish-care", { "data-fish-care": "feed" }, function() {
+        ui.select("status");
+      });
+      care.textContent = "\u53BB\u72B6\u6001\u9875\u5582\u98DF \u2192";
+      ui.content.appendChild(care);
+    }
     const cast = button("dp-btn dp-btn-wide dp-fish-cast", { "data-fish": "cast" }, function() {
       ui.send("fishCast", { power: 0.7, bait: selectedBait });
     });
-    cast.textContent = "\u{1F3A3} \u629B\u7AFF";
-    cast.disabled = selectedBait === null;
+    cast.textContent = hungry ? "\u{1F35A} \u5582\u98DF\u540E\u624D\u80FD\u629B\u7AFF" : "\u{1F3A3} \u629B\u7AFF";
+    cast.disabled = selectedBait === null || hungry;
     ui.content.appendChild(cast);
     const auto = el("div", "dp-fish-auto");
     auto.appendChild(el("b", null, "\u81EA\u52A8\u9493\u9C7C"));
@@ -4168,6 +4143,8 @@
     }
     function paintContent() {
       ctx.content.textContent = "";
+      ctx.footer.textContent = "";
+      ctx.footer.hidden = true;
       for (var k = 0; k < TABS.length; k += 1) {
         ctx.icons[TABS[k].key].setAttribute("data-active", TABS[k].key === ctx.tab ? "true" : "false");
       }
@@ -4447,7 +4424,10 @@
     scene.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
     var bar = el("div", "dp-bar");
     var content = el("div", "dp-content");
+    var footer = el("div", "dp-panel-footer");
+    footer.hidden = true;
     card.appendChild(content);
+    card.appendChild(footer);
     card.appendChild(bar);
     host.appendChild(card);
     host.appendChild(scene);
@@ -4461,7 +4441,7 @@
         }
       }, { once: true });
     }
-    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content };
+    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
   }
 
   // src/client/position.js
@@ -4723,7 +4703,8 @@
           pig,
           dressSlots,
           bar,
-          content
+          content,
+          footer
         } = parts;
         var deskShell = desktopShell();
         var savedPos = deskShell === null ? readPosition(readStore(POSITION_KEY)) : null;
@@ -4742,7 +4723,6 @@
         var stage = "primary";
         var stagePicked = false;
         var drill = { study: null, shop: null, bag: null, work: null, dex: null, pick: null };
-        var souvenirPick = null;
         var picker = null;
         var ownerEdit = null;
         var pigNameEdit = null;
@@ -4771,6 +4751,7 @@
           host,
           card,
           content,
+          footer,
           scene,
           hud,
           hudName,
@@ -4838,12 +4819,6 @@
           },
           set picker(next) {
             picker = next;
-          },
-          get souvenirPick() {
-            return souvenirPick;
-          },
-          set souvenirPick(next) {
-            souvenirPick = next;
           },
           get ownerEdit() {
             return ownerEdit;

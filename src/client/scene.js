@@ -100,11 +100,14 @@ scene.title = '左键摸摸 · 右键打开面板 · 拖动可移动'
 var bar = el('div', 'dp-bar')
 
 var content = el('div', 'dp-content')
+var footer = el('div', 'dp-panel-footer')
+footer.hidden = true
 
 // Panel first, pig second: as flex siblings in a bottom-anchored column,
 // the pig ends up at a fixed screen position whether the panel is open or
 // not, and the panel can only ever grow upwards from it.
 card.appendChild(content)
+card.appendChild(footer)
 card.appendChild(bar)
 host.appendChild(card)
 host.appendChild(scene)
@@ -116,5 +119,5 @@ if (document.body !== null && document.body !== undefined) {
   }, { once: true })
 }
 
-  return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content }
+  return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer }
 }

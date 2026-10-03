@@ -229,17 +229,17 @@ const cardOf = dom => hostOf(dom).children[0]
 const sceneOf = dom => hostOf(dom).children[1]
 // Inside the panel, content sits above the icon bar.
 const contentOf = dom => cardOf(dom).children[0]
-const barOf = dom => cardOf(dom).children[1]
+const barOf = dom => findByClass(cardOf(dom), 'dp-bar')
 
 const findByAttr = (root, attr, value) => {
   const found = []
   root.walk(node => { if (node.attributes?.[attr] === value) found.push(node) })
   return found[0]
 }
-/** B9: a job is a tile; its 出发 button lives in the details under the grid. */
+/** A job is a tile; its 出发 button lives in the fixed footer. */
 const sendJob = (dom, key) => {
   tap(dom, 'data-job-tile', key)
-  tap(dom, 'data-job', key)
+  findByAttr(cardOf(dom), 'data-job', key).fire('click')
 }
 
 /** Tap a tile (or any element) in the panel body by one of its data attributes. */
@@ -1041,6 +1041,22 @@ test('the work tab lists jobs and sending the pig out POSTs the job', async () =
   assert.deepEqual(JSON.parse(post.body), { action: 'work', job: 'odd' })
 })
 
+test('selected job stays in a fixed panel footer, separate from the scrolling list', async () => {
+  const { registration, dom } = await loadClient()
+  registration.factory(() => {}).apply({})
+  await settle()
+  openPanel(dom)
+  pickTab(dom, 'work')
+  tap(dom, 'data-job-tile', 'odd')
+  const card = cardOf(dom)
+  const footer = findByClass(card, 'dp-panel-footer')
+  assert.notEqual(footer, undefined)
+  assert.equal(footer.parentNode, card)
+  assert.equal(footer.hidden, false)
+  assert.notEqual(findByClass(footer, 'dp-job-detail'), undefined)
+  assert.equal(findByClass(contentOf(dom), 'dp-job-detail'), undefined)
+})
+
 test('a job behind a trait gate says what it needs instead of just greying out', async () => {
   const { registration, dom } = await loadClient({
     status: {
@@ -1065,11 +1081,11 @@ test('a job behind a trait gate says what it needs instead of just greying out',
   assert.ok(findByAttr(contentOf(dom), 'data-job-tile', 'tutor').allText().includes('🔒'))
   assert.ok(!text.includes('智力 10'), 'the gate is not spelled out on the tile')
   tap(dom, 'data-job-tile', 'tutor')
-  text = contentOf(dom).allText()
+  text = cardOf(dom).allText()
   assert.ok(text.includes('✗ 🧠 智力 10'), `an older host's gate still shows in the details: ${text}`)
-  assert.equal(findByAttr(contentOf(dom), 'data-job', 'tutor').disabled, true)
+  assert.equal(findByAttr(cardOf(dom), 'data-job', 'tutor').disabled, true)
   tap(dom, 'data-job-tile', 'odd')
-  assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
+  assert.equal(findByAttr(cardOf(dom), 'data-job', 'odd').disabled, false)
 })
 
 test('the panel states facts, not game-design lectures', async () => {
@@ -1161,7 +1177,7 @@ test('an older host with no job gates does not lock the whole board', async () =
   assert.ok(!text.includes('🔒'), text)
   assert.ok(!text.includes('undefined'), text)
   tap(dom, 'data-job-tile', 'odd')
-  assert.equal(findByAttr(contentOf(dom), 'data-job', 'odd').disabled, false)
+  assert.equal(findByAttr(cardOf(dom), 'data-job', 'odd').disabled, false)
 })
 
 test('the shop tab is a grid that fades what the pig cannot afford and flags the needed medicine', async () => {
@@ -1204,7 +1220,7 @@ test('the shop tab is a grid that fades what the pig cannot afford and flags the
   assert.deepEqual(JSON.parse(post.body), { action: 'buy', item: 'apple' })
 })
 
-test('the travel tab lists destinations and the souvenir collection', async () => {
+test('the travel tab lists destinations without the souvenir collection', async () => {
   const { registration, dom, net } = await loadClient()
   registration.factory(() => {}).apply({})
   await settle()
@@ -1213,8 +1229,8 @@ test('the travel tab lists destinations and the souvenir collection', async () =
 
   const text = contentOf(dom).allText()
   assert.ok(text.includes('郊游'), text)
-  assert.ok(text.includes('纪念品 2'), `expected the collection count, got: ${text}`)
-  assert.ok(text.includes('贝壳'), text)
+  assert.ok(!text.includes('纪念品'), text)
+  assert.ok(!text.includes('贝壳'), text)
   assert.equal(findByAttr(contentOf(dom), 'data-trip', 'abroad').disabled, true, 'unaffordable trip is disabled')
 
   findByAttr(contentOf(dom), 'data-trip', 'suburb').fire('click')
@@ -1224,7 +1240,7 @@ test('the travel tab lists destinations and the souvenir collection', async () =
   assert.deepEqual(JSON.parse(post.body), { action: 'trip', trip: 'suburb' })
 })
 
-test('a souvenir opens its story card and can be sold from there', async () => {
+test('a souvenir opens its story card in the bag and can be sold from there', async () => {
   const { registration, dom, net } = await loadClient({
     status: {
       ...SNAPSHOT,
@@ -1239,16 +1255,17 @@ test('a souvenir opens its story card and can be sold from there', async () => {
   registration.factory(() => {}).apply({})
   await settle()
   openPanel(dom)
-  pickTab(dom, 'travel')
+  pickTab(dom, 'bag')
+  tap(dom, 'data-bag', 'souvenir')
 
   const listed = contentOf(dom).allText()
   assert.ok(listed.includes('🔵稀有'), `expected the rarity on the chip, got: ${listed}`)
-  assert.ok(listed.includes('值 320 🪙'), listed)
+  assert.ok(listed.includes('一枚海螺'), listed)
 
-  findByAttr(contentOf(dom), 'data-souvenir', 'shell').fire('click')
+  findByAttr(contentOf(dom), 'data-souvenir', 'shell#0').fire('click')
   const opened = contentOf(dom).allText()
   assert.ok(opened.includes('贴在耳朵上能听见浪声'), opened)
-  assert.ok(opened.includes('来自看海'), opened)
+  assert.ok(opened.includes('看海'), opened)
 
   findByAttr(contentOf(dom), 'data-sell', 'shell').fire('click')
   await settle()
@@ -1257,18 +1274,19 @@ test('a souvenir opens its story card and can be sold from there', async () => {
   assert.deepEqual(JSON.parse(post.body), { action: 'sell', souvenir: 'shell' })
 })
 
-test('a legacy string souvenir still lists, with a plain card and no sell button', async () => {
+test('a legacy string souvenir still lists in the bag without a sell button', async () => {
   // The old host sent strings; the client must not print [object Object] or
   // invent a price for something the host never priced.
   const { registration, dom } = await loadClient()
   registration.factory(() => {}).apply({})
   await settle()
   openPanel(dom)
-  pickTab(dom, 'travel')
-  findByAttr(contentOf(dom), 'data-souvenir', '贝壳').fire('click')
+  pickTab(dom, 'bag')
+  tap(dom, 'data-bag', 'souvenir')
+  findByAttr(contentOf(dom), 'data-souvenir', '贝壳#0').fire('click')
   const text = contentOf(dom).allText()
   assert.ok(text.includes('贝壳'), text)
-  assert.ok(text.includes('旧版本带回来的'), text)
+  assert.ok(text.includes('旧版本带来的') || text.includes('旧版本带回来的'), text)
   assert.equal(findByAttr(contentOf(dom), 'data-sell', '贝壳'), undefined)
   assert.ok(!text.includes('undefined'), text)
 })

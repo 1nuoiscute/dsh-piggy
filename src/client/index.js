@@ -68,7 +68,7 @@ import { arr, num, obj, str } from './values.js'
       // instead of breaking the panel.
       var parts = createScene()
       var { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop,
-        progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content } = parts
+        progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer } = parts
 
       // 桌面版外壳：用时现取（外壳脚本比 client 先跑，但晚到也不能当网页版 —— 那样拖动
       // 只挪页面里的猪、窗口不跟）。
@@ -110,8 +110,6 @@ import { arr, num, obj, str } from './values.js'
       var stagePicked = false
       // B8: which category each tile tab is opened into (null = the top layer), and a picked tile inside it.
       var drill = { study: null, shop: null, bag: null, work: null, dex: null, pick: null }
-      // Which souvenir's story card is open in the travel tab, if any.
-      var souvenirPick = null
       // Which care action's item picker is open, if any.
       var picker = null
       // The owner-name draft while it is being edited on the status tab (null = not editing).
@@ -141,6 +139,7 @@ import { arr, num, obj, str } from './values.js'
         host: host,
         card: card,
         content: content,
+        footer: footer,
         scene: scene,
         hud: hud,
         hudName: hudName,
@@ -176,7 +175,6 @@ import { arr, num, obj, str } from './values.js'
         get devOff() { return function () { dev.set(false) } },
         get drill() { return drill },
         get picker() { return picker }, set picker(next) { picker = next },
-        get souvenirPick() { return souvenirPick }, set souvenirPick(next) { souvenirPick = next },
         get ownerEdit() { return ownerEdit }, set ownerEdit(next) { ownerEdit = next },
         get pigNameEdit() { return pigNameEdit }, set pigNameEdit(next) { pigNameEdit = next },
         get cardEdit() { return cardEdit }, set cardEdit(next) { cardEdit = next },

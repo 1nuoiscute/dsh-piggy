@@ -122,6 +122,8 @@ export function createPanel(ctx) {
 
       function paintContent() {
         ctx.content.textContent = ''
+        ctx.footer.textContent = ''
+        ctx.footer.hidden = true
         for (var k = 0; k < TABS.length; k += 1) {
           ctx.icons[TABS[k].key].setAttribute('data-active', TABS[k].key === ctx.tab ? 'true' : 'false')
         }

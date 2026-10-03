@@ -41,7 +41,7 @@ function renderReady(ui) {
   ui.content.appendChild(el('div', 'dp-fish-copy', '每次抛竿消耗 1 个鱼饵。看到「❗」后及时提竿。'))
   const baits = ui.view.shop.filter(item => item.kind === 'bait' && (ui.view.inventory[item.key] ?? 0) > 0)
   if (!baits.some(item => item.key === selectedBait)) selectedBait = baits[0]?.key ?? null
-  const choices = el('div', 'dp-dev-row')
+  const choices = el('div', 'dp-dev-row dp-fish-baits')
   for (const bait of baits) {
     const choice = button('dp-mini dp-fish-bait', { 'data-fish-bait': bait.key }, function () { selectedBait = bait.key; ui.renderContent() })
     choice.textContent = `${bait.emoji} ${bait.label} ×${ui.view.inventory[bait.key]}`
@@ -50,9 +50,16 @@ function renderReady(ui) {
   }
   ui.content.appendChild(choices)
   if (baits.length === 0) ui.content.appendChild(el('div', 'dp-fish-copy', '没有鱼饵了，先去商店的鱼饵货架买。'))
+  const hungry = (ui.view.pig?.satiety ?? 0) < 1
+  if (hungry) {
+    ui.content.appendChild(el('div', 'dp-fish-blocked', '饱食为 0，先喂食才能抛竿。'))
+    const care = button('dp-mini dp-fish-care', { 'data-fish-care': 'feed' }, function () { ui.select('status') })
+    care.textContent = '去状态页喂食 →'
+    ui.content.appendChild(care)
+  }
   const cast = button('dp-btn dp-btn-wide dp-fish-cast', { 'data-fish': 'cast' }, function () { ui.send('fishCast', { power: .7, bait: selectedBait }) })
-  cast.textContent = '🎣 抛竿'
-  cast.disabled = selectedBait === null
+  cast.textContent = hungry ? '🍚 喂食后才能抛竿' : '🎣 抛竿'
+  cast.disabled = selectedBait === null || hungry
   ui.content.appendChild(cast)
   const auto = el('div', 'dp-fish-auto')
   auto.appendChild(el('b', null, '自动钓鱼'))
