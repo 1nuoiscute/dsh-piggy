@@ -25,6 +25,8 @@
 
 **C 批次（2026-10-01 起）**：调试解锁、番茄钟、加冕道具化、图鉴、钓鱼、换肤、胖猪与六款角色外观 —— 见 [C-round.md](C-round.md)。C1–C8 已随 v0.27.0 发布，桌面依赖安全修复已随 v0.27.1 发布；C8 的用户体验反馈待收集，当前状态见[交接记录](../HANDOFF-2026-10-03.md)。
 
+**E 批次（规划中）**：现实作息先行，城市/天气与全游戏日界迁移分阶段验收；任务边界、数值确认和存档门槛见 [E-round.md](E-round.md)，原始目标设计见[计划书](../plans/real-world-cycle-proposal.md)。尚未开工。
+
 四张数值单用户已于 2026-10-01 确认（全部按建议值）。**不改确认过的数字**；觉得不合理就写在卡里，等用户定。
 
 ## 后续计划（待拆卡）
@@ -65,13 +67,15 @@
 npm run build && npm test && npm run typecheck
 ```
 
-真实界面：起一个**隔离实例**，不碰正在养的猪：
+真实界面：起一个 **3084 隔离实例**，不碰正在使用的 3080、3082、3083。复制存档后将测试 profile 的 `dsh-piggy` 插件链接指向当前任务 worktree，避免加载到旧版：
 
 ```sh
-H=/tmp/dsh-home-test; mkdir -p $H
-cd ~/.dsh && cp -a profiles llm-deepseek storages dsh-pig $H/
+TEST_DSH_HOME=/tmp/dsh-piggy-e-test
+mkdir -p "$TEST_DSH_HOME"
+cp -a ~/.dsh/profiles ~/.dsh/llm-deepseek ~/.dsh/storages ~/.dsh/dsh-piggy "$TEST_DSH_HOME"/
+# 将 "$TEST_DSH_HOME/profiles/web/node_modules/dsh-piggy" 指向当前任务 worktree
 cd /zyx/DSH/deepseek-harness
-DSH_HOME=$H pnpm dsh web --no-open --port 3082
+DSH_HOME="$TEST_DSH_HOME" pnpm dsh web --no-open --port 3084
 ```
 
 逐个页签截图，存到 `docs/screenshots/`。
