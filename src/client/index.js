@@ -187,6 +187,7 @@ import { arr, num, obj, str } from './values.js'
         get userRight() { return userRight }, set userRight(next) { userRight = next },
         get userBottom() { return userBottom }, set userBottom(next) { userBottom = next },
         get busy() { return busy }, set busy(next) { busy = next },
+        justBought: null,
         get stopped() { return stopped }, set stopped(next) { stopped = next },
         get devMode() { return devMode },
       }
@@ -203,7 +204,6 @@ import { arr, num, obj, str } from './values.js'
       var fitPanel = layout.fitPanel, clampPig = layout.clampPig
       var paintBar = layout.paintBar, buildIcon = layout.buildIcon
       for (var t = 0; t < TABS.length; t += 1) buildIcon(TABS[t])
-      // `ui` was built before these existed; point it at the real ones now.
       var io = createIo(ctx)
       var send = io.send, refresh = io.refresh
       ctx.send = send

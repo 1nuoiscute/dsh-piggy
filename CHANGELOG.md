@@ -13,6 +13,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ### Changed
 - README 的 DSH 安装说明改为可直接复制的 npm 包安装命令，GitHub 源码安装留作备选。
+- 打开 App 和成功购买商品时增加短促反馈；系统启用“减少动态效果”时跳过这些动画，不影响操作与钓鱼判定。
 
 ## [0.27.1] — 2026-10-03 · 桌面更新依赖安全修复
 

@@ -200,6 +200,28 @@
     ui.content.appendChild(row);
   }
 
+  // src/client/interaction-motion.js
+  function canAnimate(node) {
+    return typeof node.animate === "function" && !(typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  var appEntry = null;
+  function animateAppEntry(content) {
+    if (!canAnimate(content)) return;
+    appEntry?.cancel();
+    appEntry = content.animate([
+      { opacity: 0.7, transform: "translateY(5px)" },
+      { opacity: 1, transform: "translateY(0)" }
+    ], { duration: 170, easing: "cubic-bezier(.2,.8,.2,1)" });
+  }
+  function animatePurchase(tile2) {
+    if (!canAnimate(tile2)) return;
+    tile2.animate([
+      { transform: "scale(0.94)", opacity: 0.72 },
+      { transform: "scale(1.04)", opacity: 1, offset: 0.5 },
+      { transform: "scale(1)", opacity: 1 }
+    ], { duration: 320, easing: "ease-out" });
+  }
+
   // src/client/tabs/shop.js
   var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", bait: "blue", medicine: "green", revive: "purple", promotion: "blue" };
   function shelfParts(kind) {
@@ -224,8 +246,14 @@
     var items = ui.view.shop.filter(function(item) {
       return item.kind === shelf;
     });
-    for (var i = 0; i < items.length; i += 1) grid.appendChild(itemTile(ui, items[i], SHELF_COLOR[shelf]));
+    var boughtTile = null;
+    for (var i = 0; i < items.length; i += 1) {
+      var node = itemTile(ui, items[i], SHELF_COLOR[shelf]);
+      grid.appendChild(node);
+      if (items[i].key === ui.justBought) boughtTile = node;
+    }
     ui.content.appendChild(grid);
+    if (boughtTile !== null) animatePurchase(boughtTile);
   }
   function renderShelves(ui) {
     var grid = tileGrid();
@@ -2329,6 +2357,7 @@
           body: JSON.stringify(body)
         });
         var next = await res.json();
+        if (action === "buy" && next?.ok === true) ctx.justBought = extra?.item ?? null;
         ctx.render(next);
         if (next && next.ok === false) {
           if (next.reason === "stale-line") return;
@@ -4094,6 +4123,7 @@
       }
     }
     function select(next) {
+      var previous = ctx.tab;
       if (next === "crown") next = "dex";
       if (next === "quit") {
         var desk = updatesBridge();
@@ -4108,6 +4138,7 @@
         ctx.drill.pick = null;
       }
       renderContent();
+      if (previous !== next && ctx.isOpen) animateAppEntry(ctx.content);
       for (var k in ctx.icons) ctx.icons[k].setAttribute("data-active", k === ctx.tab ? "true" : "false");
     }
     var pomodoroNotifiedAt = null;
@@ -4129,6 +4160,7 @@
       var scrollTop = ctx.content.scrollTop;
       paintContent();
       ctx.content.scrollTop = scrollTop;
+      ctx.justBought = null;
     }
     function paintContent() {
       ctx.content.textContent = "";
@@ -4869,6 +4901,7 @@
           set busy(next) {
             busy = next;
           },
+          justBought: null,
           get stopped() {
             return stopped;
           },

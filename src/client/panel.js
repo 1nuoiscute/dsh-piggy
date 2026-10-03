@@ -11,6 +11,7 @@ import { button, el } from './dom.js'
 import { normalize } from './normalize.js'
 import { writeStore } from './storage.js'
 import { CSS } from './styles.js'
+import { animateAppEntry } from './interaction-motion.js'
 import { renderBagTab } from './tabs/bag.js'
 import { renderCardTab } from './tabs/card.js'
 import { renderDexTab } from './tabs/dex.js'
@@ -68,6 +69,7 @@ export function createPanel(ctx) {
       }
 
       function select(next) {
+        var previous = ctx.tab
         // C4 replaced the old 加冕 App. Bookmarks and stale callers land in 图鉴.
         if (next === 'crown') next = 'dex'
         // 桌面版「退出」不是页签：直接让外壳存档关窗。
@@ -82,6 +84,7 @@ export function createPanel(ctx) {
         // Opening a tile tab always starts at its top layer.
         if (next in ctx.drill) { ctx.drill[next] = null; ctx.drill.pick = null }
         renderContent()
+        if (previous !== next && ctx.isOpen) animateAppEntry(ctx.content)
         for (var k in ctx.icons) ctx.icons[k].setAttribute('data-active', k === ctx.tab ? 'true' : 'false')
       }
 
@@ -111,6 +114,7 @@ export function createPanel(ctx) {
         var scrollTop = ctx.content.scrollTop
         paintContent()
         ctx.content.scrollTop = scrollTop
+        ctx.justBought = null
       }
 
       function paintContent() {

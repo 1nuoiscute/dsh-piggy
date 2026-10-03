@@ -7,6 +7,7 @@
  */
 
 import { KIND_ORDER, KIND_TITLE } from '../constants.js'
+import { animatePurchase } from '../interaction-motion.js'
 import { el } from '../dom.js'
 import { num } from '../values.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
@@ -36,8 +37,14 @@ export function renderShopTab(ui) {
   drillHeader(ui, 'shop', parts[0] + ' ' + parts[1], coins)
   var grid = tileGrid()
   var items = ui.view.shop.filter(function (item) { return item.kind === shelf })
-  for (var i = 0; i < items.length; i += 1) grid.appendChild(itemTile(ui, items[i], SHELF_COLOR[shelf]))
+  var boughtTile = null
+  for (var i = 0; i < items.length; i += 1) {
+    var node = itemTile(ui, items[i], SHELF_COLOR[shelf])
+    grid.appendChild(node)
+    if (items[i].key === ui.justBought) boughtTile = node
+  }
   ui.content.appendChild(grid)
+  if (boughtTile !== null) animatePurchase(boughtTile)
 }
 
 /** The top layer; its title row (with the money) is the app header. */

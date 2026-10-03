@@ -34,6 +34,7 @@ export function createIo(ctx) {
             body: JSON.stringify(body),
           })
           var next = await res.json()
+          if (action === 'buy' && next?.ok === true) ctx.justBought = extra?.item ?? null
           ctx.render(next)
           if (next && next.ok === false) {
             // Answering a line that has already moved on is normal (a second
