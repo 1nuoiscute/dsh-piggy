@@ -12,10 +12,54 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { hatchEgg, STATE_VERSION } from '../core.js'
+import { hatchEgg, startWork, STATE_VERSION } from '../core.js'
 import { createStore, moveLegacySaveDir } from '../store.js'
+import { writeDiaryIfNewDay } from '../packages/pet-core/src/core/diary.js'
 
 const makeDir = () => mkdtempSync(join(tmpdir(), 'dsh-piggy-store-'))
+
+test('offline work is recorded on the day it ended before the diary turns over', () => {
+  const dir = makeDir()
+  try {
+    const start = new Date(2026, 9, 2, 20).getTime()
+    const reopen = new Date(2026, 9, 3, 12).getTime()
+    const pig = hatchEgg(start)
+    writeDiaryIfNewDay(pig, start)
+    assert.equal(startWork(pig, 'bricks', start).ok, true)
+    const path = join(dir, 'state.json')
+    writeFileSync(path, JSON.stringify(pig))
+    const store = createStore(path, { now: () => reopen, setTimer: () => 0, clearTimer: () => {} })
+    store.freshen()
+    const oldDay = store.state.diary.entries.find(entry => entry.day === '2026-10-02')
+    assert.match(oldDay?.text ?? '', /打工 1 趟/)
+    assert.doesNotMatch(oldDay.text, /睡了一整天/)
+    assert.equal(store.state.diary.today.day, '2026-10-03')
+    assert.equal(store.state.diary.today.counts.work, undefined)
+    store.dispose()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('offline work ending after the 06:00 diary boundary goes to the new day', () => {
+  const dir = makeDir()
+  try {
+    const start = new Date(2026, 9, 3, 5, 45).getTime()
+    const reopen = new Date(2026, 9, 3, 12).getTime()
+    const pig = hatchEgg(start)
+    writeDiaryIfNewDay(pig, start)
+    assert.equal(startWork(pig, 'bricks', start).ok, true)
+    const path = join(dir, 'state.json')
+    writeFileSync(path, JSON.stringify(pig))
+    const store = createStore(path, { now: () => reopen, setTimer: () => 0, clearTimer: () => {} })
+    store.freshen()
+    assert.equal(store.state.diary.entries.find(entry => entry.day === '2026-10-02')?.text,
+      '今天主人没来，我睡了一整天。')
+    assert.equal(store.state.diary.today.day, '2026-10-03')
+    assert.equal(store.state.diary.today.counts.work, 1)
+    store.dispose()
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
 
 /** Run `body` with console.warn captured, returning what it logged. */
 function collectWarnings(body) {

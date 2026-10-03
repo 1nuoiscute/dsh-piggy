@@ -112,9 +112,9 @@ export function createApi(control) {
         // 一次「面板还在轮询」的证据。
         coreRecordOnline(state, lastPollMs, nowMs)
         lastPollMs = nowMs
-        // 跨过 06:00 之后第一次读状态，就把前一天写成一篇日记。
-        coreWriteDiary(state, nowMs)
         decay(state, nowMs)
+        // 离线活动先按发生时间逐段结算、翻页；最后再归到当前游戏日。
+        coreWriteDiary(state, nowMs)
         // 番茄钟到点就在下一次请求结算（关着面板也算），奖励与计数都在核心侧。
         coreSettlePomodoro(state, nowMs)
         scheduleSave()

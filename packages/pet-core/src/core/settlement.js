@@ -14,7 +14,8 @@ import { describeDrops, graduationDrops, studyDrops, workDrops } from './drops.j
 import { advanceIllness, noteOuting, restAtHome, rollForIllness } from './illness.js'
 import { say } from './lines.js'
 import { rollerFor } from './random.js'
-import { noteToday } from './diary.js'
+import { noteToday, writeDiaryIfNewDay } from './diary.js'
+import { dayKeyFor } from './clock.js'
 import { recordDex } from './dex.js'
 import { unlockCareerLook } from './skins.js'
 import { reduceWorkWeight, settleWeight } from './weight.js'
@@ -56,6 +57,10 @@ export function decay(state, nowMs, options = {}) {
     state.ageMs = typeof state.bornAt === 'number' ? Math.max(0, fromMs - state.bornAt) : 0
   }
 
+  // An old save may have no diary yet. Start at the last observed day so
+  // events settled below cannot be credited to the day the panel reopened.
+  rollDiaryAt(state, fromMs)
+
   let cursor = fromMs
   const activity = state.activity
   if (activity !== null && activity !== undefined) {
@@ -94,6 +99,7 @@ function passTime(state, stretch, next) {
  */
 function step(state, tick, next) {
   const { elapsedMs, atMs, away } = tick
+  rollDiaryAt(state, atMs)
   drainBars(state, elapsedMs / 60000, away)
   trackSicknessRisk(state, elapsedMs / 60000, away, atMs, next)
   progressIllness(state, elapsedMs, { away, atMs }, next)
@@ -173,12 +179,17 @@ export function finishActivity(state, nowMs, next = rollerFor(state)) {
   const activity = state.activity
   state.activity = null
   if (activity === null) return
+  rollDiaryAt(state, nowMs)
   state.lastActiveAt = nowMs
   if (activity.kind === 'work') finishWork(state, activity, nowMs, next)
   else if (activity.kind === 'study') finishStudy(state, activity, nowMs, next)
   else if (activity.kind === 'interest') finishInterest(state, activity, nowMs)
   else if (activity.kind === 'trip') finishTrip(state, activity, nowMs)
   else if (activity.kind === 'fishing') finishAutoFishing(state, activity, nowMs, next)
+}
+
+function rollDiaryAt(state, atMs) {
+  if (state.diary?.today?.day !== dayKeyFor(atMs)) writeDiaryIfNewDay(state, atMs)
 }
 
 export function finishInterest(state, activity, nowMs) {

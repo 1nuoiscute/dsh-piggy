@@ -106,6 +106,21 @@ test('C4 items use a searchable filtered catalogue instead of flash cards', asyn
   assert.notEqual(findByAttr(contentOf(dom), 'data-dex-entry', 'crown'), undefined)
 })
 
+test('search input keeps its focused node through a status poll', async () => {
+  const { dom, intervals } = await mount({ status: { ...SNAPSHOT, dex: DEX } })
+  const poll = intervals.find(entry => entry.delay === 4000).fn
+  openPanel(dom, 'dex')
+  findByAttr(contentOf(dom), 'data-dex-section', 'items').fire('click')
+  const search = findByAttr(contentOf(dom), 'data-dex-search', 'items')
+  search.value = '苹果'
+  search.fire('input')
+  globalThis.document.activeElement = search
+
+  await poll()
+  assert.equal(findByAttr(contentOf(dom), 'data-dex-search', 'items'), search)
+  assert.equal(search.value, '苹果')
+})
+
 test('C4 souvenirs use the compact museum grid', async () => {
   const { dom } = await mount({ status: { ...SNAPSHOT, dex: DEX } })
   openPanel(dom, 'dex')

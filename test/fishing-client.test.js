@@ -84,6 +84,32 @@ test('QTE click and keyboard activation receive the event and show immediate fee
   assert.match(qte.getAttribute('data-qte-feedback'), /还没到时机/)
 })
 
+test('a status poll keeps the hooked QTE button for keyboard activation', async () => {
+  const hooked = { id: 'catch-poll', key: 'fish_carp', label: '鲤鱼', emoji: '🐟', phase: 'hooked', difficulty: 30 }
+  const { dom, intervals } = await mount({ status: status({ pending: hooked }) })
+  const poll = intervals.find(entry => entry.delay === 4000).fn
+  openPanel(dom, 'fishing')
+  const qte = findByAttr(contentOf(dom), 'data-fish-qte', 'true')
+  globalThis.document.activeElement = qte
+
+  await poll()
+  assert.equal(findByAttr(contentOf(dom), 'data-fish-qte', 'true'), qte)
+})
+
+test('fishing still redraws when the server changes the pending phase', async () => {
+  const hooked = { id: 'catch-phase', key: 'fish_carp', label: '鲤鱼', emoji: '🐟', phase: 'hooked', difficulty: 30 }
+  const options = { status: status({ pending: hooked }) }
+  const { dom, intervals } = await mount(options)
+  const poll = intervals.find(entry => entry.delay === 4000).fn
+  openPanel(dom, 'fishing')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-fish-qte', 'true'), undefined)
+
+  options.status = status({ pending: { ...hooked, phase: 'caught', sizeCm: 32, price: 12 } })
+  await poll()
+  assert.equal(findByAttr(contentOf(dom), 'data-fish-qte', 'true'), undefined)
+  assert.notEqual(findByAttr(contentOf(dom), 'data-fish', 'keep'), undefined)
+})
+
 test('C5 fish bag exposes feed and sell on each individual catch', async () => {
   const caught = { id: 'catch-2', key: 'fish_koi', label: '黄金锦鲤', emoji: '🎏', sizeCm: 70.5, price: 220 }
   const { dom, calls } = await mount({ status: status({ bag: [caught] }) })

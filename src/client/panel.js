@@ -182,6 +182,7 @@ export function createPanel(ctx) {
       }
 
       function render(next) {
+        var previousFishing = ctx.view?.fishing?.pending
         ctx.view = normalize(next)
         // Never leave the study tab parked on a stage the pig cannot attend —
         // but only until the user picks one themselves: after that the poll
@@ -361,6 +362,14 @@ export function createPanel(ctx) {
         // Typing a new name: a repaint would drop the input and its focus.
         if ((ctx.ownerEdit !== null || ctx.pigNameEdit !== null) && ctx.tab === 'status') return
         if (ctx.cardEdit !== null && ctx.tab === 'card') return
+        // Replacing a focused input drops the caret (including IME composition).
+        if (ctx.tab === 'dex' && document.activeElement?.getAttribute?.('data-dex-search') === 'items') return
+        // The QTE and waiting animation own their DOM until the phase changes.
+        // A four-second poll must not restart them or discard keyboard focus.
+        var currentFishing = ctx.view.fishing.pending
+        if (ctx.tab === 'fishing' && previousFishing && currentFishing
+          && previousFishing.id === currentFishing.id && previousFishing.phase === currentFishing.phase
+          && (currentFishing.phase === 'waiting' || currentFishing.phase === 'hooked')) return
         renderContent()
       }
 

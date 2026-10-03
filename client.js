@@ -4198,6 +4198,7 @@
       ctx.fitPanel();
     }
     function render(next) {
+      var previousFishing = ctx.view?.fishing?.pending;
       ctx.view = normalize(next);
       var stageEntry = null;
       var firstOpen = null;
@@ -4351,6 +4352,9 @@
       ctx.updateNotice?.maybeBubble();
       if ((ctx.ownerEdit !== null || ctx.pigNameEdit !== null) && ctx.tab === "status") return;
       if (ctx.cardEdit !== null && ctx.tab === "card") return;
+      if (ctx.tab === "dex" && document.activeElement?.getAttribute?.("data-dex-search") === "items") return;
+      var currentFishing = ctx.view.fishing.pending;
+      if (ctx.tab === "fishing" && previousFishing && currentFishing && previousFishing.id === currentFishing.id && previousFishing.phase === currentFishing.phase && (currentFishing.phase === "waiting" || currentFishing.phase === "hooked")) return;
       renderContent();
     }
     function showPigLine(event) {

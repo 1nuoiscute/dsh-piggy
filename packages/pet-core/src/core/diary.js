@@ -51,8 +51,8 @@ export function ensureDiary(state) {
 /**
  * 记一笔今天发生了什么。
  *
- * 时间不进来（事件点只是加一行调用），归属哪一天由 `writeDiaryIfNewDay()` 定：
- * 它每次读状态都会跑，所以计数不会记到错误的日子上。
+ * 归属哪一天由结算器在事件发生时调用 `writeDiaryIfNewDay()` 决定；
+ * 在线动作则由宿主读取状态时先翻页。
  * @param {object} state
  * @param {string} kind - DIARY_LINES 里的 key；额外计数（coinsEarned 等）也走这里
  * @param {number} [amount]

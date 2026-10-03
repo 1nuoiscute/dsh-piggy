@@ -127,6 +127,7 @@ export async function mount(options = {}) {
   const dom = fakeDom()
   const store = new Map(Object.entries(options.store ?? {}))
   const calls = []
+  const intervals = []
   const windowListeners = {}
 
   globalThis.window = {
@@ -136,7 +137,7 @@ export async function mount(options = {}) {
       setItem: (key, value) => { store.set(key, String(value)) },
       removeItem: key => { store.delete(key) },
     },
-    setInterval: () => 1,
+    setInterval: (fn, delay) => { intervals.push({ fn, delay }); return intervals.length },
     clearInterval: () => {},
     setTimeout: () => 1,
     clearTimeout: () => {},
@@ -169,7 +170,7 @@ export async function mount(options = {}) {
   await import(url.href)
   registration.factory(() => {}).apply({})
   await settle()
-  return { dom, store, calls, windowListeners, registration }
+  return { dom, store, calls, intervals, windowListeners, registration }
 }
 
 export const settle = () => new Promise(resolve => setImmediate(resolve))
