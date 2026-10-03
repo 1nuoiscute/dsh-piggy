@@ -29,6 +29,8 @@ dsh plugin --profile web add dsh-piggy
 
 安装后重启 DSH，再刷新页面。
 
+在按 `dsh-plugin-*` 搜索的社区目录中，也可安装 [`dsh-plugin-piggy`](https://www.npmjs.com/package/dsh-plugin-piggy)：`dsh plugin --profile web add dsh-plugin-piggy`。它加载同一个游戏，每个 profile 安装其中一个即可。
+
 如果想直接使用 GitHub 源码，可以克隆本仓库，再执行 `dsh plugin --profile web add /path/to/dsh-piggy`。
 
 ### 桌面版
