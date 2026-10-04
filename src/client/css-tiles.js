@@ -72,7 +72,7 @@ export const CSS_TILES = [
   '.dp-dev-desc{font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}',
   // 换肤「怎么做皮肤」页：两列图卡（缩略图 + 文件名 + 必须/可选 + 用途），规格和 skin.json 示例。
   '.dp-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 10px}',
-  '.dp-guide-cell{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto auto;column-gap:6px;align-items:center;',
+  '.dp-guide-cell{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto auto;column-gap:6px;align-items:center;align-content:center;',
   'padding:6px;border-radius:var(--ac-radius-sm);border:2px solid var(--ac-border-light);background:var(--ac-bg-input)}',
   '.dp-guide-img{grid-row:1 / 4;width:40px;height:40px}.dp-guide-cell b{font-size:11px}',
   '.dp-guide-need{font-size:9.5px;font-weight:800;color:#c7781a}.dp-guide-optional .dp-guide-need{color:var(--ac-text-2)}',
