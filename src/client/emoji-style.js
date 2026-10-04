@@ -5,6 +5,7 @@
  * 网页版（DSH 里）没有内置字体，这个设置不出现，一直是系统自带。
  */
 import { readStore, writeStore } from './storage.js'
+import { applyPatCursor } from './pat-cursor.js'
 
 export const EMOJI_STYLE_KEY = 'dsh-piggy:emoji-style'
 
@@ -32,4 +33,6 @@ export function hasBundledEmoji() {
 /** 宿主上挂 data-emoji，外壳的 CSS 按它换字体栈。 */
 export function applyEmojiStyle(host) {
   host.setAttribute('data-emoji', emojiStyle())
+  // 摸猪的光标也是 emoji 画的，跟着这套字体走。
+  applyPatCursor(host)
 }

@@ -131,13 +131,14 @@ export const CSS_BASE = [
   // it needs no asset and can carry the palette's warm outline; the hotspot
   // sits in the palm, which is where a pat actually lands. The `pointer`
   // after it is the fallback for browsers that refuse a custom cursor.
-  '.dp-pig{cursor:url(\'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" '
+  // 运行时会用 canvas 画好挥手 emoji 写进 --pat-cursor（见 pat-cursor.js）；下面的手画手掌只是兜底。
+  '.dp-pig{cursor:var(--pat-cursor, url(\'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" '
     + 'width="30" height="30" viewBox="0 0 30 30"><g fill="%23F7C9B6" stroke="%23794F27" '
     + 'stroke-width="1.7" stroke-linejoin="round"><rect x="10" y="13.5" width="14" height="12" '
     + 'rx="4.8"/><rect x="10.6" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="14.9" '
     + 'y="5.1" width="3.6" height="11.5" rx="1.8"/><rect x="19.2" y="6.6" width="3.6" '
     + 'height="10" rx="1.8"/><rect x="5.7" y="12.4" width="3.4" height="7.8" rx="1.7" '
-    + 'transform="rotate(-27 7.4 16.3)"/></g></svg>\') 16 24, pointer}',
+    + 'transform="rotate(-27 7.4 16.3)"/></g></svg>\') 16 24, pointer)}',
   // Transform-only keyframes: the pig is an ordinary flex item, so there is
   // no translateX(-50%) centring to preserve.
   '@keyframes dp-bob{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-7px) rotate(-2.5deg)}}',

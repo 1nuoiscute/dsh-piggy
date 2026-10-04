@@ -468,9 +468,10 @@ test('the composed stylesheet is balanced and complete', async () => {
   assert.equal(depth, 0, `the sheet is unbalanced by ${depth} — a rule is swallowing the rest`)
 
   // A truncated data-URI is exactly how the sheet went unbalanced before.
-  const cursor = css.slice(css.indexOf('.dp-pig{cursor:url('))
+  const cursor = css.slice(css.indexOf('.dp-pig{cursor:var(--pat-cursor, url('))
   const uri = cursor.slice(0, cursor.indexOf("')"))
-  assert.ok(uri.includes('</svg>'), 'the petting-hand cursor data-URI must be complete')
+  assert.ok(uri.includes('</svg>'), 'the petting-hand fallback cursor data-URI must be complete')
+  assert.ok(css.indexOf('.dp-pig{cursor:var(--pat-cursor, url(') >= 0, 'the 👋 cursor drawn at runtime overrides the fallback')
   assert.ok(css.includes('.dp-pig-img{'), 'the sprite sizing rule survived')
 })
 
