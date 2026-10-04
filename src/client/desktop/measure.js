@@ -14,6 +14,8 @@ const BUBBLE_ZONE = { width: 272, height: 104 }
 const SHAPE_SLACK = 6
 /** 面板打开时整块内容相对猪的外框，按朝向和猪大小记在本机；收起时窗口仍按它留位置。 */
 const OPEN_BOX_KEY = 'dsh-piggy:desktop-open-box'
+/** 面板上次朝哪边开：启动后第一次打开就按它留位置，不用先变一次窗口。 */
+const SIDES_KEY = 'dsh-piggy:desktop-sides'
 
 /** @param {any} node */
 export function layoutBox(node) {
@@ -41,6 +43,11 @@ export function createMeasure(env) {
   let openBoxes = {}
   try { openBoxes = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || '{}') || {} } catch { openBoxes = {} }
   const state = { vertical: 'bottom', horizontal: 'right', pinned: '' }
+  try {
+    const sides = JSON.parse(localStorage.getItem(SIDES_KEY) || 'null')
+    if (sides && (sides.vertical === 'top' || sides.vertical === 'bottom')) state.vertical = sides.vertical
+    if (sides && (sides.horizontal === 'left' || sides.horizontal === 'right')) state.horizontal = sides.horizontal
+  } catch { /* 用默认的右下角 */ }
   const reserves = env.platform !== 'darwin'
 
   function openBoxKey(pigBox) { return state.vertical + '|' + state.horizontal + '|' + Math.round(pigBox.width) }
@@ -57,25 +64,33 @@ export function createMeasure(env) {
     }
     const geometry = env.geometry()
     let rects = []
+    // 气泡只进可点/可见区域，不进窗口外框：它的位置已经由下面的气泡预留区留好了。
+    // 以前气泡会撑大外框，面板朝下开时一冒气泡整块内容就要挪，Windows 上会画出一帧重影
+    // （用户 2026-10-05 录屏：右键开面板时猪下面多一只半透明的猪，气泡消失时往上闪）。
+    const bubbleRects = []
     for (const node of nodes) {
       if (node.closest('[hidden]') !== null || !visible(node)) continue
       const bubble = node.closest('.dp-bubble')
-      // 贴着屏幕顶边时气泡放不下：不为它改窗口。
-      if (bubble !== null && geometry !== null && geometry.window.y + layoutBox(bubble).y < geometry.workArea.y) continue
       const box = layoutBox(node)
       if (box.width < 1 || box.height < 1) continue
-      rects.push({ x: box.x, y: box.y, r: box.x + box.width, b: box.y + box.height })
+      const rect = { x: box.x, y: box.y, r: box.x + box.width, b: box.y + box.height }
+      if (bubble !== null) bubbleRects.push(rect)
+      else rects.push(rect)
     }
     if (rects.length === 0) return null
     const hostBox = layoutBox(host)
     const pigNode = host.querySelector('.dp-pig')
     const pigBox = pigNode === null ? { x: 0, y: 0, width: 0, height: 0 } : layoutBox(pigNode)
     const open = host.getAttribute('data-open') === 'true'
-    let zone = null
-    if (reserves && !open && pigNode !== null) {
+    // 气泡预留区：收起、打开都留，气泡出现/消失不改外框。离屏幕顶边不够高就只留到顶边。
+    let bubbleZone = null
+    if (reserves && pigNode !== null) {
+      const above = geometry === null ? BUBBLE_ZONE.height : geometry.window.y + pigBox.y - geometry.workArea.y - PAD
+      const height = Math.max(0, Math.min(BUBBLE_ZONE.height, Math.round(above)))
       const zoneLeft = host.getAttribute('data-panel-side') === 'right' ? hostBox.x : hostBox.x + hostBox.width - BUBBLE_ZONE.width
-      zone = { x: zoneLeft, y: pigBox.y - BUBBLE_ZONE.height, r: zoneLeft + BUBBLE_ZONE.width, b: pigBox.y }
+      if (height > 0) bubbleZone = { x: zoneLeft, y: pigBox.y - height, r: zoneLeft + BUBBLE_ZONE.width, b: pigBox.y }
     }
+    let zone = null
     let merged = true
     while (merged) {
       merged = false
@@ -103,7 +118,7 @@ export function createMeasure(env) {
           : { x: cardBox.x, y: cardBox.y + cardBox.height - maxHeight, r: cardBox.x + cardBox.width, b: cardBox.y + cardBox.height }
       }
     }
-    let outline = zone === null ? rects : rects.concat([zone])
+    let outline = rects.concat(zone === null ? [] : [zone], bubbleZone === null ? [] : [bubbleZone])
     if (reserves && pigNode !== null) {
       const key = openBoxKey(pigBox)
       if (open && card !== null && card.hidden !== true) {
@@ -125,7 +140,7 @@ export function createMeasure(env) {
     const content = { x: left - PAD, y: top - PAD,
       width: Math.ceil((right - left + PAD * 2) / STEP) * STEP, height: Math.ceil((bottom - top + PAD * 2) / STEP) * STEP }
     const pig = { x: pigBox.x - content.x, y: pigBox.y - content.y, width: pigBox.width, height: pigBox.height }
-    const shape = rects.map(function (rect) {
+    const shape = rects.concat(bubbleRects).map(function (rect) {
       const x = Math.max(0, Math.floor(rect.x) - SHAPE_SLACK)
       const y = Math.max(0, Math.floor(rect.y) - SHAPE_SLACK)
       return { x, y, width: Math.ceil(rect.r) + SHAPE_SLACK - x, height: Math.ceil(rect.b) + SHAPE_SLACK - y }
@@ -146,8 +161,13 @@ export function createMeasure(env) {
     const cardBox = layoutBox(card)
     const pigBox = layoutBox(pigNode)
     if (cardBox.width < 1 || cardBox.height < 1) return { vertical: state.vertical, horizontal: state.horizontal }
-    state.vertical = cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? 'bottom' : 'top'
-    state.horizontal = cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? 'right' : 'left'
+    const vertical = cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? 'bottom' : 'top'
+    const horizontal = cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? 'right' : 'left'
+    if (vertical !== state.vertical || horizontal !== state.horizontal) {
+      try { localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical, horizontal })) } catch { /* 下次启动从默认开始 */ }
+    }
+    state.vertical = vertical
+    state.horizontal = horizontal
     return { vertical: state.vertical, horizontal: state.horizontal }
   }
 

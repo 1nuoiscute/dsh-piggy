@@ -65,3 +65,11 @@ test('启动复位完成之前不记猪的位置（占位纸盒阶段记下来�
   place.remember({ x: 1462, y: 810, width: 336, height: 736 })
   assert.deepEqual(JSON.parse(memory.get('dsh-piggy:desktop-pig')), { x: 1700, y: 900 })
 })
+
+test('气泡不进窗口外框，猪头上方一直留气泡位置（面板朝下开时冒气泡会让整块内容挪一下，Windows 上出重影）', () => {
+  const src = readFileSync(new URL('../src/client/desktop/measure.js', import.meta.url), 'utf8')
+  assert.match(src, /if \(bubble !== null\) bubbleRects\.push\(rect\)/)
+  assert.match(src, /let outline = rects\.concat\(zone === null \? \[\] : \[zone\], bubbleZone === null \? \[\] : \[bubbleZone\]\)/)
+  assert.match(src, /const shape = rects\.concat\(bubbleRects\)/)
+  assert.match(src, /dsh-piggy:desktop-sides/)
+})

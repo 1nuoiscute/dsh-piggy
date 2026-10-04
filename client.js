@@ -5097,6 +5097,7 @@
   var BUBBLE_ZONE = { width: 272, height: 104 };
   var SHAPE_SLACK = 6;
   var OPEN_BOX_KEY = "dsh-piggy:desktop-open-box";
+  var SIDES_KEY = "dsh-piggy:desktop-sides";
   function layoutBox(node) {
     let x = 0;
     let y = 0;
@@ -5120,6 +5121,12 @@
       openBoxes = {};
     }
     const state2 = { vertical: "bottom", horizontal: "right", pinned: "" };
+    try {
+      const sides2 = JSON.parse(localStorage.getItem(SIDES_KEY) || "null");
+      if (sides2 && (sides2.vertical === "top" || sides2.vertical === "bottom")) state2.vertical = sides2.vertical;
+      if (sides2 && (sides2.horizontal === "left" || sides2.horizontal === "right")) state2.horizontal = sides2.horizontal;
+    } catch {
+    }
     const reserves = env.platform !== "darwin";
     function openBoxKey(pigBox) {
       return state2.vertical + "|" + state2.horizontal + "|" + Math.round(pigBox.width);
@@ -5135,24 +5142,29 @@
       }
       const geometry2 = env.geometry();
       let rects = [];
+      const bubbleRects = [];
       for (const node of nodes) {
         if (node.closest("[hidden]") !== null || !visible(node)) continue;
         const bubble = node.closest(".dp-bubble");
-        if (bubble !== null && geometry2 !== null && geometry2.window.y + layoutBox(bubble).y < geometry2.workArea.y) continue;
         const box = layoutBox(node);
         if (box.width < 1 || box.height < 1) continue;
-        rects.push({ x: box.x, y: box.y, r: box.x + box.width, b: box.y + box.height });
+        const rect = { x: box.x, y: box.y, r: box.x + box.width, b: box.y + box.height };
+        if (bubble !== null) bubbleRects.push(rect);
+        else rects.push(rect);
       }
       if (rects.length === 0) return null;
       const hostBox = layoutBox(host2);
       const pigNode = host2.querySelector(".dp-pig");
       const pigBox = pigNode === null ? { x: 0, y: 0, width: 0, height: 0 } : layoutBox(pigNode);
       const open = host2.getAttribute("data-open") === "true";
-      let zone = null;
-      if (reserves && !open && pigNode !== null) {
+      let bubbleZone = null;
+      if (reserves && pigNode !== null) {
+        const above = geometry2 === null ? BUBBLE_ZONE.height : geometry2.window.y + pigBox.y - geometry2.workArea.y - PAD;
+        const height = Math.max(0, Math.min(BUBBLE_ZONE.height, Math.round(above)));
         const zoneLeft = host2.getAttribute("data-panel-side") === "right" ? hostBox.x : hostBox.x + hostBox.width - BUBBLE_ZONE.width;
-        zone = { x: zoneLeft, y: pigBox.y - BUBBLE_ZONE.height, r: zoneLeft + BUBBLE_ZONE.width, b: pigBox.y };
+        if (height > 0) bubbleZone = { x: zoneLeft, y: pigBox.y - height, r: zoneLeft + BUBBLE_ZONE.width, b: pigBox.y };
       }
+      let zone = null;
       let merged = true;
       while (merged) {
         merged = false;
@@ -5180,7 +5192,7 @@
           zone = cardBox.y > pigBox.y ? { x: cardBox.x, y: cardBox.y, r: cardBox.x + cardBox.width, b: cardBox.y + maxHeight } : { x: cardBox.x, y: cardBox.y + cardBox.height - maxHeight, r: cardBox.x + cardBox.width, b: cardBox.y + cardBox.height };
         }
       }
-      let outline = zone === null ? rects : rects.concat([zone]);
+      let outline = rects.concat(zone === null ? [] : [zone], bubbleZone === null ? [] : [bubbleZone]);
       if (reserves && pigNode !== null) {
         const key = openBoxKey(pigBox);
         if (open && card !== null && card.hidden !== true) {
@@ -5219,7 +5231,7 @@
         height: Math.ceil((bottom - top + PAD * 2) / STEP) * STEP
       };
       const pig = { x: pigBox.x - content.x, y: pigBox.y - content.y, width: pigBox.width, height: pigBox.height };
-      const shape = rects.map(function(rect) {
+      const shape = rects.concat(bubbleRects).map(function(rect) {
         const x = Math.max(0, Math.floor(rect.x) - SHAPE_SLACK);
         const y = Math.max(0, Math.floor(rect.y) - SHAPE_SLACK);
         return { x, y, width: Math.ceil(rect.r) + SHAPE_SLACK - x, height: Math.ceil(rect.b) + SHAPE_SLACK - y };
@@ -5240,8 +5252,16 @@
       const cardBox = layoutBox(card);
       const pigBox = layoutBox(pigNode);
       if (cardBox.width < 1 || cardBox.height < 1) return { vertical: state2.vertical, horizontal: state2.horizontal };
-      state2.vertical = cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? "bottom" : "top";
-      state2.horizontal = cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? "right" : "left";
+      const vertical = cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? "bottom" : "top";
+      const horizontal = cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? "right" : "left";
+      if (vertical !== state2.vertical || horizontal !== state2.horizontal) {
+        try {
+          localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical, horizontal }));
+        } catch {
+        }
+      }
+      state2.vertical = vertical;
+      state2.horizontal = horizontal;
       return { vertical: state2.vertical, horizontal: state2.horizontal };
     }
     function pin(host2, side, hostBox, contentBox) {
