@@ -151,12 +151,19 @@ export function renderUpdateTab(ui) {
     // 0.2.5 以前的外壳只会在应用内下载**正式版**里的外壳；预览版里的外壳只能去发布页下
     // （用户 2026-10-05 在 0.2.2 上点下载，得到一句「请先刷新版本列表」）。
     if (shellRelease.prerelease && compareVersions(cur.shell, '0.2.5') < 0) mode = 'preview-manual'
-    head.appendChild(el('div', 'dp-req', '桌面外壳 v' + cur.shell + ' → v' + shellVersion))
+    // 只有「不更新就玩不了新版本」时才醒目提示；可选更新只放一行灰字和一个小按钮，
+    // 不再红字一直催（用户 2026-10-05：更新页一直在说要下载桌面外壳）。
+    var required = compareVersions(cur.shell, '0.2.0') < 0 || state.list.some(function (r) {
+      return eligible(r) && r.blocked === 'shell' && compareVersions(r.version, cur.version) > 0
+    })
+    head.appendChild(el('div', required ? 'dp-req' : 'dp-dim', required
+      ? '桌面外壳 v' + cur.shell + ' → v' + shellVersion + '：新版本游戏需要它'
+      : '桌面外壳有可选更新 v' + shellVersion + '，不更新也能正常玩'))
     if (compareVersions(cur.shell, '0.2.0') < 0) head.appendChild(el('div', 'dp-dim', '你的桌面外壳是铺满全屏的旧版，会卡、会闪；新外壳只框住猪和面板。请下载新安装包覆盖安装，存档不会丢。'))
-    if (mode !== 'automatic') head.appendChild(el('div', 'dp-dim', shellManualReason(mode)))
+    if (mode !== 'automatic' && required) head.appendChild(el('div', 'dp-dim', shellManualReason(mode)))
     if (state.shellMessage !== null) head.appendChild(el('div', 'dp-req', state.shellMessage))
     if (state.shellBusy) head.appendChild(el('div', 'dp-dim', '正在下载桌面外壳 ' + Math.round(state.shellFraction * 100) + '%'))
-    var shellGo = button('dp-btn dp-btn-wide', { 'data-update-shell': shellRelease.version }, function () {
+    var shellGo = button(required ? 'dp-btn dp-btn-wide' : 'dp-mini', { 'data-update-shell': shellRelease.version }, function () {
       if (mode !== 'automatic') updatesBridge().openPage(shellRelease.page)
       else if (state.shellReady === shellVersion) installShell(ui)
       else downloadShell(ui, shellVersion)
@@ -187,7 +194,8 @@ export function renderUpdateTab(ui) {
     again.textContent = '再试一次'
     ui.content.appendChild(again)
   }
-  if (state.list !== null) renderList(ui, state.list)
+  // 版本列表只给普通玩家看正式版；正在用预览版的人才看得到预览版。
+  if (state.list !== null) renderList(ui, state.list.filter(eligible))
 
   if (cur !== null && cur.previous !== null) {
     var back = button('dp-btn dp-btn-wide dp-update-back', { 'data-update-rollback': '' }, function () { rollback(ui) })

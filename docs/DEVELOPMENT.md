@@ -42,6 +42,19 @@ npm run dist:mac
 
 `npm start` 会先把根项目打进 `apps/desktop/game/`。各平台安装包输出到 `apps/desktop/dist/`。macOS 包需在 macOS 构建；正式发布由 GitHub Actions 完成。
 
+### 桌面程序和游戏包怎么分工（外壳 0.3.0 起）
+
+原则：**能放进游戏包的都放进游戏包**，桌面程序（外壳）尽量不动。玩家更新游戏包只要在「更新」里点一下；更新桌面程序要下载安装包，能少则少。
+
+| 放在哪 | 内容 |
+|---|---|
+| 游戏包（`src/client/desktop/`，打进 `client.js`） | 量猪和面板占多大、把内容钉在窗口锚边、收起时给气泡和面板留位置、窗口摆哪（开关面板不挪、换大小保持脚底、启动复位）、哪里可点 / Windows 鼠标穿透判断、桌面专用样式、去掉原生提示框 |
+| 桌面程序（`apps/desktop/`） | 透明置顶窗口、`piggy://` 文件服务、托盘、开机启动、导入存档、游戏包和外壳的下载与切换、内置 emoji 字体文件；以及几个基础动作：`place`（设窗口位置大小 + 可点区域，2px 容差）、`setHit`（穿透开关）、`beginDrag/dragHeartbeat/endDrag`（拖动跟鼠标、只夹猪）、几何推送（窗口、所在屏和所有屏的工作区） |
+
+- 加载顺序：`renderer/index.html` → `loader.js` 载入 `client.js`；游戏包导出了 `desktop` 模块就调用它，否则退回冻结的 `renderer/shell.js`（给回退到老游戏包的人用）。
+- **改窗口行为先改游戏包**。只有需要新的基础动作时才动桌面程序，并给 `desktop.version` 加一、游戏包里做好兼容判断。
+- 内置 emoji 字体（10MB）留在桌面程序里，避免每次热更新都多下 10MB；用它的样式规则在游戏包里。
+
 ## 发布
 
 游戏版本来自根 `package.json`，桌面外壳版本来自 `apps/desktop/package.json`。npm 目前由维护者在本机手动发布，不由标签工作流执行：
