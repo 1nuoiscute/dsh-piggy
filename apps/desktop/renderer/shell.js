@@ -339,6 +339,34 @@
 
   var lastKey = null
 
+  /** 最近一次量出来的可见/可点矩形（窗口坐标），Windows 穿透模式按它判断鼠标在不在内容上。 */
+  var hitRects = []
+  var lastHit = null
+  var mouseX = -1
+  var mouseY = -1
+  function updateHit(x, y) {
+    mouseX = x
+    mouseY = y
+    if (typeof shell.setHit !== 'function') return
+    var inside = dragging()
+    for (var i = 0; !inside && i < hitRects.length; i += 1) {
+      var r = hitRects[i]
+      inside = x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height
+    }
+    if (inside === lastHit) return
+    lastHit = inside
+    shell.setHit(inside)
+  }
+  if (typeof document.addEventListener === 'function') document.addEventListener('mousemove', function (event) { updateHit(event.clientX, event.clientY) }, true)
+  var root = /** @type {any} */ (document.documentElement)
+  if (root && typeof root.addEventListener === 'function') root.addEventListener('mouseleave', function () {
+    if (dragging()) return
+    mouseX = -1
+    mouseY = -1
+    lastHit = false
+    if (typeof shell.setHit === 'function') shell.setHit(false)
+  })
+
   function tick(immediate) {
     var next = boxes()
     if (next.content === null) return
@@ -356,6 +384,9 @@
     // post-resize local coordinate now, instead of waiting 120ms to measure it.
     var futurePigX = next.pigBox.x + (side.horizontal === 'right' ? next.content.width - oldWidth : 0)
     var futurePigY = next.pigBox.y + (side.vertical === 'bottom' ? next.content.height - oldHeight : 0)
+    hitRects = next.shape
+    // 内容变了（比如面板收起）而鼠标没动：按最后的鼠标位置重新判断，免得透明处还挡着点击。
+    if (mouseX >= 0) updateHit(mouseX, mouseY)
     var key = keyOf(next.content, next.shape, next.pig, next.pigBox)
     if (key === lastKey) return
     lastKey = key
@@ -394,6 +425,16 @@
       if (!dragging()) tick()
     })
   }
+
+  // 桌面版不用系统原生的 title 小提示框：Windows 上透明置顶窗口里的原生提示会画坏
+  // （用户 2026-10-05「点礼物后弹窗显示异常」）。鼠标移上去时把 title 改成 aria-label。
+  if (typeof document.addEventListener === 'function') document.addEventListener('mouseover', function (event) {
+    var target = /** @type {any} */ (event.target)
+    var titled = target !== null && typeof target.closest === 'function' ? target.closest('[title]') : null
+    if (titled === null) return
+    if (!titled.getAttribute('aria-label')) titled.setAttribute('aria-label', titled.getAttribute('title'))
+    titled.removeAttribute('title')
+  }, true)
 
   function start() {
     var host = document.querySelector('[data-dsh-pig]')

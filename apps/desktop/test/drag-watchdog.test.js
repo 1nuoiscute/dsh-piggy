@@ -41,3 +41,12 @@ test('窗口销毁后到达的页面消息不处理（Windows 上切换版本时
   assert.match(main, /function restartGame\(\) \{\s*quitting = true/)
   assert.match(main, /process\.on\('uncaughtException'/)
 })
+
+test('Windows 用鼠标穿透代替 setShape（开关面板时窗口区域不变，不闪白）', () => {
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  const shell = readFileSync(new URL('../renderer/shell.js', import.meta.url), 'utf8')
+  assert.match(main, /const PASSTHROUGH = process\.platform === 'win32'/)
+  assert.match(main, /setIgnoreMouseEvents\(!hit, \{ forward: true \}\)/)
+  assert.match(main, /function applyShape\(rects\) \{\s*if \(PASSTHROUGH/)
+  assert.match(shell, /shell\.setHit\(inside\)/)
+})

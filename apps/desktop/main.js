@@ -186,11 +186,25 @@ function applyBounds(next, why) {
 }
 
 /**
+ * Windows 上不用 setShape，改用「鼠标穿透 + 页面判断鼠标在不在猪/面板上」：
+ * setShape 在 Windows 上是 SetWindowRgn，开关面板时可点区域整块变化，透明分层窗口会闪一下白
+ * （用户 2026-10-05：装了 0.2.5 右键开关菜单仍闪白屏）。穿透模式下窗口区域从不变化。
+ * PIGGY_SHAPE=1 可退回旧做法，方便对比排查。
+ */
+const PASSTHROUGH = process.platform === 'win32' && process.env.PIGGY_SHAPE !== '1'
+let passthroughHit = false
+function setHit(hit) {
+  if (!PASSTHROUGH || win === null || win.isDestroyed() || hit === passthroughHit) return
+  passthroughHit = hit
+  win.setIgnoreMouseEvents(!hit, { forward: true })
+}
+
+/**
  * 只让窗口的一部分可点（其余点击落到桌面）。Electron 只在 Windows / Linux 支持；
  * macOS 上跳过 —— 窗口已经只有猪和面板那么大，四周 16px 的透明边会挡一下点击，影响不大。
  */
 function applyShape(rects) {
-  if (win === null || win.isDestroyed() || process.platform === 'darwin' || typeof win.setShape !== 'function') return
+  if (PASSTHROUGH || win === null || win.isDestroyed() || process.platform === 'darwin' || typeof win.setShape !== 'function') return
   win.setShape(rects)
 }
 
@@ -225,6 +239,7 @@ function createWindow() {
   win.webContents.setFrameRate(FRAME_RATE)
   // Until the page reports where the pig is, the window takes no clicks at all.
   applyShape([])
+  if (PASSTHROUGH) { passthroughHit = true; setHit(false) }
   win.loadURL('piggy://app/index.html')
   // 启动摆放最多管 3 秒：之后一律按猪当前位置算，免得哪次没对上就一直往回拽。
   win.once('ready-to-show', () => { setTimeout(() => { savedPigScreen = null }, 3000) })
@@ -378,6 +393,12 @@ ipcMain.on('piggy:drag:end', event => {
   dragTick()
   stopDrag()
   restingPigScreen = null
+})
+
+/** 页面判断鼠标在不在猪/面板上（只在 Windows 穿透模式下生效）。 */
+ipcMain.on('piggy:hit', (event, hit) => {
+  if (!fromPage(event)) return
+  setHit(hit === true)
 })
 
 /** 旧游戏包（0.27.2 及以前）只会发鼠标增量：照旧支持，回退版本时拖动不坏。 */

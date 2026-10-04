@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('piggyShell', {
     const next = ipcRenderer.sendSync('piggy:content', { ...content, immediate: true })
     if (next && next.window && next.workArea) geometry = next
   },
+  /** Windows 穿透模式：鼠标进出猪/面板时告诉主进程要不要接点击。 */
+  setHit: hit => ipcRenderer.send('piggy:hit', hit === true),
   /** Which parts of the window the pig occupies; everything else lets clicks through. */
   setShape: rects => ipcRenderer.send('piggy:shape', rects),
   /** Main process samples the cursor at 60 Hz from this pointer-down origin. */
