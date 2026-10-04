@@ -50,3 +50,11 @@ test('Windows 用鼠标穿透代替 setShape（开关面板时窗口区域不变
   assert.match(main, /function applyShape\(rects\) \{\s*if \(PASSTHROUGH/)
   assert.match(shell, /shell\.setHit\(inside\)/)
 })
+
+test('开关面板不算「内容变了」；非拖动时窗口差 2px 以内不重设（Windows 缩放下差 1px 会闪）', () => {
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  const changed = main.slice(main.indexOf('const changed = '), main.indexOf('if (savedPigScreen !== null) {', main.indexOf('const changed = ')))
+  assert.doesNotMatch(changed, /panelOpen/)
+  assert.match(main, /const BOUNDS_TOLERANCE = 2/)
+  assert.match(main, /const tolerance = why === 'drag' \|\| why === 'move' \? 0 : BOUNDS_TOLERANCE/)
+})

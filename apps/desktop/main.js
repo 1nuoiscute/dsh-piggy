@@ -31,6 +31,9 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 
 /** Windows 上每帧合成整窗的代价高：30fps 足够猪动，CPU/GPU 掉一大截。 */
 const FRAME_RATE = 30
+/** 非拖动时，窗口位置/大小差这么多以内就不改（见 applyBounds）。 */
+const BOUNDS_TOLERANCE = 2
+
 /** 页面还没报内容框之前的兜底尺寸：折叠的猪 + 留白。 */
 const FALLBACK_CONTENT = { width: 132, height: 152 }
 
@@ -174,15 +177,24 @@ function pushGeometry() {
   win.webContents.send('piggy:geometry', { window: bounds, workArea: workAreaFor(bounds), seq: ++geometrySeq })
 }
 
+/**
+ * 挪/改窗口。返回这次实际改了多少（没改返回 null），写进日志方便排查。
+ * 除了拖动，差 2px 以内一律不动：Windows 125%/150% 缩放下 setBounds 设的尺寸和 getBounds
+ * 读回来的常差 1px，精确比较会让每次内容上报都重新 setBounds，透明窗口就闪一下。
+ */
 function applyBounds(next, why) {
-  if (win === null || win.isDestroyed()) return
+  if (win === null || win.isDestroyed()) return null
   const before = win.getBounds()
-  if (before.x === next.x && before.y === next.y && before.width === next.width && before.height === next.height) return
+  const delta = { x: next.x - before.x, y: next.y - before.y, width: next.width - before.width, height: next.height - before.height }
+  const tolerance = why === 'drag' || why === 'move' ? 0 : BOUNDS_TOLERANCE
+  if (Math.abs(delta.x) <= tolerance && Math.abs(delta.y) <= tolerance
+    && Math.abs(delta.width) <= tolerance && Math.abs(delta.height) <= tolerance) return null
   win.setBounds(next)
   // 拖动时每秒要挪几十次：别每次都写日志（Windows 上同步写盘会卡住主进程）。
   if (why !== 'drag' && why !== 'move') log('bounds', why, JSON.stringify(next))
   scheduleWindowStateSave()
   pushGeometry()
+  return delta
 }
 
 /**
@@ -287,7 +299,6 @@ ipcMain.on('piggy:content', (event, content) => {
   const changed = lastContent === null
     || lastContent.width !== width || lastContent.height !== height
     || lastContent.anchor.vertical !== anchor.vertical || lastContent.anchor.horizontal !== anchor.horizontal
-    || lastContent.panelOpen !== panelOpen
     || sizeChanged
     || (hasPigWindow && lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y))
 
@@ -300,13 +311,20 @@ ipcMain.on('piggy:content', (event, content) => {
     if (settled || panelOpen) savedPigScreen = null
   }
 
+  // 开、关面板本身不挪窗口（收起时窗口按打开时的范围留着位置）。只在打开那一刻记下猪的原位，
+  // 面板开着时内容变化要按它摆回。以前开关面板也算「内容变了」，Windows 缩放下差 1px 就会
+  // 重新 setBounds 一次，整块内容往上闪一下（用户 2026-10-05）。
+  if (panelOpen && lastContent?.panelOpen !== true && hasPigWindow) {
+    const base = lastPigWindow ?? pigWindow
+    restingPigScreen = savedPigScreen ?? { x: bounds.x + base.x, y: bounds.y + base.y }
+  }
+  let moved = null
   if (changed && hasPigWindow) {
     const pigNow = { x: Number(content?.pigNow?.x), y: Number(content?.pigNow?.y) }
     const before = lastPigWindow ?? (Number.isFinite(pigNow.x) && Number.isFinite(pigNow.y) ? pigNow : pigWindow)
     // 启动时以存下来的猪位置为准，直到页面量到的实际位置（pigNow，不是预测值）和它对上：
     // 启动那几次上报里窗口还在改大小，按预测值摆会让猪每次启动漂几像素。
     const pigBefore = savedPigScreen ?? { x: bounds.x + before.x, y: bounds.y + before.y }
-    if (panelOpen && lastContent?.panelOpen !== true) restingPigScreen = pigBefore
     // 启动时页面先画占位的纸盒，拿到存档才换成真正的猪：这个尺寸变化不是「调了小猪大小」，
     // 不能按脚底中心挪，直接摆回存下的位置（存的就是真猪的左上角）。
     const target = savedPigScreen !== null ? savedPigScreen
@@ -315,19 +333,19 @@ ipcMain.on('piggy:content', (event, content) => {
         : (restingPigScreen ?? pigBefore)
     if (sizeChanged && restingPigScreen !== null) restingPigScreen = target
     const area = screen.getDisplayNearestPoint(target).workArea
-    applyBounds(contentBoundsForPig({
+    moved = applyBounds(contentBoundsForPig({
       width, height, pigWindow: { ...pigWindow, ...pigSize }, panelOpen,
       allowPanelOverflow: sizeChanged,
     }, target, area), 'content')
-    if (!panelOpen) restingPigScreen = null
   }
+  if (!panelOpen) restingPigScreen = null
 
   lastContent = { width, height, anchor, panelOpen }
   if (hasPigWindow) lastPigWindow = pigWindow
   lastPigSize = pigSize
   // 记下「猪在屏幕上哪儿」：实机核对展开面板时它有没有动（日志里是 DIP 坐标）。
   const pigOnScreen = hasPigWindow ? { x: win.getBounds().x + pigWindow.x, y: win.getBounds().y + pigWindow.y } : null
-  log('content', JSON.stringify({ window: win.getBounds(), anchor, pigOnScreen, target: restingPigScreen }))
+  log('content', JSON.stringify({ window: win.getBounds(), anchor, panelOpen, pigOnScreen, target: restingPigScreen, moved }))
   const shape = Array.isArray(content.shape) ? content.shape : []
   applyShape(shape.slice(0, 64).map(r => ({
     x: Math.max(0, Math.round(Number(r.x) || 0)), y: Math.max(0, Math.round(Number(r.y) || 0)),
