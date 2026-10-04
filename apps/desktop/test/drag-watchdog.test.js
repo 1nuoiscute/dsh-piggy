@@ -58,3 +58,12 @@ test('开关面板不算「内容变了」；非拖动时窗口差 2px 以内不
   assert.match(main, /const BOUNDS_TOLERANCE = 2/)
   assert.match(main, /const tolerance = why === 'drag' \|\| why === 'move' \? 0 : BOUNDS_TOLERANCE/)
 })
+
+test('外壳 0.3.0 起：加载器优先用游戏包自带的桌面逻辑，老游戏包退回冻结的 shell.js', () => {
+  const loader = readFileSync(new URL('../renderer/loader.js', import.meta.url), 'utf8')
+  assert.match(loader, /plugin\.desktop && typeof plugin\.desktop\.install === 'function'/)
+  assert.match(loader, /old\.src = 'shell\.js'/)
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  assert.match(main, /ipcMain\.on\('piggy:place'/)
+  assert.match(main, /workAreas: screen\.getAllDisplays\(\)/)
+})

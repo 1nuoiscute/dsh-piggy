@@ -174,7 +174,12 @@ let geometrySeq = 0
 function pushGeometry() {
   if (win === null || win.isDestroyed()) return
   const bounds = win.getBounds()
-  win.webContents.send('piggy:geometry', { window: bounds, workArea: workAreaFor(bounds), seq: ++geometrySeq })
+  win.webContents.send('piggy:geometry', geometryOf(bounds, ++geometrySeq))
+}
+
+/** 窗口、它所在屏的工作区、所有屏的工作区：游戏包里的桌面逻辑按这些自己算窗口摆哪。 */
+function geometryOf(bounds, seq) {
+  return { window: bounds, workArea: workAreaFor(bounds), workAreas: screen.getAllDisplays().map(display => display.workArea), seq }
 }
 
 /**
@@ -368,7 +373,7 @@ function dragTick() {
   const area = screen.getDisplayNearestPoint(cursor).workArea
   // 按「猪」算，不按起始窗口算：拖动中窗口大小可能变（冒气泡、面板换页），
   // 用起始窗口的大小去 setBounds 会把窗口来回改大改小，猪就一抽一抽的。
-  const pig = { ...(lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }), ...lastPigSize }
+  const pig = dragSession.pig ?? { ...(lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }), ...lastPigSize }
   applyBounds(dragPigBounds(win.getBounds(), pig, dragSession.pigScreen, dragSession.cursor, cursor, area), 'drag')
 }
 function stopDrag() {
@@ -383,14 +388,18 @@ ipcMain.on('piggy:geometry:ask', (event) => {
   pushGeometry()
 })
 
-ipcMain.on('piggy:drag:start', event => {
+ipcMain.on('piggy:drag:start', (event, given) => {
   if (!fromPage(event)) return
   stopDrag()
   const bounds = win.getBounds()
-  const pig = lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }
+  // 新游戏包会把猪在窗口里的位置和大小一起带过来（它自己量的，不再经过 piggy:content）。
+  const pigFromPage = Number.isFinite(given?.x) && Number.isFinite(given?.y) && given?.width > 0 && given?.height > 0
+    ? { x: given.x, y: given.y, width: given.width, height: given.height } : null
+  const pig = pigFromPage ?? lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }
   dragSession = {
     cursor: screen.getCursorScreenPoint(),
     pigScreen: { x: bounds.x + pig.x, y: bounds.y + pig.y },
+    pig: pigFromPage,
     lastHeartbeat: Date.now(),
   }
   // 猪被拖走了：面板打开时记下的「原位」作废，否则下一次内容变化（比如点商店）
@@ -411,6 +420,25 @@ ipcMain.on('piggy:drag:end', event => {
   dragTick()
   stopDrag()
   restingPigScreen = null
+})
+
+/**
+ * 新游戏包的桌面逻辑：窗口摆哪、多大、哪里可点，都由页面算好，主进程只照做。
+ * 同步返回改完后的几何，页面同一轮里就能接着用。以后这类调整只发游戏包，不用再发桌面程序。
+ */
+ipcMain.on('piggy:place', (event, request) => {
+  if (!fromPage(event)) { event.returnValue = null; return }
+  const b = request?.bounds
+  if (b && [b.x, b.y, b.width, b.height].every(Number.isFinite)) {
+    applyBounds({ x: Math.round(b.x), y: Math.round(b.y), width: Math.max(MIN_WINDOW.width, Math.round(b.width)), height: Math.max(MIN_WINDOW.height, Math.round(b.height)) }, 'place')
+  }
+  if (Array.isArray(request?.shape)) {
+    applyShape(request.shape.slice(0, 64).map(r => ({
+      x: Math.max(0, Math.round(Number(r.x) || 0)), y: Math.max(0, Math.round(Number(r.y) || 0)),
+      width: Math.max(0, Math.round(Number(r.width) || 0)), height: Math.max(0, Math.round(Number(r.height) || 0)),
+    })))
+  }
+  event.returnValue = geometryOf(win.getBounds(), geometrySeq)
 })
 
 /** 页面判断鼠标在不在猪/面板上（只在 Windows 穿透模式下生效）。 */

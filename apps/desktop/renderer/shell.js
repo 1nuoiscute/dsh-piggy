@@ -194,7 +194,8 @@
     var card = host.querySelector === undefined ? null : /** @type {any} */ (host.querySelector('.dp-card'))
     if (shell.platform !== 'darwin' && card !== null && card.hidden !== true && host.getAttribute('data-open') === 'true') {
       var cardBox = layoutBox(card)
-      var maxHeight = parseFloat(card.style.maxHeight) || 0
+      // 封顶 520：老游戏包的面板没有高度上限（max-height 按屏幕算），不封顶窗口会越留越高。
+      var maxHeight = Math.min(520, parseFloat(card.style.maxHeight) || 0)
       if (maxHeight > cardBox.height && cardBox.width > 0) {
         var opensBelow = cardBox.y > pigBox.y
         zone = opensBelow

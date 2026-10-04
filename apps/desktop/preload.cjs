@@ -16,7 +16,13 @@ contextBridge.exposeInMainWorld('piggyShell', {
   /** Which parts of the window the pig occupies; everything else lets clicks through. */
   setShape: rects => ipcRenderer.send('piggy:shape', rects),
   /** Main process samples the cursor at 60 Hz from this pointer-down origin. */
-  beginDrag: () => ipcRenderer.send('piggy:drag:start'),
+  beginDrag: pig => ipcRenderer.send('piggy:drag:start', pig ?? null),
+  /** 新游戏包：页面算好窗口位置大小和可点区域，主进程照做，同步返回新几何。 */
+  place: request => {
+    const next = ipcRenderer.sendSync('piggy:place', request)
+    if (next && next.window && next.workArea) geometry = next
+    return next
+  },
   dragHeartbeat: () => ipcRenderer.send('piggy:drag:heartbeat'),
   endDrag: () => ipcRenderer.send('piggy:drag:end'),
   /** 旧游戏包（0.27.2 及以前）的拖动：只发鼠标增量。 */
