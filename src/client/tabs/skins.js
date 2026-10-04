@@ -3,8 +3,11 @@
 
 import { ART_URL } from '../constants.js'
 import { button, el } from '../dom.js'
+import { drillTo } from '../widgets.js'
+import { renderSkinGuide } from './skin-guide.js'
 
 export function renderSkinsTab(ui) {
+  if (ui.drill.skins === 'guide') { renderSkinGuide(ui); return }
   const intro = el('div', 'dp-pick dp-skin-intro')
   intro.appendChild(el('b', null, '给猪猪换件新衣服'))
   intro.appendChild(el('span', null, '厨师与宇航员完成对应工作后解锁；其他皮肤可直接使用。形态会优先显示。'))
@@ -14,6 +17,10 @@ export function renderSkinsTab(ui) {
   for (const skin of ui.view.skins.entries) grid.appendChild(skinCard(ui, skin))
   ui.content.appendChild(grid)
   ui.content.appendChild(importCard(ui))
+  // G 批次：说清楚自己做皮肤要哪些图、什么规格（以前只有一行字）。
+  const howto = button('dp-btn dp-btn-wide', { 'data-skin-guide': 'true' }, function () { drillTo(ui, 'skins', 'guide') })
+  howto.textContent = '📐 怎么做皮肤：需要哪些图'
+  ui.content.appendChild(howto)
 }
 
 function skinCard(ui, skin) {

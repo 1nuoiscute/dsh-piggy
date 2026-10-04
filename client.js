@@ -3387,6 +3387,15 @@
     ".dp-dev-list{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;margin:4px 0 10px}",
     ".dp-dev-item{display:flex;flex-direction:column;gap:2px;min-width:0}.dp-dev-item .dp-dev-btn{width:100%}",
     ".dp-dev-desc{font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}",
+    // 换肤「怎么做皮肤」页：两列图卡（缩略图 + 文件名 + 必须/可选 + 用途），规格和 skin.json 示例。
+    ".dp-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 10px}",
+    ".dp-guide-cell{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto auto;column-gap:6px;align-items:center;",
+    "padding:6px;border-radius:var(--ac-radius-sm);border:2px solid var(--ac-border-light);background:var(--ac-bg-input)}",
+    ".dp-guide-img{grid-row:1 / 4;width:40px;height:40px}.dp-guide-cell b{font-size:11px}",
+    ".dp-guide-need{font-size:9.5px;font-weight:800;color:#c7781a}.dp-guide-optional .dp-guide-need{color:var(--ac-text-2)}",
+    ".dp-guide-cell small{font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}",
+    ".dp-guide-rule{font-size:10.5px;line-height:1.6}",
+    ".dp-guide-code{margin:4px 0;padding:6px 8px;border-radius:8px;background:var(--ac-bg-content);font-size:10px;line-height:1.5;white-space:pre-wrap}",
     // 背包顶上的状态条：两列四格 + 一行体重。
     ".dp-statstrip{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 10px;padding:8px 10px;",
     "border-radius:var(--ac-radius-sm);background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
@@ -4899,8 +4908,81 @@
     return box;
   }
 
+  // src/client/tabs/skin-guide.js
+  var REPO = "https://github.com/CLICGGER-TYPES/dsh-piggy";
+  var GUIDE_URL = REPO + "/blob/main/docs/guides/creating-skins.md";
+  var EXAMPLE_URL = REPO + "/raw/main/docs/examples/skin-pack-example.zip";
+  var POSES = [
+    { file: "idle.svg", need: true, when: "\u5E73\u65F6\u5F85\u7740\uFF1B\u7F3A\u5C11\u53EF\u9009\u52A8\u4F5C\u65F6\u4E5F\u7528\u5B83", art: "skin-detective" },
+    { file: "eat.svg", need: true, when: "\u5403\u4E1C\u897F", art: "skin-detective-eat" },
+    { file: "bathe.svg", need: true, when: "\u6D17\u6FA1", art: "skin-detective-bathe" },
+    { file: "play.svg", need: true, when: "\u73A9\u800D", art: "skin-detective-play" },
+    { file: "pet.svg", need: true, when: "\u88AB\u6478\u6478", art: "skin-detective-pet" },
+    { file: "relaxed.svg", need: false, when: "\u653E\u677E\u3001\u756A\u8304\u949F\u966A\u4F60\u4E13\u6CE8", art: "skin-detective-relaxed" },
+    { file: "work.svg", need: false, when: "\u6253\u5DE5", art: "skin-detective-work" },
+    { file: "study.svg", need: false, when: "\u4E0A\u5B66", art: "skin-detective-study" },
+    { file: "trip.svg", need: false, when: "\u65C5\u884C", art: "skin-detective-trip" },
+    { file: "fish.svg", need: false, when: "\u9493\u9C7C", art: "skin-detective" }
+  ];
+  function openLink(url) {
+    const shell = updatesBridge();
+    if (shell !== null && typeof shell.openPage === "function") shell.openPage(url);
+    else window.open(url, "_blank", "noopener");
+  }
+  function renderSkinGuide(ui) {
+    drillHeader(ui, "skins", "\u{1F4D0} \u600E\u4E48\u505A\u76AE\u80A4", "10 \u5F20\u56FE");
+    ui.content.appendChild(el("div", "dp-hint", "\u4E00\u5957\u76AE\u80A4 = \u4E00\u4E2A ZIP\uFF1A\u91CC\u9762\u653E skin.json \u548C\u4E0B\u9762\u8FD9\u4E9B SVG \u56FE\u3002\u524D 5 \u5F20\u5FC5\u987B\u6709\uFF0C\u540E 5 \u5F20\u53EF\u4EE5\u4E0D\u753B\uFF08\u6CA1\u6709\u5C31\u7528 idle\uFF09\u3002"));
+    const grid = el("div", "dp-guide-grid");
+    for (const pose of POSES) {
+      const cell = el("div", "dp-guide-cell" + (pose.need ? "" : " dp-guide-optional"));
+      const img = (
+        /** @type {HTMLImageElement} */
+        el("img", "dp-guide-img")
+      );
+      img.src = ART_URL + pose.art + ".svg";
+      img.alt = "";
+      cell.appendChild(img);
+      cell.appendChild(el("b", null, pose.file));
+      cell.appendChild(el("span", "dp-guide-need", pose.need ? "\u5FC5\u987B" : "\u53EF\u9009"));
+      cell.appendChild(el("small", null, pose.when));
+      grid.appendChild(cell);
+    }
+    ui.content.appendChild(grid);
+    const rules = el("div", "dp-pick");
+    rules.appendChild(el("b", null, "\u89C4\u683C"));
+    for (const line2 of [
+      '\u6BCF\u5F20\u90FD\u662F SVG\uFF0C\u6839\u5143\u7D20\u5199 viewBox="0 0 64 64"\uFF0C\u900F\u660E\u80CC\u666F',
+      "\u732A\u7684\u8EAB\u4F53\u5C45\u4E2D\u3001\u811A\u5E95\u8D34\u7740\u540C\u4E00\u6761\u7EBF\uFF08\u53C2\u7167\u9ED8\u8BA4\u5C0F\u732A\uFF09\uFF0C\u5207\u6362\u52A8\u4F5C\u624D\u4E0D\u4F1A\u8DF3",
+      "\u53EA\u7528\u7B80\u5355\u56FE\u5F62\uFF1A\u4E0D\u80FD\u6709\u56FE\u7247\u3001\u6587\u5B57\u3001\u811A\u672C\u3001\u6E10\u53D8\u3001\u6EE4\u955C",
+      "\u5355\u5F20 \u2264 96 KB\uFF0C\u6574\u4E2A ZIP \u2264 2 MB",
+      "ZIP \u6253\u5F00\u76F4\u63A5\u770B\u5230 skin.json \u548C SVG\uFF0C\u4E0D\u8981\u518D\u5305\u4E00\u5C42\u6587\u4EF6\u5939"
+    ]) rules.appendChild(el("div", "dp-guide-rule", "\u2022 " + line2));
+    ui.content.appendChild(rules);
+    const json = el("div", "dp-pick");
+    json.appendChild(el("b", null, "skin.json \u5199\u4EC0\u4E48"));
+    json.appendChild(el("pre", "dp-guide-code", '{\n  "key": "my-blue-pig",\n  "label": "\u84DD\u8393\u732A",\n  "author": "\u4F60\u7684\u540D\u5B57",\n  "description": "\u4E00\u53E5\u8BDD\u4ECB\u7ECD",\n  "emoji": "\u{1FAD0}"\n}'));
+    json.appendChild(el("small", "dp-dim", "key \u53EA\u80FD\u7528\u5C0F\u5199\u5B57\u6BCD\u3001\u6570\u5B57\u3001\u77ED\u6A2A\u7EBF\uFF1B\u4EE5\u540E\u66F4\u65B0\u76AE\u80A4\u4FDD\u6301\u540C\u4E00\u4E2A key\uFF0C\u518D\u5BFC\u5165\u5C31\u4F1A\u8986\u76D6"));
+    ui.content.appendChild(json);
+    const links = el("div", "dp-dev-row");
+    const guide = button("dp-btn", { "data-skin-guide-open": "true" }, function() {
+      openLink(GUIDE_URL);
+    });
+    guide.textContent = "\u{1F4D6} \u5B8C\u6574\u56FE\u6587\u6559\u7A0B";
+    const example = button("dp-btn", { "data-skin-example": "true" }, function() {
+      openLink(EXAMPLE_URL);
+    });
+    example.textContent = "\u{1F4E6} \u4E0B\u8F7D\u793A\u4F8B\u76AE\u80A4\u5305";
+    links.appendChild(guide);
+    links.appendChild(example);
+    ui.content.appendChild(links);
+  }
+
   // src/client/tabs/skins.js
   function renderSkinsTab(ui) {
+    if (ui.drill.skins === "guide") {
+      renderSkinGuide(ui);
+      return;
+    }
     const intro = el("div", "dp-pick dp-skin-intro");
     intro.appendChild(el("b", null, "\u7ED9\u732A\u732A\u6362\u4EF6\u65B0\u8863\u670D"));
     intro.appendChild(el("span", null, "\u53A8\u5E08\u4E0E\u5B87\u822A\u5458\u5B8C\u6210\u5BF9\u5E94\u5DE5\u4F5C\u540E\u89E3\u9501\uFF1B\u5176\u4ED6\u76AE\u80A4\u53EF\u76F4\u63A5\u4F7F\u7528\u3002\u5F62\u6001\u4F1A\u4F18\u5148\u663E\u793A\u3002"));
@@ -4909,6 +4991,11 @@
     for (const skin of ui.view.skins.entries) grid.appendChild(skinCard(ui, skin));
     ui.content.appendChild(grid);
     ui.content.appendChild(importCard(ui));
+    const howto = button("dp-btn dp-btn-wide", { "data-skin-guide": "true" }, function() {
+      drillTo(ui, "skins", "guide");
+    });
+    howto.textContent = "\u{1F4D0} \u600E\u4E48\u505A\u76AE\u80A4\uFF1A\u9700\u8981\u54EA\u4E9B\u56FE";
+    ui.content.appendChild(howto);
   }
   function skinCard(ui, skin) {
     const card = el("div", "dp-item dp-skin-row" + (skin.current ? " dp-skin-current" : ""));
@@ -6174,7 +6261,7 @@
         var tab = "home";
         var stage = "primary";
         var stagePicked = false;
-        var drill = { study: null, shop: null, bag: null, work: null, dex: null, pick: null };
+        var drill = { study: null, shop: null, bag: null, work: null, dex: null, skins: null, pick: null };
         var picker = null;
         var ownerEdit = null;
         var pigNameEdit = null;
