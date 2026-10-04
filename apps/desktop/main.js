@@ -11,7 +11,7 @@
  * - 存档在 userData/dsh-piggy/state.json，跟 DSH 里那只各养各的；托盘里可以导入。
  */
 import { spawn } from 'node:child_process'
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFile, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -20,7 +20,7 @@ import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, net, prot
 import updaterPackage from 'electron-updater'
 
 import { startHost } from './lib/host.js'
-import { WINDOW_PADDING, absoluteDragBounds, clampBounds, contentBoundsForPig, resizedPigScreenPoint } from './lib/window-geometry.js'
+import { MIN_WINDOW, WINDOW_PADDING, clampBounds, contentBoundsForPig, dragPigBounds, moveAcrossDisplays, resizedPigScreenPoint } from './lib/window-geometry.js'
 import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 import { createShellUpdates, shellUpdateMode } from './lib/shell-update.js'
 import { dragHeartbeatExpired } from './lib/drag-watchdog.js'
@@ -41,7 +41,7 @@ function log(...parts) {
   try {
     const file = join(app.getPath('userData'), 'piggy.log')
     mkdirSync(dirname(file), { recursive: true })
-    appendFileSync(file, line)
+    appendFile(file, line, () => {})
   } catch { /* logging must never break the pig */ }
 }
 
@@ -79,13 +79,17 @@ function bundledGameDir() {
 
 const statePath = () => join(app.getPath('userData'), 'dsh-piggy', 'state.json')
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json' }
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.ttf': 'font/ttf' }
 
 /** Serve a file from `root`, refusing anything that climbs out of it. */
 function serveFile(root, rel) {
   const file = normalize(join(root, rel))
   if (!file.startsWith(normalize(root)) || !existsSync(file)) return new Response('not found', { status: 404 })
-  return new Response(readFileSync(file), { headers: { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' } })
+  const type = MIME[extname(file)] ?? 'application/octet-stream'
+  // 立绘、字体让浏览器缓存：摸猪时立绘在「摸」和「平常」之间来回换，
+  // 不缓存的话每次都要重新取一遍，Windows 上会空一帧（猪闪一下）。
+  const cache = /^(image|font)\//.test(type) ? { 'cache-control': 'max-age=86400' } : {}
+  return new Response(readFileSync(file), { headers: { 'content-type': type, ...cache } })
 }
 
 let host = null
@@ -138,7 +142,11 @@ function scheduleWindowStateSave() {
     if (win === null) return
     try {
       mkdirSync(dirname(windowStatePath()), { recursive: true })
-      writeFileSync(windowStatePath(), JSON.stringify(win.getBounds()))
+      const bounds = win.getBounds()
+      // 连猪在屏幕上的位置一起存：下次启动按猪摆，而不是按窗口摆 —— 窗口大小每次启动
+      // 可能不同（上次退出时面板开着、气泡区、版本升级），按窗口摆猪会一次漂几像素。
+      const pig = lastPigWindow === null ? undefined : { x: bounds.x + lastPigWindow.x, y: bounds.y + lastPigWindow.y }
+      writeFileSync(windowStatePath(), JSON.stringify({ ...bounds, pig }))
     } catch { /* 存不下就算了，下次用兜底位置 */ }
   }, 800)
 }
@@ -161,7 +169,8 @@ function applyBounds(next, why) {
   const before = win.getBounds()
   if (before.x === next.x && before.y === next.y && before.width === next.width && before.height === next.height) return
   win.setBounds(next)
-  log('bounds', why, JSON.stringify(next))
+  // 拖动时每秒要挪几十次：别每次都写日志（Windows 上同步写盘会卡住主进程）。
+  if (why !== 'drag' && why !== 'move') log('bounds', why, JSON.stringify(next))
   scheduleWindowStateSave()
   pushGeometry()
 }
@@ -175,8 +184,18 @@ function applyShape(rects) {
   win.setShape(rects)
 }
 
+/** 上次退出时猪的屏幕位置：启动后第一次收到内容上报时按它摆窗口。 */
+let savedPigScreen = null
+
 function createWindow() {
   const saved = readWindowState()
+  savedPigScreen = saved !== null && Number.isFinite(saved.pig?.x) && Number.isFinite(saved.pig?.y) ? { x: saved.pig.x, y: saved.pig.y } : null
+  if (savedPigScreen !== null) {
+    // 显示器拔掉或换了分辨率：猪至少要整只留在某块屏上。
+    const pigArea = screen.getDisplayNearestPoint(savedPigScreen).workArea
+    const box = clampBounds({ ...savedPigScreen, width: MIN_WINDOW.width, height: MIN_WINDOW.height }, pigArea)
+    savedPigScreen = { x: box.x, y: box.y }
+  }
   const area = saved === null ? pigDisplay().workArea : screen.getDisplayMatching(saved).workArea
   const width = saved === null ? FALLBACK_CONTENT.width + WINDOW_PADDING * 2 : saved.width
   const height = saved === null ? FALLBACK_CONTENT.height + WINDOW_PADDING * 2 : saved.height
@@ -197,9 +216,10 @@ function createWindow() {
   // Until the page reports where the pig is, the window takes no clicks at all.
   applyShape([])
   win.loadURL('piggy://app/index.html')
+  // 启动摆放最多管 3 秒：之后一律按猪当前位置算，免得哪次没对上就一直往回拽。
+  win.once('ready-to-show', () => { setTimeout(() => { savedPigScreen = null }, 3000) })
   win.once('ready-to-show', () => { log('ready-to-show'); win.showInactive(); log('shown', JSON.stringify(win.getBounds()), win.isVisible()) })
   win.webContents.on('did-finish-load', () => log('page loaded'))
-  win.on('blur', stopDrag)
   win.webContents.on('render-process-gone', (e, d) => { stopDrag(); log('renderer gone', JSON.stringify(d)) })
   win.webContents.on('console-message', (e, level, message) => { if (level >= 2) log('page:', message) })
   if (process.env.PIGGY_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
@@ -246,13 +266,28 @@ ipcMain.on('piggy:content', (event, content) => {
     || sizeChanged
     || (hasPigWindow && lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y))
 
+  if (savedPigScreen !== null) {
+    // 用「这次摆之前」的窗口 + 页面实际量到的猪位置判断：窗口已经不用再改、猪确实在存下的位置上。
+    const pigNow = { x: Number(content?.pigNow?.x), y: Number(content?.pigNow?.y) }
+    const settled = bounds.width === Math.max(MIN_WINDOW.width, Math.round(width))
+      && bounds.height === Math.max(MIN_WINDOW.height, Math.round(height))
+      && Math.abs(bounds.x + pigNow.x - savedPigScreen.x) <= 1 && Math.abs(bounds.y + pigNow.y - savedPigScreen.y) <= 1
+    if (settled || panelOpen) savedPigScreen = null
+  }
+
   if (changed && hasPigWindow) {
-    const before = lastPigWindow === null ? pigWindow : lastPigWindow
-    const pigBefore = { x: bounds.x + before.x, y: bounds.y + before.y }
+    const pigNow = { x: Number(content?.pigNow?.x), y: Number(content?.pigNow?.y) }
+    const before = lastPigWindow ?? (Number.isFinite(pigNow.x) && Number.isFinite(pigNow.y) ? pigNow : pigWindow)
+    // 启动时以存下来的猪位置为准，直到页面量到的实际位置（pigNow，不是预测值）和它对上：
+    // 启动那几次上报里窗口还在改大小，按预测值摆会让猪每次启动漂几像素。
+    const pigBefore = savedPigScreen ?? { x: bounds.x + before.x, y: bounds.y + before.y }
     if (panelOpen && lastContent?.panelOpen !== true) restingPigScreen = pigBefore
-    const target = sizeChanged
-      ? resizedPigScreenPoint(restingPigScreen ?? pigBefore, lastPigSize, pigSize)
-      : (restingPigScreen ?? pigBefore)
+    // 启动时页面先画占位的纸盒，拿到存档才换成真正的猪：这个尺寸变化不是「调了小猪大小」，
+    // 不能按脚底中心挪，直接摆回存下的位置（存的就是真猪的左上角）。
+    const target = savedPigScreen !== null ? savedPigScreen
+      : sizeChanged
+        ? resizedPigScreenPoint(restingPigScreen ?? pigBefore, lastPigSize, pigSize)
+        : (restingPigScreen ?? pigBefore)
     if (sizeChanged && restingPigScreen !== null) restingPigScreen = target
     const area = screen.getDisplayNearestPoint(target).workArea
     applyBounds(contentBoundsForPig({
@@ -288,7 +323,10 @@ function dragTick() {
   if (dragHeartbeatExpired(dragSession.lastHeartbeat, Date.now())) { stopDrag(); return }
   const cursor = screen.getCursorScreenPoint()
   const area = screen.getDisplayNearestPoint(cursor).workArea
-  applyBounds(absoluteDragBounds(dragSession.bounds, dragSession.cursor, cursor, dragSession.pig, area), 'drag')
+  // 按「猪」算，不按起始窗口算：拖动中窗口大小可能变（冒气泡、面板换页），
+  // 用起始窗口的大小去 setBounds 会把窗口来回改大改小，猪就一抽一抽的。
+  const pig = { ...(lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }), ...lastPigSize }
+  applyBounds(dragPigBounds(win.getBounds(), pig, dragSession.pigScreen, dragSession.cursor, cursor, area), 'drag')
 }
 function stopDrag() {
   if (dragTimer !== null) clearInterval(dragTimer)
@@ -305,21 +343,41 @@ ipcMain.on('piggy:geometry:ask', (event) => {
 ipcMain.on('piggy:drag:start', event => {
   if (win === null || event.sender !== win.webContents) return
   stopDrag()
+  const bounds = win.getBounds()
+  const pig = lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }
   dragSession = {
-    bounds: win.getBounds(), cursor: screen.getCursorScreenPoint(),
-    pig: { ...(lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }), ...lastPigSize },
+    cursor: screen.getCursorScreenPoint(),
+    pigScreen: { x: bounds.x + pig.x, y: bounds.y + pig.y },
     lastHeartbeat: Date.now(),
   }
+  // 猪被拖走了：面板打开时记下的「原位」作废，否则下一次内容变化（比如点商店）
+  // 会把窗口拽回原位 —— 用户看到的「瞬移」「拖着拖着卡在原地」。
+  restingPigScreen = null
+  savedPigScreen = null
   dragTimer = setInterval(dragTick, 1000 / 60)
 })
 ipcMain.on('piggy:drag:heartbeat', event => {
   if (win === null || event.sender !== win.webContents || dragSession === null) return
   dragSession.lastHeartbeat = Date.now()
+  // 页面每次 pointermove 都会发心跳，跟着屏幕刷新走；顺手挪一次窗口，
+  // 比只靠主进程定时器（Windows 上计时精度约 15.6ms）更顺。
+  dragTick()
 })
 ipcMain.on('piggy:drag:end', event => {
   if (win === null || event.sender !== win.webContents) return
   dragTick()
   stopDrag()
+  restingPigScreen = null
+})
+
+/** 旧游戏包（0.27.2 及以前）只会发鼠标增量：照旧支持，回退版本时拖动不坏。 */
+ipcMain.on('piggy:move', (event, delta) => {
+  if (win === null || event.sender !== win.webContents) return
+  const dx = Number(delta?.dx)
+  const dy = Number(delta?.dy)
+  if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return
+  restingPigScreen = null
+  applyBounds(moveAcrossDisplays(win.getBounds(), dx, dy, screen.getAllDisplays().map(display => display.workArea)), 'move')
 })
 
 ipcMain.on('piggy:shape', (event, rects) => {

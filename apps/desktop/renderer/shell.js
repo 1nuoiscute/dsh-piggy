@@ -21,6 +21,17 @@
   /** 取整步长：和 lib/window-geometry.js 的 QUANTIZE_STEP 一致。 */
   var STEP = 4
 
+  /**
+   * 收起时在猪头上方预留的气泡区（宽 = 气泡最大宽度，高 = 两行气泡 + 礼包/番茄钟角标）。
+   * Windows 上透明窗口每改一次大小，会有一帧按旧位置画内容 —— 摸猪冒气泡、气泡消失
+   * 各改一次窗口，看起来就是「猪在闪」。把这块区域一直算进窗口，冒气泡只改可点区域。
+   * macOS 没有 setShape，透明区域会挡住桌面点击，所以不预留。
+   */
+  var BUBBLE_ZONE = { width: 272, height: 104 }
+
+  /** 可点/可见区域四周放宽几像素：礼包上下浮动、猪摇摆会越出布局盒一点，别被切平。 */
+  var SHAPE_SLACK = 6
+
   // 先把外壳挂上：client.js 在挂载那一刻（apply 里）就会读 __dshPiggyShell，
   // 晚一步它就把桌面版当网页版 —— 拖动只挪页面里的猪、窗口不跟。几何还没到时
   // room() 返回 null，页面会先用自己那套算，等几何到了再改。
@@ -60,6 +71,8 @@
     },
     refreshRoom: function () { closedRoom = null },
     beginDrag: function () { shell.beginDrag() },
+    /** 旧游戏包（0.27.2 及以前）只认 moveBy：回退到旧版本时拖动照样能用。 */
+    moveBy: function (dx, dy) { if (typeof shell.moveBy === 'function') shell.moveBy(dx, dy) },
     dragHeartbeat: function () { shell.dragHeartbeat?.() },
     endDrag: function () { shell.endDrag() },
     syncGeometry: function () { tick(true) },
@@ -103,9 +116,16 @@
   function boxes() {
     var host = document.querySelector('[data-dsh-pig]')
     if (host === null) return { content: null, rects: [] }
+    // 面板（.dp-card）自己裁掉溢出的内容，所以只量面板本身，不进去量几百个子节点 ——
+    // 以前每 120ms、每次鼠标移动都把面板里每个节点 getComputedStyle 一遍，面板一长就卡。
     var nodes = [host]
     var all = host.querySelectorAll('*')
-    for (var a = 0; a < all.length; a += 1) nodes.push(all[a])
+    for (var a = 0; a < all.length; a += 1) {
+      var candidate = all[a]
+      var inCard = candidate.closest('.dp-card')
+      if ((inCard !== null && inCard !== candidate) || candidate.closest('.dp-fx') !== null) continue
+      nodes.push(candidate)
+    }
     var geometry = shell.geometry ? shell.geometry() : null
 
     var rects = []
@@ -114,7 +134,7 @@
       // Short-lived sparkle particles can fly outside the pig. Letting them
       // define the native window width makes the compositor push the pig away
       // from a screen edge when a panel closes.
-      if (node.closest('[hidden]') !== null || node.closest('.dp-fx') !== null || !visible(node)) continue
+      if (node.closest('[hidden]') !== null || !visible(node)) continue
       var bubble = node.closest('.dp-bubble')
       // At the top edge there is physically no room to show a bubble above the
       // pig. Do not enlarge/reposition the native window to rescue that bubble;
@@ -122,24 +142,21 @@
       if (bubble !== null && geometry !== null
         && geometry.window.y + layoutBox(bubble).y < geometry.workArea.y) continue
       var box = layoutBox(node)
-      var card = node.closest('.dp-card')
-      // The card clips overflowing app content. Measuring its hidden children
-      // would make the native window grow beyond the visible card and push the
-      // pig away at screen edges.
-      if (card !== null && card !== node) {
-        var clip = layoutBox(card)
-        var x1 = Math.max(box.x, clip.x)
-        var y1 = Math.max(box.y, clip.y)
-        var x2 = Math.min(box.x + box.width, clip.x + clip.width)
-        var y2 = Math.min(box.y + box.height, clip.y + clip.height)
-        box = { x: x1, y: y1, width: x2 - x1, height: y2 - y1 }
-      }
       if (box.width < 1 || box.height < 1) continue
       rects.push({ x: box.x, y: box.y, r: box.x + box.width, b: box.y + box.height })
     }
     if (rects.length === 0) return { content: null, rects: [] }
 
     var hostBox = layoutBox(host)
+    var pigNode = host.querySelector === undefined ? null : host.querySelector('.dp-pig')
+    var pigBox = pigNode === null ? { x: 0, y: 0, width: 0, height: 0 } : layoutBox(pigNode)
+    // 收起时的气泡预留区：只进窗口外框，不进可点区域。
+    var zone = null
+    if (shell.platform !== 'darwin' && host.getAttribute('data-open') === 'false' && pigNode !== null) {
+      var zoneLeft = host.getAttribute('data-panel-side') === 'right'
+        ? hostBox.x : hostBox.x + hostBox.width - BUBBLE_ZONE.width
+      zone = { x: zoneLeft, y: pigBox.y - BUBBLE_ZONE.height, r: zoneLeft + BUBBLE_ZONE.width, b: pigBox.y }
+    }
     var merged = true
     while (merged) {
       merged = false
@@ -161,25 +178,39 @@
     var top = Infinity
     var right = -Infinity
     var bottom = -Infinity
-    for (var m = 0; m < rects.length; m += 1) {
-      left = Math.min(left, rects[m].x)
-      top = Math.min(top, rects[m].y)
-      right = Math.max(right, rects[m].r)
-      bottom = Math.max(bottom, rects[m].b)
+    // 面板打开时按它的最高高度（max-height）留位置：切到内容少的 App 面板会变矮，
+    // 但窗口不跟着缩，下次切回来也不用再长 —— 只改可点区域。
+    var card = host.querySelector === undefined ? null : /** @type {any} */ (host.querySelector('.dp-card'))
+    if (shell.platform !== 'darwin' && card !== null && card.hidden !== true && host.getAttribute('data-open') === 'true') {
+      var cardBox = layoutBox(card)
+      var maxHeight = parseFloat(card.style.maxHeight) || 0
+      if (maxHeight > cardBox.height && cardBox.width > 0) {
+        var opensBelow = cardBox.y > pigBox.y
+        zone = opensBelow
+          ? { x: cardBox.x, y: cardBox.y, r: cardBox.x + cardBox.width, b: cardBox.y + maxHeight }
+          : { x: cardBox.x, y: cardBox.y + cardBox.height - maxHeight, r: cardBox.x + cardBox.width, b: cardBox.y + cardBox.height }
+      }
     }
-    var content = { x: left - PAD, y: top - PAD, width: right - left + PAD * 2, height: bottom - top + PAD * 2 }
+    var outline = zone === null ? rects : rects.concat([zone])
+    for (var m = 0; m < outline.length; m += 1) {
+      left = Math.min(left, outline[m].x)
+      top = Math.min(top, outline[m].y)
+      right = Math.max(right, outline[m].r)
+      bottom = Math.max(bottom, outline[m].b)
+    }
+    // 尺寸按 4px 向上取整：面板高度带小数时，换个 App 会差 1px，Windows 上那也是一次改窗口。
+    var content = { x: left - PAD, y: top - PAD,
+      width: Math.ceil((right - left + PAD * 2) / STEP) * STEP, height: Math.ceil((bottom - top + PAD * 2) / STEP) * STEP }
     // 猪在内容框里的位置（含尺寸）：主进程靠它把窗口挪成「猪在屏幕上一像素都不动」，
     // 钉边也靠它判断面板开在哪一侧。用 host.querySelector，不用后代选择器。
-    var pigNode = host.querySelector === undefined ? null : host.querySelector('.dp-pig')
-    var pigBox = pigNode === null ? { x: 0, y: 0, width: 0, height: 0 } : layoutBox(pigNode)
     var pig = { x: pigBox.x - content.x, y: pigBox.y - content.y, width: pigBox.width, height: pigBox.height }
     // 可点区域直接用页面坐标（页面原点就是窗口原点）。左上向下取整、右下向上取整，
     // 再各放宽 1px：以前按内容框原点换算再四舍五入到 4px，相邻两块之间会漏出一道缝，
     // 透出窗口后面的东西（用户看到的「黑条」），面板右边也会被切掉几像素。
     var shape = rects.map(function (r) {
-      var x = Math.max(0, Math.floor(r.x) - 1)
-      var y = Math.max(0, Math.floor(r.y) - 1)
-      return { x: x, y: y, width: Math.ceil(r.r) + 1 - x, height: Math.ceil(r.b) + 1 - y }
+      var x = Math.max(0, Math.floor(r.x) - SHAPE_SLACK)
+      var y = Math.max(0, Math.floor(r.y) - SHAPE_SLACK)
+      return { x: x, y: y, width: Math.ceil(r.r) + SHAPE_SLACK - x, height: Math.ceil(r.b) + SHAPE_SLACK - y }
     })
     var contentBox = { left: left, top: top, right: right, bottom: bottom }
     return { content: content, shape: shape, pig: pig, hostBox: hostBox, pigBox: pigBox, contentBox: contentBox }
@@ -295,6 +326,10 @@
       height: next.content.height,
       pig: next.pig,
       pigWindow: { x: futurePigX, y: futurePigY },
+      // 猪**现在**在窗口里的位置（还没按新内容改窗口）。主进程第一次收到上报时只能靠它
+      // 算猪在屏幕上的原位 —— 拿上面那个「改完窗口后」的预测值去算，启动时面板开着
+      // 猪就会被挪走（上次退出时面板没关的话，猪会跑到屏幕外）。
+      pigNow: { x: next.pigBox.x, y: next.pigBox.y },
       panelOpen: host.getAttribute('data-open') === 'true',
       anchor: side,
       shape: next.shape,
@@ -305,10 +340,31 @@
   // 给页面里的猪算「屏幕上还有多少地方」：面板要朝屏幕里侧开
   // ---------------------------------------------------------------------------
 
+  // 只在内容真的变了时量：DOM 变了（MutationObserver）、窗口改了大小、松手。
+  // 以前是每 120ms 一次 + 每次鼠标移动一次，Windows 上「一卡一卡」的主要来源之一。
+  // 拖动中不量：拖动只挪窗口，内容不变。另留 1 秒一次的兜底。
+  var scheduled = false
+  function dragging() {
+    var scene = document.querySelector('[data-dsh-pig] .dp-scene')
+    return scene !== null && scene.getAttribute('data-dragging') === 'true'
+  }
+  function schedule() {
+    if (scheduled) return
+    scheduled = true
+    requestAnimationFrame(function () {
+      scheduled = false
+      if (!dragging()) tick()
+    })
+  }
+
   function start() {
-    setInterval(tick, 120)
-    window.addEventListener('pointermove', tick)
-    window.addEventListener('pointerup', tick)
+    var host = document.querySelector('[data-dsh-pig]')
+    if (host !== null && typeof MutationObserver === 'function') {
+      new MutationObserver(schedule).observe(host, { subtree: true, childList: true, attributes: true, characterData: true })
+    }
+    window.addEventListener('resize', schedule)
+    window.addEventListener('pointerup', schedule)
+    setInterval(function () { if (!dragging()) tick() }, 1000)
     tick()
   }
 })()

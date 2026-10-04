@@ -15,6 +15,7 @@
   var PANEL_GAP = 8;
   var PANEL_MARGIN = 10;
   var PANEL_MIN_HEIGHT = 120;
+  var PANEL_MAX_HEIGHT = 520;
   var SCENE_RESERVE = 132;
   var PIG_PADDING_X = 6;
   var TABS = [
@@ -1760,15 +1761,18 @@
         var room = shell.room();
         if (room !== null) {
           var opensBelow = room.above < room.below;
+          var fixedHeight = function(space) {
+            return Math.max(PANEL_MIN_HEIGHT, Math.min(PANEL_MAX_HEIGHT, Math.round(space - PANEL_GAP - PANEL_MARGIN - 42))) + "px";
+          };
           ctx.host.setAttribute("data-panel-vertical", opensBelow ? "below" : "above");
           if (!opensBelow) {
             ctx.card.style.top = "auto";
             ctx.card.style.bottom = "calc(100% + " + PANEL_GAP + "px)";
-            ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.above - PANEL_GAP - PANEL_MARGIN - 42)) + "px";
+            ctx.card.style.maxHeight = fixedHeight(room.above);
           } else {
             ctx.card.style.bottom = "auto";
             ctx.card.style.top = "calc(100% + " + PANEL_GAP + "px)";
-            ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below - PANEL_GAP - PANEL_MARGIN - 42)) + "px";
+            ctx.card.style.maxHeight = fixedHeight(room.below);
           }
           var width = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN));
           var opensRight = typeof room.left === "number" && typeof room.right === "number" && room.left < width + PANEL_MARGIN && room.right > room.left;
@@ -1795,11 +1799,11 @@
       if (roomAbove >= roomBelow) {
         ctx.card.style.top = "auto";
         ctx.card.style.bottom = "calc(100% + " + PANEL_GAP + "px)";
-        ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomAbove)) + "px";
+        ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.min(PANEL_MAX_HEIGHT, Math.round(roomAbove))) + "px";
       } else {
         ctx.card.style.bottom = "auto";
         ctx.card.style.top = "calc(100% + " + PANEL_GAP + "px)";
-        ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomBelow)) + "px";
+        ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.min(PANEL_MAX_HEIGHT, Math.round(roomBelow))) + "px";
       }
       var width = Math.min(PANEL_WIDTH, vw - 2 * PANEL_MARGIN);
       ctx.card.style.maxWidth = Math.round(width) + "px";
@@ -2638,6 +2642,8 @@
     // pointing down, anchored to the right edge so it can never run off the
     // window. The hearts rise from behind it.
     '[data-dsh-pig][data-open="false"] .dp-bubble{left:auto;right:0}',
+    // 收起时气泡给礼包按钮让位，不压住它（用户反馈「有东西挡住了」）。番茄钟角标在猪说话时本来就先藏起来。
+    '[data-dsh-pig][data-open="false"]:has(.dp-daily:not([hidden])) .dp-bubble{bottom:calc(var(--pig-gap-below) + var(--pig-size) + 46px)}',
     '[data-dsh-pig][data-panel-side="right"][data-open="false"] .dp-bubble{right:auto;left:0}',
     '[data-dsh-pig][data-open="false"] .dp-bubble::after{left:auto;right:26px;',
     "top:100%;bottom:auto;margin:0;transform:rotate(45deg);",
@@ -2814,8 +2820,10 @@
   var CSS_TILES = [
     // 番茄钟角标（C2 返工）：贴在猪立绘右上角，跟着猪一起动。
     // 高度 = 13 + 2 = 15px，再往上 2px，所以顶多高出猪头 17px（要求 20px 以内）；
-    // z-index:1 低于说话气泡（2）、也低于装扮层（3），面板打开时更够不着面板。
-    ".dp-pomo{position:absolute;bottom:calc(100% + 2px);right:-4px;z-index:1;",
+    // z-index:4 高于装扮层（3）：戴帽子时帽子会压住角标（用户反馈「有东西挡住了」）。
+    // 角标挂在猪立绘里（猪有 transform 动画，自成一层），这个层级只跟装扮比，不会盖到面板上；
+    // 猪说话时角标先藏起来，不跟气泡抢位置。
+    ".dp-pomo{position:absolute;bottom:calc(100% + 2px);right:-4px;z-index:4;",
     "font-size:9.5px;font-weight:800;color:#fff;background:var(--tile-red);",
     "border-radius:var(--ac-pill);padding:1px 5px;line-height:13px;white-space:nowrap;pointer-events:none;",
     "box-shadow:0 2px 0 rgba(61,52,40,.16)}",
@@ -4925,7 +4933,7 @@
         var ownerEdit = null;
         var pigNameEdit = null;
         var cardEdit = null;
-        var isOpen = readStore(OPEN_KEY) === "true";
+        var isOpen = desktopShell() === null && readStore(OPEN_KEY) === "true";
         var lastStage = null;
         var lastPendingAt = 0;
         var lastPendingId = 0;

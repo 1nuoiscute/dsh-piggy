@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld('piggyShell', {
   beginDrag: () => ipcRenderer.send('piggy:drag:start'),
   dragHeartbeat: () => ipcRenderer.send('piggy:drag:heartbeat'),
   endDrag: () => ipcRenderer.send('piggy:drag:end'),
+  /** 旧游戏包（0.27.2 及以前）的拖动：只发鼠标增量。 */
+  moveBy: (dx, dy) => ipcRenderer.send('piggy:move', { dx: Number(dx) || 0, dy: Number(dy) || 0 }),
+  /** 平台：macOS 没有 setShape，收起时不能预留透明区域（会挡住桌面点击）。 */
+  platform: typeof process === 'undefined' ? '' : process.platform,
   /** 主进程推来的窗口/工作区几何：面板朝屏幕里侧开要用。 */
   geometry: () => geometry,
   /** 页面挂载完主动要一次几何（did-finish-load 可能早于订阅）。 */

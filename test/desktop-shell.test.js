@@ -379,3 +379,8 @@ test('CSS：朝右开时场景改左对齐，气泡/道具跟着镜像（网页�
   // 网页版没有这个属性，规则不会命中
   assert.ok(!/\[data-panel-side/.test(css.replace(/\[data-dsh-pig\]\[data-panel-side/g, '')), '规则都要挂在 data-dsh-pig 上')
 })
+
+test('桌面版启动时面板总是收起（不按上次记住的「开着」恢复）', () => {
+  const src = readFileSync(new URL('../src/client/index.js', import.meta.url), 'utf8')
+  assert.match(src, /var isOpen = desktopShell\(\) === null && readStore\(OPEN_KEY\) === 'true'/)
+})

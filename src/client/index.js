@@ -122,7 +122,8 @@ import { arr, num, obj, str } from './values.js'
       var cardEdit = null
 
       /** The tabs get an explicit context instead of closing over the shell locals. */
-      var isOpen = readStore(OPEN_KEY) === 'true'
+      // 桌面版启动总是收起（几何未到时按「开着」摆面板，窗口会连翻几次）；网页版照旧。
+      var isOpen = desktopShell() === null && readStore(OPEN_KEY) === 'true'
       var lastStage = null
       var lastPendingAt = 0
       var lastPendingId = 0

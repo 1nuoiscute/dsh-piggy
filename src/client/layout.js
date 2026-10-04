@@ -5,7 +5,7 @@
  * 只通过 ctx 读写外壳的状态与元素（getter/setter 转发），不直接碰全局。
  * @module dsh-piggy/client/layout
  */
-import { DEV_TAB, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PIG_PADDING_X, SCENE_RESERVE, TABS } from './constants.js'
+import { DEV_TAB, PANEL_GAP, PANEL_MARGIN, PANEL_MAX_HEIGHT, PANEL_MIN_HEIGHT, PANEL_WIDTH, PIG_PADDING_X, SCENE_RESERVE, TABS } from './constants.js'
 import { desktopShell } from './desktop-shell.js'
 import { button, el } from './dom.js'
 
@@ -44,15 +44,21 @@ export function createLayout(ctx) {
           var room = shell.room()
           if (room !== null) {
             var opensBelow = room.above < room.below
+            // 桌面版面板最高 520（列表再长也在面板里滚）。窗口按这个最高值留位置
+            // （见 apps/desktop/renderer/shell.js 的 PANEL_RESERVE），切换 App 时面板变矮变高
+            // 只改可点区域、不改窗口大小 —— Windows 上透明窗口改一次大小会有一帧画在旧位置。
+            var fixedHeight = function (space) {
+              return Math.max(PANEL_MIN_HEIGHT, Math.min(PANEL_MAX_HEIGHT, Math.round(space - PANEL_GAP - PANEL_MARGIN - 42))) + 'px'
+            }
             ctx.host.setAttribute('data-panel-vertical', opensBelow ? 'below' : 'above')
             if (!opensBelow) {
               ctx.card.style.top = 'auto'
               ctx.card.style.bottom = 'calc(100% + ' + PANEL_GAP + 'px)'
-              ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.above - PANEL_GAP - PANEL_MARGIN - 42)) + 'px'
+              ctx.card.style.maxHeight = fixedHeight(room.above)
             } else {
               ctx.card.style.bottom = 'auto'
               ctx.card.style.top = 'calc(100% + ' + PANEL_GAP + 'px)'
-              ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below - PANEL_GAP - PANEL_MARGIN - 42)) + 'px'
+              ctx.card.style.maxHeight = fixedHeight(room.below)
             }
             // 横向同理：猪靠屏幕右边就朝左开（默认），靠左边就改成朝右开。
             var width = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN))
@@ -96,11 +102,11 @@ export function createLayout(ctx) {
         if (roomAbove >= roomBelow) {
           ctx.card.style.top = 'auto'
           ctx.card.style.bottom = 'calc(100% + ' + PANEL_GAP + 'px)'
-          ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomAbove)) + 'px'
+          ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.min(PANEL_MAX_HEIGHT, Math.round(roomAbove))) + 'px'
         } else {
           ctx.card.style.bottom = 'auto'
           ctx.card.style.top = 'calc(100% + ' + PANEL_GAP + 'px)'
-          ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(roomBelow)) + 'px'
+          ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.min(PANEL_MAX_HEIGHT, Math.round(roomBelow))) + 'px'
         }
 
         // Horizontal: the panel is wider than the pig, so anchoring its right

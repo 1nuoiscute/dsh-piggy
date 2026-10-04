@@ -29,3 +29,16 @@ test('F9 follows the work area under the pointer across displays', () => {
   assert.equal(onRight.x + pig.x, 2350)
   assert.ok(onRight.x + pig.x >= rightScreen.x)
 })
+
+test('按猪拖：窗口中途变大，猪仍跟着鼠标，窗口大小保持当前值', async () => {
+  const { dragPigBounds } = await import('../lib/window-geometry.js')
+  const area = { x: 0, y: 0, width: 1920, height: 1040 }
+  // 按下时猪在屏幕 (1700, 900)；之后窗口因为冒气泡从 98×139 长到 304×260，猪在窗口里的位置也变了。
+  const grown = { x: 0, y: 0, width: 304, height: 260 }
+  const pig = { x: 230, y: 190, width: 54, height: 54 }
+  const next = dragPigBounds(grown, pig, { x: 1700, y: 900 }, { x: 1720, y: 920 }, { x: 1620, y: 870 }, area)
+  assert.equal(next.width, 304)
+  assert.equal(next.height, 260)
+  assert.equal(next.x + pig.x, 1600)
+  assert.equal(next.y + pig.y, 850)
+})

@@ -172,6 +172,27 @@ export function absoluteDragBounds(startBounds, startCursor, cursor, pigWindow, 
   }
 }
 
+/**
+ * 拖动：按住时记下猪的屏幕位置和鼠标位置，之后猪 = 起点 + 鼠标位移。
+ * 用**当前**窗口大小和猪在窗口里的**当前**位置反推窗口原点 —— 拖动中窗口可能因为
+ * 冒气泡、换页改了大小，按起始窗口算会把大小改回去，窗口就一抽一抽的。
+ * 只夹猪：猪留在鼠标所在屏的工作区里，留白和面板可以暂时出界。
+ * @param {{x:number,y:number,width:number,height:number}} bounds 当前窗口
+ * @param {{x:number,y:number,width:number,height:number}} pigWindow 猪在窗口里的位置和大小
+ * @param {{x:number,y:number}} startPigScreen 按下时猪的屏幕位置
+ * @param {{x:number,y:number}} startCursor
+ * @param {{x:number,y:number}} cursor
+ * @param {{x:number,y:number,width:number,height:number}} area
+ */
+export function dragPigBounds(bounds, pigWindow, startPigScreen, startCursor, cursor, area) {
+  return absoluteDragBounds({
+    x: round(startPigScreen.x) - round(pigWindow.x),
+    y: round(startPigScreen.y) - round(pigWindow.y),
+    width: round(bounds.width),
+    height: round(bounds.height),
+  }, startCursor, cursor, pigWindow, area)
+}
+
 /** 收敛容差：猪的屏幕位置差这么点就不管了。 */
 export const ANCHOR_TOLERANCE = 1
 
