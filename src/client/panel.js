@@ -14,7 +14,7 @@ import { displayedPigSize } from './pig-size.js'
 import { applyEmojiStyle } from './emoji-style.js'
 import { writeStore } from './storage.js'
 import { CSS } from './styles.js'
-import { animateAppEntry } from './interaction-motion.js'
+import { animateAppEntry, animatePanelClose, animatePanelOpen } from './interaction-motion.js'
 import { renderBagTab } from './tabs/bag.js'
 import { renderCardTab } from './tabs/card.js'
 import { renderDexTab } from './tabs/dex.js'
@@ -44,7 +44,7 @@ export function createPanel(ctx) {
       }
 
       function setOpen(next) {
-        if (!next) closeFishing(ctx)
+        if (!next) { closeFishing(ctx); if (ctx.isOpen) animatePanelClose(ctx) }
         if (next && !ctx.isOpen) desktopShell()?.room?.()
         ctx.host.removeAttribute('data-panel-side-locked')
         ctx.isOpen = next
@@ -54,14 +54,14 @@ export function createPanel(ctx) {
         // from the DOM rather than only from CSS makes it something a test can
         // actually assert.
         ctx.card.hidden = !next
-        // The hud rides with the panel: a bare pig in the corner should not have
-        // a name and a coin count floating beside it.
+        // The hud rides with the panel: a bare pig should not have a name floating beside it.
         ctx.hud.hidden = !next
         if (!next) ctx.bubble.hidden = true
         writeStore(OPEN_KEY, next ? 'true' : 'false')
         if (next) {
           renderContent()
           ctx.fitPanel()
+          animatePanelOpen(ctx)
         } else {
           // Back to the default anchor so the next open starts from a clean
           // slate. `auto` (not '') keeps the stylesheet's bottom from re-applying
