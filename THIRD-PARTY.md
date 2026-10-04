@@ -16,7 +16,7 @@
 | 内容 | 许可 | 说明 |
 |---|---|---|
 | Nunito / Noto Sans SC | SIL OFL 1.1 | 客户端在浏览器里按需从 Google Fonts 加载；加载失败自动退回系统字体。**字体文件不随本包分发** |
-| Noto Color Emoji（子集） | SIL OFL 1.1 | 仅桌面版：`apps/desktop/renderer/piggy-emoji.ttf`，只含游戏里用到的 emoji（`tools/build-emoji-font.py` 生成），许可原文见同目录 `piggy-emoji-LICENSE.txt` |
+| Noto Color Emoji | SIL OFL 1.1 | 仅桌面版：`apps/desktop/renderer/piggy-emoji.ttf`，整套原样附带（`tools/build-emoji-font.py` 复制），默认 emoji 样式，许可原文见同目录 `piggy-emoji-LICENSE.txt` |
 
 ## 美术
 
