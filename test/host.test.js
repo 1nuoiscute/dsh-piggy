@@ -16,7 +16,7 @@ import { test } from 'node:test'
 
 import { apply, dispatch, snapshot } from '../index.js'
 import { registerRoutes } from '../routes.js'
-import { JOBS, SHOP, hatchEgg, layEgg } from '../core.js'
+import { JOBS, SHOP, ensureDaily, hatchEgg, layEgg } from '../core.js'
 import { DEFAULT_TOY, xpForLevel } from '../data.js'
 
 const MIN = 60_000
@@ -437,6 +437,22 @@ test('the sell route pays the rarity price and is honest about what is not owned
   } finally {
     app.cleanup()
   }
+})
+
+test('daily action responses include the earned reward for a collapsed pig', async () => {
+  const app = boot(nowMs => {
+    const pig = hatchEgg(nowMs)
+    ensureDaily(pig).online.unclaimed = 1
+    return pig
+  })
+  try {
+    const signed = await app.post({ action: 'signIn' })
+    assert.equal(signed.ok, true)
+    assert.ok(typeof signed.reward === 'string' && signed.reward.length > 0)
+    const gift = await app.post({ action: 'openGift' })
+    assert.equal(gift.ok, true)
+    assert.ok(typeof gift.reward === 'string' && gift.reward.length > 0)
+  } finally { app.cleanup() }
 })
 
 test('the wear route dresses and undresses, and the shop is honest about 家当', async () => {

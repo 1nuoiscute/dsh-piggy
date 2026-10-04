@@ -36,6 +36,10 @@ export function createIo(ctx) {
           var next = await res.json()
           if (action === 'buy' && next?.ok === true) ctx.justBought = extra?.item ?? null
           ctx.render(next)
+          if ((action === 'signIn' || action === 'openGift') && next?.ok === true && !ctx.isOpen) {
+            var reward = str(next.reward, '')
+            ctx.showBubble((action === 'signIn' ? '签到成功' : '礼包打开') + (reward ? ' · ' + reward : ''), 4000)
+          }
           if (next && next.ok === false) {
             // Answering a line that has already moved on is normal (a second
             // window, a slow poll): say nothing rather than scold the user.

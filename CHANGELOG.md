@@ -7,6 +7,13 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ## Unreleased · 社区发现入口
 
+### Fixed（待 v0.27.2 验收）
+- 修复猪头气泡样式规则未闭合造成的圆角、背景与字号丢失；长台词最多显示两行，番茄钟和面板换边时仍贴着猪头。
+- 六款角色外观共 54 张立绘恢复到默认小猪的身形与脚底位置；老存档已经穿戴的装扮可在背包「已穿戴」里脱下，购买和穿戴记录保留。
+- 兴趣课显示完成所需的 30/60 分钟、完成后的属性奖励与上课剩余时间；课程结算时由小猪气泡提示获得的属性。面板收起时签到和开礼包也会在气泡里显示实际奖励。
+- 图鉴皮肤详情的使用按钮增加上间距并居中。网页点击面板外、桌面窗口失焦时可自动收起面板；设置里可关闭，输入、拖动和钓鱼检定期间不收起。
+- 发布标签不再运行缺少凭据的 npm 自动发布 job；npm 与别名包的本机手动发布顺序写入开发文档。
+
 ### Added
 - GitHub 仓库补充 `dsh-plugin` topic；[`dsh-plugin-piggy@0.27.1`](https://www.npmjs.com/package/dsh-plugin-piggy) 别名包已发布，供按包名前缀检索的第三方社区目录发现。别名包依赖原始 `dsh-piggy`，两者共用玩法与存档，每个 DSH profile 只需安装其中一个。
 - 按社区规则向 dsh-plugin.org [提交收录申请](https://github.com/dshplugin/dsh-plugin-hub/issues/79)，并向 awesome-dsh-plugin [提交作者自荐](https://github.com/bruc3van/awesome-dsh-plugin/pull/134)；目录均由第三方维护，收录仍待对方审核。

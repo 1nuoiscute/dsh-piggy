@@ -306,6 +306,7 @@
   // src/client/tabs/bag.js
   var CONSUMABLES = KIND_ORDER;
   var EXTRA = {
+    worn: { emoji: "\u{1F455}", label: "\u5DF2\u7A7F\u6234", color: "pink" },
     diary: { emoji: "\u{1F4D4}", label: "\u65E5\u8BB0", color: "brown" },
     souvenir: { emoji: "\u{1F381}", label: "\u7EAA\u5FF5\u54C1", color: "blue" },
     fish: { emoji: "\u{1F41F}", label: "\u9C7C\u7BD3", color: "teal" }
@@ -315,7 +316,8 @@
   }
   function renderBagTab(ui) {
     var open = ui.drill.bag;
-    if (open === "diary") renderDiary(ui);
+    if (open === "worn") renderWorn(ui);
+    else if (open === "diary") renderDiary(ui);
     else if (open === "souvenir") renderSouvenirs(ui);
     else if (open === "fish") renderFish(ui);
     else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open);
@@ -352,12 +354,16 @@
       })(CONSUMABLES[k]);
     }
     var counts = {
+      worn: ui.view.dress.filter(function(item) {
+        return item.worn;
+      }).length,
       diary: ui.view.diary.length,
       souvenir: ui.view.pig.souvenirs.length,
       fish: ui.view.fishing.bag.length
     };
     for (var key in EXTRA) {
       (function(category) {
+        if (category === "worn" && counts.worn === 0) return;
         var spec = EXTRA[category];
         grid.appendChild(tile({
           emoji: spec.emoji,
@@ -373,6 +379,29 @@
       })(key);
     }
     ui.content.appendChild(grid);
+  }
+  function renderWorn(ui) {
+    var worn = ui.view.dress.filter(function(item) {
+      return item.worn;
+    });
+    drillHeader(ui, "bag", "\u{1F455} \u5DF2\u7A7F\u6234", worn.length + " \u4EF6");
+    if (worn.length === 0) {
+      ui.content.appendChild(el("div", "dp-empty", "\u73B0\u5728\u6CA1\u6709\u7A7F\u6234\u88C5\u626E"));
+      return;
+    }
+    for (var i = 0; i < worn.length; i += 1) {
+      (function(item) {
+        var row = el("div", "dp-item");
+        row.appendChild(el("span", "dp-item-emoji", item.emoji));
+        row.appendChild(el("span", "dp-grow", item.label + (item.slotLabel ? " \xB7 " + item.slotLabel : "")));
+        var off = button("dp-mini", { "data-take-off": item.key }, function() {
+          ui.send("wear", { item: item.key, on: false });
+        });
+        off.textContent = "\u8131\u4E0B";
+        row.appendChild(off);
+        ui.content.appendChild(row);
+      })(worn[i]);
+    }
   }
   function renderFish(ui) {
     const list = ui.view.fishing.bag;
@@ -1056,6 +1085,11 @@
     return "ahead";
   }
   function renderStudyTab(ui) {
+    if (ui.view.activity?.kind === "interest") {
+      var active = ui.view.activity;
+      var left = Math.max(1, Math.ceil(active.secondsLeft / 60));
+      ui.content.appendChild(el("div", "dp-alert", active.emoji + " \u6B63\u5728\u5B66" + active.label.replace(/^兴趣·/, "") + " \xB7 \u8FD8\u6709 " + left + " \u5206\u949F"));
+    }
     if (ui.view.subjects.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8BFE\u7A0B\u8868\u3002"));
       return;
@@ -1153,13 +1187,15 @@
     var grid = tileGrid();
     for (var n = 0; n < ui.view.interests.length; n += 1) {
       (function(entry) {
-        var note = entry.certificate === "" ? entry.cost + " \u{1FA99}" : entry.certified ? "\u{1F4DC} \u6709\u8BC1" : "\u{1F4DC} " + entry.times + "/" + entry.certificateAfter;
+        var note = entry.cost + " \u{1FA99} \xB7 \u7EA6 " + entry.minutes + " \u5206\u949F\u540E " + entry.traitLabel + " +" + entry.gain;
+        var badge = entry.certificate === "" ? "" : entry.certified ? "\u{1F4DC}" : entry.times + "/" + entry.certificateAfter;
         grid.appendChild(tile({
           emoji: entry.emoji,
           label: entry.label,
           color: INTEREST_COLOR,
           soft: true,
           note,
+          badge,
           disabled: !ui.view.canGoOut,
           dim: !entry.affordable,
           data: { "data-interest": entry.key },
@@ -1426,7 +1462,8 @@
     function showBubble(text, ms) {
       if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
       bubble.setAttribute("data-bubble-shown", "true");
-      bubble.textContent = text;
+      bubble.textContent = "";
+      bubble.appendChild(el("span", "dp-bubble-text", text));
       bubble.hidden = false;
       if (pomoHint !== null) pomoHint.hidden = true;
       bubbleTimer = window.setTimeout(function() {
@@ -1441,7 +1478,8 @@
         return;
       }
       if (bubbleTimer !== null) window.clearTimeout(bubbleTimer);
-      bubble.textContent = text;
+      bubble.textContent = "";
+      bubble.appendChild(el("span", "dp-bubble-text", text));
       var row = el("div", "dp-bubble-replies", "");
       replies.forEach(function(label, index) {
         var answer = el("button", "dp-reply", label);
@@ -1603,6 +1641,10 @@
         var next = await res.json();
         if (action === "buy" && next?.ok === true) ctx.justBought = extra?.item ?? null;
         ctx.render(next);
+        if ((action === "signIn" || action === "openGift") && next?.ok === true && !ctx.isOpen) {
+          var reward = str(next.reward, "");
+          ctx.showBubble((action === "signIn" ? "\u7B7E\u5230\u6210\u529F" : "\u793C\u5305\u6253\u5F00") + (reward ? " \xB7 " + reward : ""), 4e3);
+        }
         if (next && next.ok === false) {
           if (next.reason === "stale-line") return;
           if (next.reason === "silent") return;
@@ -1784,7 +1826,17 @@
         ctx.bar.appendChild(btn);
       })(entry);
     }
-    return { clampPig, fitPanel, visibleTabs, paintBar, buildIcon };
+    function attachResize() {
+      function onResize() {
+        clampPig();
+        fitPanel();
+      }
+      window.addEventListener?.("resize", onResize);
+      return function() {
+        window.removeEventListener?.("resize", onResize);
+      };
+    }
+    return { clampPig, fitPanel, visibleTabs, paintBar, buildIcon, attachResize };
   }
 
   // src/client/normalize-fishing.js
@@ -2510,11 +2562,14 @@
     // `z-index` matters: the pig comes later in the DOM, so without it the pig
     // paints over the bubble whenever the two boxes overlap — which is exactly
     // what happened when collapsed and the scene was only as wide as the pig.
-    ".dp-bubble{position:absolute;right:8px;top:7px;z-index:2;max-width:162px;padding:6px 10px;",
-    '[data-dsh-pig][data-panel-side="right"] .dp-bubble::after{left:auto;right:14px}',
+    ".dp-bubble{position:absolute;right:8px;top:auto;bottom:calc(var(--pig-gap-below) + var(--pig-size) + 8px);",
+    "z-index:2;width:max-content;max-width:calc(var(--panel-width) - 24px);box-sizing:border-box;padding:6px 10px;",
     "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.45;",
     "color:var(--ac-text-body);background:var(--ac-bg-input);",
     "border:2px solid var(--ac-border-light);box-shadow:var(--ac-shadow-sm)}",
+    ".dp-bubble-text{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;",
+    "overflow:hidden;white-space:normal;overflow-wrap:anywhere}",
+    '[data-dsh-pig][data-panel-side="right"] .dp-bubble::after{left:auto;right:14px}',
     // Tail drawn as a small rotated square so the 2px border stays continuous.
     '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
     "background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);",
@@ -2556,8 +2611,8 @@
     // would sit on the pig's face. Float it above the head with the tail
     // pointing down, anchored to the right edge so it can never run off the
     // window. The hearts rise from behind it.
-    '[data-dsh-pig][data-open="false"] .dp-bubble{top:auto;bottom:calc(100% + 8px);',
-    "left:auto;right:0;max-width:230px}",
+    '[data-dsh-pig][data-open="false"] .dp-bubble{left:auto;right:0}',
+    '[data-dsh-pig][data-panel-side="right"][data-open="false"] .dp-bubble{right:auto;left:0}',
     '[data-dsh-pig][data-open="false"] .dp-bubble::after{left:auto;right:26px;',
     "top:100%;bottom:auto;margin:0;transform:rotate(45deg);",
     "border:0;border-right:2px solid var(--ac-border-light);",
@@ -2972,6 +3027,7 @@
     "text-align:center;color:var(--ac-text-body)}",
     ".dp-dex-foot{position:relative;z-index:1;margin-top:8px;padding-top:7px;border-top:1px dashed rgba(87,69,42,.3);",
     "font-size:9.5px;font-weight:700;text-align:center;color:var(--ac-text-2)}",
+    ".dp-dex-skin-action{position:relative;z-index:1;display:flex;margin-top:16px;justify-content:center}",
     "@media (prefers-reduced-motion:reduce){.dp-dex-card,.dp-dex-big,.dp-dex-art{transition:none!important;transform:none!important}",
     ".dp-dex-card-foil::after,.dp-dex-big-foil::after{display:none}}"
   ].join("");
@@ -3293,7 +3349,9 @@
         });
         pick.textContent = current ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528\u8FD9\u6B3E\u76AE\u80A4";
         pick.disabled = current;
-        card.appendChild(pick);
+        const action = el("div", "dp-dex-skin-action");
+        action.appendChild(pick);
+        card.appendChild(action);
       }
     } else {
       const riddle = el("div", "dp-dex-riddle");
@@ -4043,8 +4101,58 @@
     return wrap;
   }
 
+  // src/client/auto-collapse.js
+  var AUTO_COLLAPSE_KEY = "dsh-piggy:auto-collapse";
+  function autoCollapseEnabled() {
+    return readStore(AUTO_COLLAPSE_KEY) !== "false";
+  }
+  function setAutoCollapse(enabled) {
+    writeStore(AUTO_COLLAPSE_KEY, enabled ? "true" : "false");
+  }
+  function attachAutoCollapse(context) {
+    function focusedInput() {
+      const active = document.activeElement;
+      const tag = active?.tagName?.toLowerCase?.() ?? "";
+      return tag === "input" || tag === "textarea" || active?.getAttribute?.("contenteditable") === "true";
+    }
+    function canClose() {
+      return context.isOpen() && autoCollapseEnabled() && !context.isDragging() && !focusedInput() && !context.isFishing();
+    }
+    function onOutsidePointer(event) {
+      if (!canClose() || event.button !== 0) return;
+      for (let node = event.target; node !== null && node !== void 0; node = node.parentNode) {
+        if (node === context.host) return;
+      }
+      context.setOpen(false);
+    }
+    function onWindowBlur() {
+      if (context.isDesktop() && canClose()) context.setOpen(false);
+    }
+    document.addEventListener("pointerdown", onOutsidePointer, true);
+    window.addEventListener?.("blur", onWindowBlur);
+    return {
+      dispose() {
+        document.removeEventListener("pointerdown", onOutsidePointer, true);
+        window.removeEventListener?.("blur", onWindowBlur);
+      }
+    };
+  }
+
   // src/client/tabs/settings.js
   function renderSettingsTab(ui) {
+    const closeRow = el("div", "dp-item dp-setting-row");
+    closeRow.appendChild(el("span", "dp-setting-emoji", "\u{1FA9F}"));
+    const closeCopy = el("span", "dp-grow");
+    closeCopy.appendChild(el("b", null, "\u70B9\u51FB\u522B\u5904\u65F6\u6536\u8D77\u9762\u677F"));
+    closeCopy.appendChild(el("small", "dp-dim", "\u7F51\u9875\u7248\u70B9\u9762\u677F\u5916\uFF0C\u684C\u9762\u7248\u5207\u5230\u5176\u4ED6\u7A97\u53E3\u65F6\u6536\u8D77"));
+    closeRow.appendChild(closeCopy);
+    const close = button("dp-mini", { "data-auto-collapse": String(!autoCollapseEnabled()) }, function() {
+      setAutoCollapse(!autoCollapseEnabled());
+      ui.renderContent();
+    });
+    close.textContent = autoCollapseEnabled() ? "\u5DF2\u5F00\u542F" : "\u5DF2\u5173\u95ED";
+    closeRow.appendChild(close);
+    ui.content.appendChild(closeRow);
     const intro = el("div", "dp-pick");
     intro.appendChild(el("b", null, "\u56FE\u6807\u663E\u793A"));
     intro.appendChild(el("span", null, "\u9009\u62E9\u4E3B\u83DC\u5355 App \u56FE\u6807\u7684\u6837\u5B50\u3002\u5185\u7F6E\u56FE\u6807\u968F\u6E38\u620F\u63D0\u4F9B\uFF0C\u8BBE\u5907\u4E4B\u95F4\u770B\u8D77\u6765\u4E00\u81F4\u3002"));
@@ -4077,6 +4185,7 @@
     var AWAY_LINE = {
       work: "\u5728\u5FD9",
       study: "\u5728\u5FF5\u4E66",
+      interest: "\u5728\u5B66\u5174\u8DA3\u8BFE",
       trip: "\u5728\u8DEF\u4E0A"
     };
     function setOpen(next) {
@@ -4324,6 +4433,11 @@
           continue;
         }
         if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue;
+        if (event.kind === "interest") {
+          ctx.showBubble(str(event.text, "\u5174\u8DA3\u8BFE\u5B66\u5B8C\u5566"), 4e3);
+          ctx.react("away", 900);
+          continue;
+        }
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
         if (event.kind === "coronation") {
           ctx.react("levelup", 950);
@@ -4505,6 +4619,23 @@
     return { isOn: function() {
       return on;
     }, set, tap, install: install2, dispose };
+  }
+  function attachDevMode(ui) {
+    const dev = createDevMode(function(next) {
+      ui.setEnabled(next);
+      ui.host.setAttribute("data-dev", next ? "true" : "false");
+      ui.paintBar();
+      if (next) {
+        ui.setOpen(true);
+        ui.select("dev");
+        ui.showBubble("\u{1F527} \u5F00\u53D1\u8005\u6A21\u5F0F\u5DF2\u5F00", 2e3);
+      } else {
+        if (ui.getTab() === "dev") ui.select("home");
+        ui.showBubble("\u5F00\u53D1\u8005\u6A21\u5F0F\u5DF2\u5173", 1600);
+      }
+    }, ui.showBubble);
+    dev.install();
+    return dev;
   }
 
   // src/client/update-notice.js
@@ -5006,6 +5137,22 @@
           setOpen(!isOpen);
           if (isOpen && view.pig !== null) flash("pet");
         });
+        var autoCollapse = attachAutoCollapse({
+          host,
+          isOpen: function() {
+            return isOpen;
+          },
+          setOpen,
+          isDragging: function() {
+            return drag !== null;
+          },
+          isFishing: function() {
+            return tab === "fishing" && view.fishing.pending?.phase === "hooked";
+          },
+          isDesktop: function() {
+            return desktopShell() !== null;
+          }
+        });
         clampPig();
         setOpen(isOpen);
         render(view);
@@ -5023,33 +5170,26 @@
           if (!stopped && view.pig !== null) send("chat", { reason: "enter" });
         }, GREET_DELAY_MS);
         scheduleChat();
-        function onResize() {
-          clampPig();
-          fitPanel();
-        }
-        window.addEventListener?.("resize", onResize);
-        function applyDevMode(next) {
-          devMode = next;
-          host.setAttribute("data-dev", devMode ? "true" : "false");
-          paintBar();
-          if (devMode) {
-            setOpen(true);
-            select("dev");
-            showBubble("\u{1F527} \u5F00\u53D1\u8005\u6A21\u5F0F\u5DF2\u5F00", 2e3);
-          } else {
-            if (tab === "dev") select("home");
-            showBubble("\u5F00\u53D1\u8005\u6A21\u5F0F\u5DF2\u5173", 1600);
+        var stopResize = layout.attachResize();
+        var dev = attachDevMode({
+          setEnabled: function(next) {
+            devMode = next;
+          },
+          host,
+          paintBar,
+          setOpen,
+          select,
+          showBubble,
+          getTab: function() {
+            return tab;
           }
-        }
-        var dev = createDevMode(applyDevMode, function(text, ms) {
-          showBubble(text, ms);
         });
         devMode = false;
-        dev.install();
         function dispose() {
           stopped = true;
           updateNotice.stop();
-          window.removeEventListener?.("resize", onResize);
+          stopResize();
+          autoCollapse.dispose();
           dev.dispose();
           if (pollTimer !== null) window.clearInterval(pollTimer);
           if (chatTimer !== null) window.clearTimeout(chatTimer);

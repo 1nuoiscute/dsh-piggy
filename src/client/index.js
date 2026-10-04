@@ -30,8 +30,9 @@ import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_TA
 import { button, el, meter } from './dom.js'
 import { normalize } from './normalize.js'
 import { desktopShell } from './desktop-shell.js'
+import { attachAutoCollapse } from './auto-collapse.js'
 import { readPosition } from './position.js'
-import { createDevMode } from './dev-mode.js'
+import { attachDevMode } from './dev-mode.js'
 import { readStore, writeStore } from './storage.js'
 import { attachUpdateNotice } from './update-notice.js'
 import { updatesBridge } from './tabs/update.js'
@@ -324,6 +325,13 @@ import { arr, num, obj, str } from './values.js'
         if (isOpen && view.pig !== null) flash('pet')
       })
 
+      var autoCollapse = attachAutoCollapse({
+        host: host, isOpen: function () { return isOpen }, setOpen: setOpen,
+        isDragging: function () { return drag !== null },
+        isFishing: function () { return tab === 'fishing' && view.fishing.pending?.phase === 'hooked' },
+        isDesktop: function () { return desktopShell() !== null },
+      })
+
       // ---- life ----
       clampPig()
       setOpen(isOpen)
@@ -345,36 +353,20 @@ import { arr, num, obj, str } from './values.js'
         if (!stopped && view.pig !== null) send('chat', { reason: 'enter' })
       }, GREET_DELAY_MS)
       scheduleChat()
-      // Optional call: minimal test environments stub a window without listeners.
-      function onResize() {
-        clampPig()
-        fitPanel()
-      }
-      window.addEventListener?.('resize', onResize)
+      var stopResize = layout.attachResize()
 
-      // ---- developer mode (C1) ----
-      // 连点版本号解锁，只在内存里记住：见 dev-mode.js。
-      function applyDevMode(next) {
-        devMode = next
-        host.setAttribute('data-dev', devMode ? 'true' : 'false')
-        paintBar()
-        if (devMode) {
-          setOpen(true)
-          select('dev')
-          showBubble('🔧 开发者模式已开', 2000)
-        } else {
-          if (tab === 'dev') select('home')
-          showBubble('开发者模式已关', 1600)
-        }
-      }
-      var dev = createDevMode(applyDevMode, function (text, ms) { showBubble(text, ms) })
+      var dev = attachDevMode({
+        setEnabled: function (next) { devMode = next }, host: host, paintBar: paintBar,
+        setOpen: setOpen, select: select, showBubble: showBubble,
+        getTab: function () { return tab },
+      })
       devMode = false
-      dev.install()
 
       function dispose() {
         stopped = true
         updateNotice.stop()
-        window.removeEventListener?.('resize', onResize)
+        stopResize()
+        autoCollapse.dispose()
         // #11: the console handle outlived the pig, so a reload could toggle a
         // panel that had already been disposed.
         dev.dispose()

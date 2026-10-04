@@ -96,6 +96,7 @@ export const CSS_DEX = [
   'text-align:center;color:var(--ac-text-body)}',
   '.dp-dex-foot{position:relative;z-index:1;margin-top:8px;padding-top:7px;border-top:1px dashed rgba(87,69,42,.3);',
   'font-size:9.5px;font-weight:700;text-align:center;color:var(--ac-text-2)}',
+  '.dp-dex-skin-action{position:relative;z-index:1;display:flex;margin-top:16px;justify-content:center}',
   '@media (prefers-reduced-motion:reduce){.dp-dex-card,.dp-dex-big,.dp-dex-art{transition:none!important;transform:none!important}',
   '.dp-dex-card-foil::after,.dp-dex-big-foil::after{display:none}}',
 ].join('')

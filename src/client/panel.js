@@ -36,6 +36,7 @@ export function createPanel(ctx) {
       var AWAY_LINE = {
         work: '在忙',
         study: '在念书',
+        interest: '在学兴趣课',
         trip: '在路上',
       }
 
@@ -347,6 +348,11 @@ export function createPanel(ctx) {
           }
           // 免打扰: routine news stays quiet; illness and death still speak.
           if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue
+          if (event.kind === 'interest') {
+            ctx.showBubble(str(event.text, '兴趣课学完啦'), 4000)
+            ctx.react('away', 900)
+            continue
+          }
           ctx.toast(str(event.text, '猪有新消息'))
           if (event.kind === 'coronation') { ctx.react('levelup', 950); ctx.transform('crown') }
           else if (event.kind === 'contract') { ctx.react('levelup', 950); ctx.transform('contract') }

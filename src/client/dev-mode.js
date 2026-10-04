@@ -61,3 +61,22 @@ export function createDevMode(applyOn, say) {
 
   return { isOn: function () { return on }, set: set, tap: tap, install: install, dispose: dispose }
 }
+
+/** Wire the in-memory unlock state to the panel without growing its shell. */
+export function attachDevMode(ui) {
+  const dev = createDevMode(function (next) {
+    ui.setEnabled(next)
+    ui.host.setAttribute('data-dev', next ? 'true' : 'false')
+    ui.paintBar()
+    if (next) {
+      ui.setOpen(true)
+      ui.select('dev')
+      ui.showBubble('🔧 开发者模式已开', 2000)
+    } else {
+      if (ui.getTab() === 'dev') ui.select('home')
+      ui.showBubble('开发者模式已关', 1600)
+    }
+  }, ui.showBubble)
+  dev.install()
+  return dev
+}

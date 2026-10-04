@@ -141,5 +141,11 @@ export function createLayout(ctx) {
         })(entry)
       }
 
-  return { clampPig, fitPanel, visibleTabs, paintBar, buildIcon }
+  function attachResize() {
+    function onResize() { clampPig(); fitPanel() }
+    window.addEventListener?.('resize', onResize)
+    return function () { window.removeEventListener?.('resize', onResize) }
+  }
+
+  return { clampPig, fitPanel, visibleTabs, paintBar, buildIcon, attachResize }
 }

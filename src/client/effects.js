@@ -131,7 +131,8 @@ var bubbleTimer = null
 function showBubble(text, ms) {
   if (bubbleTimer !== null) window.clearTimeout(bubbleTimer)
   bubble.setAttribute('data-bubble-shown', 'true')
-  bubble.textContent = text
+  bubble.textContent = ''
+  bubble.appendChild(el('span', 'dp-bubble-text', text))
   bubble.hidden = false
   // 角标让位：气泡和它挨着，宁可角标先消失也不能压住猪说的话。
   if (pomoHint !== null) pomoHint.hidden = true
@@ -156,7 +157,8 @@ function showLine(text, replies, onReply) {
     return
   }
   if (bubbleTimer !== null) window.clearTimeout(bubbleTimer)
-  bubble.textContent = text
+  bubble.textContent = ''
+  bubble.appendChild(el('span', 'dp-bubble-text', text))
   var row = el('div', 'dp-bubble-replies', '')
   replies.forEach(function (label, index) {
     var answer = el('button', 'dp-reply', label)

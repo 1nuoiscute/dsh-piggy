@@ -30,6 +30,11 @@ function standing(sub, stage) {
 }
 
 export function renderStudyTab(ui) {
+  if (ui.view.activity?.kind === 'interest') {
+    var active = ui.view.activity
+    var left = Math.max(1, Math.ceil(active.secondsLeft / 60))
+    ui.content.appendChild(el('div', 'dp-alert', active.emoji + ' 正在学' + active.label.replace(/^兴趣·/, '') + ' · 还有 ' + left + ' 分钟'))
+  }
   if (ui.view.subjects.length === 0) {
     ui.content.appendChild(el('div', 'dp-empty', '宿主还没提供课程表。'))
     return
@@ -113,10 +118,10 @@ function renderInterests(ui) {
   var grid = tileGrid()
   for (var n = 0; n < ui.view.interests.length; n += 1) {
     (function (entry) {
-      var note = entry.certificate === '' ? entry.cost + ' 🪙'
-        : (entry.certified ? '📜 有证' : '📜 ' + entry.times + '/' + entry.certificateAfter)
+      var note = entry.cost + ' 🪙 · 约 ' + entry.minutes + ' 分钟后 ' + entry.traitLabel + ' +' + entry.gain
+      var badge = entry.certificate === '' ? '' : (entry.certified ? '📜' : entry.times + '/' + entry.certificateAfter)
       grid.appendChild(tile({
-        emoji: entry.emoji, label: entry.label, color: INTEREST_COLOR, soft: true, note: note,
+        emoji: entry.emoji, label: entry.label, color: INTEREST_COLOR, soft: true, note: note, badge: badge,
         disabled: !ui.view.canGoOut,
         dim: !entry.affordable,
         data: { 'data-interest': entry.key },

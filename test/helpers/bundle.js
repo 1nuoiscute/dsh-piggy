@@ -11,6 +11,7 @@ import { FORMS } from '../../packages/pet-core/src/data/evolution.js'
 import { lifeStageByKey } from '../../packages/pet-core/src/data/life.js'
 
 export function fakeDom() {
+  const documentListeners = {}
   class FakeElement {
     constructor(tag) {
       this.tagName = tag
@@ -72,10 +73,12 @@ export function fakeDom() {
     createElement: tag => new FakeElement(tag),
     createElementNS: (ns, tag) => new FakeElement(tag),
     querySelector: () => null,
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener: (name, fn) => { (documentListeners[name] ??= []).push(fn) },
+    removeEventListener: (name, fn) => {
+      if (documentListeners[name]) documentListeners[name] = documentListeners[name].filter(entry => entry !== fn)
+    },
   }
-  return { document, head, body, FakeElement }
+  return { document, head, body, FakeElement, documentListeners }
 }
 
 /** 形态所在阶段的起始等级，测试里从数据表取（和宿主同源，不写死数字）。 */
@@ -170,7 +173,7 @@ export async function mount(options = {}) {
   await import(url.href)
   registration.factory(() => {}).apply({})
   await settle()
-  return { dom, store, calls, intervals, windowListeners, registration }
+  return { dom, store, calls, intervals, windowListeners, documentListeners: dom.documentListeners, registration }
 }
 
 export const settle = () => new Promise(resolve => setImmediate(resolve))

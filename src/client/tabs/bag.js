@@ -18,6 +18,7 @@ var CONSUMABLES = KIND_ORDER
 
 /** The non-shelf categories: what they are called and how they look. */
 var EXTRA = {
+  worn: { emoji: '👕', label: '已穿戴', color: 'pink' },
   diary: { emoji: '📔', label: '日记', color: 'brown' },
   souvenir: { emoji: '🎁', label: '纪念品', color: 'blue' },
   fish: { emoji: '🐟', label: '鱼篓', color: 'teal' },
@@ -30,7 +31,8 @@ function shortDay(day) {
 
 export function renderBagTab(ui) {
   var open = ui.drill.bag
-  if (open === 'diary') renderDiary(ui)
+  if (open === 'worn') renderWorn(ui)
+  else if (open === 'diary') renderDiary(ui)
   else if (open === 'souvenir') renderSouvenirs(ui)
   else if (open === 'fish') renderFish(ui)
   else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open)
@@ -61,12 +63,14 @@ function renderCategories(ui) {
     })(CONSUMABLES[k])
   }
   var counts = {
+    worn: ui.view.dress.filter(function (item) { return item.worn }).length,
     diary: ui.view.diary.length,
     souvenir: ui.view.pig.souvenirs.length,
     fish: ui.view.fishing.bag.length,
   }
   for (var key in EXTRA) {
     (function (category) {
+      if (category === 'worn' && counts.worn === 0) return
       var spec = EXTRA[category]
       grid.appendChild(tile({
         emoji: spec.emoji, label: spec.label, color: spec.color,
@@ -77,6 +81,25 @@ function renderCategories(ui) {
     })(key)
   }
   ui.content.appendChild(grid)
+}
+
+function renderWorn(ui) {
+  var worn = ui.view.dress.filter(function (item) { return item.worn })
+  drillHeader(ui, 'bag', '👕 已穿戴', worn.length + ' 件')
+  if (worn.length === 0) { ui.content.appendChild(el('div', 'dp-empty', '现在没有穿戴装扮')); return }
+  for (var i = 0; i < worn.length; i += 1) {
+    (function (item) {
+      var row = el('div', 'dp-item')
+      row.appendChild(el('span', 'dp-item-emoji', item.emoji))
+      row.appendChild(el('span', 'dp-grow', item.label + (item.slotLabel ? ' · ' + item.slotLabel : '')))
+      var off = button('dp-mini', { 'data-take-off': item.key }, function () {
+        ui.send('wear', { item: item.key, on: false })
+      })
+      off.textContent = '脱下'
+      row.appendChild(off)
+      ui.content.appendChild(row)
+    })(worn[i])
+  }
 }
 
 function renderFish(ui) {

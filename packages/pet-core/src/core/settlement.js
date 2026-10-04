@@ -207,7 +207,7 @@ export function finishInterest(state, activity, nowMs) {
   noteOuting(state)
   grow(state, STUDY_GROWTH_PER_LESSON, nowMs)
   remember(state, `${interest.emoji} 学完${interest.label}，${TRAITS[interest.trait].label} +${interest.gain}`, nowMs)
-  announce(state, 'study', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`, nowMs)
+  announce(state, 'interest', `${state.name} 学会了${interest.label}，${TRAITS[interest.trait].label} +${interest.gain} ${interest.emoji}`, nowMs)
   noteToday(state, 'study')
   if (certified) {
     remember(state, `📜 拿到了${interest.certificate}`, nowMs)

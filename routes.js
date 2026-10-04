@@ -206,6 +206,7 @@ function registerActRoute(webServer, store) {
           reason: result.reason,
           wait: result.wait,
           price: result.price,
+          reward: result.reward,
           missing: result.missing,
           sold: result.sold,
           need: result.need,

@@ -2,8 +2,23 @@
 /** App icon appearance lives on this device, separate from the pig save. */
 import { button, el } from '../dom.js'
 import { iconStyle, setIconStyle } from '../icon-style.js'
+import { autoCollapseEnabled, setAutoCollapse } from '../auto-collapse.js'
 
 export function renderSettingsTab(ui) {
+  const closeRow = el('div', 'dp-item dp-setting-row')
+  closeRow.appendChild(el('span', 'dp-setting-emoji', '🪟'))
+  const closeCopy = el('span', 'dp-grow')
+  closeCopy.appendChild(el('b', null, '点击别处时收起面板'))
+  closeCopy.appendChild(el('small', 'dp-dim', '网页版点面板外，桌面版切到其他窗口时收起'))
+  closeRow.appendChild(closeCopy)
+  const close = button('dp-mini', { 'data-auto-collapse': String(!autoCollapseEnabled()) }, function () {
+    setAutoCollapse(!autoCollapseEnabled())
+    ui.renderContent()
+  })
+  close.textContent = autoCollapseEnabled() ? '已开启' : '已关闭'
+  closeRow.appendChild(close)
+  ui.content.appendChild(closeRow)
+
   const intro = el('div', 'dp-pick')
   intro.appendChild(el('b', null, '图标显示'))
   intro.appendChild(el('span', null, '选择主菜单 App 图标的样子。内置图标随游戏提供，设备之间看起来一致。'))

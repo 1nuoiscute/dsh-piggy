@@ -198,7 +198,9 @@ function renderDetail(ui, section, entry) {
       const pick = button('dp-mini', { 'data-dex-skin': entry.key }, function () { ui.send('skin', { skin: entry.key }) })
       pick.textContent = current ? '使用中' : '使用这款皮肤'
       pick.disabled = current
-      card.appendChild(pick)
+      const action = el('div', 'dp-dex-skin-action')
+      action.appendChild(pick)
+      card.appendChild(action)
     }
   } else {
     const riddle = el('div', 'dp-dex-riddle')

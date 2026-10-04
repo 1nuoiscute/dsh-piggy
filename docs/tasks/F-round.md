@@ -64,4 +64,48 @@ Claude 已核对过代码的根因写在每张卡里；**动手前仍要先复�
 
 ## 验证记录
 
+### F1 · 气泡
+
+- 先用拼接后 CSS 的逐规则括号测试复现：旧样式把镜像 `::after` 规则嵌进 `.dp-bubble`，测试失败；修复后通过。长文限制两行、按面板宽度折行，锚点固定在猪头上方。3084 实测短句、45 字长句、番茄钟开始和面板朝右开，气泡圆角、背景与尾巴正常；桌面版用 `python-xlib` 读 Electron 窗口真实像素。
+- 截图：[短句](../screenshots/f1-bubble-short.png)、[长句](../screenshots/f1-bubble-long.png)、[番茄钟](../screenshots/f1-bubble-pomodoro.png)、[朝右开](../screenshots/f1-bubble-right.png)、[桌面版](../screenshots/f1-desktop-bubble.png)。
+
+### F2 · 角色皮肤尺寸
+
+- 先用 54 张 SVG 的身体变换和脚底线测量测试复现原包装缩放为 0.88，超出 4% 容差；删除外层 `translate(3 9) scale(.88)` 后全部通过。这层仅影响角色立绘，直接修素材可让网页、图鉴与桌面使用同一尺度。54 张均由 `rsvg-convert` 解析通过。默认小猪与六款角色并排比较，身体宽高与脚底对齐；王、恶魔、圆润、胖胖也量过像素外框，衣饰/翅膀会越过身体顶部，但脚底处在同一基线。自定义皮肤按导入包自身画布与现有规范显示，本次没有改玩家素材。
+- 截图：[主屏](../screenshots/f2-main-angel.png)、[换肤页](../screenshots/f2-skins-six.png)、[图鉴卡](../screenshots/f2-dex-cards.png)、[六款并排](../screenshots/f2-compare-six.png)、[桌面版实窗](../screenshots/f2-desktop-angel.png)。
+
+### F3 · 老装扮脱下
+
+- 先用围巾与草帽均已穿戴的旧档状态写失败测试；背包现在只在有穿戴物时出现「已穿戴」，每件调用原有 `wear` 动作并传 `on:false`。没有恢复商店装扮货架，也没有删除拥有记录。3084 网页和隔离桌面存档各脱下装扮并刷新，穿戴状态保持已脱，物品仍在存档；桌面图由 `python-xlib` 截取实窗像素。
+- 截图：[网页版穿戴前](../screenshots/f3-worn-before.png)、[网页版脱下后](../screenshots/f3-worn-after.png)、[桌面版穿戴前](../screenshots/f3-desktop-worn-before.png)、[桌面版脱下一件后](../screenshots/f3-desktop-worn-after.png)。
+
+### F4 · 兴趣课结算提示
+
+- 复现结果是规则未讲清，并非结算 bug：摄影开课时魅力不变，29 分钟仍不变，30 分钟完成时 +2。3084 实测魅力由 0 到 2，课程记录从 0/5 到 1/5；真实界面显示「约 30 分钟后 魅力 +2」和「还有 30 分钟」。补上结课事件的猪头气泡；在隔离实例通过调试页快进结课，实际读到「猪猪 学会了摄影，魅力 +2 📷」。对应计时、结算与气泡测试先红后绿。
+- 截图：[课程时间与奖励](../screenshots/f4-interest-wait.png)、[上课剩余时间](../screenshots/f4-interest-active.png)。
+
+### F5 · 收起面板后的操作结果
+
+- 先写失败的客户端与路由测试；动作响应现在包含实际 `reward`，面板收起时签到、开礼包会用猪头气泡报出结果。3084 实测签到得到板蓝根、消食片、枇杷糖浆，礼包得到 61 枚金币；面板展开时沿用原横幅。
+- 截图：[签到](../screenshots/f5-signin-collapsed.png)、[礼包](../screenshots/f5-gift-collapsed.png)。
+
+### F6 · 图鉴按钮
+
+- 先写失败的图鉴结构/样式测试；使用按钮现在有 16px 上间距，并在独立一行水平居中。3084 实测。
+- 截图：[皮肤详情](../screenshots/f6-dex-skin-action.png)。
+
+### F7 · 点击别处收起
+
+- 先写失败测试覆盖网页默认开、手动关、桌面失焦，以及输入聚焦、拖猪、钓鱼 QTE 三种保护。设置写当前设备本地偏好，旧存档默认开启，不改存档结构。3084 网页实测开时点外面收起、关时保持展开；实际抛竿进入 QTE 后点击面板外仍保持展开。隔离 Electron 用 X11 改变窗口焦点：开时 `data-open=false`，关时 `data-open=true`，两种状态均由 `python-xlib` 读取实窗像素。
+- 截图：[网页开](../screenshots/f7-web-on.png)、[网页关](../screenshots/f7-web-off.png)、[桌面开](../screenshots/f7-desktop-on.png)、[桌面失焦后收起](../screenshots/f7-desktop-blurred-on.png)、[桌面关且失焦后仍展开](../screenshots/f7-desktop-off.png)。
+
+### F8 · npm 手动发布
+
+- 先写失败测试检查标签工作流不再含 `NPM_TOKEN`/npm job，以及开发文档包含手动发布与版本核对命令；删除 job 后通过。`docs/DEVELOPMENT.md` 和历史交接文档已同步。此轮尚未打标签、发布 npm 或别名包，待 Claude 验收后再升发布版本并执行文档顺序。
+
+### 全批次
+
+- 基线已 `git pull` 到 `0077b02`。`npm run build && npm test && npm run typecheck` 全绿：构建重新生成 `client.js`，44 个测试文件通过、0 失败，类型检查通过；`git diff --check` 通过。代码与素材均未提升存档版本。
+- 预览使用独立 DSH 3084 与独立 Electron 存档；3080、3082、3083 未操作。F1–F8 待 Claude 验收，暂不发布 v0.27.2。
+
 ## 验收意见（Claude）

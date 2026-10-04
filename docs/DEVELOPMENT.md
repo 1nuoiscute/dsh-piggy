@@ -44,9 +44,15 @@ npm run dist:mac
 
 ## 发布
 
-游戏版本来自根 `package.json`，桌面外壳版本来自 `apps/desktop/package.json`。推送与游戏版本同名的标签（如 `v0.26.0`）后，`.github/workflows/release.yml` 会运行校验、生成游戏包，并构建 Linux、Windows 和 macOS 文件。
+游戏版本来自根 `package.json`，桌面外壳版本来自 `apps/desktop/package.json`。npm 目前由维护者在本机手动发布，不由标签工作流执行：
 
-社区目录使用的 `dsh-plugin-piggy` 是 `packages/dsh-plugin-piggy/` 里的独立 npm 包。它作为 DSH bundle 加载原始 `dsh-piggy` 依赖，不复制游戏代码；每次发布新版本，先发布主包，再同步别名包的 `version` 和 `dependencies.dsh-piggy` 并单独发布。发布后在隔离 profile 验证别名能解析到原插件，每个 profile 只安装其中一个包。
+1. 修改根包和别名包的版本号，把 `packages/dsh-plugin-piggy/package.json` 的 `dependencies.dsh-piggy` 同步到同一版本；在 CHANGELOG 写该版本小节，运行 `npm run build && npm test && npm run typecheck` 并提交。
+2. 打对应的 `v*` 标签并推送，等 `.github/workflows/release.yml` 的游戏包和三个桌面构建 job 完成，确认 GitHub Release 的安装包与游戏包齐全。
+3. 在发布提交的根目录执行 `npm publish --access public`，按 npm 提示完成本机身份验证；不要把凭据写进仓库。
+4. 执行 `npm view dsh-piggy version`，确认公开版本与标签相同。
+5. 进入 `packages/dsh-plugin-piggy/`，执行 `npm publish --access public` 发布别名包，再用 `npm view dsh-plugin-piggy version` 核对。
+
+社区目录使用的 `dsh-plugin-piggy` 是 `packages/dsh-plugin-piggy/` 里的独立 npm 包。它作为 DSH bundle 加载原始 `dsh-piggy` 依赖，不复制游戏代码；发布后在隔离 profile 验证别名能解析到原插件，每个 profile 只安装其中一个包。
 
 ## 主要目录
 
