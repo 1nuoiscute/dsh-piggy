@@ -63,7 +63,7 @@ export const CSS_TILES = [
   '.dp-hint{margin:2px 0 8px;font-size:10px;line-height:1.5;color:var(--ac-text-2)}',
   // 调试页：顶上页签可横向滚动，左右箭头；每个按钮下面一行小字说明。
   '.dp-dev-nav{display:flex;align-items:center;gap:4px;margin:6px 0 8px}',
-  '.dp-dev-tabs{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}.dp-dev-tabs::-webkit-scrollbar{display:none}',
+  '.dp-dev-tabs{position:relative;display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}.dp-dev-tabs::-webkit-scrollbar{display:none}',
   '.dp-dev-tab{flex:none;font:inherit;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:var(--ac-pill);cursor:pointer;',
   'border:2px solid var(--ac-border-light);background:var(--ac-bg-content);color:var(--ac-text-2)}',
   '.dp-dev-tab[aria-pressed="true"]{background:var(--ac-primary);border-color:var(--ac-primary-active);color:#fff}',

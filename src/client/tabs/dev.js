@@ -270,6 +270,9 @@ function renderPages(ui, pages) {
   next.textContent = '›'
   nav.appendChild(next)
   ui.content.appendChild(nav)
+  // 页签比一行多，翻页后把当前页签滚到中间，不然后几页的页签看不见。
+  var active = tabs.children ? tabs.children[index] : null
+  if (active && typeof active.offsetLeft === 'number') tabs.scrollLeft = Math.max(0, active.offsetLeft - (tabs.clientWidth - active.offsetWidth) / 2)
   var start = null
   for (var k = 0; k < pages.length; k += 1) {
     var body = pages[k].body
