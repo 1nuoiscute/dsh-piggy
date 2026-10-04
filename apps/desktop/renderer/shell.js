@@ -29,12 +29,14 @@
   if (typeof shell.onGeometry === 'function') shell.onGeometry(function () {})
   if (typeof shell.askGeometry === 'function') shell.askGeometry()
 
+  var closedRoom = null
   w.__dshPiggyShell = {
     /** 猪在屏幕上的位置与可用空间：页面里的布局按这个算面板朝哪边开。 */
     room: function () {
+      var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
+      if (host !== null && host.getAttribute('data-open') === 'true' && closedRoom !== null) return closedRoom
       var info = shell.geometry ? shell.geometry() : null
       if (info === null) return null
-      var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
       var pigNode = host === null || host.querySelector === undefined ? null : host.querySelector('.dp-pig')
       if (pigNode === null) return null
       var pigBox = layoutBox(pigNode)
@@ -45,7 +47,7 @@
         right: info.window.x + pigBox.x + pigBox.width,
         bottom: info.window.y + pigBox.y + pigBox.height,
       }
-      return {
+      var result = {
         above: Math.round(pig.top - info.workArea.y),
         below: Math.round(info.workArea.y + info.workArea.height - pig.bottom),
         left: Math.round(pig.left - info.workArea.x),
@@ -53,9 +55,13 @@
         width: info.workArea.width,
         height: info.workArea.height,
       }
+      if (host.getAttribute('data-open') === 'false') closedRoom = result
+      return result
     },
+    refreshRoom: function () { closedRoom = null },
     beginDrag: function () { shell.beginDrag() },
     endDrag: function () { shell.endDrag() },
+    syncGeometry: function () { tick(true) },
   }
 
   var entry = null
@@ -99,12 +105,34 @@
     var nodes = [host]
     var all = host.querySelectorAll('*')
     for (var a = 0; a < all.length; a += 1) nodes.push(all[a])
+    var geometry = shell.geometry ? shell.geometry() : null
 
     var rects = []
     for (var i = 0; i < nodes.length; i += 1) {
       var node = nodes[i]
-      if (node.closest('[hidden]') !== null || !visible(node)) continue
+      // Short-lived sparkle particles can fly outside the pig. Letting them
+      // define the native window width makes the compositor push the pig away
+      // from a screen edge when a panel closes.
+      if (node.closest('[hidden]') !== null || node.closest('.dp-fx') !== null || !visible(node)) continue
+      var bubble = node.closest('.dp-bubble')
+      // At the top edge there is physically no room to show a bubble above the
+      // pig. Do not enlarge/reposition the native window to rescue that bubble;
+      // it would move the pig even though the panel itself fits below.
+      if (bubble !== null && geometry !== null
+        && geometry.window.y + layoutBox(bubble).y < geometry.workArea.y) continue
       var box = layoutBox(node)
+      var card = node.closest('.dp-card')
+      // The card clips overflowing app content. Measuring its hidden children
+      // would make the native window grow beyond the visible card and push the
+      // pig away at screen edges.
+      if (card !== null && card !== node) {
+        var clip = layoutBox(card)
+        var x1 = Math.max(box.x, clip.x)
+        var y1 = Math.max(box.y, clip.y)
+        var x2 = Math.min(box.x + box.width, clip.x + clip.width)
+        var y2 = Math.min(box.y + box.height, clip.y + clip.height)
+        box = { x: x1, y: y1, width: x2 - x1, height: y2 - y1 }
+      }
       if (box.width < 1 || box.height < 1) continue
       rects.push({ x: box.x, y: box.y, r: box.x + box.width, b: box.y + box.height })
     }
@@ -241,12 +269,23 @@
 
   var lastKey = null
 
-  function tick() {
+  function tick(immediate) {
     var next = boxes()
     if (next.content === null) return
     var host = /** @type {any} */ (document.querySelector('[data-dsh-pig]'))
     var side = sides(host)
     pinPig(side.vertical, side.horizontal, next.hostBox, next.contentBox)
+    // pinPig writes CSS position. Measure again in this same turn so the main
+    // process receives the pig's final window-local position before resizing.
+    next = boxes()
+    if (next.content === null) return
+    var windowInfo = shell.geometry ? shell.geometry() : null
+    var oldWidth = Number(windowInfo?.window?.width) || next.content.width
+    var oldHeight = Number(windowInfo?.window?.height) || next.content.height
+    // A right/bottom-pinned pig moves inside the window as it grows. Send its
+    // post-resize local coordinate now, instead of waiting 120ms to measure it.
+    var futurePigX = next.pigBox.x + (side.horizontal === 'right' ? next.content.width - oldWidth : 0)
+    var futurePigY = next.pigBox.y + (side.vertical === 'bottom' ? next.content.height - oldHeight : 0)
     var key = keyOf(next.content, next.shape, next.pig, next.pigBox)
     if (key === lastKey) return
     lastKey = key
@@ -254,10 +293,11 @@
       width: next.content.width,
       height: next.content.height,
       pig: next.pig,
-      pigWindow: { x: next.pigBox.x, y: next.pigBox.y },
+      pigWindow: { x: futurePigX, y: futurePigY },
+      panelOpen: host.getAttribute('data-open') === 'true',
       anchor: side,
       shape: next.shape,
-    })
+    }, immediate === true)
   }
 
   // ---------------------------------------------------------------------------

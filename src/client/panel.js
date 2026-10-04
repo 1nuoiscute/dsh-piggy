@@ -8,6 +8,7 @@
 import { syncPigArt } from './art.js'
 import { DEV_TAB, OPEN_KEY, QUIT_TAB, TABS, UPDATE_TAB } from './constants.js'
 import { button, el } from './dom.js'
+import { desktopShell } from './desktop-shell.js'
 import { normalize } from './normalize.js'
 import { writeStore } from './storage.js'
 import { CSS } from './styles.js'
@@ -42,6 +43,8 @@ export function createPanel(ctx) {
 
       function setOpen(next) {
         if (!next) closeFishing(ctx)
+        if (next && !ctx.isOpen) desktopShell()?.room?.()
+        ctx.host.removeAttribute('data-panel-side-locked')
         ctx.isOpen = next
         ctx.host.setAttribute('data-open', next ? 'true' : 'false')
         // Collapsed must be the pig and *nothing else*. One switch hides the
@@ -67,6 +70,7 @@ export function createPanel(ctx) {
           ctx.card.style.maxHeight = ''
           ctx.card.style.maxWidth = ''
         }
+        desktopShell()?.syncGeometry?.()
       }
 
       function select(next) {

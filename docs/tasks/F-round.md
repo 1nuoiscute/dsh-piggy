@@ -171,4 +171,11 @@ Claude 已核对过代码的根因写在每张卡里；**动手前仍要先复�
 - 页面按下/松开时通知主进程，主进程以按下时的窗口和鼠标屏幕坐标为固定起点，按约 60Hz 读取鼠标。只让猪的布局框留在指针所在屏的工作区；面板保持展开，允许暂时越界。网页版仍走原拖动路径。
 - `npm run build && npm test && npm run typecheck` 全绿（45 个测试文件，0 失败）；`client.js` 已重新生成。隔离 Electron 展开面板的实窗像素：[f9-desktop-panel-open.png](../screenshots/f9-desktop-panel-open.png)。当前 Linux 会话是 Wayland/XWayland，XTest 合成鼠标移动被合成器拦截，无法在这里替代 Windows 100%/125%/150% 的十秒画圈与多屏实测；这些平台验收项留给 Claude/Windows 实机，不把纯函数测试冒充实机结果。
 
+### F10 · 面板开合时固定小猪屏幕坐标
+
+- 旧版隔离 Electron 实测：面板展开时猪的屏幕坐标从 `(1791,888)` 瞬间到 `(1565,358)`，约 120ms 后才补正。实际主因确是先改窗口尺寸、下一次 120ms 上报再调用 `anchorCorrection`；整窗夹进工作区又会放大贴边偏移。渲染时还发现开合产生的粒子会撑宽测量框，顶边气泡会撑高测量框。各问题都先补了失败测试。
+- 页面在切换面板的同一轮事件中量出新内容框、预测钉边后的小猪局部坐标，主进程据固定屏幕坐标一次 `setBounds`。复验又查到三个原因：同步 IPC 在主进程设置 `returnValue` 时会立刻唤醒渲染进程，因此只在完成定位后回执；打开面板后才出现的摸猪气泡会造成第二次扩窗，因此先显示气泡再测量；面板裁掉的子内容仍被算进窗口外框，因此对子元素按面板盒裁剪。展开方向取收起时的猪位置，开合过程中锁定方向，拖动结束后才重算。
+- 曾误用左键 `.click()` 做采样；它不会打开面板，那份记录已废弃并替换。最终以真实的右键 `contextmenu` 事件在四角和中心分别开合 10 次，每约 16ms 采一次位置；[逐帧记录](numbers/F10-position-frames.csv) 共 1015 帧，`panel_open=true` 的采样也在其中。左上 `(22,48)`、右上 `(1809,48)`、左下 `(22,927)`、右下 `(1809,920)`、中心 `(933,491)`，每组 X/Y 波动均为 0 DIP。这里采的是渲染端屏幕坐标，Linux Wayland/XWayland 下仍需 Windows 实机核对可见像素。实窗像素：[收起](../screenshots/f10-desktop-closed.png)、[展开](../screenshots/f10-desktop-open.png)。
+- `npm run build && npm test && npm run typecheck` 全绿（46 个测试文件，0 失败）；`client.js` 已重新生成。
+
 ## 验收意见（Claude，F9–F12）

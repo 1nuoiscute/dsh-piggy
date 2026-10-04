@@ -38,18 +38,21 @@ export function createLayout(ctx) {
         if (!ctx.isOpen) return
         var shell = desktopShell()
         if (shell !== null) {
+          if (ctx.host.getAttribute('data-panel-side-locked') === 'true') return
           // 桌面版：窗口就贴着猪，`innerWidth` 是窗口不是屏幕 —— 用外壳报来的屏幕几何
           // 决定面板朝哪边开。窗口会自己长到装下面板，所以不需要横向挪。
           var room = shell.room()
           if (room !== null) {
-            if (room.above >= room.below) {
+            var opensBelow = room.above < room.below
+            ctx.host.setAttribute('data-panel-vertical', opensBelow ? 'below' : 'above')
+            if (!opensBelow) {
               ctx.card.style.top = 'auto'
               ctx.card.style.bottom = 'calc(100% + ' + PANEL_GAP + 'px)'
-              ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.above)) + 'px'
+              ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.above - PANEL_GAP - PANEL_MARGIN - 42)) + 'px'
             } else {
               ctx.card.style.bottom = 'auto'
               ctx.card.style.top = 'calc(100% + ' + PANEL_GAP + 'px)'
-              ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below)) + 'px'
+              ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below - PANEL_GAP - PANEL_MARGIN - 42)) + 'px'
             }
             // 横向同理：猪靠屏幕右边就朝左开（默认），靠左边就改成朝右开。
             var width = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN))
@@ -72,6 +75,7 @@ export function createLayout(ctx) {
             ctx.hud.style.left = (opensRight
               ? Math.round((ctx.pig.offsetLeft || 0) + (ctx.pig.offsetWidth || 0) + 8)
               : 9) + 'px'
+            ctx.host.setAttribute('data-panel-side-locked', 'true')
             return
           }
         }
@@ -142,7 +146,10 @@ export function createLayout(ctx) {
       }
 
   function attachResize() {
-    function onResize() { clampPig(); fitPanel() }
+    // The desktop shell resizes itself in response to the panel. Re-fitting
+    // during that resize reads a transient pig position and can flip sides.
+    // The drag-end path still calls fitPanel after the window has settled.
+    function onResize() { clampPig(); if (desktopShell() === null) fitPanel() }
     window.addEventListener?.('resize', onResize)
     return function () { window.removeEventListener?.('resize', onResize) }
   }

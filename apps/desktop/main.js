@@ -20,7 +20,7 @@ import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, net, prot
 import updaterPackage from 'electron-updater'
 
 import { startHost } from './lib/host.js'
-import { WINDOW_PADDING, absoluteDragBounds, anchorCorrection, clampBounds, contentBounds } from './lib/window-geometry.js'
+import { WINDOW_PADDING, absoluteDragBounds, clampBounds, contentBoundsForPig } from './lib/window-geometry.js'
 import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 import { createShellUpdates, shellUpdateMode } from './lib/shell-update.js'
 
@@ -148,10 +148,11 @@ function workAreaFor(bounds) {
 }
 
 /** 把窗口几何推给页面：面板要朝屏幕里侧开。 */
+let geometrySeq = 0
 function pushGeometry() {
   if (win === null || win.isDestroyed()) return
   const bounds = win.getBounds()
-  win.webContents.send('piggy:geometry', { window: bounds, workArea: workAreaFor(bounds) })
+  win.webContents.send('piggy:geometry', { window: bounds, workArea: workAreaFor(bounds), seq: ++geometrySeq })
 }
 
 function applyBounds(next, why) {
@@ -204,65 +205,70 @@ function createWindow() {
 }
 
 let lastShape = []
-/** 上一次报的猪在窗口坐标里的位置（收敛时当「展开前」的基准）。 */
+/** Last renderer-reported local pig origin; always measured after pinPig. */
 let lastPigWindow = null
 let lastPigSize = { width: 56, height: 56 }
-/** 内容变了之后挂上：{ target: 猪的屏幕坐标, passes }，页面下一帧来报时补一次平移。 */
-let anchorFix = null
-/** 上一次报的内容（尺寸 + 锚边）：用来判断这次是不是「内容变了」。 */
+/** Original screen point to restore when an overlarge panel closes. */
+let restingPigScreen = null
+/** Last geometry report, used to skip idle reports. */
 let lastContent = null
 
 /**
- * 页面报来内容外接框：
- *   第一步 照锚边改窗口大小（大小对就行）；
- *   第二步 页面下一帧量出猪在窗口里的真实位置（pigWindow），和「内容变化前」记下的
- *          猪屏幕坐标比，差多少就把窗口平移多少 —— 收敛到 ≤1px。面板收起同理。
- * 只在内容变化（展开/收起/尺寸变）时做，闲着不触发。
+ * The renderer reports the already-pinned pig and content in one frame.
+ * Position and resize the window in one setBounds call around that pig point.
  */
 ipcMain.on('piggy:content', (event, content) => {
-  if (win === null || event.sender !== win.webContents) return
+  if (win === null || event.sender !== win.webContents) {
+    if (content?.immediate === true) event.returnValue = null
+    return
+  }
   const width = Number(content?.width)
   const height = Number(content?.height)
-  const pig = { x: Number(content?.pig?.x), y: Number(content?.pig?.y) }
-  if (!Number.isFinite(width) || !Number.isFinite(height)) return
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    if (content?.immediate === true) event.returnValue = null
+    return
+  }
   const anchor = { vertical: content?.anchor?.vertical === 'top' ? 'top' : 'bottom', horizontal: content?.anchor?.horizontal === 'left' ? 'left' : 'right' }
   const bounds = win.getBounds()
-  const area = workAreaFor(bounds)
   const pigWindow = { x: Number(content?.pigWindow?.x), y: Number(content?.pigWindow?.y) }
   const hasPigWindow = Number.isFinite(pigWindow.x) && Number.isFinite(pigWindow.y)
+  const pigSize = Number(content?.pig?.width) > 0 && Number(content?.pig?.height) > 0
+    ? { width: Number(content.pig.width), height: Number(content.pig.height) } : lastPigSize
+  const panelOpen = content?.panelOpen === true
   const changed = lastContent === null
     || lastContent.width !== width || lastContent.height !== height
     || lastContent.anchor.vertical !== anchor.vertical || lastContent.anchor.horizontal !== anchor.horizontal
+    || lastContent.panelOpen !== panelOpen
+    || (hasPigWindow && lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y))
 
-  if (changed) {
-    // 「内容变化前」的猪屏幕坐标 = 现在的窗口原点 + 上一次报的猪窗口位置。
-    anchorFix = lastPigWindow === null ? null : {
-      target: { x: bounds.x + lastPigWindow.x, y: bounds.y + lastPigWindow.y },
-      passes: 0,
-    }
-    applyBounds(contentBounds(bounds, { width, height, anchor }, area), 'content')
-  } else if (anchorFix !== null && hasPigWindow) {
-    // 第二步：页面量到的猪窗口位置 → 补掉差值（夹进 workArea）。
-    const corrected = anchorCorrection(win.getBounds(), pigWindow, anchorFix.target, area)
-    anchorFix.passes += 1
-    if (corrected !== null) applyBounds(corrected, 'anchor')
-    if (corrected === null || anchorFix.passes >= 3) anchorFix = null
+  if (changed && hasPigWindow) {
+    const before = lastPigWindow === null ? pigWindow : lastPigWindow
+    const pigBefore = { x: bounds.x + before.x, y: bounds.y + before.y }
+    if (panelOpen && lastContent?.panelOpen !== true) restingPigScreen = pigBefore
+    const target = restingPigScreen ?? pigBefore
+    const area = screen.getDisplayNearestPoint(target).workArea
+    applyBounds(contentBoundsForPig({
+      width, height, pigWindow: { ...pigWindow, ...pigSize }, panelOpen,
+    }, target, area), 'content')
+    if (!panelOpen) restingPigScreen = null
   }
 
-  lastContent = { width, height, anchor }
+  lastContent = { width, height, anchor, panelOpen }
   if (hasPigWindow) lastPigWindow = pigWindow
-  if (Number(content?.pig?.width) > 0 && Number(content?.pig?.height) > 0) {
-    lastPigSize = { width: Number(content.pig.width), height: Number(content.pig.height) }
-  }
+  lastPigSize = pigSize
   // 记下「猪在屏幕上哪儿」：实机核对展开面板时它有没有动（日志里是 DIP 坐标）。
   const pigOnScreen = hasPigWindow ? { x: win.getBounds().x + pigWindow.x, y: win.getBounds().y + pigWindow.y } : null
-  log('content', JSON.stringify({ window: win.getBounds(), anchor, pigOnScreen, fix: anchorFix === null ? 'done' : anchorFix.passes }))
+  log('content', JSON.stringify({ window: win.getBounds(), anchor, pigOnScreen, target: restingPigScreen }))
   const shape = Array.isArray(content.shape) ? content.shape : []
   applyShape(shape.slice(0, 64).map(r => ({
     x: Math.max(0, Math.round(Number(r.x) || 0)), y: Math.max(0, Math.round(Number(r.y) || 0)),
     width: Math.max(0, Math.round(Number(r.width) || 0)), height: Math.max(0, Math.round(Number(r.height) || 0)),
   })))
   lastShape = shape
+  if (content?.immediate === true) {
+    const current = win.getBounds()
+    event.returnValue = { window: current, workArea: workAreaFor(current), seq: geometrySeq }
+  }
 })
 
 /** Drag against a fixed cursor/window sample; only the pig is clamped. */

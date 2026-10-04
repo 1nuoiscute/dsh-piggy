@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8">
 <title>dsh-piggy</title>
-<style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}</style>
+<style>
+html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}
+/* The plugin's 42vh footer limit would grow as the native window grows,
+   invalidating the one-step position measured in the collapsed viewport. */
+[data-dsh-pig] .dp-panel-footer{max-height:270px!important}
+</style>
 </head>
 <body>
 <script src="shell.js"></script>

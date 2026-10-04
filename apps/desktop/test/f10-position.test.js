@@ -1,0 +1,64 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
+import { contentBoundsForPig } from '../lib/window-geometry.js'
+
+const AREA = { x: 0, y: 0, width: 1920, height: 1040 }
+const PIG = { width: 56, height: 56 }
+
+test('F10 one window resize keeps the pig at its original screen pixel', () => {
+  const target = { x: 1791, y: 888 }
+  const open = { width: 324, height: 628, pigWindow: { x: 248, y: 546, ...PIG }, panelOpen: true }
+  const bounds = contentBoundsForPig(open, target, AREA)
+  assert.deepEqual(bounds, { x: 1543, y: 342, width: 324, height: 628 })
+  assert.deepEqual({ x: bounds.x + open.pigWindow.x, y: bounds.y + open.pigWindow.y }, target)
+})
+
+test('F10 opening and closing ten times at four corners and center never moves the pig', () => {
+  const points = [{ x: 20, y: 20 }, { x: 1844, y: 20 }, { x: 20, y: 964 },
+    { x: 1844, y: 964 }, { x: 932, y: 492 }]
+  for (const target of points) {
+    const left = target.x < 960
+    const above = target.y > 520
+    const pigWindow = { x: left ? 18 : 250, y: above ? 362 : 18, ...PIG }
+    const open = { width: 324, height: 436, pigWindow, panelOpen: true }
+    const closed = { width: 98, height: 98, pigWindow: { x: 22, y: 16, ...PIG }, panelOpen: false }
+    for (let i = 0; i < 10; i += 1) {
+      const grown = contentBoundsForPig(open, target, AREA)
+      assert.deepEqual({ x: grown.x + pigWindow.x, y: grown.y + pigWindow.y }, target)
+      const back = contentBoundsForPig(closed, target, AREA)
+      assert.deepEqual({ x: back.x + 22, y: back.y + 16 }, target)
+    }
+  }
+})
+
+test('F10 only permits a pig shift when the panel fits on neither side', () => {
+  const target = { x: 930, y: 490 }
+  const impossible = { width: 1900, height: 1020, pigWindow: { x: 950, y: 510, ...PIG }, panelOpen: true }
+  const moved = contentBoundsForPig(impossible, target, AREA)
+  assert.ok(moved.x >= 0 && moved.x + moved.width <= AREA.width)
+  assert.ok(moved.y >= 0 && moved.y + moved.height <= AREA.height)
+  assert.notDeepEqual({ x: moved.x + 950, y: moved.y + 510 }, target)
+})
+
+test('F10 synchronous resize updates renderer geometry before another report', () => {
+  let shell
+  const listeners = {}
+  const expected = { window: { x: 1593, y: 32, width: 324, height: 562 },
+    workArea: AREA, seq: 2 }
+  const source = readFileSync(new URL('../preload.cjs', import.meta.url), 'utf8')
+  runInNewContext(source, { require: () => ({
+    contextBridge: { exposeInMainWorld: (_name, value) => { shell = value } },
+    ipcRenderer: { send() {}, sendSync: () => expected, on: (name, fn) => { listeners[name] = fn }, invoke() {} },
+  }) })
+  shell.onGeometry(() => {})
+  shell.setContent({ width: 324, height: 562 }, true)
+  listeners['piggy:geometry']({}, { window: { x: 1819, y: 32, width: 98, height: 98 }, workArea: AREA, seq: 1 })
+  assert.deepEqual(JSON.parse(JSON.stringify(shell.geometry())), expected)
+})
+
+test('F10 desktop panel height does not depend on the old window viewport', () => {
+  const html = readFileSync(new URL('../renderer/index.html', import.meta.url), 'utf8')
+  assert.match(html, /\[data-dsh-pig\] \.dp-panel-footer\s*\{max-height:270px!important\}/)
+})

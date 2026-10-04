@@ -64,6 +64,39 @@ export function contentBounds(windowBounds, content, area) {
 }
 
 /**
+ * Resize and place the window in one operation around a fixed pig position.
+ * A closed panel may let transparent padding cross the work-area edge. With an
+ * open panel, the pig only shifts if neither side can contain that panel.
+ * @param {{width:number,height:number,pigWindow:{x:number,y:number,width:number,height:number},panelOpen?:boolean}} content
+ * @param {{x:number,y:number}} targetPigScreen
+ * @param {{x:number,y:number,width:number,height:number}} area
+ */
+export function contentBoundsForPig(content, targetPigScreen, area) {
+  const width = Math.max(MIN_WINDOW.width, round(content.width))
+  const height = Math.max(MIN_WINDOW.height, round(content.height))
+  const pig = content.pigWindow
+  function axis(target, pigOffset, pigSize, windowSize, areaStart, areaSize) {
+    const desired = round(target) - round(pigOffset)
+    if (!content.panelOpen) return desired
+    const before = round(pigOffset)
+    const after = windowSize - before - round(pigSize)
+    const availableBefore = round(target) - round(areaStart)
+    const availableAfter = round(areaStart + areaSize - target - pigSize)
+    const chosenFits = availableBefore >= before && availableAfter >= after
+    const otherFits = availableBefore >= after && availableAfter >= before
+    if (chosenFits || otherFits) return desired
+    const lastStart = round(areaStart + areaSize - windowSize)
+    return Math.max(round(areaStart), Math.min(desired, lastStart))
+  }
+  return {
+    x: axis(targetPigScreen.x, pig.x, pig.width, width, area.x, area.width),
+    y: axis(targetPigScreen.y, pig.y, pig.height, height, area.y, area.height),
+    width,
+    height,
+  }
+}
+
+/**
  * 拖动：按屏幕增量平移，夹进当前那块屏的工作区。
  * @param {{x: number, y: number, width: number, height: number}} windowBounds
  * @param {number} dx

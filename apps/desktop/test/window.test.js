@@ -97,12 +97,14 @@ function fakePage(options = {}) {
   const listeners = {}
   const window = {
     __ModuleLoader__: { load() {} },
+    __reportedWindow: { x: 0, y: 0, width: 98, height: 98 },
     __shellCalls: { content: [], shape: [], drag: [], bounds: [] },
     piggyShell: {
       setContent: box => window.__shellCalls.content.push(box),
       setShape: rects => window.__shellCalls.shape.push(rects),
       beginDrag: () => window.__shellCalls.drag.push('start'),
       endDrag: () => window.__shellCalls.drag.push('end'),
+      geometry: () => ({ window: window.__reportedWindow, workArea: { x: 0, y: 0, width: 1920, height: 1040 } }),
       setBounds: bounds => window.__shellCalls.bounds.push(bounds),
       onGeometry: () => {},
       askGeometry: () => { window.__shellCalls.asked = (window.__shellCalls.asked || 0) + 1 },
@@ -187,6 +189,78 @@ test('面板展开 / 收起：内容框变了才上报', () => {
   assert.ok(page.window.__shellCalls.content.length > before, '面板出来要上报新尺寸')
   const box = page.window.__shellCalls.content.at(-1)
   assert.ok(box.height >= 300, `内容框要包住面板：${JSON.stringify(box)}`)
+})
+
+test('F10 clipped panel descendants cannot enlarge the native content box', () => {
+  const page = fakePage()
+  page.run()
+  page.card.hidden = false
+  page.tick()
+  const before = page.window.__shellCalls.content.at(-1)
+  const overflowing = page.document.createElement('div')
+  overflowing.offsetParent = page.card
+  overflowing.offsetTop = page.card.offsetHeight + 40
+  overflowing.offsetWidth = 200
+  overflowing.offsetHeight = 80
+  page.card.appendChild(overflowing)
+  page.tick()
+  const after = page.window.__shellCalls.content.at(-1)
+  assert.equal(after.height, before.height)
+})
+
+test('F10 first expanded report predicts pig position after the window grows on its pinned edges', () => {
+  const page = fakePage()
+  page.run()
+  page.tick(false)
+  page.card.hidden = false
+  page.card.offsetLeft = -300
+  page.card.offsetTop = -300
+  page.card.offsetHeight = 300
+  page.tick()
+  const box = page.window.__shellCalls.content.at(-1)
+  const currentPigX = 706
+  const currentPigY = 512
+  assert.ok(box.width > 98 && box.height > 98)
+  assert.equal(box.anchor.horizontal, 'right')
+  assert.equal(box.anchor.vertical, 'bottom')
+  assert.equal(box.pigWindow.x, currentPigX + box.width - 98)
+  assert.equal(box.pigWindow.y, currentPigY + box.height - 98)
+})
+
+test('F10 transient sparkles cannot widen the closed window and move the pig', () => {
+  const page = fakePage()
+  page.run()
+  page.tick(false)
+  const before = page.window.__shellCalls.content.at(-1)
+  const sparkle = page.document.createElement('div')
+  sparkle.className = 'dp-fx'
+  sparkle.offsetParent = page.host
+  sparkle.offsetLeft = 500
+  sparkle.offsetWidth = 20
+  sparkle.offsetHeight = 20
+  page.host.appendChild(sparkle)
+  page.tick()
+  const after = page.window.__shellCalls.content.at(-1)
+  assert.equal(after.width, before.width, 'sparkle may animate outside the pig, but must not resize the window')
+})
+
+test('F10 top-edge bubble cannot push the pig down when it cannot fit above', () => {
+  const page = fakePage()
+  page.host.offsetTop = 0
+  page.pig.offsetTop = 12
+  page.run()
+  page.tick(false)
+  const before = page.window.__shellCalls.content.at(-1)
+  const bubble = page.document.createElement('div')
+  bubble.className = 'dp-bubble'
+  bubble.offsetParent = page.host
+  bubble.offsetTop = -30
+  bubble.offsetWidth = 80
+  bubble.offsetHeight = 30
+  page.host.appendChild(bubble)
+  page.tick()
+  const after = page.window.__shellCalls.content.at(-1)
+  assert.equal(after.height, before.height, 'bubble cannot claim unavailable space above screen')
 })
 
 test('上报要带猪在窗口坐标里的位置（主进程第二步收敛靠它）', () => {

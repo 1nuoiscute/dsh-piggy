@@ -6,7 +6,11 @@ let geometry = null
 
 contextBridge.exposeInMainWorld('piggyShell', {
   /** 内容（猪 + 面板 + 气泡）的外接框：主进程据此把窗口调成那么大，并抠出可点区域。 */
-  setContent: content => ipcRenderer.send('piggy:content', content),
+  setContent: (content, immediate = false) => {
+    if (!immediate) { ipcRenderer.send('piggy:content', content); return }
+    const next = ipcRenderer.sendSync('piggy:content', { ...content, immediate: true })
+    if (next && next.window && next.workArea) geometry = next
+  },
   /** Which parts of the window the pig occupies; everything else lets clicks through. */
   setShape: rects => ipcRenderer.send('piggy:shape', rects),
   /** Main process samples the cursor at 60 Hz from this pointer-down origin. */
@@ -17,7 +21,11 @@ contextBridge.exposeInMainWorld('piggyShell', {
   /** 页面挂载完主动要一次几何（did-finish-load 可能早于订阅）。 */
   askGeometry: () => ipcRenderer.send('piggy:geometry:ask'),
   onGeometry: callback => {
-    ipcRenderer.on('piggy:geometry', (event, info) => { geometry = info; callback(info) })
+    ipcRenderer.on('piggy:geometry', (event, info) => {
+      if ((info?.seq ?? 0) < (geometry?.seq ?? 0)) return
+      geometry = info
+      callback(info)
+    })
   },
   /** 更新 App: versions on GitHub, switching between them, and going back. */
   updates: {

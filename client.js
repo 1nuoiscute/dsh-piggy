@@ -1756,16 +1756,19 @@
       if (!ctx.isOpen) return;
       var shell = desktopShell();
       if (shell !== null) {
+        if (ctx.host.getAttribute("data-panel-side-locked") === "true") return;
         var room = shell.room();
         if (room !== null) {
-          if (room.above >= room.below) {
+          var opensBelow = room.above < room.below;
+          ctx.host.setAttribute("data-panel-vertical", opensBelow ? "below" : "above");
+          if (!opensBelow) {
             ctx.card.style.top = "auto";
             ctx.card.style.bottom = "calc(100% + " + PANEL_GAP + "px)";
-            ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.above)) + "px";
+            ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.above - PANEL_GAP - PANEL_MARGIN - 42)) + "px";
           } else {
             ctx.card.style.bottom = "auto";
             ctx.card.style.top = "calc(100% + " + PANEL_GAP + "px)";
-            ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below)) + "px";
+            ctx.card.style.maxHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(room.below - PANEL_GAP - PANEL_MARGIN - 42)) + "px";
           }
           var width = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN));
           var opensRight = typeof room.left === "number" && typeof room.right === "number" && room.left < width + PANEL_MARGIN && room.right > room.left;
@@ -1779,6 +1782,7 @@
           }
           ctx.card.style.maxWidth = width + "px";
           ctx.hud.style.left = (opensRight ? Math.round((ctx.pig.offsetLeft || 0) + (ctx.pig.offsetWidth || 0) + 8) : 9) + "px";
+          ctx.host.setAttribute("data-panel-side-locked", "true");
           return;
         }
       }
@@ -1829,7 +1833,7 @@
     function attachResize() {
       function onResize() {
         clampPig();
-        fitPanel();
+        if (desktopShell() === null) fitPanel();
       }
       window.addEventListener?.("resize", onResize);
       return function() {
@@ -2407,6 +2411,9 @@
     // speech bubble have somewhere to sit — the pig is right-aligned either
     // way, so widening costs it no movement.
     '[data-dsh-pig][data-open="true"] .dp-scene{width:var(--panel-width)}',
+    // Near the desktop's top edge the panel opens below. Keep the pig at the
+    // same foot line as the collapsed scene instead of dropping it by 64px.
+    '[data-dsh-pig][data-panel-vertical="below"][data-open="true"] .dp-scene{height:calc(var(--pig-size) + var(--pig-gap-below))}',
     // 桌面版面板朝右开时（外壳把窗口贴着猪、右边有地方），猪改待在场景左端，
     // 跟着猪定位的气泡和打工道具也要镜像 —— 网页版没有这个属性，规则不命中。
     '[data-dsh-pig][data-panel-side="right"] .dp-scene{justify-content:flex-start}',
@@ -4190,6 +4197,8 @@
     };
     function setOpen(next) {
       if (!next) closeFishing(ctx);
+      if (next && !ctx.isOpen) desktopShell()?.room?.();
+      ctx.host.removeAttribute("data-panel-side-locked");
       ctx.isOpen = next;
       ctx.host.setAttribute("data-open", next ? "true" : "false");
       ctx.card.hidden = !next;
@@ -4206,6 +4215,7 @@
         ctx.card.style.maxHeight = "";
         ctx.card.style.maxWidth = "";
       }
+      desktopShell()?.syncGeometry?.();
     }
     function select(next) {
       var previous = ctx.tab;
@@ -5097,6 +5107,8 @@
           scene.removeAttribute("data-dragging");
           clampPig();
           if (deskShell === null) writeStore(POSITION_KEY, JSON.stringify({ right: userRight, bottom: userBottom }));
+          deskShell?.refreshRoom?.();
+          host.removeAttribute("data-panel-side-locked");
           fitPanel();
           return moved;
         }
@@ -5129,8 +5141,8 @@
         });
         scene.addEventListener("contextmenu", function(event) {
           event.preventDefault();
+          if (!isOpen && view.pig !== null) flash("pet");
           setOpen(!isOpen);
-          if (isOpen && view.pig !== null) flash("pet");
         });
         var autoCollapse = attachAutoCollapse({
           host,
