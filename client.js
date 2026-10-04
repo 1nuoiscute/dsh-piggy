@@ -2326,14 +2326,21 @@
 
   // src/client/pig-size.js
   var PIG_SIZE_KEY = "dsh-piggy:pig-size";
-  var PIG_SIZES = Object.freeze([48, 56, 72, 96]);
+  var PIG_SIZES = Object.freeze(["small", "standard", "large", "extra"]);
+  var SCALE = Object.freeze({ small: 0.85, standard: 1, large: 1.3, extra: 1.7 });
+  var OLD_SIZE_TIER = Object.freeze({ 48: "small", 56: "standard", 72: "large", 96: "extra" });
   function pigSize() {
-    const saved = Number(readStore(PIG_SIZE_KEY));
-    return PIG_SIZES.includes(saved) ? saved : 56;
+    const saved = readStore(PIG_SIZE_KEY);
+    if (PIG_SIZES.includes(saved)) return saved;
+    const tier = OLD_SIZE_TIER[saved] ?? "standard";
+    if (saved !== null) writeStore(PIG_SIZE_KEY, tier);
+    return tier;
   }
   function setPigSize(value) {
-    const size = Number(value);
-    writeStore(PIG_SIZE_KEY, String(PIG_SIZES.includes(size) ? size : 56));
+    writeStore(PIG_SIZE_KEY, PIG_SIZES.includes(value) ? value : "standard");
+  }
+  function displayedPigSize(stageSize) {
+    return stageSize * SCALE[pigSize()];
   }
 
   // src/client/css-base.js
@@ -4163,16 +4170,17 @@
     sizeIntro.appendChild(el("b", null, "\u5C0F\u732A\u5927\u5C0F"));
     sizeIntro.appendChild(el("span", null, "\u53EA\u8C03\u6574\u8FD9\u53F0\u8BBE\u5907\u4E0A\u7684\u663E\u793A\u5927\u5C0F\uFF0C\u4E0D\u6539\u53D8\u5B58\u6863\u3002"));
     ui.content.appendChild(sizeIntro);
-    const labels = { 48: "\u5C0F", 56: "\u6807\u51C6", 72: "\u5927", 96: "\u7279\u5927" };
+    const labels = { small: "\u5C0F", standard: "\u6807\u51C6", large: "\u5927", extra: "\u7279\u5927" };
     for (const size of PIG_SIZES) {
       const row = el("div", "dp-item dp-setting-row");
       row.appendChild(el("span", "dp-setting-emoji", "\u{1F416}"));
       const copy = el("span", "dp-grow");
-      copy.appendChild(el("b", null, labels[size] + " \xB7 " + size + "px"));
+      copy.appendChild(el("b", null, labels[size]));
       row.appendChild(copy);
       const pick = button("dp-mini", { "data-pig-size": String(size) }, function() {
         setPigSize(size);
-        ui.host.style.setProperty("--pig-size", size + "px");
+        const stageSize = ui.view.hatched ? ui.view.pig.stage.size : ui.view.boxStage.size;
+        ui.host.style.setProperty("--pig-size", displayedPigSize(stageSize) + "px");
         ui.renderContent();
         ui.fitPanel();
         desktopShell()?.syncGeometry?.();
@@ -4382,7 +4390,7 @@
         ctx.pigEmoji.textContent = ctx.view.boxStage.emoji;
         ctx.pig.removeAttribute("data-art");
         ctx.pig.setAttribute("data-mood", "box");
-        ctx.host.style.setProperty("--pig-size", pigSize() + "px");
+        ctx.host.style.setProperty("--pig-size", displayedPigSize(ctx.view.boxStage.size) + "px");
         ctx.soul.hidden = true;
         ctx.host.setAttribute("data-soul", "false");
         ctx.host.setAttribute("data-faded", "false");
@@ -4413,7 +4421,7 @@
           ctx.pig.removeAttribute("data-art-scenes");
           ctx.host.removeAttribute("data-art-actions");
         }
-        ctx.host.style.setProperty("--pig-size", pigSize() + "px");
+        ctx.host.style.setProperty("--pig-size", displayedPigSize(pigStage.size) + "px");
         ctx.pig.setAttribute("data-mood", ctx.view.pig.mood);
         ctx.host.setAttribute("data-soul", ctx.view.pig.soul ? "true" : "false");
         ctx.host.setAttribute("data-faded", pigStage.faded ? "true" : "false");

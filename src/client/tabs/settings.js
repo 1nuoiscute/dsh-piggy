@@ -4,23 +4,24 @@ import { button, el } from '../dom.js'
 import { iconStyle, setIconStyle } from '../icon-style.js'
 import { autoCollapseEnabled, setAutoCollapse } from '../auto-collapse.js'
 import { desktopShell } from '../desktop-shell.js'
-import { PIG_SIZES, pigSize, setPigSize } from '../pig-size.js'
+import { PIG_SIZES, displayedPigSize, pigSize, setPigSize } from '../pig-size.js'
 
 export function renderSettingsTab(ui) {
   const sizeIntro = el('div', 'dp-pick')
   sizeIntro.appendChild(el('b', null, '小猪大小'))
   sizeIntro.appendChild(el('span', null, '只调整这台设备上的显示大小，不改变存档。'))
   ui.content.appendChild(sizeIntro)
-  const labels = { 48: '小', 56: '标准', 72: '大', 96: '特大' }
+  const labels = { small: '小', standard: '标准', large: '大', extra: '特大' }
   for (const size of PIG_SIZES) {
     const row = el('div', 'dp-item dp-setting-row')
     row.appendChild(el('span', 'dp-setting-emoji', '🐖'))
     const copy = el('span', 'dp-grow')
-    copy.appendChild(el('b', null, labels[size] + ' · ' + size + 'px'))
+    copy.appendChild(el('b', null, labels[size]))
     row.appendChild(copy)
     const pick = button('dp-mini', { 'data-pig-size': String(size) }, function () {
       setPigSize(size)
-      ui.host.style.setProperty('--pig-size', size + 'px')
+      const stageSize = ui.view.hatched ? ui.view.pig.stage.size : ui.view.boxStage.size
+      ui.host.style.setProperty('--pig-size', displayedPigSize(stageSize) + 'px')
       ui.renderContent()
       ui.fitPanel()
       desktopShell()?.syncGeometry?.()
