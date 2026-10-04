@@ -2331,8 +2331,8 @@
   var OLD_SIZE_TIER = Object.freeze({ 48: "small", 56: "standard", 72: "large", 96: "extra" });
   function pigSize() {
     const saved = readStore(PIG_SIZE_KEY);
-    if (PIG_SIZES.includes(saved)) return saved;
-    const tier = OLD_SIZE_TIER[saved] ?? "standard";
+    if (saved !== null && PIG_SIZES.includes(saved)) return saved;
+    const tier = (saved === null ? void 0 : OLD_SIZE_TIER[saved]) ?? "standard";
     if (saved !== null) writeStore(PIG_SIZE_KEY, tier);
     return tier;
   }
