@@ -53,6 +53,7 @@ export const TABS = [
   { key: 'bag', label: '背包', emoji: '🎒' },
   { key: 'pomodoro', label: '番茄钟', emoji: '🍅' },
   { key: 'fishing', label: '钓鱼', emoji: '🎣' },
+  { key: 'extensions', label: '扩展', emoji: '🧩' },
   { key: 'settings', label: '设置', emoji: '⚙️' },
 ]
 

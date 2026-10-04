@@ -56,6 +56,11 @@ export const CSS_TILES = [
   '.dp-setting-row{margin-top:8px}',
   // 设置页：每项一块，标题+说明，下面一排分段按钮；开关放在标题右边。
   '.dp-set{padding:10px 0;border-bottom:1.5px dashed var(--ac-border-light)}',
+  // 扩展 App：每个扩展一块，图标 + 名称 + 开关，下面一句说明；进行中的提醒用暖色小字。
+  '.dp-ext-intro{font-size:10.5px;line-height:1.5;color:var(--ac-text-2);margin:0 0 4px}',
+  '.dp-ext-emoji{font-size:20px;line-height:1;margin-right:2px}',
+  '.dp-ext-note{margin-top:6px;font-size:10px;font-weight:700;color:#c7781a}',
+  '.dp-ext-later{margin-top:12px;text-align:center;font-size:10px;color:var(--ac-text-2)}',
   '.dp-set:first-child{padding-top:2px}.dp-set:last-child{border-bottom:0}',
   '.dp-set-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}',
   '.dp-set-head b{font-size:12px;color:var(--ac-text)}',

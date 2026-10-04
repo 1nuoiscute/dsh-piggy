@@ -9,6 +9,7 @@ import { MODES } from './constants.js'
 import { arr, isObj, num, obj, str } from './values.js'
 import { normalizeFishing } from './normalize-fishing.js'
 import { normalizeSkins } from './normalize-skins.js'
+import { normalizeExtensions } from './extensions.js'
 export function normalize(raw) {
   var d = obj(raw)
   var pig = isObj(d.pig) ? d.pig : null
@@ -16,8 +17,7 @@ export function normalize(raw) {
   return {
     legacy: legacy,
     version: str(d.version, ''),
-    // Trust the flag when the host sends one. Older hosts did not, and for
-    // those "a pig exists" is still the right answer.
+    // Trust the flag when the host sends one; for older hosts "a pig exists" is the answer.
     hatched: d.hatched === true || (d.hatched === undefined && pig !== null),
     dead: d.dead === true || (pig !== null && num(pig.health, 5) <= 0),
     pig: pig === null ? null : {
@@ -246,6 +246,7 @@ export function normalize(raw) {
     dex: normalizeDex(d.dex),
     skins: normalizeSkins(d.skins),
     fishing: normalizeFishing(d.fishing),
+    extensions: normalizeExtensions(d.extensions),
     daily: {
       canSignIn: obj(d.daily).canSignIn === true,
       signInDay: num(obj(d.daily).signInDay, 1),

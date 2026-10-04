@@ -1,7 +1,6 @@
 // @ts-check
 /**
  * 面板渲染：开关面板、切页签、把快照画到 DOM 上
- *
  * 只通过 ctx 读写外壳的状态与元素（getter/setter 转发），不直接碰全局。
  * @module dsh-piggy/client/panel
  */
@@ -28,6 +27,8 @@ import { renderStatusTab } from './tabs/status.js'
 import { renderStudyTab } from './tabs/study.js'
 import { renderSkinsTab } from './tabs/skins.js'
 import { renderSettingsTab } from './tabs/settings.js'
+import { renderExtensionsTab } from './tabs/extensions.js'
+import { applyExtensions, enabledTabs } from './extensions.js'
 import { renderTravelTab } from './tabs/travel.js'
 import { renderWorkTab } from './tabs/work.js'
 import { str } from './values.js'
@@ -155,10 +156,9 @@ export function createPanel(ctx) {
           return
         }
 
-        // B9: the home screen first; every app gets a 「‹」 back to it on its
-        // top layer (inside a category the app's own 「‹」 goes up a layer).
+        // B9: home first; every app's top layer gets a 「‹」 back (inside a category it goes up a layer).
         var shell = updatesBridge()
-        var apps = TABS.concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : [])
+        var apps = enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : [])
         if (ctx.tab === 'home') {
           renderHome(ctx, apps)
           ctx.fitPanel()
@@ -181,16 +181,16 @@ export function createPanel(ctx) {
         else if (ctx.tab === 'dev') renderDevTab(ctx)
         else if (ctx.tab === 'update') renderUpdateTab(ctx)
         else if (ctx.tab === 'settings') renderSettingsTab(ctx)
+        else if (ctx.tab === 'extensions') renderExtensionsTab(ctx)
         else renderBagTab(ctx)
 
-        // Every tab is a different height, so the fit is recomputed after each
-        // render rather than only on open.
+        // Every tab is a different height: refit after each render, not only on open.
         ctx.fitPanel()
       }
 
       function render(next) {
         var previousFishing = ctx.view?.fishing?.pending
-        ctx.view = normalize(next)
+        ctx.view = applyExtensions(normalize(next))
         // Never leave the study tab parked on a stage the pig cannot attend —
         // but only until the user picks one themselves: after that the poll
         // must not yank their choice away.

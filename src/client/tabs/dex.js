@@ -1,6 +1,7 @@
 // @ts-check
 /** C4 图鉴。形态/皮肤用小闪卡，其余收藏按动森博物馆与目录呈现。 */
 
+import { offParts } from '../extensions.js'
 import { ART_URL } from '../constants.js'
 import { button, el } from '../dom.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
@@ -41,7 +42,9 @@ export function renderDexTab(ui) {
 function renderSections(ui) {
   const grid = tileGrid()
   grid.className += ' dp-dex-sections'
+  const off = offParts(ui.view).dexSections
   for (const section of SECTIONS) {
+    if (off.has(section.key)) continue // 扩展关掉了（比如钓鱼）：这一页先不出现，收集记录保留
     const entries = ui.view.dex[section.key] ?? []
     const got = entries.filter(entry => entry.acquired).length
     const node = tile({

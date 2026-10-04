@@ -7,6 +7,7 @@
  */
 import { DEV_TAB, PANEL_GAP, PANEL_MARGIN, PANEL_MAX_HEIGHT, PANEL_MIN_HEIGHT, PANEL_WIDTH, PIG_PADDING_X, SCENE_RESERVE, TABS } from './constants.js'
 import { desktopShell } from './desktop-shell.js'
+import { enabledTabs } from './extensions.js'
 import { button, el } from './dom.js'
 
 export function createLayout(ctx) {
@@ -126,7 +127,8 @@ export function createLayout(ctx) {
       }
 
       function visibleTabs() {
-        return ctx.devMode ? TABS.concat([DEV_TAB]) : TABS
+        const tabs = enabledTabs(ctx, TABS)
+        return ctx.devMode ? tabs.concat([DEV_TAB]) : tabs
       }
 
       function paintBar() {

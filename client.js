@@ -29,6 +29,7 @@
     { key: "bag", label: "\u80CC\u5305", emoji: "\u{1F392}" },
     { key: "pomodoro", label: "\u756A\u8304\u949F", emoji: "\u{1F345}" },
     { key: "fishing", label: "\u9493\u9C7C", emoji: "\u{1F3A3}" },
+    { key: "extensions", label: "\u6269\u5C55", emoji: "\u{1F9E9}" },
     { key: "settings", label: "\u8BBE\u7F6E", emoji: "\u2699\uFE0F" }
   ];
   var DEV_TAPS_TO_UNLOCK = 7;
@@ -1782,6 +1783,50 @@
     return shell !== null && typeof shell === "object" && (typeof shell.beginDrag === "function" || typeof shell.moveBy === "function") ? shell : null;
   }
 
+  // src/client/extensions.js
+  var DEFAULTS = [
+    { key: "pomodoro", label: "\u756A\u8304\u949F", emoji: "\u{1F345}", description: "", on: true, apps: ["pomodoro"], dexSections: [], shopKinds: [] },
+    { key: "fishing", label: "\u9493\u9C7C", emoji: "\u{1F3A3}", description: "", on: true, apps: ["fishing"], dexSections: ["fish"], shopKinds: ["bait"] }
+  ];
+  function normalizeExtensions(raw) {
+    const list = arr(raw);
+    if (list.length === 0) return DEFAULTS.map((entry) => ({ ...entry }));
+    return list.map(function(value) {
+      const entry = obj(value);
+      const strings = (key) => arr(entry[key]).filter((item) => typeof item === "string");
+      return {
+        key: str(entry.key, ""),
+        label: str(entry.label, ""),
+        emoji: str(entry.emoji, "\u{1F9E9}"),
+        description: str(entry.description, ""),
+        on: entry.on !== false,
+        apps: strings("apps"),
+        dexSections: strings("dexSections"),
+        shopKinds: strings("shopKinds")
+      };
+    }).filter((entry) => entry.key !== "");
+  }
+  function offParts(view) {
+    const apps = /* @__PURE__ */ new Set();
+    const dexSections = /* @__PURE__ */ new Set();
+    for (const extension of arr(view?.extensions)) {
+      if (extension.on) continue;
+      for (const app of extension.apps) apps.add(app);
+      for (const section2 of extension.dexSections) dexSections.add(section2);
+    }
+    return { apps, dexSections };
+  }
+  function applyExtensions(view) {
+    const off = offParts(view);
+    if (off.apps.has("pomodoro")) view.pomodoro = null;
+    return view;
+  }
+  function enabledTabs(ctx, tabs) {
+    const off = offParts(ctx.view);
+    if (off.apps.has(ctx.tab)) ctx.tab = "home";
+    return tabs.filter((tab) => !off.apps.has(tab.key));
+  }
+
   // src/client/layout.js
   function createLayout(ctx) {
     function clampPig() {
@@ -1858,7 +1903,8 @@
       ctx.hud.style.left = Math.max(9, Math.round(cardLeft - rect.left)) + "px";
     }
     function visibleTabs() {
-      return ctx.devMode ? TABS.concat([DEV_TAB]) : TABS;
+      const tabs = enabledTabs(ctx, TABS);
+      return ctx.devMode ? tabs.concat([DEV_TAB]) : tabs;
     }
     function paintBar() {
       while (ctx.bar.firstChild) ctx.bar.removeChild(ctx.bar.firstChild);
@@ -1955,8 +2001,7 @@
     return {
       legacy,
       version: str(d.version, ""),
-      // Trust the flag when the host sends one. Older hosts did not, and for
-      // those "a pig exists" is still the right answer.
+      // Trust the flag when the host sends one; for older hosts "a pig exists" is the answer.
       hatched: d.hatched === true || d.hatched === void 0 && pig !== null,
       dead: d.dead === true || pig !== null && num(pig.health, 5) <= 0,
       pig: pig === null ? null : {
@@ -2194,6 +2239,7 @@
       dex: normalizeDex(d.dex),
       skins: normalizeSkins(d.skins),
       fishing: normalizeFishing(d.fishing),
+      extensions: normalizeExtensions(d.extensions),
       daily: {
         canSignIn: obj(d.daily).canSignIn === true,
         signInDay: num(obj(d.daily).signInDay, 1),
@@ -2981,6 +3027,11 @@
     ".dp-setting-row{margin-top:8px}",
     // 设置页：每项一块，标题+说明，下面一排分段按钮；开关放在标题右边。
     ".dp-set{padding:10px 0;border-bottom:1.5px dashed var(--ac-border-light)}",
+    // 扩展 App：每个扩展一块，图标 + 名称 + 开关，下面一句说明；进行中的提醒用暖色小字。
+    ".dp-ext-intro{font-size:10.5px;line-height:1.5;color:var(--ac-text-2);margin:0 0 4px}",
+    ".dp-ext-emoji{font-size:20px;line-height:1;margin-right:2px}",
+    ".dp-ext-note{margin-top:6px;font-size:10px;font-weight:700;color:#c7781a}",
+    ".dp-ext-later{margin-top:12px;text-align:center;font-size:10px;color:var(--ac-text-2)}",
     ".dp-set:first-child{padding-top:2px}.dp-set:last-child{border-bottom:0}",
     ".dp-set-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}",
     ".dp-set-head b{font-size:12px;color:var(--ac-text)}",
@@ -3362,7 +3413,9 @@
   function renderSections(ui) {
     const grid = tileGrid();
     grid.className += " dp-dex-sections";
+    const off = offParts(ui.view).dexSections;
     for (const section2 of SECTIONS) {
+      if (off.has(section2.key)) continue;
       const entries = ui.view.dex[section2.key] ?? [];
       const got = entries.filter((entry) => entry.acquired).length;
       const node = tile({
@@ -4556,6 +4609,37 @@
     close.head.appendChild(toggle);
   }
 
+  // src/client/tabs/extensions.js
+  function closingNote(view, key) {
+    if (key === "pomodoro" && view.pomodoro !== null && view.pomodoro.active) return "\u6B63\u5728\u4E13\u6CE8\uFF1A\u5173\u6389\u4F1A\u653E\u5F03\u8FD9\u4E00\u4E2A\uFF0C\u4E0D\u7ED9\u5956\u52B1";
+    if (key === "fishing" && view.activity?.kind === "fishing") return "\u732A\u6B63\u5728\u5916\u9762\u9493\u9C7C\uFF1A\u5173\u6389\u4F1A\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u9C7C\u9975\u9000\u56DE";
+    return "";
+  }
+  function renderExtensionsTab(ui) {
+    const intro = el("div", "dp-ext-intro");
+    intro.appendChild(el("span", null, "\u7528\u4E0D\u4E0A\u7684\u73A9\u6CD5\u53EF\u4EE5\u5173\u6389\uFF1A\u4E3B\u83DC\u5355\u3001\u5546\u5E97\u3001\u56FE\u9274\u91CC\u90FD\u4E0D\u518D\u51FA\u73B0\uFF0C\u6570\u636E\u4F1A\u7559\u7740\uFF0C\u968F\u65F6\u6253\u5F00\u6062\u590D\u3002"));
+    ui.content.appendChild(intro);
+    for (const extension of ui.view.extensions) {
+      const card = el("div", "dp-set dp-ext-card");
+      card.setAttribute("data-extension", extension.key);
+      const head = el("div", "dp-set-head");
+      head.appendChild(el("span", "dp-ext-emoji", extension.emoji));
+      head.appendChild(el("b", null, extension.label));
+      const toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
+        ui.send("setExtension", { key: extension.key, on: !extension.on });
+      });
+      toggle.appendChild(el("span", "dp-switch-knob"));
+      toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
+      head.appendChild(toggle);
+      if (extension.description) head.appendChild(el("small", "dp-dim", extension.description));
+      card.appendChild(head);
+      const note = extension.on ? closingNote(ui.view, extension.key) : "";
+      if (note) card.appendChild(el("div", "dp-ext-note", note));
+      ui.content.appendChild(card);
+    }
+    ui.content.appendChild(el("div", "dp-ext-later", "\u4EE5\u540E\u4F1A\u5728\u8FD9\u91CC\u6DFB\u52A0\u66F4\u591A\u6269\u5C55"));
+  }
+
   // src/client/panel.js
   var URGENT_KINDS = ["sick", "worse", "death", "cured", "revived"];
   function createPanel(ctx) {
@@ -4661,7 +4745,7 @@
         return;
       }
       var shell = updatesBridge();
-      var apps = TABS.concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
+      var apps = enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
       if (ctx.tab === "home") {
         renderHome(ctx, apps);
         ctx.fitPanel();
@@ -4687,12 +4771,13 @@
       } else if (ctx.tab === "dev") renderDevTab(ctx);
       else if (ctx.tab === "update") renderUpdateTab(ctx);
       else if (ctx.tab === "settings") renderSettingsTab(ctx);
+      else if (ctx.tab === "extensions") renderExtensionsTab(ctx);
       else renderBagTab(ctx);
       ctx.fitPanel();
     }
     function render(next) {
       var previousFishing = ctx.view?.fishing?.pending;
-      ctx.view = normalize(next);
+      ctx.view = applyExtensions(normalize(next));
       var stageEntry = null;
       var firstOpen = null;
       for (var s = 0; s < ctx.view.stages.length; s += 1) {
