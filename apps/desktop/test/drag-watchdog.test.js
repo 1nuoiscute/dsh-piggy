@@ -31,3 +31,13 @@ test('心跳顺带挪窗口；拖动不写逐帧日志；旧游戏包的 moveBy 
   assert.doesNotMatch(main, /appendFileSync/)
   assert.match(main, /ipcMain\.on\('piggy:move'/)
 })
+
+test('窗口销毁后到达的页面消息不处理（Windows 上切换版本时弹过「Object has been destroyed」）', () => {
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  assert.match(main, /function fromPage\(event\) \{\s*return !quitting && win !== null && !win\.isDestroyed\(\) && event\.sender === win\.webContents/)
+  assert.doesNotMatch(main, /event\.sender !== win\.webContents/)
+  // 只查 null 不查 isDestroyed 的地方都不该再有
+  assert.doesNotMatch(main, /if \(win === null\) return/)
+  assert.match(main, /function restartGame\(\) \{\s*quitting = true/)
+  assert.match(main, /process\.on\('uncaughtException'/)
+})

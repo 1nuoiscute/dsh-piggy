@@ -98,6 +98,16 @@ let versions = null
 /** @type {ReturnType<typeof createShellUpdates> | null} */
 let shellUpdates = null
 let win = null
+/** 正在退出/重启：关掉窗口前先置位，之后到达的页面消息一律不处理。 */
+let quitting = false
+/**
+ * 消息是不是这扇窗口的页面发来的。窗口销毁后再读 win.webContents 会抛
+ * 「Object has been destroyed」—— Windows 上在更新页切换版本时，旧页面的消息还在路上，
+ * 主进程直接弹了错误框（用户 2026-10-05 实测）。所以先查 isDestroyed。
+ */
+function fromPage(event) {
+  return !quitting && win !== null && !win.isDestroyed() && event.sender === win.webContents
+}
 let tray = null
 
 function registerProtocol(gameDir) {
@@ -135,11 +145,11 @@ function readWindowState() {
 /** 让窗口晚一点再写盘：拖动时 setBounds 会连发。 */
 let windowStateTimer = null
 function scheduleWindowStateSave() {
-  if (win === null) return
+  if (win === null || win.isDestroyed()) return
   if (windowStateTimer !== null) clearTimeout(windowStateTimer)
   windowStateTimer = setTimeout(() => {
     windowStateTimer = null
-    if (win === null) return
+    if (win === null || win.isDestroyed()) return
     try {
       mkdirSync(dirname(windowStatePath()), { recursive: true })
       const bounds = win.getBounds()
@@ -180,7 +190,7 @@ function applyBounds(next, why) {
  * macOS 上跳过 —— 窗口已经只有猪和面板那么大，四周 16px 的透明边会挡一下点击，影响不大。
  */
 function applyShape(rects) {
-  if (win === null || process.platform === 'darwin' || typeof win.setShape !== 'function') return
+  if (win === null || win.isDestroyed() || process.platform === 'darwin' || typeof win.setShape !== 'function') return
   win.setShape(rects)
 }
 
@@ -240,7 +250,7 @@ let lastContent = null
  * Position and resize the window in one setBounds call around that pig point.
  */
 ipcMain.on('piggy:content', (event, content) => {
-  if (win === null || event.sender !== win.webContents) {
+  if (!fromPage(event)) {
     if (content?.immediate === true) event.returnValue = null
     return
   }
@@ -336,12 +346,12 @@ function stopDrag() {
 
 /** 页面要几何：给它推一次（订阅晚于 did-finish-load 时靠这个）。 */
 ipcMain.on('piggy:geometry:ask', (event) => {
-  if (win === null || event.sender !== win.webContents) return
+  if (!fromPage(event)) return
   pushGeometry()
 })
 
 ipcMain.on('piggy:drag:start', event => {
-  if (win === null || event.sender !== win.webContents) return
+  if (!fromPage(event)) return
   stopDrag()
   const bounds = win.getBounds()
   const pig = lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }
@@ -357,14 +367,14 @@ ipcMain.on('piggy:drag:start', event => {
   dragTimer = setInterval(dragTick, 1000 / 60)
 })
 ipcMain.on('piggy:drag:heartbeat', event => {
-  if (win === null || event.sender !== win.webContents || dragSession === null) return
+  if (!fromPage(event) || dragSession === null) return
   dragSession.lastHeartbeat = Date.now()
   // 页面每次 pointermove 都会发心跳，跟着屏幕刷新走；顺手挪一次窗口，
   // 比只靠主进程定时器（Windows 上计时精度约 15.6ms）更顺。
   dragTick()
 })
 ipcMain.on('piggy:drag:end', event => {
-  if (win === null || event.sender !== win.webContents) return
+  if (!fromPage(event)) return
   dragTick()
   stopDrag()
   restingPigScreen = null
@@ -372,7 +382,7 @@ ipcMain.on('piggy:drag:end', event => {
 
 /** 旧游戏包（0.27.2 及以前）只会发鼠标增量：照旧支持，回退版本时拖动不坏。 */
 ipcMain.on('piggy:move', (event, delta) => {
-  if (win === null || event.sender !== win.webContents) return
+  if (!fromPage(event)) return
   const dx = Number(delta?.dx)
   const dy = Number(delta?.dy)
   if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return
@@ -382,7 +392,7 @@ ipcMain.on('piggy:move', (event, delta) => {
 
 ipcMain.on('piggy:shape', (event, rects) => {
   if (lastShape.length === 0 && Array.isArray(rects) && rects.length > 0) log('first shape', JSON.stringify(rects))
-  if (win === null || event.sender !== win.webContents || !Array.isArray(rects)) return
+  if (!fromPage(event) || !Array.isArray(rects)) return
   lastShape = rects
   applyShape(rects.slice(0, 64).map(r => ({
     x: Math.round(Number(r.x) || 0), y: Math.round(Number(r.y) || 0),
@@ -413,6 +423,8 @@ async function importFromDsh() {
     detail: `从 ${source} 复制一份过来。桌面版现在这只会先备份，不会丢。`,
   })
   if (response !== 0) return
+  quitting = true
+  stopDrag()
   host.dispose()
   const target = statePath()
   mkdirSync(dirname(target), { recursive: true })
@@ -464,6 +476,8 @@ function backupSave(label) {
 
 /** Load the new game: flush the save first, then start over. */
 function restartGame() {
+  quitting = true
+  stopDrag()
   try { host?.dispose() } catch { /* best effort */ }
   // Testing runs one launch at a time; the next one is started by hand.
   if (process.env.PIGGY_CAPTURE) return app.exit(0)
@@ -473,7 +487,6 @@ function restartGame() {
 
 // ---- 更新 App（页面里的 tabs/update.js）通过这几个口子调用 ----
 let releases = []
-const fromPage = event => win !== null && event.sender === win.webContents
 ipcMain.handle('piggy:updates:current', event => (fromPage(event) ? versions?.current() : null))
 ipcMain.handle('piggy:updates:list', async event => {
   if (!fromPage(event) || versions === null) return { ok: false, reason: '不在桌面版里' }
@@ -508,9 +521,10 @@ ipcMain.handle('piggy:updates:rollback', event => {
 ipcMain.handle('piggy:shell:status', event => (fromPage(event) ? shellUpdates?.status() : null))
 ipcMain.handle('piggy:shell:download', async (event, version) => {
   if (!fromPage(event) || shellUpdates === null) return { ok: false, reason: '桌面外壳更新不可用' }
-  const target = releases.find(release => release.latestShell === version && release.shellUpdate && !release.prerelease)
-  if (target === undefined) return { ok: false, reason: '请先刷新版本列表' }
-  return shellUpdates.download(version)
+  // 预览版里的外壳也能下：只有在用预览版游戏的人，页面才会把它列出来。
+  const target = releases.find(release => release.latestShell === version && release.shellUpdate)
+  if (target === undefined) return { ok: false, reason: '版本列表过期了，点上面的「刷新」再试一次' }
+  return shellUpdates.download(version, target.prerelease === true)
 })
 ipcMain.handle('piggy:shell:install', event => {
   if (!fromPage(event) || shellUpdates === null || shellUpdates.status().readyVersion === null) return { ok: false, reason: '还没有下载好桌面外壳' }
@@ -534,7 +548,7 @@ app.whenReady().then(async () => {
     mode: shellUpdateMode({ platform: process.platform, packaged: app.isPackaged,
       portable: Boolean(process.env.PORTABLE_EXECUTABLE_FILE), appImage: process.env.APPIMAGE }),
     currentVersion: app.getVersion(), updater: autoUpdater,
-    onProgress: fraction => win?.webContents.send('piggy:shell-progress', fraction),
+    onProgress: fraction => { if (win !== null && !win.isDestroyed()) win.webContents.send('piggy:shell-progress', fraction) },
   })
   versions = createVersions({
     userData: app.getPath('userData'), bundledDir: bundledGameDir(), shellVersion: app.getVersion(),
@@ -592,6 +606,9 @@ async function captureForCheck(dir) {
   app.quit()
 }
 
+// 兜底：主进程里漏网的异常只写日志，不弹「A JavaScript error occurred」那种错误框吓人。
+process.on('uncaughtException', error => { log('uncaught', error?.stack ?? String(error)) })
+
 app.on('second-instance', () => win?.showInactive())
-app.on('before-quit', () => { stopDrag(); try { host?.dispose() } catch { /* best effort */ } })
+app.on('before-quit', () => { quitting = true; stopDrag(); try { host?.dispose() } catch { /* best effort */ } })
 app.on('window-all-closed', () => app.quit())
