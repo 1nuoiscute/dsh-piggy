@@ -158,9 +158,10 @@ export const ILLNESS_ONSET = Object.freeze({
   overworkPerHour: 0.05,
   /** Minutes at home that count as a rest and reset the streak. */
   restMinutes: 60,
-  /** Feeding a pig already at overfullAt satiety → 肠胃, with this chance. */
-  overfullAt: 95,
-  overfeedChance: 0.25,
+  /** Feeding a pig already at overfullAt satiety → 肠胃, with this chance.
+   *  G2（用户 2026-10-05 确认）：已经 100% 还硬喂才可能胀气，概率 25% → 15%。 */
+  overfullAt: 100,
+  overfeedChance: 0.15,
 })
 
 /**

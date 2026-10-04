@@ -100,8 +100,12 @@ export function act(state, action, nowMs, itemKey) {
   if (action === 'play') reducePlayWeight(state, nowMs)
   remember(state, item === null ? spec.verb : `${item.emoji} ${spec.label}用了「${item.label}」`, nowMs)
   if (action === 'feed') rollForOverfeeding(state, satietyBefore, nowMs)
-  // Feeding a pig that was already stuffed gets a different complaint.
-  say(state, action === 'feed' && satietyBefore >= ILLNESS_ONSET.overfullAt ? 'overfull' : CARE_SCENE[action], nowMs)
+  // Feeding a pig that was already stuffed gets a different complaint; this bite
+  // filling it up to 100 gets a contented 「吃饱啦」 (G2, 用户 2026-10-05).
+  const scene = action !== 'feed' ? CARE_SCENE[action]
+    : Math.round(satietyBefore) >= ILLNESS_ONSET.overfullAt ? 'overfull'
+      : state.satiety >= 100 ? 'full' : CARE_SCENE[action]
+  say(state, scene, nowMs)
   noteToday(state, action)
   return { ok: true, item: item === null ? null : item.key, spent: item !== null && item.default !== true }
 }

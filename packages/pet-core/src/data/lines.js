@@ -62,6 +62,11 @@ export const LINES = Object.freeze({
     line('吃饱饱才有力气陪你加班'),
     line('嗝——（不好意思）'),
   ),
+  full: scene(
+    line('吃饱啦，肚子圆滚滚的'),
+    line('好饱好饱，再吃就要撑着了'),
+    line('嗝——谢谢[主人]，饱饱的'),
+  ),
   overfull: scene(
     line('撑……撑住了……'),
     line('真的吃不下了，你看我肚子'),

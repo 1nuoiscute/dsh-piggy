@@ -57,11 +57,11 @@ export const ACTIONS = Object.freeze({
   },
   bathe: {
     key: 'bathe', label: '洗澡', emoji: '🛁', verb: '洗了个澡 🛁',
-    cooldownMs: 0, satiety: -2, happiness: 8, cleanliness: 50, weightG: 0,
+    cooldownMs: 0, satiety: -1, happiness: 8, cleanliness: 50, weightG: 0,
   },
   play: {
     key: 'play', label: '玩耍', emoji: '🎾', verb: '玩了一会儿 🎾',
-    cooldownMs: 0, satiety: -5, happiness: 16, cleanliness: -4, weightG: 4,
+    cooldownMs: 0, satiety: -5, happiness: 16, cleanliness: -2, weightG: 4,
   },
   pet: {
     key: 'pet', label: '摸摸', emoji: '❤️', verb: '被摸了摸头 ❤️',
@@ -76,9 +76,10 @@ export const ACTION_ORDER = Object.freeze(['feed', 'bathe', 'play', 'pet'])
 // were written when a shift was ten minutes and emptied every bar twice over.
 export const SATIETY_DECAY_PER_MIN = 0.08
 
-export const HAPPINESS_DECAY_PER_MIN = 0.06
+// G2（用户 2026-10-05 确认）：心情每小时 3.6 → 2.4，清洁 4.2 → 3.6。
+export const HAPPINESS_DECAY_PER_MIN = 0.04
 
-export const CLEANLINESS_DECAY_PER_MIN = 0.07
+export const CLEANLINESS_DECAY_PER_MIN = 0.06
 
 export const AWAY_DECAY_MULTIPLIER = 1.4
 

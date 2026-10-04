@@ -25,10 +25,17 @@ test('every scene the code asks for has lines', () => {
 
 test('feeding a stuffed pig gets the overfull line, a hungry one the eating line', () => {
   const stuffed = wellPig()
-  stuffed.satiety = 97
+  stuffed.satiety = 100
   stuffed.inventory = { apple: 1 }
   act(stuffed, 'feed', T0 + 1)
   assert.equal(lastScene(stuffed) === 'overfull' || stuffed.illness !== null, true)
+  // G2：95～99 时喂是正常吃，加满到 100 说「吃饱啦」，不算硬塞。
+  const nearlyFull = wellPig()
+  nearlyFull.satiety = 97
+  nearlyFull.inventory = { apple: 1 }
+  act(nearlyFull, 'feed', T0 + 1)
+  assert.equal(lastScene(nearlyFull), 'full')
+  assert.equal(nearlyFull.illness, null)
   const hungry = wellPig()
   hungry.satiety = 40
   hungry.inventory = { apple: 1 }
