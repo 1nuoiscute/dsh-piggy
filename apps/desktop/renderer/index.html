@@ -5,6 +5,11 @@
 <title>dsh-piggy</title>
 <style>
 html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}
+/* Native hit testing clips paint at layout boxes. Keep desktop shadows within
+   those boxes, so their cut edges cannot show against light wallpapers. */
+[data-dsh-pig][data-open="false"] .dp-pig{filter:none!important}
+[data-dsh-pig] .dp-pig-img,[data-dsh-pig] .dp-pig-emoji{filter:none!important}
+[data-dsh-pig] .dp-card{box-shadow:inset 0 1px 2px rgba(61,52,40,.09)!important}
 /* The plugin's 42vh footer limit would grow as the native window grows,
    invalidating the one-step position measured in the collapsed viewport. */
 [data-dsh-pig] .dp-panel-footer{max-height:270px!important}

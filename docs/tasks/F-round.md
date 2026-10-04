@@ -178,4 +178,11 @@ Claude 已核对过代码的根因写在每张卡里；**动手前仍要先复�
 - 曾误用左键 `.click()` 做采样；它不会打开面板，那份记录已废弃并替换。最终以真实的右键 `contextmenu` 事件在四角和中心分别开合 10 次，每约 16ms 采一次位置；[逐帧记录](numbers/F10-position-frames.csv) 共 1015 帧，`panel_open=true` 的采样也在其中。左上 `(22,48)`、右上 `(1809,48)`、左下 `(22,927)`、右下 `(1809,920)`、中心 `(933,491)`，每组 X/Y 波动均为 0 DIP。这里采的是渲染端屏幕坐标，Linux Wayland/XWayland 下仍需 Windows 实机核对可见像素。实窗像素：[收起](../screenshots/f10-desktop-closed.png)、[展开](../screenshots/f10-desktop-open.png)。
 - `npm run build && npm test && npm run typecheck` 全绿（46 个测试文件，0 失败）；`client.js` 已重新生成。
 
+### F11 · 桌面版阴影硬边
+
+- 用 python-xlib 读取修复前原生窗口的 RGBA 像素。收起状态下阴影一直延伸到可点区域底边：第 165 行仍有 alpha=3，第 166 行突然为 0；白底合成时形成截断线。实际原因是 `setShape` 按布局盒裁掉 `filter:drop-shadow(...)` 的越界像素，和卡里推测一致。面板外投影也有同样风险。
+- 采用卡的方案②：仅在桌面外壳 CSS 中关掉会越过可点盒的小猪/立绘投影，面板改为盒内的浅色阴影。网页版 CSS 不变。先写了桌面专属样式测试，旧样式下失败，修复后通过。
+- 修复后用 python-xlib 重拍 [收起原生 RGBA](../screenshots/f11-desktop-closed-raw.png)、[展开原生 RGBA](../screenshots/f11-desktop-open-raw.png)；收起状态可见像素 bbox 为 `(52,30)–(157,131)`，距窗口底边 65px，不再有触边黑色渐变。将这些真实窗口像素分别合成到[白底收起](../screenshots/f11-desktop-closed-white.png)、[黑底收起](../screenshots/f11-desktop-closed-black.png)、[白底展开](../screenshots/f11-desktop-open-white.png)、[黑底展开](../screenshots/f11-desktop-open-black.png) 检查，四张图均未见硬边。合成底色只用于检视；没有修改用户的全局壁纸，Windows 实机白/黑壁纸仍待验收。
+- `npm run build && npm test && npm run typecheck` 全绿（47 个测试文件，0 失败）；`client.js` 未变。
+
 ## 验收意见（Claude，F9–F12）
