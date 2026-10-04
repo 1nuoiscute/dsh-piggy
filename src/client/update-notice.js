@@ -7,12 +7,28 @@ const READ_KEY = 'dsh-piggy:update-read'
 const NOTIFIED_KEY = 'dsh-piggy:update-notified'
 export const GITHUB_LATEST = 'https://api.github.com/repos/CLICGGER-TYPES/dsh-piggy/releases/latest'
 
-/** Compare dotted versions numerically, ignoring a leading v. */
+/**
+ * Compare versions like semver: numbers first, and a prerelease (0.27.3-rc.2) sorts
+ * before its release (0.27.3). The old split-on-dash version treated rc.2 as newer
+ * than 0.27.3, so a tester would never be offered the final release.
+ */
 export function compareVersions(a, b) {
-  const parts = value => String(value).replace(/^v/, '').split(/[.-]/).map(part => Number.parseInt(part, 10) || 0)
-  const left = parts(a), right = parts(b)
-  for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
-    if ((left[i] ?? 0) !== (right[i] ?? 0)) return (left[i] ?? 0) - (right[i] ?? 0)
+  const split = value => {
+    const [main, pre] = String(value).replace(/^v/, '').split('-', 2)
+    return { main: main.split('.').map(part => Number.parseInt(part, 10) || 0), pre: pre === undefined ? null : pre.split('.') }
+  }
+  const left = split(a), right = split(b)
+  for (let i = 0; i < Math.max(left.main.length, right.main.length); i += 1) {
+    if ((left.main[i] ?? 0) !== (right.main[i] ?? 0)) return (left.main[i] ?? 0) - (right.main[i] ?? 0)
+  }
+  if (left.pre === null || right.pre === null) return (left.pre === null ? 1 : 0) - (right.pre === null ? 1 : 0)
+  for (let i = 0; i < Math.max(left.pre.length, right.pre.length); i += 1) {
+    const x = left.pre[i], y = right.pre[i]
+    if (x === undefined || y === undefined) return x === undefined ? -1 : 1
+    if (x === y) continue
+    const nx = Number(x), ny = Number(y)
+    if (Number.isInteger(nx) && Number.isInteger(ny)) return nx - ny
+    return x < y ? -1 : 1
   }
   return 0
 }

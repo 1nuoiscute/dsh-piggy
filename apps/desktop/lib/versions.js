@@ -21,10 +21,22 @@ export const RELEASES_PAGE = `https://github.com/${REPO}/releases`
 
 /** `1.2.10` vs `1.2.9`, ignoring a leading v; missing parts count as 0. */
 export function compareVersions(a, b) {
-  const parts = v => String(v).replace(/^v/, '').split(/[.-]/).map(n => Number.parseInt(n, 10) || 0)
-  const x = parts(a), y = parts(b)
-  for (let i = 0; i < Math.max(x.length, y.length); i += 1) {
-    if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0)
+  const split = value => {
+    const [main, pre] = String(value).replace(/^v/, '').split('-', 2)
+    return { main: main.split('.').map(part => Number.parseInt(part, 10) || 0), pre: pre === undefined ? null : pre.split('.') }
+  }
+  const left = split(a), right = split(b)
+  for (let i = 0; i < Math.max(left.main.length, right.main.length); i += 1) {
+    if ((left.main[i] ?? 0) !== (right.main[i] ?? 0)) return (left.main[i] ?? 0) - (right.main[i] ?? 0)
+  }
+  if (left.pre === null || right.pre === null) return (left.pre === null ? 1 : 0) - (right.pre === null ? 1 : 0)
+  for (let i = 0; i < Math.max(left.pre.length, right.pre.length); i += 1) {
+    const x = left.pre[i], y = right.pre[i]
+    if (x === undefined || y === undefined) return x === undefined ? -1 : 1
+    if (x === y) continue
+    const nx = Number(x), ny = Number(y)
+    if (Number.isInteger(nx) && Number.isInteger(ny)) return nx - ny
+    return x < y ? -1 : 1
   }
   return 0
 }

@@ -9,6 +9,7 @@
 
 import { button, el } from '../dom.js'
 import { tile, tileGrid } from '../widgets.js'
+import { compareVersions } from '../update-notice.js'
 
 /** One panel per page, so the update state can live here. */
 /** @type {any} */
@@ -122,11 +123,20 @@ export function renderUpdateTab(ui) {
     : '游戏 v' + cur.version + (cur.bundled ? '（安装包自带）' : '')))
   if (cur !== null) head.appendChild(el('div', 'dp-dim', '桌面外壳 v' + cur.shell + ' · 游戏玩法和窗口功能分别更新'))
   if (state.message !== null) head.appendChild(el('div', 'dp-req', state.message))
-  var shellRelease = state.list === null ? null : state.list.find(function (r) { return r.shellUpdate && !r.prerelease }) || null
+  // 正在用预览版时，预览版也算「最新」的候选；否则只看正式版。
+  var onPreview = cur !== null && String(cur.version).indexOf('-') >= 0
+  var eligible = function (r) { return !r.prerelease || onPreview }
+  // 外壳要不要更新由页面自己比：0.1.x 的旧外壳不会在列表里给 shellUpdate，
+  // 以前它们就一直看不到「桌面外壳太旧」的提示（用户 2026-10-04 实测：外壳 v0.1.2）。
+  var shellOf = function (r) { return r.latestShell || (r.manifest && r.manifest.shellVersion) || null }
+  var shellRelease = state.list === null || cur === null ? null : state.list.find(function (r) {
+    return eligible(r) && shellOf(r) !== null && compareVersions(shellOf(r), cur.shell) > 0
+  }) || null
   if (shellRelease !== null) {
-    var shellVersion = shellRelease.latestShell
+    var shellVersion = shellOf(shellRelease)
     var mode = state.shellStatus && state.shellStatus.mode
     head.appendChild(el('div', 'dp-req', '桌面外壳 v' + cur.shell + ' → v' + shellVersion))
+    if (compareVersions(cur.shell, '0.2.0') < 0) head.appendChild(el('div', 'dp-dim', '你的桌面外壳是铺满全屏的旧版，会卡、会闪；新外壳只框住猪和面板。请下载新安装包覆盖安装，存档不会丢。'))
     if (mode !== 'automatic') head.appendChild(el('div', 'dp-dim', shellManualReason(mode)))
     if (state.shellMessage !== null) head.appendChild(el('div', 'dp-req', state.shellMessage))
     if (state.shellBusy) head.appendChild(el('div', 'dp-dim', '正在下载桌面外壳 ' + Math.round(state.shellFraction * 100) + '%'))
@@ -142,8 +152,9 @@ export function renderUpdateTab(ui) {
   if (state.busy !== null && state.message === null) {
     head.appendChild(el('div', 'dp-dim', state.busy === 'rollback' ? '正在换回去…' : '下载中 ' + Math.round(state.fraction * 100) + '%'))
   }
-  var latest = state.list === null ? null : state.list.find(function (r) { return r.blocked === null && !r.prerelease }) || null
-  if (latest !== null && cur !== null && !latest.current) {
+  var latest = state.list === null ? null : state.list.find(function (r) { return r.blocked === null && eligible(r) }) || null
+  // 现在用的比列表里最新的还新（比如在用预览版）就别再叫人「更新」到旧版本。
+  if (latest !== null && cur !== null && compareVersions(latest.version, cur.version) > 0) {
     var up = button('dp-btn dp-btn-wide', { 'data-update-latest': latest.version }, function () { install(ui, latest.version) })
     up.textContent = '⬆️ 更新到最新 v' + latest.version
     up.disabled = state.busy !== null
