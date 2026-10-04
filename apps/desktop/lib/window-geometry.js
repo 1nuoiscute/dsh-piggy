@@ -91,6 +91,38 @@ export function moveAcrossDisplays(windowBounds, dx, dy, areas) {
   return movedBounds(windowBounds, dx, dy, { ...union, width: right - union.x, height: bottom - union.y })
 }
 
+/**
+ * A desktop drag is always measured from the pointer-down sample. Clamping may
+ * hold the pig at an edge, but cannot consume movement and skew the next frame.
+ * The panel and transparent padding may leave the work area; only the pig is
+ * constrained to the display currently under the pointer.
+ * @param {{x:number,y:number,width:number,height:number}} startBounds
+ * @param {{x:number,y:number}} startCursor
+ * @param {{x:number,y:number}} cursor
+ * @param {{x:number,y:number,width:number,height:number}} pigWindow
+ * @param {{x:number,y:number,width:number,height:number}} area
+ */
+export function absoluteDragBounds(startBounds, startCursor, cursor, pigWindow, area) {
+  const width = round(startBounds.width)
+  const height = round(startBounds.height)
+  const pigX = round(pigWindow.x)
+  const pigY = round(pigWindow.y)
+  const pigWidth = Math.max(1, round(pigWindow.width))
+  const pigHeight = Math.max(1, round(pigWindow.height))
+  const minX = round(area.x) - pigX
+  const minY = round(area.y) - pigY
+  const maxX = round(area.x + area.width) - pigX - pigWidth
+  const maxY = round(area.y + area.height) - pigY - pigHeight
+  const wantedX = round(startBounds.x + cursor.x - startCursor.x)
+  const wantedY = round(startBounds.y + cursor.y - startCursor.y)
+  return {
+    x: Math.max(minX, Math.min(wantedX, maxX)),
+    y: Math.max(minY, Math.min(wantedY, maxY)),
+    width,
+    height,
+  }
+}
+
 /** 收敛容差：猪的屏幕位置差这么点就不管了。 */
 export const ANCHOR_TOLERANCE = 1
 

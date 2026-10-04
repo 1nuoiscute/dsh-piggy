@@ -3,7 +3,7 @@
  *
  * 假的外壳（window.__dshPiggyShell）模拟「窗口贴着猪、屏幕还有多少地方」，
  * 这里验证：
- * 1. 外壳在时，拖猪只发窗口增量，不写 localStorage 的坐标；
+ * 1. 外壳在时，拖猪把起止交给主进程采样，不写 localStorage 的坐标；
  * 2. 面板朝屏幕里侧开（用外壳报的屏幕空间，而不是小窗口的 innerWidth）；
  * 3. 网页版（没有外壳）行为不变：坐标照旧写盘、面板照旧按视口挑边。
  */
@@ -17,17 +17,18 @@ const SHELL_SRC = readFileSync(new URL('../apps/desktop/renderer/shell.js', impo
 
 /** 外壳：屏幕 1920x1040，猪停在右下角，上方空间 900、下方 100。 */
 function fakeShell(room) {
-  const calls = { move: [], bounds: [] }
+  const calls = { drag: [], bounds: [] }
   return {
     calls,
     shell: {
-      moveBy: (dx, dy) => calls.move.push({ dx, dy }),
+      beginDrag: () => calls.drag.push('start'),
+      endDrag: () => calls.drag.push('end'),
       room: () => room,
     },
   }
 }
 
-test('桌面版：拖猪只把增量交给窗口，不写页面坐标', async () => {
+test('桌面版：拖猪由主进程采样，不写页面坐标', async () => {
   const { shell, calls } = fakeShell({ above: 900, below: 100, width: 1920, height: 1040 })
   const { dom, store } = await mount({ windowExtra: { __dshPiggyShell: shell } })
   openPanel(dom, 'status')
@@ -39,7 +40,7 @@ test('桌面版：拖猪只把增量交给窗口，不写页面坐标', async ()
   scene.fire('pointermove', { clientX: 150, clientY: 60, screenX: 1050, screenY: 860, pointerId: 1 })
   scene.fire('pointerup', { pointerId: 1 })
 
-  assert.deepEqual(calls.move, [{ dx: 30, dy: -10 }, { dx: 20, dy: -30 }], '两次移动都要转给窗口')
+  assert.deepEqual(calls.drag, ['start', 'end'], '每次拖动只传起止，不累计页面增量')
   assert.equal(store.get('dsh-piggy:position'), undefined, '桌面版不写页面坐标')
   assert.equal(hostOf(dom).style.right, offsetBefore, '拖动不改页面里的位置（位置归窗口）')
 })
@@ -54,7 +55,7 @@ test('桌面版：面板按屏幕空间朝上开（小窗口的 innerWidth 不�
   assert.equal(card.style.maxWidth, '292px')
 })
 
-test('桌面版：拖动增量按屏幕坐标算（窗口自己在动，clientX 会算错）', async () => {
+test('桌面版：窗口自己在动时仍把整个拖动交给主进程', async () => {
   const { shell, calls } = fakeShell({ above: 900, below: 100, left: 900, right: 900, width: 1920, height: 1040 })
   const { dom } = await mount({ windowExtra: { __dshPiggyShell: shell } })
   openPanel(dom, 'status')
@@ -65,7 +66,7 @@ test('桌面版：拖动增量按屏幕坐标算（窗口自己在动，clientX 
   scene.fire('pointermove', { clientX: 120, clientY: 100, screenX: 1040, screenY: 760, pointerId: 1 })
   scene.fire('pointerup', { pointerId: 1 })
 
-  assert.deepEqual(calls.move, [{ dx: 40, dy: -40 }], '要按屏幕坐标算增量，不是 clientX')
+  assert.deepEqual(calls.drag, ['start', 'end'])
 })
 
 test('桌面版：窗口跟随鼠标时，拖拽松开不能误判成摸猪', async () => {
@@ -153,7 +154,7 @@ function find(root, selector) {
 
 test('真实顺序（shell.js → client.js）：按住猪拖，窗口跟着走，页面里猪不动', async () => {
   const dom = fakeDom()
-  const calls = { move: [], content: [], shape: [] }
+  const calls = { drag: [], content: [], shape: [] }
   const store = new Map()
   const winListeners = {}
   const timers = []
@@ -163,7 +164,8 @@ test('真实顺序（shell.js → client.js）：按住猪拖，窗口跟着走�
     piggyShell: {
       setContent: box => calls.content.push(box),
       setShape: rects => calls.shape.push(rects),
-      moveBy: (dx, dy) => calls.move.push({ dx, dy }),
+      beginDrag: () => calls.drag.push('start'),
+      endDrag: () => calls.drag.push('end'),
       geometry: () => ({ window: { x: 1500, y: 700, width: 240, height: 220 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 } }),
       onGeometry: () => {},
     },
@@ -235,9 +237,7 @@ test('真实顺序（shell.js → client.js）：按住猪拖，窗口跟着走�
   scene.fire('pointermove', { clientX: 110, clientY: 40, screenX: 1610, screenY: 740, pointerId: 1 })
   scene.fire('pointerup', { clientX: 110, clientY: 40, screenX: 1610, screenY: 740, pointerId: 1 })
 
-  const total = calls.move.reduce((sum, step) => ({ dx: sum.dx + step.dx, dy: sum.dy + step.dy }), { dx: 0, dy: 0 })
-  assert.equal(calls.move.length > 0, true, '桌面版拖动必须调 moveBy（这次就是没调）')
-  assert.deepEqual(total, { dx: 50, dy: -20 }, '累计位移要等于鼠标的屏幕位移')
+  assert.deepEqual(calls.drag, ['start', 'end'], '真实加载顺序下要开启和结束主进程采样')
   assert.deepEqual(
     { right: host.style.right, bottom: host.style.bottom, top: host.style.top, left: host.style.left },
     before,

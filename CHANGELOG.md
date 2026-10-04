@@ -5,6 +5,11 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## Unreleased · 桌面交互（目标 v0.27.3）
+
+### Fixed
+- 桌面版拖动改由主进程按固定起点以 60Hz 读取鼠标位置；到屏幕边缘时只约束小猪的身体，展开的面板可伸出工作区，回拖不再累计丢失位移。
+
 ## [0.27.2] — 2026-10-04 · 体验修复与社区发现
 
 ### Added

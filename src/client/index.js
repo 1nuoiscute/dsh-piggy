@@ -236,8 +236,6 @@ import { arr, num, obj, str } from './values.js'
         if (event.button !== 0) return
         drag = {
           x: event.clientX, y: event.clientY,
-          lastX: typeof event.screenX === 'number' ? event.screenX : event.clientX,
-          lastY: typeof event.screenY === 'number' ? event.screenY : event.clientY,
           startX: typeof event.screenX === 'number' ? event.screenX : event.clientX,
           startY: typeof event.screenY === 'number' ? event.screenY : event.clientY,
           right: parseFloat(getComputedStyle(host).right) || 18,
@@ -246,24 +244,19 @@ import { arr, num, obj, str } from './values.js'
         }
         scene.setAttribute('data-dragging', 'true')
         scene.setPointerCapture?.(event.pointerId)
+        desktopShell()?.beginDrag()
       })
       scene.addEventListener('pointermove', function (event) {
         if (drag === null) return
         var dx = event.clientX - drag.x
         var dy = event.clientY - drag.y
-        // 桌面版（D1）：窗口缩在猪身上，拖动＝把窗口按屏幕坐标挪走，页面里不动位置。
+        // Desktop: main process samples the pointer against the original window
+        // position. The renderer only tracks whether this was a drag or a pat.
         var shellNow = desktopShell()
         if (shellNow !== null) {
-          // 窗口自己在动，clientX 是相对窗口的：窗口一挪，下一次增量就算错了。
-          // 屏幕坐标不受窗口位置影响（screenX/screenY）。
           var screenX = typeof event.screenX === 'number' ? event.screenX : event.clientX
           var screenY = typeof event.screenY === 'number' ? event.screenY : event.clientY
           if (Math.abs(screenX - drag.startX) > 3 || Math.abs(screenY - drag.startY) > 3) drag.moved = true
-          var stepX = screenX - drag.lastX
-          var stepY = screenY - drag.lastY
-          drag.lastX = screenX
-          drag.lastY = screenY
-          if (stepX !== 0 || stepY !== 0) shellNow.moveBy(stepX, stepY)
           return
         }
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true
@@ -277,6 +270,7 @@ import { arr, num, obj, str } from './values.js'
         if (drag === null) return false
         var moved = drag.moved
         drag = null
+        desktopShell()?.endDrag()
         scene.removeAttribute('data-dragging')
         clampPig()
         // 桌面版的位置归窗口管（主进程会存），页面不写自己的坐标。

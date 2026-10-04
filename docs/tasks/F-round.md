@@ -165,4 +165,10 @@ Claude 已核对过代码的根因写在每张卡里；**动手前仍要先复�
 
 ## 验证记录（F9–F12）
 
+### F9 · 绝对拖动、只夹猪
+
+- 先用旧 `moveAcrossDisplays` 复现：面板展开的 320px 窗口在 1920px 工作区右缘被夹住，继续向外的增量丢失；反向 20px 后窗口立刻移动 20px，鼠标和猪错位。新增绝对拖动和四边只夹猪的几何测试，旧代码因缺少绝对拖动接口而失败，修复后通过。
+- 页面按下/松开时通知主进程，主进程以按下时的窗口和鼠标屏幕坐标为固定起点，按约 60Hz 读取鼠标。只让猪的布局框留在指针所在屏的工作区；面板保持展开，允许暂时越界。网页版仍走原拖动路径。
+- `npm run build && npm test && npm run typecheck` 全绿（45 个测试文件，0 失败）；`client.js` 已重新生成。隔离 Electron 展开面板的实窗像素：[f9-desktop-panel-open.png](../screenshots/f9-desktop-panel-open.png)。当前 Linux 会话是 Wayland/XWayland，XTest 合成鼠标移动被合成器拦截，无法在这里替代 Windows 100%/125%/150% 的十秒画圈与多屏实测；这些平台验收项留给 Claude/Windows 实机，不把纯函数测试冒充实机结果。
+
 ## 验收意见（Claude，F9–F12）

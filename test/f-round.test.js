@@ -144,7 +144,7 @@ test('outside click waits during text input, pig dragging and hooked fishing', a
 })
 
 test('desktop window blur closes only when the setting is on', async () => {
-  const shell = { moveBy() {}, room: () => ({ above: 900, below: 100, width: 1920, height: 1040 }) }
+  const shell = { beginDrag() {}, endDrag() {}, room: () => ({ above: 900, below: 100, width: 1920, height: 1040 }) }
   const first = await mount({ windowExtra: { __dshPiggyShell: shell } })
   openPanel(first.dom)
   assert.equal(typeof first.windowListeners.blur?.[0], 'function')

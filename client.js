@@ -1733,7 +1733,7 @@
       /** @type {any} */
       window.__dshPiggyShell
     ) : null;
-    return shell !== null && typeof shell === "object" && typeof shell.moveBy === "function" ? shell : null;
+    return shell !== null && typeof shell === "object" && typeof shell.beginDrag === "function" ? shell : null;
   }
 
   // src/client/layout.js
@@ -5062,8 +5062,6 @@
           drag = {
             x: event.clientX,
             y: event.clientY,
-            lastX: typeof event.screenX === "number" ? event.screenX : event.clientX,
-            lastY: typeof event.screenY === "number" ? event.screenY : event.clientY,
             startX: typeof event.screenX === "number" ? event.screenX : event.clientX,
             startY: typeof event.screenY === "number" ? event.screenY : event.clientY,
             right: parseFloat(getComputedStyle(host).right) || 18,
@@ -5072,6 +5070,7 @@
           };
           scene.setAttribute("data-dragging", "true");
           scene.setPointerCapture?.(event.pointerId);
+          desktopShell()?.beginDrag();
         });
         scene.addEventListener("pointermove", function(event) {
           if (drag === null) return;
@@ -5082,11 +5081,6 @@
             var screenX = typeof event.screenX === "number" ? event.screenX : event.clientX;
             var screenY = typeof event.screenY === "number" ? event.screenY : event.clientY;
             if (Math.abs(screenX - drag.startX) > 3 || Math.abs(screenY - drag.startY) > 3) drag.moved = true;
-            var stepX = screenX - drag.lastX;
-            var stepY = screenY - drag.lastY;
-            drag.lastX = screenX;
-            drag.lastY = screenY;
-            if (stepX !== 0 || stepY !== 0) shellNow.moveBy(stepX, stepY);
             return;
           }
           if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
@@ -5099,6 +5093,7 @@
           if (drag === null) return false;
           var moved = drag.moved;
           drag = null;
+          desktopShell()?.endDrag();
           scene.removeAttribute("data-dragging");
           clampPig();
           if (deskShell === null) writeStore(POSITION_KEY, JSON.stringify({ right: userRight, bottom: userBottom }));

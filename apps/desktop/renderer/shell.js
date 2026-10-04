@@ -3,7 +3,7 @@
  * 桌面版的页面（D1）。
  *
  * 窗口不再铺满屏幕：页面把「猪 + 面板 + 气泡」的**布局外接框**报给主进程，主进程把窗口
- * 调成那个大小再四周留 16px；拖猪的时候页面只把鼠标增量转给主进程（窗口跟着走），
+ * 调成那个大小再四周留 16px；拖猪的时候主进程按固定起点读取鼠标位置，
  * 页面自己不动位置。
  *
  * 量框必须用布局盒（offsetLeft/offsetTop/offsetWidth/offsetHeight 累加到 body），
@@ -54,7 +54,8 @@
         height: info.workArea.height,
       }
     },
-    moveBy: function (dx, dy) { shell.moveBy(dx, dy) },
+    beginDrag: function () { shell.beginDrag() },
+    endDrag: function () { shell.endDrag() },
   }
 
   var entry = null

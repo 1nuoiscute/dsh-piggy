@@ -10,5 +10,5 @@
 /** @returns {any} 外壳对象；不在桌面版里就是 null。 */
 export function desktopShell() {
   var shell = typeof window !== 'undefined' ? (/** @type {any} */ (window)).__dshPiggyShell : null
-  return shell !== null && typeof shell === 'object' && typeof shell.moveBy === 'function' ? shell : null
+  return shell !== null && typeof shell === 'object' && typeof shell.beginDrag === 'function' ? shell : null
 }

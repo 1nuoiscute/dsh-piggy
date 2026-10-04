@@ -9,8 +9,9 @@ contextBridge.exposeInMainWorld('piggyShell', {
   setContent: content => ipcRenderer.send('piggy:content', content),
   /** Which parts of the window the pig occupies; everything else lets clicks through. */
   setShape: rects => ipcRenderer.send('piggy:shape', rects),
-  /** 拖动：窗口按屏幕坐标跟着鼠标走（页面里不动位置）。 */
-  moveBy: (dx, dy) => ipcRenderer.send('piggy:move', { dx: Number(dx) || 0, dy: Number(dy) || 0 }),
+  /** Main process samples the cursor at 60 Hz from this pointer-down origin. */
+  beginDrag: () => ipcRenderer.send('piggy:drag:start'),
+  endDrag: () => ipcRenderer.send('piggy:drag:end'),
   /** 主进程推来的窗口/工作区几何：面板朝屏幕里侧开要用。 */
   geometry: () => geometry,
   /** 页面挂载完主动要一次几何（did-finish-load 可能早于订阅）。 */

@@ -5,7 +5,7 @@
  * - 窗口**只框住「猪 + 面板 + 气泡」的外接矩形**，四周留 16px（D1）。以前窗口铺满整个
  *   工作区，Windows 上每帧都要合成一整块全屏透明层，整机都跟着卡。现在页面把内容框报上来
  *   （布局盒，不受动画影响），这里用 lib/window-geometry.js 算窗口位置：以右下角为锚，
- *   夹在工作区内；拖猪时页面只发鼠标增量，窗口跟着走。
+ *   夹在工作区内；拖猪时主进程按固定起点采样鼠标，仅约束猪本身。
  * - 页面里的猪和 DSH 网页里一模一样；可点区域仍然只包住内容（setShape），其余点击落到桌面。
  * - 宿主是插件自己的 store.js + routes.js（lib/host.js），经 piggy:// 协议访问，不开端口。
  * - 存档在 userData/dsh-piggy/state.json，跟 DSH 里那只各养各的；托盘里可以导入。
@@ -20,7 +20,7 @@ import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, net, prot
 import updaterPackage from 'electron-updater'
 
 import { startHost } from './lib/host.js'
-import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, moveAcrossDisplays } from './lib/window-geometry.js'
+import { WINDOW_PADDING, absoluteDragBounds, anchorCorrection, clampBounds, contentBounds } from './lib/window-geometry.js'
 import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 import { createShellUpdates, shellUpdateMode } from './lib/shell-update.js'
 
@@ -206,6 +206,7 @@ function createWindow() {
 let lastShape = []
 /** 上一次报的猪在窗口坐标里的位置（收敛时当「展开前」的基准）。 */
 let lastPigWindow = null
+let lastPigSize = { width: 56, height: 56 }
 /** 内容变了之后挂上：{ target: 猪的屏幕坐标, passes }，页面下一帧来报时补一次平移。 */
 let anchorFix = null
 /** 上一次报的内容（尺寸 + 锚边）：用来判断这次是不是「内容变了」。 */
@@ -250,6 +251,9 @@ ipcMain.on('piggy:content', (event, content) => {
 
   lastContent = { width, height, anchor }
   if (hasPigWindow) lastPigWindow = pigWindow
+  if (Number(content?.pig?.width) > 0 && Number(content?.pig?.height) > 0) {
+    lastPigSize = { width: Number(content.pig.width), height: Number(content.pig.height) }
+  }
   // 记下「猪在屏幕上哪儿」：实机核对展开面板时它有没有动（日志里是 DIP 坐标）。
   const pigOnScreen = hasPigWindow ? { x: win.getBounds().x + pigWindow.x, y: win.getBounds().y + pigWindow.y } : null
   log('content', JSON.stringify({ window: win.getBounds(), anchor, pigOnScreen, fix: anchorFix === null ? 'done' : anchorFix.passes }))
@@ -261,21 +265,40 @@ ipcMain.on('piggy:content', (event, content) => {
   lastShape = shape
 })
 
-/** 拖动：窗口按屏幕坐标跟着鼠标走。 */
+/** Drag against a fixed cursor/window sample; only the pig is clamped. */
+let dragSession = null
+let dragTimer = null
+function dragTick() {
+  if (win === null || win.isDestroyed() || dragSession === null) return
+  const cursor = screen.getCursorScreenPoint()
+  const area = screen.getDisplayNearestPoint(cursor).workArea
+  applyBounds(absoluteDragBounds(dragSession.bounds, dragSession.cursor, cursor, dragSession.pig, area), 'drag')
+}
+function stopDrag() {
+  if (dragTimer !== null) clearInterval(dragTimer)
+  dragTimer = null
+  dragSession = null
+}
+
 /** 页面要几何：给它推一次（订阅晚于 did-finish-load 时靠这个）。 */
 ipcMain.on('piggy:geometry:ask', (event) => {
   if (win === null || event.sender !== win.webContents) return
   pushGeometry()
 })
 
-ipcMain.on('piggy:move', (event, delta) => {
+ipcMain.on('piggy:drag:start', event => {
   if (win === null || event.sender !== win.webContents) return
-  const dx = Number(delta?.dx)
-  const dy = Number(delta?.dy)
-  if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return
-  const bounds = win.getBounds()
-  applyBounds(moveAcrossDisplays(bounds, dx, dy, screen.getAllDisplays().map(display => display.workArea)), 'move')
-  // 窗口挪了，但内容框没变：记录里的猪跟着窗口一起动了，下一次算锚点还是对的。
+  stopDrag()
+  dragSession = {
+    bounds: win.getBounds(), cursor: screen.getCursorScreenPoint(),
+    pig: { ...(lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }), ...lastPigSize },
+  }
+  dragTimer = setInterval(dragTick, 1000 / 60)
+})
+ipcMain.on('piggy:drag:end', event => {
+  if (win === null || event.sender !== win.webContents) return
+  dragTick()
+  stopDrag()
 })
 
 ipcMain.on('piggy:shape', (event, rects) => {
@@ -491,5 +514,5 @@ async function captureForCheck(dir) {
 }
 
 app.on('second-instance', () => win?.showInactive())
-app.on('before-quit', () => { try { host?.dispose() } catch { /* best effort */ } })
+app.on('before-quit', () => { stopDrag(); try { host?.dispose() } catch { /* best effort */ } })
 app.on('window-all-closed', () => app.quit())

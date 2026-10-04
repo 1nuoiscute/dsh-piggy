@@ -97,11 +97,12 @@ function fakePage(options = {}) {
   const listeners = {}
   const window = {
     __ModuleLoader__: { load() {} },
-    __shellCalls: { content: [], shape: [], move: [], bounds: [] },
+    __shellCalls: { content: [], shape: [], drag: [], bounds: [] },
     piggyShell: {
       setContent: box => window.__shellCalls.content.push(box),
       setShape: rects => window.__shellCalls.shape.push(rects),
-      moveBy: (dx, dy) => window.__shellCalls.move.push({ dx, dy }),
+      beginDrag: () => window.__shellCalls.drag.push('start'),
+      endDrag: () => window.__shellCalls.drag.push('end'),
       setBounds: bounds => window.__shellCalls.bounds.push(bounds),
       onGeometry: () => {},
       askGeometry: () => { window.__shellCalls.asked = (window.__shellCalls.asked || 0) + 1 },
@@ -218,7 +219,7 @@ test('真实加载顺序：client 挂载时外壳已经挂好了（拖动才不�
   page.run()
   assert.equal(page.order.shellAtLoad, 'object', 'shell.js 要在加载 client 之前挂上 __dshPiggyShell')
   assert.equal(page.order.shellAtApply, 'object', 'apply() 里读的时候也得在')
-  assert.equal(typeof page.window.__dshPiggyShell.moveBy, 'function')
+  assert.equal(typeof page.window.__dshPiggyShell.beginDrag, 'function')
 })
 
 test('面板把场景撑宽后，整块内容离窗口锚边仍然是 16px（HUD 不会被挤出窗口）', () => {
@@ -258,17 +259,17 @@ test('窗口移动只由页面里的猪负责发（外壳自己不重复发）',
   page.fire('pointerdown', { button: 0, clientX: 100, clientY: 100, pointerId: 1 })
   page.fire('pointermove', { clientX: 160, clientY: 130, pointerId: 1, screenX: 460, screenY: 330 })
   page.fire('pointerup', { pointerId: 1 })
-  assert.deepEqual(page.window.__shellCalls.move, [], '外壳不该自己发 moveBy')
+  assert.deepEqual(page.window.__shellCalls.drag, [], '外壳不该自己启动拖动')
 })
 
-test('拖猪：外壳把移动通道开给页面里的猪使用', () => {
+test('拖猪：外壳把主进程采样起止通道开给页面里的猪使用', () => {
   const page = fakePage()
   page.run()
   page.tick(false)
-  // 页面的猪抓着鼠标时调 window.__dshPiggyShell.moveBy，外壳转给主进程。
-  assert.equal(typeof page.window.__dshPiggyShell?.moveBy, 'function', '要开一条移动通道')
-  page.window.__dshPiggyShell.moveBy(30, -10)
-  assert.deepEqual(page.window.__shellCalls.move, [{ dx: 30, dy: -10 }])
+  assert.equal(typeof page.window.__dshPiggyShell?.beginDrag, 'function')
+  page.window.__dshPiggyShell.beginDrag()
+  page.window.__dshPiggyShell.endDrag()
+  assert.deepEqual(page.window.__shellCalls.drag, ['start', 'end'])
 })
 
 // ---------------------------------------------------------------------------
