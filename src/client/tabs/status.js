@@ -99,13 +99,14 @@ function renderWeight(ui, p) {
   row.appendChild(el('b', null, w !== null ? '理想 ' + w.ideal : '🪙 ' + p.coins))
   ui.content.appendChild(row)
   if (w === null) return
-  var low = w.idealG * 0.7
+  // 起点放到理想的一半：小猪仔常常比理想轻不少，起点太高整条就是空的。
+  var low = Math.min(w.idealG * 0.5, w.weightG)
   var high = w.fatAtG * 1.15
   var at = function (g) { return Math.max(0, Math.min(100, (g - low) / (high - low) * 100)) }
   var scale = el('div', 'dp-weightbar')
   scale.setAttribute('data-class', w.class)
   var fill = el('i', 'dp-weightbar-fill')
-  fill.style.width = at(w.weightG) + '%'
+  fill.style.width = Math.max(4, at(w.weightG)) + '%'
   scale.appendChild(fill)
   var marks = [['理想', w.idealG], ['圆润', w.roundAtG], ['胖胖', w.fatAtG]]
   for (var m = 0; m < marks.length; m += 1) {

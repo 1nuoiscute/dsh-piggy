@@ -1373,7 +1373,7 @@
     row.appendChild(el("b", null, w !== null ? "\u7406\u60F3 " + w.ideal : "\u{1FA99} " + p.coins));
     ui.content.appendChild(row);
     if (w === null) return;
-    var low = w.idealG * 0.7;
+    var low = Math.min(w.idealG * 0.5, w.weightG);
     var high = w.fatAtG * 1.15;
     var at = function(g) {
       return Math.max(0, Math.min(100, (g - low) / (high - low) * 100));
@@ -1381,7 +1381,7 @@
     var scale = el("div", "dp-weightbar");
     scale.setAttribute("data-class", w.class);
     var fill = el("i", "dp-weightbar-fill");
-    fill.style.width = at(w.weightG) + "%";
+    fill.style.width = Math.max(4, at(w.weightG)) + "%";
     scale.appendChild(fill);
     var marks = [["\u7406\u60F3", w.idealG], ["\u5706\u6DA6", w.roundAtG], ["\u80D6\u80D6", w.fatAtG]];
     for (var m = 0; m < marks.length; m += 1) {
@@ -3256,8 +3256,8 @@
     // B6 talk row: name + 改 + 免打扰, and the inline name input.
     ".dp-talk{gap:6px;margin-top:8px}",
     ".dp-talk>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-    ".dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}",
-    ".dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}",
+    ".dp-mini.dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}",
+    ".dp-mini.dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}",
     ".dp-input{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 8px;border-radius:var(--ac-pill);",
     "border:2px solid var(--ac-border);background:var(--ac-bg-input);color:var(--ac-text)}",
     ".dp-input:focus{outline:2px solid var(--ac-primary);outline-offset:1px}",

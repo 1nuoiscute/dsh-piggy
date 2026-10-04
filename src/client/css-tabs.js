@@ -194,8 +194,8 @@ export const CSS_TABS = [
   // B6 talk row: name + 改 + 免打扰, and the inline name input.
   '.dp-talk{gap:6px;margin-top:8px}',
   '.dp-talk>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-  '.dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}',
-  '.dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}',
+  '.dp-mini.dp-mini-plain{background:var(--ac-bg-input);color:var(--ac-text);border:2px solid var(--ac-border-light);box-shadow:none}',
+  '.dp-mini.dp-mini-plain:hover:not(:disabled){background:var(--ac-hover)}',
   '.dp-input{flex:1;min-width:0;font:inherit;font-size:11px;padding:3px 8px;border-radius:var(--ac-pill);',
   'border:2px solid var(--ac-border);background:var(--ac-bg-input);color:var(--ac-text)}',
   '.dp-input:focus{outline:2px solid var(--ac-primary);outline-offset:1px}',
