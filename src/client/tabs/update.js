@@ -82,6 +82,7 @@ function shellManualReason(mode) {
   if (mode === 'portable') return 'Windows 便携版需要下载并替换旧 EXE。'
   if (mode === 'unsigned-mac') return 'macOS 包暂未签名，无法在应用内自动更新；请下载 DMG 并替换应用。'
   if (mode === 'manual') return '这种 Linux 安装方式需要从发布页下载新包。'
+  if (mode === 'preview-manual') return '预览版的桌面外壳要从发布页下载安装包，装一次之后就能在这里直接更新。'
   return '当前版本还不支持应用内更新外壳，需要手动安装一次新版。'
 }
 
@@ -123,6 +124,15 @@ export function renderUpdateTab(ui) {
     : '游戏 v' + cur.version + (cur.bundled ? '（安装包自带）' : '')))
   if (cur !== null) head.appendChild(el('div', 'dp-dim', '桌面外壳 v' + cur.shell + ' · 游戏玩法和窗口功能分别更新'))
   if (state.message !== null) head.appendChild(el('div', 'dp-req', state.message))
+  // 刷新：重新问一遍 GitHub 和本机现在的版本（以前没有入口，出错时只能重开面板）。
+  var again = button('dp-mini dp-update-refresh', { 'data-update-refresh': '' }, function () {
+    state.message = null
+    state.shellMessage = null
+    refresh(ui)
+  })
+  again.textContent = state.loading ? '正在刷新…' : '🔄 刷新'
+  again.disabled = state.loading || state.busy !== null || state.shellBusy
+  head.appendChild(again)
   // 正在用预览版时，预览版也算「最新」的候选；否则只看正式版。
   var onPreview = cur !== null && String(cur.version).indexOf('-') >= 0
   var eligible = function (r) { return !r.prerelease || onPreview }
@@ -135,6 +145,9 @@ export function renderUpdateTab(ui) {
   if (shellRelease !== null) {
     var shellVersion = shellOf(shellRelease)
     var mode = state.shellStatus && state.shellStatus.mode
+    // 0.2.5 以前的外壳只会在应用内下载**正式版**里的外壳；预览版里的外壳只能去发布页下
+    // （用户 2026-10-05 在 0.2.2 上点下载，得到一句「请先刷新版本列表」）。
+    if (shellRelease.prerelease && compareVersions(cur.shell, '0.2.5') < 0) mode = 'preview-manual'
     head.appendChild(el('div', 'dp-req', '桌面外壳 v' + cur.shell + ' → v' + shellVersion))
     if (compareVersions(cur.shell, '0.2.0') < 0) head.appendChild(el('div', 'dp-dim', '你的桌面外壳是铺满全屏的旧版，会卡、会闪；新外壳只框住猪和面板。请下载新安装包覆盖安装，存档不会丢。'))
     if (mode !== 'automatic') head.appendChild(el('div', 'dp-dim', shellManualReason(mode)))

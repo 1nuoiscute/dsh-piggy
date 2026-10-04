@@ -2958,7 +2958,9 @@
     // 更新 App: the release notes keep their line breaks but stay short.
     ".dp-update-notes{white-space:pre-wrap;font-size:10.5px;line-height:1.5;color:var(--ac-text-2);max-height:120px;overflow:auto;margin:4px 0 6px}",
     ".dp-update-back{margin-top:10px;width:100%}",
-    ".dp-update-now{margin-bottom:12px}",
+    ".dp-update-now{margin-bottom:12px;position:relative}",
+    // 刷新按钮放在版本卡右上角。
+    ".dp-update-refresh{position:absolute;top:8px;right:8px}",
     ".dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}"
   ].join("");
 
@@ -4098,6 +4100,7 @@
     if (mode === "portable") return "Windows \u4FBF\u643A\u7248\u9700\u8981\u4E0B\u8F7D\u5E76\u66FF\u6362\u65E7 EXE\u3002";
     if (mode === "unsigned-mac") return "macOS \u5305\u6682\u672A\u7B7E\u540D\uFF0C\u65E0\u6CD5\u5728\u5E94\u7528\u5185\u81EA\u52A8\u66F4\u65B0\uFF1B\u8BF7\u4E0B\u8F7D DMG \u5E76\u66FF\u6362\u5E94\u7528\u3002";
     if (mode === "manual") return "\u8FD9\u79CD Linux \u5B89\u88C5\u65B9\u5F0F\u9700\u8981\u4ECE\u53D1\u5E03\u9875\u4E0B\u8F7D\u65B0\u5305\u3002";
+    if (mode === "preview-manual") return "\u9884\u89C8\u7248\u7684\u684C\u9762\u5916\u58F3\u8981\u4ECE\u53D1\u5E03\u9875\u4E0B\u8F7D\u5B89\u88C5\u5305\uFF0C\u88C5\u4E00\u6B21\u4E4B\u540E\u5C31\u80FD\u5728\u8FD9\u91CC\u76F4\u63A5\u66F4\u65B0\u3002";
     return "\u5F53\u524D\u7248\u672C\u8FD8\u4E0D\u652F\u6301\u5E94\u7528\u5185\u66F4\u65B0\u5916\u58F3\uFF0C\u9700\u8981\u624B\u52A8\u5B89\u88C5\u4E00\u6B21\u65B0\u7248\u3002";
   }
   function install(ui, version) {
@@ -4135,6 +4138,14 @@
     head.appendChild(el("div", "dp-pick-head", cur === null ? "\u6B63\u5728\u770B\u73B0\u5728\u7684\u7248\u672C\u2026" : "\u6E38\u620F v" + cur.version + (cur.bundled ? "\uFF08\u5B89\u88C5\u5305\u81EA\u5E26\uFF09" : "")));
     if (cur !== null) head.appendChild(el("div", "dp-dim", "\u684C\u9762\u5916\u58F3 v" + cur.shell + " \xB7 \u6E38\u620F\u73A9\u6CD5\u548C\u7A97\u53E3\u529F\u80FD\u5206\u522B\u66F4\u65B0"));
     if (state.message !== null) head.appendChild(el("div", "dp-req", state.message));
+    var again = button("dp-mini dp-update-refresh", { "data-update-refresh": "" }, function() {
+      state.message = null;
+      state.shellMessage = null;
+      refresh(ui);
+    });
+    again.textContent = state.loading ? "\u6B63\u5728\u5237\u65B0\u2026" : "\u{1F504} \u5237\u65B0";
+    again.disabled = state.loading || state.busy !== null || state.shellBusy;
+    head.appendChild(again);
     var onPreview = cur !== null && String(cur.version).indexOf("-") >= 0;
     var eligible = function(r) {
       return !r.prerelease || onPreview;
@@ -4148,6 +4159,7 @@
     if (shellRelease !== null) {
       var shellVersion = shellOf(shellRelease);
       var mode = state.shellStatus && state.shellStatus.mode;
+      if (shellRelease.prerelease && compareVersions(cur.shell, "0.2.5") < 0) mode = "preview-manual";
       head.appendChild(el("div", "dp-req", "\u684C\u9762\u5916\u58F3 v" + cur.shell + " \u2192 v" + shellVersion));
       if (compareVersions(cur.shell, "0.2.0") < 0) head.appendChild(el("div", "dp-dim", "\u4F60\u7684\u684C\u9762\u5916\u58F3\u662F\u94FA\u6EE1\u5168\u5C4F\u7684\u65E7\u7248\uFF0C\u4F1A\u5361\u3001\u4F1A\u95EA\uFF1B\u65B0\u5916\u58F3\u53EA\u6846\u4F4F\u732A\u548C\u9762\u677F\u3002\u8BF7\u4E0B\u8F7D\u65B0\u5B89\u88C5\u5305\u8986\u76D6\u5B89\u88C5\uFF0C\u5B58\u6863\u4E0D\u4F1A\u4E22\u3002"));
       if (mode !== "automatic") head.appendChild(el("div", "dp-dim", shellManualReason(mode)));
