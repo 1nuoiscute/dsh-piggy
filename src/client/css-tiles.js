@@ -54,6 +54,13 @@ export const CSS_TILES = [
   '.dp-app-title-icon{font-size:14px;line-height:1}',
   '.dp-app-title-icon.dp-tile-svg{width:17px;height:17px}',
   '.dp-setting-row{margin-top:8px}',
+  // 状态页体重条：填充到现在的体重，三个刻度标理想 / 圆润 / 胖胖。
+  '.dp-weightbar{position:relative;height:8px;margin:4px 0 18px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled)}',
+  '.dp-weightbar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:var(--ac-pill);background:var(--ac-primary)}',
+  '.dp-weightbar[data-class="round"] .dp-weightbar-fill{background:#f2b24c}.dp-weightbar[data-class="fat"] .dp-weightbar-fill{background:#ef8a5b}',
+  '.dp-weightbar-mark{position:absolute;top:10px;transform:translateX(-50%);font-size:9px;color:var(--ac-text-2);white-space:nowrap}',
+  '.dp-weightbar-mark::before{content:"";position:absolute;left:50%;top:-12px;width:2px;height:10px;margin-left:-1px;background:var(--ac-text-2);opacity:.5}',
+  '.dp-hint{margin:2px 0 8px;font-size:10px;line-height:1.5;color:var(--ac-text-2)}',
   // 背包顶上的状态条：两列四格 + 一行体重。
   '.dp-statstrip{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 10px;padding:8px 10px;',
   'border-radius:var(--ac-radius-sm);background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}',

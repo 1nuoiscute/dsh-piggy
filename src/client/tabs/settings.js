@@ -57,6 +57,16 @@ export function renderSettingsTab(ui) {
     })
   }
 
+  // 免打扰跟着存档（猪自己的状态），从状态页挪到设置（G 批次）。
+  const quiet = section(ui, '免打扰', '开着时猪不主动说话、不报日常消息；生病和意外照常提醒')
+  const quietOn = ui.view.dialogue.quiet === true
+  const quietToggle = button('dp-switch', { 'data-quiet': quietOn ? 'on' : 'off', 'aria-pressed': String(quietOn) }, function () {
+    ui.send('quiet', { on: !quietOn })
+  })
+  quietToggle.appendChild(el('span', 'dp-switch-knob'))
+  quietToggle.appendChild(el('span', 'dp-switch-text', quietOn ? '开' : '关'))
+  quiet.head.appendChild(quietToggle)
+
   const close = section(ui, '点击别处时收起面板', '网页版点面板外、桌面版切到其他窗口时收起')
   const on = autoCollapseEnabled()
   const toggle = button('dp-switch', { 'data-auto-collapse': String(!on), 'aria-pressed': String(on) }, function () {

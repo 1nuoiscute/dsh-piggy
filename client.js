@@ -138,38 +138,6 @@
     strip.appendChild(el("div", "dp-statweight", "\u2696\uFE0F \u4F53\u91CD " + p.weight));
     ui.content.appendChild(strip);
   }
-  function pickerPanel(ui, action) {
-    var wrap = el("div", "dp-pick");
-    var asks = { feed: "\u5582\u70B9\u4EC0\u4E48\uFF1F", bathe: "\u7528\u54EA\u4E2A\u6D17\u6FA1\uFF1F", play: "\u62FF\u54EA\u4E2A\u73A9\u5177\uFF1F" };
-    wrap.appendChild(el("div", "dp-pick-head", asks[action] ?? "\u7528\u54EA\u4E2A\uFF1F"));
-    var list = el("div", "dp-list");
-    var shelf = ui.view.care[action] ?? [];
-    for (var i = 0; i < shelf.length; i += 1) {
-      (function(item) {
-        var row = el("div", "dp-item");
-        row.appendChild(el("span", null, item.emoji));
-        var grow = el("div", "dp-grow");
-        grow.appendChild(el("div", null, item.label + (item.default ? "\uFF08\u81EA\u5E26\uFF09" : " \xD7" + num(item.count, 0))));
-        grow.appendChild(el("div", "dp-dim", careEffectLine(action, item)));
-        row.appendChild(grow);
-        var use = button("dp-mini", { "data-care": action + ":" + item.key }, function() {
-          ui.picker = null;
-          ui.send(action, { item: item.key });
-        });
-        use.textContent = "\u7528";
-        row.appendChild(use);
-        list.appendChild(row);
-      })(shelf[i]);
-    }
-    wrap.appendChild(list);
-    var cancel = button("dp-cancel", {}, function() {
-      ui.picker = null;
-      ui.renderContent();
-    });
-    cancel.textContent = "\u7B97\u4E86";
-    wrap.appendChild(cancel);
-    return wrap;
-  }
   function careEffectLine(action, item) {
     var parts = [];
     if (action === "feed") {
@@ -517,6 +485,14 @@
     var action = CARE_ACTION[kind];
     if (items.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u7A7A\u7684"));
+      if (action !== void 0) {
+        var buy = button("dp-btn dp-btn-wide", { "data-bag-shop": kind }, function() {
+          ui.select("shop");
+          drillTo(ui, "shop", kind);
+        });
+        buy.textContent = "\u{1F6D2} \u53BB\u5546\u5E97\u4E70\u4E00\u70B9";
+        ui.content.appendChild(buy);
+      }
       return;
     }
     var grid = tileGrid();
@@ -966,11 +942,7 @@
     traits.appendChild(el("span", null, "\u2728 \u9B45\u529B " + p.traits.charm));
     traits.appendChild(el("span", null, "\u{1F4AA} \u6B66\u529B " + p.traits.strong));
     ui.content.appendChild(traits);
-    var info = el("div", "dp-row");
-    info.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD " + p.weight));
-    info.appendChild(el("b", null, "\u{1FA99} " + p.coins));
-    ui.content.appendChild(info);
-    if (p.bodyWeight !== null) renderWeightInfo(ui, p.bodyWeight);
+    renderWeight(ui, p);
     var daily = ui.view.daily;
     var dailyLine = el("div", "dp-row");
     dailyLine.appendChild(el("span", null, "\u{1F4C5} \u7B7E\u5230"));
@@ -983,102 +955,74 @@
       pomoRow.appendChild(el("b", null, "\u4ECA\u5929 " + pomodoro.todayDone + " \u4E2A"));
       ui.content.appendChild(pomoRow);
     }
-    var lvl = el("div", "dp-row");
-    lvl.appendChild(el("span", null, "\u2B50 \u7B49\u7EA7"));
-    lvl.appendChild(el("b", null, "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel + (p.level.maxed ? " \xB7 \u6EE1\u7EA7" : " \xB7 \u8FD8\u5DEE " + Math.ceil(p.level.toNext) + " \u6210\u957F")));
-    ui.content.appendChild(lvl);
-    var age = el("div", "dp-row");
-    age.appendChild(el("span", null, "\u{1F3E0} \u966A\u4F34"));
-    age.appendChild(el("b", null, p.ageLabel + (p.ageForced ? " \u{1F527}" : "") + (p.daysToNextStage === null ? " \xB7 \u5DF2\u957F\u6210" : "")));
-    ui.content.appendChild(age);
+    renderLevel(ui, p);
     var grid = el("div", "dp-actions");
     for (var i = 0; i < MODES.length; i += 1) {
       (function(key) {
-        var info2 = ui.view.actions[key];
+        var info = ui.view.actions[key];
         var shelf = ui.view.care[key] ?? [];
         var needsItem = shelf.length > 0;
         var btn = button("dp-btn", { "data-action": key }, function() {
-          if (needsItem) {
-            ui.picker = ui.picker === key ? null : key;
-            ui.renderContent();
+          if (BAG_SHELF[key] !== void 0) {
+            ui.select("bag");
+            drillTo(ui, "bag", BAG_SHELF[key]);
           } else {
             ui.send(key);
           }
         });
-        btn.setAttribute("data-open-picker", ui.picker === key ? "true" : "false");
         btn.appendChild(el("span", null, CARE_LABEL[key][1]));
         btn.appendChild(el("span", null, CARE_LABEL[key][0]));
         if (needsItem) btn.appendChild(el("span", "dp-count", String(shelf.length)));
-        if (!info2.ready || ui.view.dead) {
+        if (!info.ready || ui.view.dead) {
           btn.disabled = true;
           if (ui.view.dead) btn.appendChild(el("span", "dp-wait", "\u2014"));
-          else if (info2.waitSeconds > 0) btn.appendChild(el("span", "dp-wait", info2.waitSeconds + "s"));
-          else if (info2.blocked === "away") btn.appendChild(el("span", "dp-wait", "\u4E0D\u5728\u5BB6"));
+          else if (info.waitSeconds > 0) btn.appendChild(el("span", "dp-wait", info.waitSeconds + "s"));
+          else if (info.blocked === "away") btn.appendChild(el("span", "dp-wait", "\u4E0D\u5728\u5BB6"));
         }
         grid.appendChild(btn);
       })(MODES[i]);
     }
     ui.content.appendChild(grid);
-    if (ui.picker !== null && (ui.view.care[ui.picker] ?? []).length > 0) ui.content.appendChild(pickerPanel(ui, ui.picker));
-    ui.content.appendChild(talkRow(ui));
     if (p.memories.length > 0) {
       ui.content.appendChild(el("div", "dp-memo", p.memories.slice(-3).join("\n")));
     }
   }
-  function talkRow(ui) {
-    var row = el("div", "dp-row dp-talk");
-    if (ui.ownerEdit !== null || ui.pigNameEdit !== null) {
-      var forPig = ui.pigNameEdit !== null;
-      var input = (
-        /** @type {HTMLInputElement} */
-        el("input", "dp-input")
-      );
-      input.value = forPig ? ui.pigNameEdit : ui.ownerEdit;
-      input.maxLength = 16;
-      input.setAttribute(forPig ? "data-pig-input" : "data-owner-input", "true");
-      input.addEventListener("input", function() {
-        if (forPig) ui.pigNameEdit = input.value;
-        else ui.ownerEdit = input.value;
-      });
-      var save = button("dp-mini", { "data-name-save": forPig ? "pig" : "owner" }, function() {
-        var name = ((forPig ? ui.pigNameEdit : ui.ownerEdit) || "").trim();
-        if (forPig) ui.pigNameEdit = null;
-        else ui.ownerEdit = null;
-        if (name !== "") ui.send(forPig ? "name" : "owner", { name });
-        ui.renderContent();
-      });
-      save.textContent = "\u597D";
-      var cancel = button("dp-mini dp-mini-plain", { "data-name-cancel": "true" }, function() {
-        ui.ownerEdit = null;
-        ui.pigNameEdit = null;
-        ui.renderContent();
-      });
-      cancel.textContent = "\u7B97\u4E86";
-      row.appendChild(input);
-      row.appendChild(save);
-      row.appendChild(cancel);
-      return row;
+  var BAG_SHELF = { feed: "food", bathe: "bath", play: "toy" };
+  function renderWeight(ui, p) {
+    var row = el("div", "dp-row");
+    var w = p.bodyWeight;
+    row.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD " + p.weight + (w !== null ? " \xB7 " + w.label : "")));
+    row.appendChild(el("b", null, w !== null ? "\u7406\u60F3 " + w.ideal : "\u{1FA99} " + p.coins));
+    ui.content.appendChild(row);
+    if (w === null) return;
+    var low = w.idealG * 0.7;
+    var high = w.fatAtG * 1.15;
+    var at = function(g) {
+      return Math.max(0, Math.min(100, (g - low) / (high - low) * 100));
+    };
+    var scale = el("div", "dp-weightbar");
+    scale.setAttribute("data-class", w.class);
+    var fill = el("i", "dp-weightbar-fill");
+    fill.style.width = at(w.weightG) + "%";
+    scale.appendChild(fill);
+    var marks = [["\u7406\u60F3", w.idealG], ["\u5706\u6DA6", w.roundAtG], ["\u80D6\u80D6", w.fatAtG]];
+    for (var m = 0; m < marks.length; m += 1) {
+      var mark = el("span", "dp-weightbar-mark", marks[m][0]);
+      mark.style.left = at(marks[m][1]) + "%";
+      scale.appendChild(mark);
     }
-    var renameOwner = button("dp-mini dp-mini-plain", { "data-owner-edit": "true" }, function() {
-      ui.ownerEdit = ui.view.dialogue.ownerName;
-      ui.renderContent();
-    });
-    renameOwner.textContent = "\u270F\uFE0F \u79F0\u547C";
-    renameOwner.title = "\u73B0\u5728\u53EB\u300C" + ui.view.dialogue.ownerName + "\u300D";
-    var renamePig = button("dp-mini dp-mini-plain", { "data-pig-edit": "true" }, function() {
-      ui.pigNameEdit = ui.view.pig === null ? "" : ui.view.pig.name;
-      ui.renderContent();
-    });
-    renamePig.textContent = "\u270F\uFE0F \u540D\u5B57";
-    renamePig.title = ui.view.pig === null ? "\u732A\u8FD8\u6CA1\u6765" : "\u73B0\u5728\u53EB\u300C" + ui.view.pig.name + "\u300D";
-    var quiet = button("dp-mini dp-mini-plain", { "data-quiet": ui.view.dialogue.quiet ? "on" : "off" }, function() {
-      ui.send("quiet", { on: !ui.view.dialogue.quiet });
-    });
-    quiet.textContent = ui.view.dialogue.quiet ? "\u{1F515} \u514D\u6253\u6270\u4E2D" : "\u{1F514} \u514D\u6253\u6270";
-    row.appendChild(renameOwner);
-    row.appendChild(renamePig);
-    row.appendChild(quiet);
-    return row;
+    ui.content.appendChild(scale);
+    if (w.class === "fat") ui.content.appendChild(el("div", "dp-hint", "\u4ECA\u5929\u8FD8\u80FD\u9760\u73A9\u800D\u51CF\u91CD " + w.playsLeft + " \u6B21"));
+  }
+  function renderLevel(ui, p) {
+    var lv = p.level;
+    var row = el("div", "dp-row");
+    row.appendChild(el("span", null, "\u2B50 Lv." + lv.level + " " + lv.titleEmoji + lv.titleLabel));
+    row.appendChild(el("b", null, lv.maxed ? "\u6EE1\u7EA7" : "\u8FD8\u5DEE " + Math.ceil(lv.toNext) + " \u6210\u957F"));
+    ui.content.appendChild(row);
+    ui.content.appendChild(meter(lv.maxed ? 100 : lv.percent, "dp-level"));
+    var hint = lv.next !== null ? "\u5347\u5230 Lv." + lv.next.level + " \u5C31\u662F\u300C" + lv.next.emoji + lv.next.label + "\u300D\u3002" : "";
+    ui.content.appendChild(el("div", "dp-hint", hint + "\u6210\u957F\u503C\u968F\u65F6\u95F4\u81EA\u5DF1\u6DA8\uFF0C\u5403\u9971\u3001\u5E72\u51C0\u3001\u5FC3\u60C5\u597D\u957F\u5F97\u5FEB\uFF1B\u4E0A\u5B66\u3001\u6253\u5DE5\u3001\u65C5\u884C\u548C\u966A\u4F60\u5E72\u6D3B\u90FD\u4F1A\u989D\u5916\u52A0\u3002"));
   }
   function renderBanners(ui) {
     if (ui.view.pig !== null && ui.view.dead) {
@@ -1141,17 +1085,6 @@
       wrap.appendChild(call);
       ui.content.appendChild(wrap);
     }
-  }
-  function renderWeightInfo(ui, weight) {
-    var line = el("div", "dp-row");
-    line.appendChild(el("span", null, "\u4F53\u578B \xB7 " + weight.label));
-    var target = weight.class === "fat" ? "\u73A9\u800D\u51CF\u91CD\u5269 " + weight.playsLeft + " \u6B21" : weight.class === "round" ? weight.fatAt + " \u8FDB\u5165\u80D6\u80D6" : weight.roundAt + " \u8FDB\u5165\u5706\u6DA6";
-    line.appendChild(el("b", null, target));
-    ui.content.appendChild(line);
-    var reference = el("div", "dp-row");
-    reference.appendChild(el("span", null, "\u7406\u60F3\u4F53\u91CD"));
-    reference.appendChild(el("b", null, weight.ideal));
-    ui.content.appendChild(reference);
   }
 
   // src/client/tabs/study.js
@@ -2077,6 +2010,7 @@
           class: str(obj(pig.bodyWeight).class, "normal"),
           label: str(obj(pig.bodyWeight).label, "\u6B63\u5E38"),
           visible: obj(pig.bodyWeight).visible === true,
+          weightG: Math.round(num(obj(pig.bodyWeight).weightG, 0)),
           idealG: Math.round(num(obj(pig.bodyWeight).idealG, 1360)),
           roundAtG: Math.round(num(obj(pig.bodyWeight).roundAtG, 1768)),
           fatAtG: Math.round(num(obj(pig.bodyWeight).fatAtG, 2176)),
@@ -2086,7 +2020,6 @@
           playsLeft: Math.round(num(obj(pig.bodyWeight).playsLeft, 0))
         } : null,
         xp: num(pig.xp, 0),
-        // Level is driven by growth and decides the body (B2).
         level: (function(info) {
           var i = obj(info);
           var t = obj(i.title);
@@ -2096,7 +2029,8 @@
             toNext: num(i.toNext, 0),
             maxed: i.maxed === true,
             titleLabel: str(t.label, "\u65B0\u6765\u7684"),
-            titleEmoji: str(t.emoji, "\u{1F331}")
+            titleEmoji: str(t.emoji, "\u{1F331}"),
+            next: isObj(i.nextTitle) ? { level: num(i.nextTitle.level, 0), label: str(i.nextTitle.label, ""), emoji: str(i.nextTitle.emoji, "") } : null
           };
         })(pig.levelInfo),
         stageLine: str(pig.stageLine, ""),
@@ -3059,6 +2993,13 @@
     ".dp-app-title-icon{font-size:14px;line-height:1}",
     ".dp-app-title-icon.dp-tile-svg{width:17px;height:17px}",
     ".dp-setting-row{margin-top:8px}",
+    // 状态页体重条：填充到现在的体重，三个刻度标理想 / 圆润 / 胖胖。
+    ".dp-weightbar{position:relative;height:8px;margin:4px 0 18px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled)}",
+    ".dp-weightbar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:var(--ac-pill);background:var(--ac-primary)}",
+    '.dp-weightbar[data-class="round"] .dp-weightbar-fill{background:#f2b24c}.dp-weightbar[data-class="fat"] .dp-weightbar-fill{background:#ef8a5b}',
+    ".dp-weightbar-mark{position:absolute;top:10px;transform:translateX(-50%);font-size:9px;color:var(--ac-text-2);white-space:nowrap}",
+    '.dp-weightbar-mark::before{content:"";position:absolute;left:50%;top:-12px;width:2px;height:10px;margin-left:-1px;background:var(--ac-text-2);opacity:.5}',
+    ".dp-hint{margin:2px 0 8px;font-size:10px;line-height:1.5;color:var(--ac-text-2)}",
     // 背包顶上的状态条：两列四格 + 一行体重。
     ".dp-statstrip{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 10px;padding:8px 10px;",
     "border-radius:var(--ac-radius-sm);background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
@@ -3316,7 +3257,7 @@
   var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS;
 
   // src/client/tabs/card.js
-  var LIMITS = { catchphrase: 6, motto: 24 };
+  var LIMITS = { catchphrase: 6, motto: 24, name: 16, owner: 12 };
   function renderCardTab(ui) {
     var p = ui.view.pig;
     var profile = ui.view.profile;
@@ -3355,6 +3296,8 @@
       return f.current;
     }) || null;
     if (worn !== null) card.appendChild(field("\u5F62\u6001", worn.emoji + " " + worn.label));
+    card.appendChild(editableField(ui, "name", "\u540D\u5B57", p.name));
+    card.appendChild(editableField(ui, "owner", "\u53EB\u4F60", ui.view.dialogue.ownerName));
     card.appendChild(editableField(ui, "catchphrase", "\u53E3\u5934\u7985", profile.catchphrase));
     card.appendChild(editableField(ui, "motto", "\u7B7E\u540D", profile.motto));
     var c = profile.counts;
@@ -3389,7 +3332,7 @@
       var save = button("dp-mini", { "data-card-save": key }, function() {
         var text = (ui.cardEdit === null ? "" : ui.cardEdit.draft).trim();
         ui.cardEdit = null;
-        if (text !== "") ui.send(key, { text });
+        if (text !== "") ui.send(key, key === "name" || key === "owner" ? { name: text } : { text });
         ui.renderContent();
       });
       save.textContent = "\u597D";
@@ -3403,7 +3346,8 @@
       row.appendChild(cancel);
       return row;
     }
-    row.appendChild(el("span", key === "motto" ? "dp-vcard-value dp-vcard-motto" : "dp-vcard-value", key === "motto" ? "\u300C" + value + "\u300D" : value));
+    if (key === "owner") row.appendChild(el("span", "dp-vcard-value dp-dim", "\u70B9\u94C5\u7B14\u4FEE\u6539"));
+    else row.appendChild(el("span", key === "motto" ? "dp-vcard-value dp-vcard-motto" : "dp-vcard-value", key === "motto" ? "\u300C" + value + "\u300D" : value));
     var pencil = button("dp-vcard-edit", { "data-card-edit": key }, function() {
       ui.cardEdit = { field: key, draft: value };
       ui.renderContent();
@@ -4637,6 +4581,14 @@
         ui.renderContent();
       });
     }
+    const quiet = section(ui, "\u514D\u6253\u6270", "\u5F00\u7740\u65F6\u732A\u4E0D\u4E3B\u52A8\u8BF4\u8BDD\u3001\u4E0D\u62A5\u65E5\u5E38\u6D88\u606F\uFF1B\u751F\u75C5\u548C\u610F\u5916\u7167\u5E38\u63D0\u9192");
+    const quietOn = ui.view.dialogue.quiet === true;
+    const quietToggle = button("dp-switch", { "data-quiet": quietOn ? "on" : "off", "aria-pressed": String(quietOn) }, function() {
+      ui.send("quiet", { on: !quietOn });
+    });
+    quietToggle.appendChild(el("span", "dp-switch-knob"));
+    quietToggle.appendChild(el("span", "dp-switch-text", quietOn ? "\u5F00" : "\u5173"));
+    quiet.head.appendChild(quietToggle);
     const close = section(ui, "\u70B9\u51FB\u522B\u5904\u65F6\u6536\u8D77\u9762\u677F", "\u7F51\u9875\u7248\u70B9\u9762\u677F\u5916\u3001\u684C\u9762\u7248\u5207\u5230\u5176\u4ED6\u7A97\u53E3\u65F6\u6536\u8D77");
     const on = autoCollapseEnabled();
     const toggle = button("dp-switch", { "data-auto-collapse": String(!on), "aria-pressed": String(on) }, function() {

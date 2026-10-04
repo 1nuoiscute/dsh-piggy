@@ -765,34 +765,29 @@ test('a stage the user opened survives the next poll', async () => {
   }
 })
 
-test('the pig can be renamed from the panel, and so can the owner', async () => {
-  // User report #4: the nickname row was a line of text with one 改 button.
-  // Now there are two buttons, and the pig itself can be renamed too.
-  const { registration, dom, net } = await loadClient()
+test('the pig and the owner are renamed from the villager card', async () => {
+  // G 批次：从状态页挪到居民卡，沿用居民卡的铅笔就地改。
+  const { registration, dom, net } = await loadClient({ status: { ...SNAPSHOT, profile: PROFILE } })
   registration.factory(() => {}).apply({})
   await settle()
   openPanel(dom)
-
-  assert.equal(findByAttr(contentOf(dom), 'data-owner-edit', 'true').allText().includes('称呼'), true)
-  assert.equal(findByAttr(contentOf(dom), 'data-pig-edit', 'true').allText().includes('名字'), true)
-
-  findByAttr(contentOf(dom), 'data-pig-edit', 'true').fire('click')
-  const input = /** @type {any} */ (findByAttr(contentOf(dom), 'data-pig-input', 'true'))
+  pickTab(dom, 'card')
+  findByAttr(contentOf(dom), 'data-card-edit', 'name').fire('click')
+  const input = /** @type {any} */ (findByAttr(contentOf(dom), 'data-card-input', 'name'))
   assert.notEqual(input, undefined, 'the pig-name input is open')
   assert.equal(input.value, PIG.name, 'prefilled with the current name')
   input.value = ' 大爹的猪 '
   input.fire('input')
-  findByAttr(contentOf(dom), 'data-name-save', 'pig').fire('click')
+  findByAttr(contentOf(dom), 'data-card-save', 'name').fire('click')
   await settle()
   const post = JSON.parse(String(net.calls.filter(call => call.method === 'POST').at(-1).body))
   assert.deepEqual(post, { action: 'name', name: '大爹的猪' })
 
-  // 称呼 still goes through the owner action.
-  findByAttr(contentOf(dom), 'data-owner-edit', 'true').fire('click')
-  const ownerInput = /** @type {any} */ (findByAttr(contentOf(dom), 'data-owner-input', 'true'))
+  findByAttr(contentOf(dom), 'data-card-edit', 'owner').fire('click')
+  const ownerInput = /** @type {any} */ (findByAttr(contentOf(dom), 'data-card-input', 'owner'))
   ownerInput.value = '大爹'
   ownerInput.fire('input')
-  findByAttr(contentOf(dom), 'data-name-save', 'owner').fire('click')
+  findByAttr(contentOf(dom), 'data-card-save', 'owner').fire('click')
   await settle()
   const owner = JSON.parse(String(net.calls.filter(call => call.method === 'POST').at(-1).body))
   assert.deepEqual(owner, { action: 'owner', name: '大爹' })
@@ -993,9 +988,10 @@ test('the status tab shows labelled bars, traits and the care buttons', async ()
   openPanel(dom)
 
   const text = contentOf(dom).allText()
-  for (const label of ['饱食', '心情', '清洁', '健康', '智力', '魅力', '武力', '体重', '陪伴']) {
+  for (const label of ['饱食', '心情', '清洁', '健康', '智力', '魅力', '武力', '体重']) {
     assert.ok(text.includes(label), `expected "${label}" in: ${text}`)
   }
+  assert.ok(!text.includes('陪伴'), '陪伴 lives in the villager card now')
   for (const key of ['feed', 'bathe', 'play', 'pet']) {
     assert.notEqual(findByAttr(contentOf(dom), 'data-action', key), undefined, `care button ${key}`)
   }
@@ -1625,30 +1621,16 @@ test('coming home hides the work block again', async () => {
   assert.equal(findByClass(hostOf(dom), 'dp-work').hidden, false)
 })
 
-test('an empty shelf is explained in the pig\'s own words', async () => {
-  const cases = [
-    ['feed', 'food', '没有吃的啦，快去买一点'],
-    ['bathe', 'bath', '没有洗浴用品了'],
-    ['play', 'toy', '没有玩具了'],
-  ]
-  for (const [action, kind, expected] of cases) {
-    const { registration, dom } = await loadClient({
-      // No items on this shelf, so the host refuses with `no-item`.
-      status: { ...SNAPSHOT, care: { feed: [], bathe: [], play: [] } },
-      actResult: { ...SNAPSHOT, ok: false, reason: 'no-item', kind },
-    })
+test('the care buttons open the matching bag shelf; an empty one offers the shop', async () => {
+  // G 批次：喂食 / 洗澡 / 玩耍跳到背包对应货架，不在状态页维护物品列表。
+  for (const [action, kind] of [['feed', 'food'], ['bathe', 'bath'], ['play', 'toy']]) {
+    const { registration, dom } = await loadClient({ status: { ...SNAPSHOT, care: { feed: [], bathe: [], play: [] }, inventory: {} } })
     registration.factory(() => {}).apply({})
     await settle()
     openPanel(dom)
     findByAttr(contentOf(dom), 'data-action', action).fire('click')
-    await settle()
-    await settle()
-    const bubble = findByClass(hostOf(dom), 'dp-bubble')
-    assert.notEqual(bubble, undefined, `${action}: the pig should say something`)
-    assert.ok(
-      bubble.allText().includes(expected),
-      `${action}: expected "${expected}", got "${bubble.allText()}"`,
-    )
+    assert.notEqual(findByAttr(contentOf(dom), 'data-back', 'bag'), undefined, `${action}: lands in the bag`)
+    assert.notEqual(findByAttr(contentOf(dom), 'data-bag-shop', kind), undefined, `${action}: empty ${kind} shelf links to the shop`)
   }
 })
 
@@ -1879,10 +1861,11 @@ test('the study tab is stage tiles; inside one, each subject shows where it stan
   assert.equal(post.subject, 'chinese')
 })
 
-test('免打扰 keeps routine news quiet but lets illness through; the status tab has the controls', async () => {
+test('免打扰 keeps routine news quiet but lets illness through; the switch lives in settings, names in the card', async () => {
   const { registration, dom } = await loadClient({
     status: {
       ...SNAPSHOT,
+      profile: PROFILE,
       dialogue: { ownerName: '小明', quiet: true },
       pending: [
         { id: 1, kind: 'work', text: '猪猪 打工回来了！赚到 40 金币 💰', at: 111 },
@@ -1897,13 +1880,15 @@ test('免打扰 keeps routine news quiet but lets illness through; the status ta
   assert.equal(toasts.some(text => text.includes('打工回来')), false, 'routine news is held back')
   assert.equal(toasts.some(text => text.includes('感冒')), true, 'illness still gets through')
 
+  // G 批次：免打扰挪到设置，名字和称呼挪到居民卡；称呼仍不印在面板上（user report #4）。
   openPanel(dom)
-  pickTab(dom, 'status')
+  pickTab(dom, 'settings')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-quiet', 'on'), undefined, '免打扰 switch is on in settings')
+  pickTab(dom, 'card')
   const text = contentOf(dom).allText()
-  assert.ok(!text.includes('叫你「'), 'the panel no longer prints the nickname (user report #4)')
-  assert.ok(text.includes('🔕 免打扰中'), text)
-  assert.notEqual(findByAttr(contentOf(dom), 'data-owner-edit', 'true'), undefined, '改称呼 stays available')
-  assert.notEqual(findByAttr(contentOf(dom), 'data-pig-edit', 'true'), undefined, 'and the pig can be renamed too')
+  assert.ok(!text.includes('小明'), 'the card does not print the nickname')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-card-edit', 'owner'), undefined, '改称呼 stays available')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-card-edit', 'name'), undefined, 'and the pig can be renamed too')
 })
 
 test('tile tabs: coloured top layer, back returns, a poll keeps you inside, a new visit starts at the top (B8)', async () => {

@@ -8,7 +8,8 @@
 
 import { CARE_LABEL, MODES } from '../constants.js'
 import { button, el } from '../dom.js'
-import { labelledBar, pickerPanel } from '../widgets.js'
+import { drillTo, labelledBar } from '../widgets.js'
+import { meter } from '../dom.js'
 
 export function renderStatusTab(ui) {
   var p = ui.view.pig
@@ -25,11 +26,7 @@ export function renderStatusTab(ui) {
   traits.appendChild(el('span', null, '💪 武力 ' + p.traits.strong))
   ui.content.appendChild(traits)
 
-  var info = el('div', 'dp-row')
-  info.appendChild(el('span', null, '⚖️ 体重 ' + p.weight))
-  info.appendChild(el('b', null, '🪙 ' + p.coins))
-  ui.content.appendChild(info)
-  if (p.bodyWeight !== null) renderWeightInfo(ui, p.bodyWeight)
+  renderWeight(ui, p)
 
   // 签到进度：一行小字，不抢注意力（礼包攒着的时候顺带说一句）。
   var daily = ui.view.daily
@@ -49,16 +46,7 @@ export function renderStatusTab(ui) {
     ui.content.appendChild(pomoRow)
   }
 
-  var lvl = el('div', 'dp-row')
-  lvl.appendChild(el('span', null, '⭐ 等级'))
-  lvl.appendChild(el('b', null, 'Lv.' + p.level.level + ' ' + p.level.titleEmoji + p.level.titleLabel
-    + (p.level.maxed ? ' · 满级' : ' · 还差 ' + Math.ceil(p.level.toNext) + ' 成长')))
-  ui.content.appendChild(lvl)
-
-  var age = el('div', 'dp-row')
-  age.appendChild(el('span', null, '🏠 陪伴'))
-  age.appendChild(el('b', null, p.ageLabel + (p.ageForced ? ' 🔧' : '') + (p.daysToNextStage === null ? ' · 已长成' : '')))
-  ui.content.appendChild(age)
+  renderLevel(ui, p)
 
   var grid = el('div', 'dp-actions')
   for (var i = 0; i < MODES.length; i += 1) {
@@ -67,16 +55,15 @@ export function renderStatusTab(ui) {
       var shelf = ui.view.care[key] ?? []
       var needsItem = shelf.length > 0
       var btn = button('dp-btn', { 'data-action': key }, function () {
-        // Feeding, washing and playing all spend something, so the button
-        // opens the pig's bag instead of guessing what to use.
-        if (needsItem) {
-          ui.picker = ui.picker === key ? null : key
-          ui.renderContent()
+        // 喂食、洗澡、玩耍都要用东西：直接跳到背包对应的货架（G 批次），
+        // 不再在这里维护一份物品列表。摸摸不用东西，直接摸。
+        if (BAG_SHELF[key] !== undefined) {
+          ui.select('bag')
+          drillTo(ui, 'bag', BAG_SHELF[key])
         } else {
           ui.send(key)
         }
       })
-      btn.setAttribute('data-open-picker', ui.picker === key ? 'true' : 'false')
       btn.appendChild(el('span', null, CARE_LABEL[key][1]))
       btn.appendChild(el('span', null, CARE_LABEL[key][0]))
       if (needsItem) btn.appendChild(el('span', 'dp-count', String(shelf.length)))
@@ -93,73 +80,55 @@ export function renderStatusTab(ui) {
   }
   ui.content.appendChild(grid)
 
-  if (ui.picker !== null && (ui.view.care[ui.picker] ?? []).length > 0) ui.content.appendChild(pickerPanel(ui, ui.picker))
-
-  ui.content.appendChild(talkRow(ui))
-
   if (p.memories.length > 0) {
     ui.content.appendChild(el('div', 'dp-memo', p.memories.slice(-3).join('\n')))
   }
 }
 
+/** 状态页的照料按钮跳到背包的哪个货架。 */
+var BAG_SHELF = { feed: 'food', bathe: 'bath', play: 'toy' }
+
 /**
- * B6: what the pig calls its owner, and 免打扰 — one row, two small controls.
- * While the name is being typed, polls leave the panel alone (see panel.js),
- * so the input keeps its focus.
+ * 体重一行：现在多重、什么体型、理想体重；下面一条细条标出理想 / 圆润 / 胖胖三个点
+ * （G 批次：以前体重、体型、理想体重分三行，说的是同一件事）。
  */
-function talkRow(ui) {
-  var row = el('div', 'dp-row dp-talk')
-  // 用户 2026-10-01：别把称呼印在面板上（「叫你『大爹』」那行删了），
-  // 只留两个改名按钮 —— 一个改主人称呼，一个改猪的名字。
-  if (ui.ownerEdit !== null || ui.pigNameEdit !== null) {
-    var forPig = ui.pigNameEdit !== null
-    var input = /** @type {HTMLInputElement} */ (el('input', 'dp-input'))
-    input.value = forPig ? ui.pigNameEdit : ui.ownerEdit
-    input.maxLength = 16
-    input.setAttribute(forPig ? 'data-pig-input' : 'data-owner-input', 'true')
-    input.addEventListener('input', function () {
-      if (forPig) ui.pigNameEdit = input.value
-      else ui.ownerEdit = input.value
-    })
-    var save = button('dp-mini', { 'data-name-save': forPig ? 'pig' : 'owner' }, function () {
-      var name = ((forPig ? ui.pigNameEdit : ui.ownerEdit) || '').trim()
-      if (forPig) ui.pigNameEdit = null
-      else ui.ownerEdit = null
-      if (name !== '') ui.send(forPig ? 'name' : 'owner', { name: name })
-      ui.renderContent()
-    })
-    save.textContent = '好'
-    var cancel = button('dp-mini dp-mini-plain', { 'data-name-cancel': 'true' }, function () {
-      ui.ownerEdit = null
-      ui.pigNameEdit = null
-      ui.renderContent()
-    })
-    cancel.textContent = '算了'
-    row.appendChild(input)
-    row.appendChild(save)
-    row.appendChild(cancel)
-    return row
+function renderWeight(ui, p) {
+  var row = el('div', 'dp-row')
+  var w = p.bodyWeight
+  row.appendChild(el('span', null, '⚖️ 体重 ' + p.weight + (w !== null ? ' · ' + w.label : '')))
+  row.appendChild(el('b', null, w !== null ? '理想 ' + w.ideal : '🪙 ' + p.coins))
+  ui.content.appendChild(row)
+  if (w === null) return
+  var low = w.idealG * 0.7
+  var high = w.fatAtG * 1.15
+  var at = function (g) { return Math.max(0, Math.min(100, (g - low) / (high - low) * 100)) }
+  var scale = el('div', 'dp-weightbar')
+  scale.setAttribute('data-class', w.class)
+  var fill = el('i', 'dp-weightbar-fill')
+  fill.style.width = at(w.weightG) + '%'
+  scale.appendChild(fill)
+  var marks = [['理想', w.idealG], ['圆润', w.roundAtG], ['胖胖', w.fatAtG]]
+  for (var m = 0; m < marks.length; m += 1) {
+    var mark = el('span', 'dp-weightbar-mark', marks[m][0])
+    mark.style.left = at(marks[m][1]) + '%'
+    scale.appendChild(mark)
   }
-  var renameOwner = button('dp-mini dp-mini-plain', { 'data-owner-edit': 'true' }, function () {
-    ui.ownerEdit = ui.view.dialogue.ownerName
-    ui.renderContent()
-  })
-  renameOwner.textContent = '✏️ 称呼'
-  renameOwner.title = '现在叫「' + ui.view.dialogue.ownerName + '」'
-  var renamePig = button('dp-mini dp-mini-plain', { 'data-pig-edit': 'true' }, function () {
-    ui.pigNameEdit = ui.view.pig === null ? '' : ui.view.pig.name
-    ui.renderContent()
-  })
-  renamePig.textContent = '✏️ 名字'
-  renamePig.title = ui.view.pig === null ? '猪还没来' : '现在叫「' + ui.view.pig.name + '」'
-  var quiet = button('dp-mini dp-mini-plain', { 'data-quiet': ui.view.dialogue.quiet ? 'on' : 'off' }, function () {
-    ui.send('quiet', { on: !ui.view.dialogue.quiet })
-  })
-  quiet.textContent = ui.view.dialogue.quiet ? '🔕 免打扰中' : '🔔 免打扰'
-  row.appendChild(renameOwner)
-  row.appendChild(renamePig)
-  row.appendChild(quiet)
-  return row
+  ui.content.appendChild(scale)
+  if (w.class === 'fat') ui.content.appendChild(el('div', 'dp-hint', '今天还能靠玩耍减重 ' + w.playsLeft + ' 次'))
+}
+
+/**
+ * 等级：称号、经验条、下一个称号，再说一句成长值从哪来（按 data/growth.js 的实际来源写）。
+ */
+function renderLevel(ui, p) {
+  var lv = p.level
+  var row = el('div', 'dp-row')
+  row.appendChild(el('span', null, '⭐ Lv.' + lv.level + ' ' + lv.titleEmoji + lv.titleLabel))
+  row.appendChild(el('b', null, lv.maxed ? '满级' : '还差 ' + Math.ceil(lv.toNext) + ' 成长'))
+  ui.content.appendChild(row)
+  ui.content.appendChild(meter(lv.maxed ? 100 : lv.percent, 'dp-level'))
+  var hint = lv.next !== null ? '升到 Lv.' + lv.next.level + ' 就是「' + lv.next.emoji + lv.next.label + '」。' : ''
+  ui.content.appendChild(el('div', 'dp-hint', hint + '成长值随时间自己涨，吃饱、干净、心情好长得快；上学、打工、旅行和陪你干活都会额外加。'))
 }
 
 /**
@@ -233,17 +202,3 @@ function renderBanners(ui) {
 }
 
 
-/** C7 current body class and the next exact threshold. */
-function renderWeightInfo(ui, weight) {
-  var line = el('div', 'dp-row')
-  line.appendChild(el('span', null, '体型 · ' + weight.label))
-  var target = weight.class === 'fat'
-    ? '玩耍减重剩 ' + weight.playsLeft + ' 次'
-    : (weight.class === 'round' ? weight.fatAt + ' 进入胖胖' : weight.roundAt + ' 进入圆润')
-  line.appendChild(el('b', null, target))
-  ui.content.appendChild(line)
-  var reference = el('div', 'dp-row')
-  reference.appendChild(el('span', null, '理想体重'))
-  reference.appendChild(el('b', null, weight.ideal))
-  ui.content.appendChild(reference)
-}

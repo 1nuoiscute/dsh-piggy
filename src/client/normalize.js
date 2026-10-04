@@ -55,11 +55,10 @@ export function normalize(raw) {
       weight: str(pig.weight, '—'),
       bodyWeight: isObj(pig.bodyWeight) ? {
         class: str(obj(pig.bodyWeight).class, 'normal'), label: str(obj(pig.bodyWeight).label, '正常'), visible: obj(pig.bodyWeight).visible === true,
-        idealG: Math.round(num(obj(pig.bodyWeight).idealG, 1360)), roundAtG: Math.round(num(obj(pig.bodyWeight).roundAtG, 1768)), fatAtG: Math.round(num(obj(pig.bodyWeight).fatAtG, 2176)),
+        weightG: Math.round(num(obj(pig.bodyWeight).weightG, 0)), idealG: Math.round(num(obj(pig.bodyWeight).idealG, 1360)), roundAtG: Math.round(num(obj(pig.bodyWeight).roundAtG, 1768)), fatAtG: Math.round(num(obj(pig.bodyWeight).fatAtG, 2176)),
         ideal: str(obj(pig.bodyWeight).ideal, '—'), roundAt: str(obj(pig.bodyWeight).roundAt, '—'), fatAt: str(obj(pig.bodyWeight).fatAt, '—'), playsLeft: Math.round(num(obj(pig.bodyWeight).playsLeft, 0)),
       } : null,
       xp: num(pig.xp, 0),
-      // Level is driven by growth and decides the body (B2).
       level: (function (info) {
         var i = obj(info)
         var t = obj(i.title)
@@ -70,6 +69,7 @@ export function normalize(raw) {
           maxed: i.maxed === true,
           titleLabel: str(t.label, '新来的'),
           titleEmoji: str(t.emoji, '🌱'),
+          next: isObj(i.nextTitle) ? { level: num(i.nextTitle.level, 0), label: str(i.nextTitle.label, ''), emoji: str(i.nextTitle.emoji, '') } : null,
         }
       })(pig.levelInfo),
       stageLine: str(pig.stageLine, ''),

@@ -136,6 +136,15 @@ function renderItems(ui, kind) {
   var action = CARE_ACTION[kind]
   if (items.length === 0) {
     ui.content.appendChild(el('div', 'dp-empty', '空的'))
+    // 状态页的喂食 / 洗澡 / 玩耍跳过来时如果空了，给一个直接去商店对应货架的入口。
+    if (action !== undefined) {
+      var buy = button('dp-btn dp-btn-wide', { 'data-bag-shop': kind }, function () {
+        ui.select('shop')
+        drillTo(ui, 'shop', kind)
+      })
+      buy.textContent = '🛒 去商店买一点'
+      ui.content.appendChild(buy)
+    }
     return
   }
   var grid = tileGrid()

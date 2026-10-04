@@ -13,7 +13,7 @@ import { ART_URL } from '../constants.js'
 import { button, el } from '../dom.js'
 
 /** How long each editable field may be (mirrors data/profile.js). */
-var LIMITS = { catchphrase: 6, motto: 24 }
+var LIMITS = { catchphrase: 6, motto: 24, name: 16, owner: 12 }
 
 export function renderCardTab(ui) {
   var p = ui.view.pig
@@ -50,6 +50,9 @@ export function renderCardTab(ui) {
   var forms = ui.view.forms
   var worn = forms === null ? null : forms.forms.find(function (f) { return f.current }) || null
   if (worn !== null) card.appendChild(field('形态', worn.emoji + ' ' + worn.label))
+  // G 批次：猪的名字和它怎么称呼你，从状态页挪到居民卡里改。
+  card.appendChild(editableField(ui, 'name', '名字', p.name))
+  card.appendChild(editableField(ui, 'owner', '叫你', ui.view.dialogue.ownerName))
   card.appendChild(editableField(ui, 'catchphrase', '口头禅', profile.catchphrase))
   card.appendChild(editableField(ui, 'motto', '签名', profile.motto))
 
@@ -84,7 +87,8 @@ function editableField(ui, key, label, value) {
     var save = button('dp-mini', { 'data-card-save': key }, function () {
       var text = (ui.cardEdit === null ? '' : ui.cardEdit.draft).trim()
       ui.cardEdit = null
-      if (text !== '') ui.send(key, { text: text })
+      // 名字和称呼的接口收的是 name，口头禅和签名收的是 text。
+      if (text !== '') ui.send(key, key === 'name' || key === 'owner' ? { name: text } : { text: text })
       ui.renderContent()
     })
     save.textContent = '好'
@@ -98,7 +102,9 @@ function editableField(ui, key, label, value) {
     row.appendChild(cancel)
     return row
   }
-  row.appendChild(el('span', key === 'motto' ? 'dp-vcard-value dp-vcard-motto' : 'dp-vcard-value', key === 'motto' ? '「' + value + '」' : value))
+  // 称呼只给改的按钮、不把它印在面板上（用户 2026-10-01：「叫你『大爹』」那行删了）。
+  if (key === 'owner') row.appendChild(el('span', 'dp-vcard-value dp-dim', '点铅笔修改'))
+  else row.appendChild(el('span', key === 'motto' ? 'dp-vcard-value dp-vcard-motto' : 'dp-vcard-value', key === 'motto' ? '「' + value + '」' : value))
   var pencil = button('dp-vcard-edit', { 'data-card-edit': key }, function () {
     ui.cardEdit = { field: key, draft: value }
     ui.renderContent()
