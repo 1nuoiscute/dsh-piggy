@@ -21,7 +21,11 @@ export function fakeDom() {
       this.className = ''
       this.hidden = false
       this.disabled = false
-      this.style = { setProperty() {}, removeProperty() {} }
+      this.style = {
+        setProperty(name, value) { this[name] = String(value) },
+        getPropertyValue(name) { return this[name] ?? '' },
+        removeProperty(name) { delete this[name] },
+      }
       this.parentNode = null
       this.scrollTop = 0
       this.rect = { width: 70, height: 62, top: 0, left: 0, right: 0, bottom: 0 }

@@ -2324,6 +2324,18 @@
     }
   }
 
+  // src/client/pig-size.js
+  var PIG_SIZE_KEY = "dsh-piggy:pig-size";
+  var PIG_SIZES = Object.freeze([48, 56, 72, 96]);
+  function pigSize() {
+    const saved = Number(readStore(PIG_SIZE_KEY));
+    return PIG_SIZES.includes(saved) ? saved : 56;
+  }
+  function setPigSize(value) {
+    const size = Number(value);
+    writeStore(PIG_SIZE_KEY, String(PIG_SIZES.includes(size) ? size : 56));
+  }
+
   // src/client/css-base.js
   var CSS_BASE = [
     // ---------------------------------------------------------------------
@@ -2596,7 +2608,7 @@
     // 展开时场景有面板那么宽、那么高，挂在场景上方会压到图标栏（B8 截图里压在「商店」上）：
     // 改成蹲在猪左边、贴着猪身子（再高会碰到左边的名字框）。
     '[data-dsh-pig][data-open="true"] .dp-daily{left:auto;margin-left:0;',
-    "right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + 4px)}",
+    "right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + var(--pig-size) / 2 - 18px)}",
     // 桌面版面板朝右开时猪在左端：日历跟着镜像到猪右边。
     '[data-dsh-pig][data-panel-side="right"][data-open="true"] .dp-daily{right:auto;left:calc(6px + var(--pig-size) + 10px)}',
     ".dp-daily:hover{border-color:var(--ac-border-hover)}",
@@ -4147,6 +4159,29 @@
 
   // src/client/tabs/settings.js
   function renderSettingsTab(ui) {
+    const sizeIntro = el("div", "dp-pick");
+    sizeIntro.appendChild(el("b", null, "\u5C0F\u732A\u5927\u5C0F"));
+    sizeIntro.appendChild(el("span", null, "\u53EA\u8C03\u6574\u8FD9\u53F0\u8BBE\u5907\u4E0A\u7684\u663E\u793A\u5927\u5C0F\uFF0C\u4E0D\u6539\u53D8\u5B58\u6863\u3002"));
+    ui.content.appendChild(sizeIntro);
+    const labels = { 48: "\u5C0F", 56: "\u6807\u51C6", 72: "\u5927", 96: "\u7279\u5927" };
+    for (const size of PIG_SIZES) {
+      const row = el("div", "dp-item dp-setting-row");
+      row.appendChild(el("span", "dp-setting-emoji", "\u{1F416}"));
+      const copy = el("span", "dp-grow");
+      copy.appendChild(el("b", null, labels[size] + " \xB7 " + size + "px"));
+      row.appendChild(copy);
+      const pick = button("dp-mini", { "data-pig-size": String(size) }, function() {
+        setPigSize(size);
+        ui.host.style.setProperty("--pig-size", size + "px");
+        ui.renderContent();
+        ui.fitPanel();
+        desktopShell()?.syncGeometry?.();
+      });
+      pick.textContent = pigSize() === size ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
+      pick.disabled = pigSize() === size;
+      row.appendChild(pick);
+      ui.content.appendChild(row);
+    }
     const closeRow = el("div", "dp-item dp-setting-row");
     closeRow.appendChild(el("span", "dp-setting-emoji", "\u{1FA9F}"));
     const closeCopy = el("span", "dp-grow");
@@ -4347,7 +4382,7 @@
         ctx.pigEmoji.textContent = ctx.view.boxStage.emoji;
         ctx.pig.removeAttribute("data-art");
         ctx.pig.setAttribute("data-mood", "box");
-        ctx.host.style.setProperty("--pig-size", ctx.view.boxStage.size + "px");
+        ctx.host.style.setProperty("--pig-size", pigSize() + "px");
         ctx.soul.hidden = true;
         ctx.host.setAttribute("data-soul", "false");
         ctx.host.setAttribute("data-faded", "false");
@@ -4378,7 +4413,7 @@
           ctx.pig.removeAttribute("data-art-scenes");
           ctx.host.removeAttribute("data-art-actions");
         }
-        ctx.host.style.setProperty("--pig-size", pigStage.size + "px");
+        ctx.host.style.setProperty("--pig-size", pigSize() + "px");
         ctx.pig.setAttribute("data-mood", ctx.view.pig.mood);
         ctx.host.setAttribute("data-soul", ctx.view.pig.soul ? "true" : "false");
         ctx.host.setAttribute("data-faded", pigStage.faded ? "true" : "false");

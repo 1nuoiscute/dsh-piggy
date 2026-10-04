@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
-import { contentBoundsForPig } from '../lib/window-geometry.js'
+import { contentBoundsForPig, resizedPigScreenPoint } from '../lib/window-geometry.js'
 
 const AREA = { x: 0, y: 0, width: 1920, height: 1040 }
 const PIG = { width: 56, height: 56 }
@@ -61,4 +61,21 @@ test('F10 synchronous resize updates renderer geometry before another report', (
 test('F10 desktop panel height does not depend on the old window viewport', () => {
   const html = readFileSync(new URL('../renderer/index.html', import.meta.url), 'utf8')
   assert.match(html, /\[data-dsh-pig\] \.dp-panel-footer\s*\{max-height:270px!important\}/)
+})
+
+test('F12 changing pig size keeps its feet and horizontal center fixed', () => {
+  assert.deepEqual(resizedPigScreenPoint({ x: 900, y: 800 }, { width: 56, height: 56 }, { width: 96, height: 96 }),
+    { x: 880, y: 760 })
+  assert.deepEqual(resizedPigScreenPoint({ x: 880, y: 760 }, { width: 96, height: 96 }, { width: 48, height: 48 }),
+    { x: 904, y: 808 })
+})
+
+test('F12 lets only transparent panel padding cross the edge during a size change', () => {
+  const area = { x: 0, y: 0, width: 1920, height: 1040 }
+  const box = contentBoundsForPig({ width: 324, height: 758,
+    pigWindow: { x: 230, y: 660, width: 72, height: 72 }, panelOpen: true,
+    allowPanelOverflow: true }, { x: 1834, y: 887 }, area)
+  assert.equal(box.x, 1604)
+  assert.equal(box.x + 230, 1834)
+  assert.ok(box.x + 230 + 72 <= 1920)
 })

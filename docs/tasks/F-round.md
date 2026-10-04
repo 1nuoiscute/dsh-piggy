@@ -185,4 +185,13 @@ Claude 已核对过代码的根因写在每张卡里；**动手前仍要先复�
 - 修复后用 python-xlib 重拍 [收起原生 RGBA](../screenshots/f11-desktop-closed-raw.png)、[展开原生 RGBA](../screenshots/f11-desktop-open-raw.png)；收起状态可见像素 bbox 为 `(52,30)–(157,131)`，距窗口底边 65px，不再有触边黑色渐变。将这些真实窗口像素分别合成到[白底收起](../screenshots/f11-desktop-closed-white.png)、[黑底收起](../screenshots/f11-desktop-closed-black.png)、[白底展开](../screenshots/f11-desktop-open-white.png)、[黑底展开](../screenshots/f11-desktop-open-black.png) 检查，四张图均未见硬边。合成底色只用于检视；没有修改用户的全局壁纸，Windows 实机白/黑壁纸仍待验收。
 - `npm run build && npm test && npm run typecheck` 全绿（47 个测试文件，0 失败）；`client.js` 未变。
 
+### F12 · 设置小猪大小
+
+- 先写失败测试覆盖四档、默认值、无效偏好回退、设置入口和本机存储，再实现 `dsh-piggy:pig-size`。旧客户端每次刷新都会用成长阶段的 `size` 覆盖 CSS 变量；现在四档直接决定 `--pig-size`，不改阶段或存档。标准档严格为 56px，旧幼年猪约 54px 的显示值按卡统一到 56px。没有提升存档版本。
+- [3084 隔离实例](http://127.0.0.1:3084/) 运行本分支打包的真实 `store.js`、`routes.js` 和 `client.js`，使用独立的 `/tmp/dsh-pig-f12-web/state.json`，没有伪造快照。`/usr/bin/chromium` 中逐档点击设置按钮，四档网页截图：[48](../screenshots/f12-web-48.png)、[56](../screenshots/f12-web-56.png)、[72](../screenshots/f12-web-72.png)、[96](../screenshots/f12-web-96.png)。猪的脚底 Y 均为 770px，面板宽度均为 292px；气泡高于头顶 8px、番茄钟角标高于头顶 2px，签到图标的中心在 48/96 档均比猪中心低 13px。
+- 桌面版四档用 python-xlib 截原生窗口：[48](../screenshots/f12-desktop-48.png)、[56](../screenshots/f12-desktop-56.png)、[72](../screenshots/f12-desktop-72.png)、[96](../screenshots/f12-desktop-96.png)。实际点击设置按钮后，猪脚底中心的屏幕坐标四档均为 `(968,547)` DIP；窗口尺寸和可点区域随档位变化，宽度仍为 324 DIP（含外壳留白）。
+- 追加右下角贴边复验：四档脚底中心均为 `(1870,983)` DIP，允许透明外框少量越界而保持猪完整可见；[特大档原生窗口像素](../screenshots/f12-desktop-edge-96.png) 可见面板和猪均在工作区内。
+- [96px 立绘对照](../screenshots/f12-art-96.png) 在真实美术路由加载了胖胖、猪猪王、恶魔、厨师、宇航员、侦探、天使、海盗、巫师及薄荷，共 10 张 SVG；每张均成功解码并以 96px 显示，边缘清晰。该对照图只用于美术检查，设置页仍是实际产品界面。
+- `npm run build && npm test && npm run typecheck` 全绿（48 个测试文件，0 失败）；`client.js` 已重新生成。
+
 ## 验收意见（Claude，F9–F12）

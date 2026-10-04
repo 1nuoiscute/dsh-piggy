@@ -10,6 +10,7 @@ import { DEV_TAB, OPEN_KEY, QUIT_TAB, TABS, UPDATE_TAB } from './constants.js'
 import { button, el } from './dom.js'
 import { desktopShell } from './desktop-shell.js'
 import { normalize } from './normalize.js'
+import { pigSize } from './pig-size.js'
 import { writeStore } from './storage.js'
 import { CSS } from './styles.js'
 import { animateAppEntry } from './interaction-motion.js'
@@ -224,7 +225,7 @@ export function createPanel(ctx) {
           ctx.pig.removeAttribute('data-art')
           ctx.pig.setAttribute('data-mood', 'box')
           // Size comes from the host so the box and the pig can never drift.
-          ctx.host.style.setProperty('--pig-size', ctx.view.boxStage.size + 'px')
+          ctx.host.style.setProperty('--pig-size', pigSize() + 'px')
           ctx.soul.hidden = true
           ctx.host.setAttribute('data-soul', 'false')
           ctx.host.setAttribute('data-faded', 'false')
@@ -256,8 +257,8 @@ export function createPanel(ctx) {
             ctx.pig.removeAttribute('data-art-scenes')
             ctx.host.removeAttribute('data-art-actions')
           }
-          // Literally grows up: the stage carries its own size.
-          ctx.host.style.setProperty('--pig-size', pigStage.size + 'px')
+          // Display scale is a device preference; the stage remains save data.
+          ctx.host.style.setProperty('--pig-size', pigSize() + 'px')
           ctx.pig.setAttribute('data-mood', ctx.view.pig.mood)
           ctx.host.setAttribute('data-soul', ctx.view.pig.soul ? 'true' : 'false')
           // Old age reads as a faded coat, since every stage is the same pig.

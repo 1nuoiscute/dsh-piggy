@@ -64,7 +64,7 @@ export const CSS_TABS = [
   // 展开时场景有面板那么宽、那么高，挂在场景上方会压到图标栏（B8 截图里压在「商店」上）：
   // 改成蹲在猪左边、贴着猪身子（再高会碰到左边的名字框）。
   '[data-dsh-pig][data-open="true"] .dp-daily{left:auto;margin-left:0;',
-  'right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + 4px)}',
+  'right:calc(6px + var(--pig-size) + 10px);bottom:calc(var(--pig-gap-below) + var(--pig-size) / 2 - 18px)}',
   // 桌面版面板朝右开时猪在左端：日历跟着镜像到猪右边。
   '[data-dsh-pig][data-panel-side="right"][data-open="true"] .dp-daily{right:auto;left:calc(6px + var(--pig-size) + 10px)}',
   '.dp-daily:hover{border-color:var(--ac-border-hover)}',

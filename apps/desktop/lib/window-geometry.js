@@ -67,7 +67,7 @@ export function contentBounds(windowBounds, content, area) {
  * Resize and place the window in one operation around a fixed pig position.
  * A closed panel may let transparent padding cross the work-area edge. With an
  * open panel, the pig only shifts if neither side can contain that panel.
- * @param {{width:number,height:number,pigWindow:{x:number,y:number,width:number,height:number},panelOpen?:boolean}} content
+ * @param {{width:number,height:number,pigWindow:{x:number,y:number,width:number,height:number},panelOpen?:boolean,allowPanelOverflow?:boolean}} content
  * @param {{x:number,y:number}} targetPigScreen
  * @param {{x:number,y:number,width:number,height:number}} area
  */
@@ -78,6 +78,14 @@ export function contentBoundsForPig(content, targetPigScreen, area) {
   function axis(target, pigOffset, pigSize, windowSize, areaStart, areaSize) {
     const desired = round(target) - round(pigOffset)
     if (!content.panelOpen) return desired
+    if (content.allowPanelOverflow) {
+      // Changing scale keeps the feet fixed; only the pig itself is clamped.
+      // Small transparent/window-padding overflow is less disruptive than
+      // moving the pig whenever its art grows near an edge.
+      const minStart = round(areaStart) - round(pigOffset)
+      const maxStart = round(areaStart + areaSize) - round(pigOffset) - round(pigSize)
+      return Math.max(minStart, Math.min(desired, maxStart))
+    }
     const before = round(pigOffset)
     const after = windowSize - before - round(pigSize)
     const availableBefore = round(target) - round(areaStart)
@@ -93,6 +101,14 @@ export function contentBoundsForPig(content, targetPigScreen, area) {
     y: axis(targetPigScreen.y, pig.y, pig.height, height, area.y, area.height),
     width,
     height,
+  }
+}
+
+/** Keep the pig's bottom center on the same screen pixel when its art grows. */
+export function resizedPigScreenPoint(point, before, after) {
+  return {
+    x: round(point.x + (before.width - after.width) / 2),
+    y: round(point.y + before.height - after.height),
   }
 }
 

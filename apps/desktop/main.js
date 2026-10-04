@@ -20,7 +20,7 @@ import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, net, prot
 import updaterPackage from 'electron-updater'
 
 import { startHost } from './lib/host.js'
-import { WINDOW_PADDING, absoluteDragBounds, clampBounds, contentBoundsForPig } from './lib/window-geometry.js'
+import { WINDOW_PADDING, absoluteDragBounds, clampBounds, contentBoundsForPig, resizedPigScreenPoint } from './lib/window-geometry.js'
 import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 import { createShellUpdates, shellUpdateMode } from './lib/shell-update.js'
 
@@ -234,21 +234,28 @@ ipcMain.on('piggy:content', (event, content) => {
   const hasPigWindow = Number.isFinite(pigWindow.x) && Number.isFinite(pigWindow.y)
   const pigSize = Number(content?.pig?.width) > 0 && Number(content?.pig?.height) > 0
     ? { width: Number(content.pig.width), height: Number(content.pig.height) } : lastPigSize
+  const sizeChanged = lastPigWindow !== null
+    && (lastPigSize.width !== pigSize.width || lastPigSize.height !== pigSize.height)
   const panelOpen = content?.panelOpen === true
   const changed = lastContent === null
     || lastContent.width !== width || lastContent.height !== height
     || lastContent.anchor.vertical !== anchor.vertical || lastContent.anchor.horizontal !== anchor.horizontal
     || lastContent.panelOpen !== panelOpen
+    || sizeChanged
     || (hasPigWindow && lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y))
 
   if (changed && hasPigWindow) {
     const before = lastPigWindow === null ? pigWindow : lastPigWindow
     const pigBefore = { x: bounds.x + before.x, y: bounds.y + before.y }
     if (panelOpen && lastContent?.panelOpen !== true) restingPigScreen = pigBefore
-    const target = restingPigScreen ?? pigBefore
+    const target = sizeChanged
+      ? resizedPigScreenPoint(restingPigScreen ?? pigBefore, lastPigSize, pigSize)
+      : (restingPigScreen ?? pigBefore)
+    if (sizeChanged && restingPigScreen !== null) restingPigScreen = target
     const area = screen.getDisplayNearestPoint(target).workArea
     applyBounds(contentBoundsForPig({
       width, height, pigWindow: { ...pigWindow, ...pigSize }, panelOpen,
+      allowPanelOverflow: sizeChanged,
     }, target, area), 'content')
     if (!panelOpen) restingPigScreen = null
   }
