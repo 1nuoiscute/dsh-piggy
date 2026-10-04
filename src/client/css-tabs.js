@@ -87,6 +87,8 @@ export const CSS_TABS = [
   // pointing down, anchored to the right edge so it can never run off the
   // window. The hearts rise from behind it.
   '[data-dsh-pig][data-open="false"] .dp-bubble{left:auto;right:0}',
+  // 收起时气泡给礼包按钮让位，不压住它（用户反馈「有东西挡住了」）。番茄钟角标在猪说话时本来就先藏起来。
+  '[data-dsh-pig][data-open="false"]:has(.dp-daily:not([hidden])) .dp-bubble{bottom:calc(var(--pig-gap-below) + var(--pig-size) + 46px)}',
   '[data-dsh-pig][data-panel-side="right"][data-open="false"] .dp-bubble{right:auto;left:0}',
   '[data-dsh-pig][data-open="false"] .dp-bubble::after{left:auto;right:26px;',
   'top:100%;bottom:auto;margin:0;transform:rotate(45deg);',

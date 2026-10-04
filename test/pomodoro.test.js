@@ -411,7 +411,7 @@ test('角标挂在猪身上（跟着猪一起动），不是挂在场景上', as
   assert.equal(pill.parentNode.className.includes('dp-pig'), true, '父节点必须是猪立绘，这样它才跟着猪走')
 })
 
-test('角标的 CSS：贴右上角、离猪头不过 20px、层级低于说话气泡', () => {
+test('角标的 CSS：贴右上角、离猪头不过 20px、层级高于装扮（帽子不会压住它）', () => {
   // 这条守的是返工原因：原来它挂在场景上、z-index:4，面板打开时正好压在「今天完成」那行上。
   const css = readClientFile('css-tiles.js')
   const rule = /\.dp-pomo\{([^}]*)\}/.exec(css)
@@ -427,7 +427,8 @@ test('角标的 CSS：贴右上角、离猪头不过 20px、层级低于说话�
   assert.ok(/right:/.test(body), '贴右上角')
   const z = /z-index:(\d+)/.exec(body)
   assert.notEqual(z, null, '要写明层级')
-  assert.ok(Number(z[1]) < 2, `层级要低于说话气泡（气泡是 2），现在是 ${z[1]}`)
+  // 2026-10-04 Windows 实测：戴帽子时帽子（装扮层 z-index:3）压住角标。
+  assert.ok(Number(z[1]) > 3, `层级要高于装扮层（3），现在是 ${z[1]}`)
 })
 
 test('猪说话的时候角标让位（气泡和角标挨着，宁可角标先消失）', async () => {
