@@ -17,6 +17,33 @@ export function labelledBar(ui, label, value, valueText, variant) {
   ui.content.appendChild(meter(value, variant))
 }
 
+/**
+ * 猪现在怎么样：饱食 / 心情 / 清洁 / 健康四个小条 + 体重，两列排开。
+ * 背包顶上用（G 批次：照料改成在背包里用东西，用之前得看得到状态）。
+ */
+export function statStrip(ui) {
+  var p = ui.view.pig
+  if (p === null) return
+  var strip = el('div', 'dp-statstrip')
+  var cells = [
+    ['🍚 饱食', p.satiety, p.satiety + '%', ''],
+    ['❤️ 心情', p.happiness, p.happiness + '%', 'dp-mood'],
+    ['🫧 清洁', p.cleanliness, p.cleanliness + '%', 'dp-clean'],
+    ['💚 健康', p.healthPercent, p.health + '/' + ui.view.maxHealth, 'dp-health'],
+  ]
+  for (var i = 0; i < cells.length; i += 1) {
+    var cell = el('div', 'dp-statcell')
+    var head = el('div', 'dp-row')
+    head.appendChild(el('span', null, cells[i][0]))
+    head.appendChild(el('b', null, cells[i][2]))
+    cell.appendChild(head)
+    cell.appendChild(meter(cells[i][1], cells[i][3]))
+    strip.appendChild(cell)
+  }
+  strip.appendChild(el('div', 'dp-statweight', '⚖️ 体重 ' + p.weight))
+  ui.content.appendChild(strip)
+}
+
 export function pickerPanel(ui, action) {
   var wrap = el('div', 'dp-pick')
   var asks = { feed: '喂点什么？', bathe: '用哪个洗澡？', play: '拿哪个玩具？' }

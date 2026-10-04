@@ -116,6 +116,28 @@
     ui.content.appendChild(row);
     ui.content.appendChild(meter(value, variant));
   }
+  function statStrip(ui) {
+    var p = ui.view.pig;
+    if (p === null) return;
+    var strip = el("div", "dp-statstrip");
+    var cells = [
+      ["\u{1F35A} \u9971\u98DF", p.satiety, p.satiety + "%", ""],
+      ["\u2764\uFE0F \u5FC3\u60C5", p.happiness, p.happiness + "%", "dp-mood"],
+      ["\u{1FAE7} \u6E05\u6D01", p.cleanliness, p.cleanliness + "%", "dp-clean"],
+      ["\u{1F49A} \u5065\u5EB7", p.healthPercent, p.health + "/" + ui.view.maxHealth, "dp-health"]
+    ];
+    for (var i = 0; i < cells.length; i += 1) {
+      var cell = el("div", "dp-statcell");
+      var head = el("div", "dp-row");
+      head.appendChild(el("span", null, cells[i][0]));
+      head.appendChild(el("b", null, cells[i][2]));
+      cell.appendChild(head);
+      cell.appendChild(meter(cells[i][1], cells[i][3]));
+      strip.appendChild(cell);
+    }
+    strip.appendChild(el("div", "dp-statweight", "\u2696\uFE0F \u4F53\u91CD " + p.weight));
+    ui.content.appendChild(strip);
+  }
   function pickerPanel(ui, action) {
     var wrap = el("div", "dp-pick");
     var asks = { feed: "\u5582\u70B9\u4EC0\u4E48\uFF1F", bathe: "\u7528\u54EA\u4E2A\u6D17\u6FA1\uFF1F", play: "\u62FF\u54EA\u4E2A\u73A9\u5177\uFF1F" };
@@ -352,6 +374,7 @@
 
   // src/client/tabs/bag.js
   var CONSUMABLES = KIND_ORDER;
+  var CARE_ACTION = { food: "feed", bath: "bathe", toy: "play" };
   var EXTRA = {
     worn: { emoji: "\u{1F455}", label: "\u5DF2\u7A7F\u6234", color: "pink" },
     diary: { emoji: "\u{1F4D4}", label: "\u65E5\u8BB0", color: "brown" },
@@ -368,9 +391,14 @@
     else if (open === "souvenir") renderSouvenirs(ui);
     else if (open === "fish") renderFish(ui);
     else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open);
-    else renderCategories(ui);
+    else {
+      statStrip(ui);
+      renderCategories(ui);
+    }
   }
   function ownedOf(ui, kind) {
+    var action = CARE_ACTION[kind];
+    if (action !== void 0 && Array.isArray(ui.view.care[action]) && ui.view.care[action].length > 0) return ui.view.care[action];
     return ui.view.shop.filter(function(item) {
       return item.kind === kind && num(ui.view.inventory[item.key], 0) > 0;
     });
@@ -383,13 +411,16 @@
         var count = items.reduce(function(sum, item) {
           return sum + num(ui.view.inventory[item.key], 0);
         }, 0);
+        var hasFree = items.some(function(item) {
+          return item.default === true;
+        });
         var parts = shelfParts(kind);
         grid.appendChild(tile({
           emoji: parts[0],
           label: parts[1],
           color: SHELF_COLOR[kind] ?? "blue",
           badge: count > 0 ? String(count) : "",
-          dim: count === 0,
+          dim: count === 0 && !hasFree,
           tag: items.some(function(item) {
             return item.needed;
           }) ? "\u9700\u8981" : "",
@@ -481,7 +512,9 @@
   function renderItems(ui, kind) {
     var parts = shelfParts(kind);
     drillHeader(ui, "bag", parts[0] + " " + parts[1], "\u70B9\u4E00\u4E0B\u5C31\u7528");
+    statStrip(ui);
     var items = ownedOf(ui, kind);
+    var action = CARE_ACTION[kind];
     if (items.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u7A7A\u7684"));
       return;
@@ -494,12 +527,13 @@
           label: item.label,
           color: SHELF_COLOR[kind] ?? "blue",
           soft: true,
-          badge: "\xD7" + num(ui.view.inventory[item.key], 0),
+          badge: item.default === true ? "\u514D\u8D39" : "\xD7" + num(ui.view.inventory[item.key], 0),
           tag: item.needed ? "\u9700\u8981" : "",
-          note: item.kind === "promotion" ? item.useLabel : "",
+          note: action !== void 0 ? careEffectLine(action, item) : item.kind === "promotion" ? item.useLabel : "",
           data: { "data-use": item.key },
+          // 照料货架发喂食 / 洗澡 / 玩耍本身（猪的动作和台词都对得上），其他货架照旧「使用」。
           onPick: function() {
-            ui.send("use", { item: item.key });
+            ui.send(action ?? "use", { item: item.key });
           }
         }));
       })(items[i]);
@@ -3025,6 +3059,11 @@
     ".dp-app-title-icon{font-size:14px;line-height:1}",
     ".dp-app-title-icon.dp-tile-svg{width:17px;height:17px}",
     ".dp-setting-row{margin-top:8px}",
+    // 背包顶上的状态条：两列四格 + 一行体重。
+    ".dp-statstrip{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 10px;padding:8px 10px;",
+    "border-radius:var(--ac-radius-sm);background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
+    ".dp-statcell .dp-row{margin:0 0 3px;font-size:10.5px}.dp-statcell .dp-meter{height:7px}",
+    ".dp-statweight{grid-column:1 / -1;font-size:10.5px;color:var(--ac-text-2)}",
     // 设置页：每项一块，标题+说明，下面一排分段按钮；开关放在标题右边。
     ".dp-set{padding:10px 0;border-bottom:1.5px dashed var(--ac-border-light)}",
     // 扩展 App：每个扩展一块，图标 + 名称 + 开关，下面一句说明；进行中的提醒用暖色小字。

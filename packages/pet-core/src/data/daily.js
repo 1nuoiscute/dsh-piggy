@@ -16,12 +16,13 @@
  * @property {ReadonlyArray<{ key: string, count: number }>} items
  */
 
+/** @param {number} coins @param {Array<[string, number]>} [items] @returns {DailyReward} */
+const reward = (coins, items = []) => Object.freeze({ coins, items: Object.freeze(items.map(([key, count]) => Object.freeze({ key, count }))) })
 /**
  * 7 天签到礼包（G1，用户 2026-10-05 确认，见 docs/tasks/numbers/G1-signin-7.md），价值由低到高，
  * 第 7 天大礼含还魂丹。领完第 7 天回到第 1 天；断签不清零。
  * @type {ReadonlyArray<DailyReward>}
  */
-const reward = (coins, items = []) => Object.freeze({ coins, items: Object.freeze(items.map(([key, count]) => Object.freeze({ key, count }))) })
 export const SIGN_IN_REWARDS = Object.freeze([
   reward(0, [['apple', 3], ['soap', 2]]),
   reward(100),

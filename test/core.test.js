@@ -747,7 +747,10 @@ test('using a care item applies its effects', () => {
   const result = useItem(pig, 'bone', T0)
   assert.equal(result.ok, true)
   assert.ok(pig.satiety > 60, `satiety=${pig.satiety}`)
-  assert.equal(pig.inventory.bone, 0)
+  assert.equal(pig.inventory.bone ?? 0, 0)
+  // 背包里用食物和喂食是同一件事：长体重、记一次喂食、猪会说话。
+  assert.ok(pig.weightG > hatchEgg(T0).weightG)
+  assert.equal(pig.stats.feeds, 1)
   assert.equal(useItem(pig, 'bone', T0).reason, 'empty')
   assert.equal(useItem(pig, 'nope', T0).reason, 'unknown')
 })

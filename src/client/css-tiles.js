@@ -54,6 +54,11 @@ export const CSS_TILES = [
   '.dp-app-title-icon{font-size:14px;line-height:1}',
   '.dp-app-title-icon.dp-tile-svg{width:17px;height:17px}',
   '.dp-setting-row{margin-top:8px}',
+  // 背包顶上的状态条：两列四格 + 一行体重。
+  '.dp-statstrip{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 10px;padding:8px 10px;',
+  'border-radius:var(--ac-radius-sm);background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}',
+  '.dp-statcell .dp-row{margin:0 0 3px;font-size:10.5px}.dp-statcell .dp-meter{height:7px}',
+  '.dp-statweight{grid-column:1 / -1;font-size:10.5px;color:var(--ac-text-2)}',
   // 设置页：每项一块，标题+说明，下面一排分段按钮；开关放在标题右边。
   '.dp-set{padding:10px 0;border-bottom:1.5px dashed var(--ac-border-light)}',
   // 扩展 App：每个扩展一块，图标 + 名称 + 开关，下面一句说明；进行中的提醒用暖色小字。

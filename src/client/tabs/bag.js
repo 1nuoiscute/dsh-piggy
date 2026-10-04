@@ -10,11 +10,14 @@
 import { KIND_ORDER } from '../constants.js'
 import { button, el } from '../dom.js'
 import { num } from '../values.js'
-import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
+import { careEffectLine, drillHeader, drillTo, statStrip, tile, tileGrid } from '../widgets.js'
 import { SHELF_COLOR, shelfParts } from './shop.js'
 
 /** The consumable shelves, in shop order. */
 var CONSUMABLES = KIND_ORDER
+
+/** 这三个货架的东西用了就是一次照料（喂食 / 洗澡 / 玩耍），和状态页原来的按钮一样。 */
+var CARE_ACTION = { food: 'feed', bath: 'bathe', toy: 'play' }
 
 /** The non-shelf categories: what they are called and how they look. */
 var EXTRA = {
@@ -36,11 +39,13 @@ export function renderBagTab(ui) {
   else if (open === 'souvenir') renderSouvenirs(ui)
   else if (open === 'fish') renderFish(ui)
   else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open)
-  else renderCategories(ui)
+  else { statStrip(ui); renderCategories(ui) }
 }
 
-/** What the pig owns of one shelf, with counts. */
+/** What the pig owns of one shelf, with counts. 照料货架用宿主给的 care 列表（含免费的小皮球）。 */
 function ownedOf(ui, kind) {
+  var action = CARE_ACTION[kind]
+  if (action !== undefined && Array.isArray(ui.view.care[action]) && ui.view.care[action].length > 0) return ui.view.care[action]
   return ui.view.shop.filter(function (item) {
     return item.kind === kind && num(ui.view.inventory[item.key], 0) > 0
   })
@@ -52,10 +57,11 @@ function renderCategories(ui) {
     (function (kind) {
       var items = ownedOf(ui, kind)
       var count = items.reduce(function (sum, item) { return sum + num(ui.view.inventory[item.key], 0) }, 0)
+      var hasFree = items.some(function (item) { return item.default === true })
       var parts = shelfParts(kind)
       grid.appendChild(tile({
         emoji: parts[0], label: parts[1], color: SHELF_COLOR[kind] ?? 'blue',
-        badge: count > 0 ? String(count) : '', dim: count === 0,
+        badge: count > 0 ? String(count) : '', dim: count === 0 && !hasFree,
         tag: items.some(function (item) { return item.needed }) ? '需要' : '',
         data: { 'data-bag': kind },
         onPick: function () { drillTo(ui, 'bag', kind) },
@@ -125,7 +131,9 @@ function renderFish(ui) {
 function renderItems(ui, kind) {
   var parts = shelfParts(kind)
   drillHeader(ui, 'bag', parts[0] + ' ' + parts[1], '点一下就用')
+  statStrip(ui)
   var items = ownedOf(ui, kind)
+  var action = CARE_ACTION[kind]
   if (items.length === 0) {
     ui.content.appendChild(el('div', 'dp-empty', '空的'))
     return
@@ -135,10 +143,11 @@ function renderItems(ui, kind) {
     (function (item) {
       grid.appendChild(tile({
         emoji: item.emoji, label: item.label, color: SHELF_COLOR[kind] ?? 'blue', soft: true,
-        badge: '×' + num(ui.view.inventory[item.key], 0), tag: item.needed ? '需要' : '',
-        note: item.kind === 'promotion' ? item.useLabel : '',
+        badge: item.default === true ? '免费' : '×' + num(ui.view.inventory[item.key], 0), tag: item.needed ? '需要' : '',
+        note: action !== undefined ? careEffectLine(action, item) : item.kind === 'promotion' ? item.useLabel : '',
         data: { 'data-use': item.key },
-        onPick: function () { ui.send('use', { item: item.key }) },
+        // 照料货架发喂食 / 洗澡 / 玩耍本身（猪的动作和台词都对得上），其他货架照旧「使用」。
+        onPick: function () { ui.send(action ?? 'use', { item: item.key }) },
       }))
     })(items[i])
   }

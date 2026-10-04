@@ -1313,7 +1313,8 @@ test('the bag tab lists owned items with a use button', async () => {
   await settle()
   await settle()
   const post = net.calls.find(call => call.method === 'POST')
-  assert.deepEqual(JSON.parse(post.body), { action: 'use', item: 'apple' })
+  // G 批次：背包里吃东西就是一次喂食（长体重、会胀气、猪会说话），发的是 feed。
+  assert.deepEqual(JSON.parse(post.body), { action: 'feed', item: 'apple' })
 })
 
 test('an empty bag says so instead of showing nothing', async () => {
