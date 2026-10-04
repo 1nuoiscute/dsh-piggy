@@ -46,6 +46,19 @@ test('桌面版：拖猪由主进程采样，不写页面坐标', async () => {
   assert.equal(hostOf(dom).style.right, offsetBefore, '拖动不改页面里的位置（位置归窗口）')
 })
 
+test('0.2.1 旧外壳只有 moveBy 时仍按屏幕坐标增量拖动', async () => {
+  const moves = []
+  const shell = { moveBy: (dx, dy) => moves.push([dx, dy]), room: () => null }
+  const { dom, store } = await mount({ windowExtra: { __dshPiggyShell: shell } })
+  const scene = sceneOf(dom)
+  scene.fire('pointerdown', { button: 0, clientX: 100, clientY: 100, screenX: 400, screenY: 300, pointerId: 1 })
+  scene.fire('pointermove', { clientX: 110, clientY: 95, screenX: 420, screenY: 290, pointerId: 1 })
+  scene.fire('pointermove', { clientX: 110, clientY: 95, screenX: 437, screenY: 285, pointerId: 1 })
+  scene.fire('pointerup', { pointerId: 1 })
+  assert.deepEqual(moves, [[20, -10], [17, -5]])
+  assert.equal(store.get('dsh-piggy:position'), undefined)
+})
+
 test('桌面版：面板按屏幕空间朝上开（小窗口的 innerWidth 不算数）', async () => {
   const { shell } = fakeShell({ above: 900, below: 100, width: 1920, height: 1040 })
   const { dom } = await mount({ windowExtra: { __dshPiggyShell: shell } })

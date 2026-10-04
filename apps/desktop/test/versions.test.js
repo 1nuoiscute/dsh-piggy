@@ -77,7 +77,7 @@ test('installing checks the download, switches to it, and rollback goes back', a
   try {
     const out = join(dir, 'rel')
     const manifest = await releaseGame(ROOT, out, '0.1.0')
-    assert.equal(manifest.shellVersion, '0.2.1')
+    assert.equal(manifest.shellVersion, '0.2.2')
     const pack = readFileSync(join(out, `game-${manifest.version}.json.gz`))
     const files = { [`m-${manifest.version}`]: JSON.stringify(manifest), [`p-${manifest.version}`]: pack }
     const gh = fakeGithub(files, [release(manifest.version)])
@@ -98,7 +98,7 @@ test('installing checks the download, switches to it, and rollback goes back', a
     assert.equal(versions.activeDir(), join(dir, 'versions', manifest.version))
 
     // A new installer (different shell version) goes back to its own game.
-    const after = createVersions({ userData: dir, bundledDir: bundled, shellVersion: '0.2.1', statePath, fetch: gh.fetch, releasesUrl: 'releases' })
+    const after = createVersions({ userData: dir, bundledDir: bundled, shellVersion: '0.2.2', statePath, fetch: gh.fetch, releasesUrl: 'releases' })
     assert.equal(after.activeDir(), bundled)
   } finally {
     rmSync(dir, { recursive: true, force: true })
