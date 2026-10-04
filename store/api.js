@@ -28,6 +28,10 @@ import {
   startPomodoro as coreStartPomodoro,
   settlePomodoro as coreSettlePomodoro,
   abandonPomodoro as coreAbandonPomodoro,
+  extensionOn as coreExtensionOn,
+  setExtension as coreSetExtension,
+  extensionsView as coreExtensionsView,
+  SHOP as CORE_SHOP,
   recordOnline as coreRecordOnline,
   signIn as coreSignIn,
   reset as coreReset,
@@ -116,7 +120,8 @@ export function createApi(control) {
         // 离线活动先按发生时间逐段结算、翻页；最后再归到当前游戏日。
         coreWriteDiary(state, nowMs)
         // 番茄钟到点就在下一次请求结算（关着面板也算），奖励与计数都在核心侧。
-        coreSettlePomodoro(state, nowMs)
+        // 番茄钟扩展关着就不结算（关的时候进行中的那一个已经放弃）。
+        if (coreExtensionOn(state, 'pomodoro')) coreSettlePomodoro(state, nowMs)
         scheduleSave()
       } catch (error) {
         // Keep the stale-but-valid state, but say why it is stale.
@@ -161,7 +166,16 @@ export function createApi(control) {
     callOffWork: () => mutate(live => coreCallOff(live, now())),
 
     /** Buy one item into the backpack. */
-    buy: itemKey => mutate(live => coreBuy(live, itemKey, now())),
+    buy: itemKey => mutate(live => {
+      // 关掉的扩展的商品（比如钓鱼关了的鱼饵）不卖。
+      const kind = CORE_SHOP.find(item => item.key === itemKey)?.kind
+      const owner = coreExtensionsView(live).find(extension => !extension.on && extension.shopKinds.includes(kind))
+      return owner === undefined ? coreBuy(live, itemKey, now()) : { ok: false, reason: 'extension-off' }
+    }),
+    /** 扩展开关（存档里）。 */
+    setExtension: (key, on) => mutate(live => coreSetExtension(live, key, on, now())),
+    /** 某个扩展开没开（没有猪时按默认）。 */
+    extensionOn: key => coreExtensionOn(getState(), key),
 
     /** Use one item from the backpack. */
     useItem: itemKey => mutate(live => coreUseItem(live, itemKey, now())),

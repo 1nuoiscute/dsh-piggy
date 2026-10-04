@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs'
 
 import { snapshot } from './snapshot.js'
+import { extensionForAction } from './core.js'
 import { customSkinArt, installSkinPack } from './store/skin-pack.js'
 
 const STATE_ROUTE = '/dsh-piggy/state'
@@ -74,6 +75,8 @@ const OPERATIONS = {
   pomodoro: (store, body) => store.startPomodoro(Number(body.minutes)),
   pomodoroAbandon: store => store.abandonPomodoro(),
   openGift: store => store.openGift(),
+  // 扩展中心：打开 / 关闭一个扩展。
+  setExtension: (store, body) => store.setExtension(str(body.key), body.on === true),
   // The panel's timers ask the pig to speak up; the pig decides whether to.
   chat: (store, body) => store.chat(str(body.reason)),
   quiet: (store, body) => store.setQuiet(body.on === true),
@@ -194,7 +197,11 @@ function registerActRoute(webServer, store) {
       const body = await readJsonBody(req)
       if (body === null) return sendJson(res, 413, { error: 'body too large or not JSON' })
       const operation = typeof body.action === 'string' ? body.action : ''
-      const run = Object.hasOwn(OPERATIONS, operation) ? OPERATIONS[operation] : null
+      const found = Object.hasOwn(OPERATIONS, operation) ? OPERATIONS[operation] : null
+      // 关掉的扩展的动作一律拒绝（扩展中心，见 docs/design/extension-center.md）。
+      const owner = extensionForAction(operation)
+      const run = found !== null && owner !== null && typeof store.extensionOn === 'function' && !store.extensionOn(owner.key)
+        ? () => ({ ok: false, reason: 'extension-off' }) : found
       if (run === null) {
         return sendJson(res, 400, { error: `unknown action "${operation}"`, allowed: Object.keys(OPERATIONS) })
       }

@@ -6,6 +6,7 @@
  * @module dsh-piggy/core/migrate
  */
 
+import { ensureExtensions } from './extensions.js'
 import { ILLNESS_CHAINS, INTERESTS, formByKey, MAX, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, interestByKey, itemByKey, jobByKey, schoolStageByKey, subjectByKey, tripByKey } from '../data.js'
 import { MEMORY_LIMIT, STATE_VERSION } from './constants.js'
 import { clamp, clamp100 } from './effects.js'
@@ -91,6 +92,7 @@ export function migrate(input, nowMs) {
   ensureBodyWeight(state)
   ensureFishing(state)
   ensureSkins(state)
+  ensureExtensions(state)
   return state
 }
 
