@@ -60,6 +60,7 @@
     },
     refreshRoom: function () { closedRoom = null },
     beginDrag: function () { shell.beginDrag() },
+    dragHeartbeat: function () { shell.dragHeartbeat?.() },
     endDrag: function () { shell.endDrag() },
     syncGeometry: function () { tick(true) },
   }

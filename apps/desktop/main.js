@@ -23,6 +23,7 @@ import { startHost } from './lib/host.js'
 import { WINDOW_PADDING, absoluteDragBounds, clampBounds, contentBoundsForPig, resizedPigScreenPoint } from './lib/window-geometry.js'
 import { RELEASES_PAGE, createVersions } from './lib/versions.js'
 import { createShellUpdates, shellUpdateMode } from './lib/shell-update.js'
+import { dragHeartbeatExpired } from './lib/drag-watchdog.js'
 
 const { autoUpdater } = updaterPackage
 
@@ -198,7 +199,8 @@ function createWindow() {
   win.loadURL('piggy://app/index.html')
   win.once('ready-to-show', () => { log('ready-to-show'); win.showInactive(); log('shown', JSON.stringify(win.getBounds()), win.isVisible()) })
   win.webContents.on('did-finish-load', () => log('page loaded'))
-  win.webContents.on('render-process-gone', (e, d) => log('renderer gone', JSON.stringify(d)))
+  win.on('blur', stopDrag)
+  win.webContents.on('render-process-gone', (e, d) => { stopDrag(); log('renderer gone', JSON.stringify(d)) })
   win.webContents.on('console-message', (e, level, message) => { if (level >= 2) log('page:', message) })
   if (process.env.PIGGY_DEVTOOLS === '1') win.webContents.openDevTools({ mode: 'detach' })
   if (process.env.PIGGY_CAPTURE) win.webContents.once('did-finish-load', () => { captureForCheck(process.env.PIGGY_CAPTURE) })
@@ -283,6 +285,7 @@ let dragSession = null
 let dragTimer = null
 function dragTick() {
   if (win === null || win.isDestroyed() || dragSession === null) return
+  if (dragHeartbeatExpired(dragSession.lastHeartbeat, Date.now())) { stopDrag(); return }
   const cursor = screen.getCursorScreenPoint()
   const area = screen.getDisplayNearestPoint(cursor).workArea
   applyBounds(absoluteDragBounds(dragSession.bounds, dragSession.cursor, cursor, dragSession.pig, area), 'drag')
@@ -305,8 +308,13 @@ ipcMain.on('piggy:drag:start', event => {
   dragSession = {
     bounds: win.getBounds(), cursor: screen.getCursorScreenPoint(),
     pig: { ...(lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }), ...lastPigSize },
+    lastHeartbeat: Date.now(),
   }
   dragTimer = setInterval(dragTick, 1000 / 60)
+})
+ipcMain.on('piggy:drag:heartbeat', event => {
+  if (win === null || event.sender !== win.webContents || dragSession === null) return
+  dragSession.lastHeartbeat = Date.now()
 })
 ipcMain.on('piggy:drag:end', event => {
   if (win === null || event.sender !== win.webContents) return

@@ -103,6 +103,7 @@ function fakePage(options = {}) {
       setContent: box => window.__shellCalls.content.push(box),
       setShape: rects => window.__shellCalls.shape.push(rects),
       beginDrag: () => window.__shellCalls.drag.push('start'),
+      dragHeartbeat: () => window.__shellCalls.drag.push('beat'),
       endDrag: () => window.__shellCalls.drag.push('end'),
       geometry: () => ({ window: window.__reportedWindow, workArea: { x: 0, y: 0, width: 1920, height: 1040 } }),
       setBounds: bounds => window.__shellCalls.bounds.push(bounds),
@@ -342,8 +343,9 @@ test('拖猪：外壳把主进程采样起止通道开给页面里的猪使用',
   page.tick(false)
   assert.equal(typeof page.window.__dshPiggyShell?.beginDrag, 'function')
   page.window.__dshPiggyShell.beginDrag()
+  page.window.__dshPiggyShell.dragHeartbeat()
   page.window.__dshPiggyShell.endDrag()
-  assert.deepEqual(page.window.__shellCalls.drag, ['start', 'end'])
+  assert.deepEqual(page.window.__shellCalls.drag, ['start', 'beat', 'end'])
 })
 
 // ---------------------------------------------------------------------------

@@ -5133,6 +5133,7 @@
           var dy = event.clientY - drag.y;
           var shellNow = desktopShell();
           if (shellNow !== null) {
+            shellNow.dragHeartbeat?.();
             var screenX = typeof event.screenX === "number" ? event.screenX : event.clientX;
             var screenY = typeof event.screenY === "number" ? event.screenY : event.clientY;
             if (Math.abs(screenX - drag.startX) > 3 || Math.abs(screenY - drag.startY) > 3) drag.moved = true;
@@ -5189,6 +5190,9 @@
           if (!view.dead) flash("pet");
         });
         scene.addEventListener("pointercancel", function() {
+          endDrag();
+        });
+        scene.addEventListener("lostpointercapture", function() {
           endDrag();
         });
         scene.addEventListener("contextmenu", function(event) {

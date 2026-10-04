@@ -59,6 +59,22 @@ test('0.2.1 旧外壳只有 moveBy 时仍按屏幕坐标增量拖动', async () 
   assert.equal(store.get('dsh-piggy:position'), undefined)
 })
 
+test('丢失指针捕获会结束桌面拖动，移动时给主进程发送心跳', async () => {
+  const calls = []
+  const shell = {
+    beginDrag: () => calls.push('start'),
+    dragHeartbeat: () => calls.push('beat'),
+    endDrag: () => calls.push('end'),
+  }
+  const { dom } = await mount({ windowExtra: { __dshPiggyShell: shell } })
+  const scene = sceneOf(dom)
+  scene.fire('pointerdown', { button: 0, clientX: 20, clientY: 20, screenX: 100, screenY: 100, pointerId: 1 })
+  scene.fire('pointermove', { clientX: 30, clientY: 20, screenX: 110, screenY: 100, pointerId: 1 })
+  scene.fire('lostpointercapture', { pointerId: 1 })
+  scene.fire('pointermove', { clientX: 40, clientY: 20, screenX: 120, screenY: 100, pointerId: 1 })
+  assert.deepEqual(calls, ['start', 'beat', 'end'])
+})
+
 test('桌面版：面板按屏幕空间朝上开（小窗口的 innerWidth 不算数）', async () => {
   const { shell } = fakeShell({ above: 900, below: 100, width: 1920, height: 1040 })
   const { dom } = await mount({ windowExtra: { __dshPiggyShell: shell } })

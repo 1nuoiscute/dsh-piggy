@@ -230,8 +230,14 @@ Claude 已核对过代码的根因写在每张卡里；**动手前仍要先复�
 
 - 原 F12 验证记录中的固定像素截图是返工前的基线，不再代表当前档位。小 / 标准 / 大 / 特大现在分别乘成长阶段尺寸 ×0.85 / ×1 / ×1.3 / ×1.7；纸盒、幼年、青年、成年在标准档仍用 58 / 54 / 60 / 68px。成年特大为 115.6px。
 - 本机旧偏好 48/56/72/96 自动迁到对应档位；其他值迁到标准，不改变存档版本。
-- 先写失败测试并确认缺少 `displayedPigSize` 导致测试红，再实现倍率与迁移；定向测试已通过，完整验证将在三项返工完成后记录。
+- 先写失败测试并确认缺少 `displayedPigSize` 导致测试红，再实现倍率与迁移。3084 真实宿主用 Chromium 逐档点击设置，幼年猪显示为 45.9 / 54 / 70.2 / 91.8px；[小](../screenshots/f12-web-small.png)、[标准](../screenshots/f12-web-standard.png)、[大](../screenshots/f12-web-large.png)、[特大](../screenshots/f12-web-extra.png)四张截图均只显示档位名。
+- 独立桌面存档孵化后逐档切换，python-xlib 截真实窗口像素：[小](../screenshots/f12-desktop-small-native.png)、[标准](../screenshots/f12-desktop-standard-native.png)、[大](../screenshots/f12-desktop-large-native.png)、[特大](../screenshots/f12-desktop-extra-native.png)。CSS 尺寸与网页一致，原生窗口为 648×1516 像素（当前系统 2× 缩放）；猪始终在面板下方。
 
 ### 旧桌面外壳兼容
 
 - 先用只有 `moveBy` 的 0.2.1 假外壳复现新客户端拖动失效，再让桌面外壳识别该接口。旧外壳继续按 `screenX/screenY` 增量移动；新外壳仍由主进程按固定起点采样。桌面外壳版本提升至 0.2.2。
+
+### F9 · 拖动收尾保险
+
+- 先写失败测试：页面丢失指针捕获后没有发结束、移动时没有心跳；主进程缺少失焦与渲染进程退出回调，心跳超时判断也不存在。现在 `lostpointercapture`、窗口 `blur`、`render-process-gone` 均结束拖动；主进程只接受当前窗口的心跳，超过一秒没有心跳就停止定时器。
+- 最终 `npm run build && npm test && npm run typecheck` 全绿（49 个测试文件，0 失败）；`client.js` 已重新生成。Windows 上快速拖动、不同缩放和多屏操作仍按上述验收清单由用户实测，通过后再发 v0.27.3。

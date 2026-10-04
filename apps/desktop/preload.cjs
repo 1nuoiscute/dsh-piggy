@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('piggyShell', {
   setShape: rects => ipcRenderer.send('piggy:shape', rects),
   /** Main process samples the cursor at 60 Hz from this pointer-down origin. */
   beginDrag: () => ipcRenderer.send('piggy:drag:start'),
+  dragHeartbeat: () => ipcRenderer.send('piggy:drag:heartbeat'),
   endDrag: () => ipcRenderer.send('piggy:drag:end'),
   /** 主进程推来的窗口/工作区几何：面板朝屏幕里侧开要用。 */
   geometry: () => geometry,
