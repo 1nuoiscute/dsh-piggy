@@ -4,25 +4,15 @@ import { test } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { contentOf, findByAttr, findByClass, mount, openPanel } from './helpers/bundle.js'
 
-test('settings switches and persists system Emoji or bundled app icons', async () => {
+test('设置里没有「主菜单图标」选项；以前存过手绘图标的设备也显示 emoji', async () => {
   const { dom, store } = await mount()
+  store.set('dsh-piggy:icon-style', 'built-in')
   openPanel(dom)
-  assert.ok(findByAttr(contentOf(dom), 'data-app', 'settings'))
   assert.equal(findByAttr(contentOf(dom), 'data-app', 'shop').allText().includes('🛒'), true)
+  assert.equal(findByClass(findByAttr(contentOf(dom), 'data-app', 'shop'), 'dp-tile-svg'), undefined)
   findByAttr(contentOf(dom), 'data-app', 'settings').fire('click')
-  assert.ok(findByAttr(contentOf(dom), 'data-icon-style', 'system'))
-  findByAttr(contentOf(dom), 'data-icon-style', 'built-in').fire('click')
-  assert.equal(store.get('dsh-piggy:icon-style'), 'built-in')
-  findByAttr(contentOf(dom), 'data-home', 'true').fire('click')
-  const shop = findByAttr(contentOf(dom), 'data-app', 'shop')
-  const icon = findByClass(shop, 'dp-tile-svg')
-  assert.equal(icon.tagName, 'img')
-  assert.match(icon.src, /ui-shop\.svg$/)
-  findByAttr(contentOf(dom), 'data-app', 'settings').fire('click')
-  findByAttr(contentOf(dom), 'data-icon-style', 'system').fire('click')
-  assert.equal(store.get('dsh-piggy:icon-style'), 'system')
-  findByAttr(contentOf(dom), 'data-home', 'true').fire('click')
-  assert.equal(findByAttr(contentOf(dom), 'data-app', 'shop').allText().includes('🛒'), true)
+  assert.equal(findByAttr(contentOf(dom), 'data-icon-style', 'system'), undefined)
+  assert.equal(findByAttr(contentOf(dom), 'data-icon-style', 'built-in'), undefined)
 })
 
 test('every App icon in the bundle has a real SVG asset', () => {

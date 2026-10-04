@@ -5,7 +5,6 @@
  * 各带一个「使用」按钮，小猪大小一项就四行，用户反馈「菜单设计不合理」（2026-10-04）。
  */
 import { button, el } from '../dom.js'
-import { iconStyle, setIconStyle } from '../icon-style.js'
 import { autoCollapseEnabled, setAutoCollapse } from '../auto-collapse.js'
 import { desktopShell } from '../desktop-shell.js'
 import { emojiStyle, hasBundledEmoji, setEmojiStyle, applyEmojiStyle } from '../emoji-style.js'
@@ -57,15 +56,6 @@ export function renderSettingsTab(ui) {
       ui.renderContent()
     })
   }
-
-  const icons = section(ui, '主菜单图标', '手绘图标随游戏提供，设备之间看起来一致')
-  segmented(icons, 'data-icon-style', [
-    { key: 'system', label: 'Emoji' },
-    { key: 'built-in', label: '手绘图标' },
-  ], iconStyle(), function (key) {
-    setIconStyle(key)
-    ui.renderContent()
-  })
 
   const close = section(ui, '点击别处时收起面板', '网页版点面板外、桌面版切到其他窗口时收起')
   const on = autoCollapseEnabled()

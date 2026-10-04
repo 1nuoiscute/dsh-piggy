@@ -120,8 +120,11 @@ export function renderUpdateTab(ui) {
   if (state.current === null && state.list === null && state.error === null) refresh(ui)
   var cur = state.current
   var head = el('div', 'dp-pick dp-tile-card dp-update-now')
-  head.appendChild(el('div', 'dp-pick-head', cur === null ? '正在看现在的版本…'
+  // 标题行：左边版本，右边刷新按钮。上一版把按钮浮在右上角，压住了版本号（用户 2026-10-05 反馈）。
+  var top = el('div', 'dp-update-top')
+  top.appendChild(el('div', 'dp-pick-head', cur === null ? '正在看现在的版本…'
     : '游戏 v' + cur.version + (cur.bundled ? '（安装包自带）' : '')))
+  head.appendChild(top)
   if (cur !== null) head.appendChild(el('div', 'dp-dim', '桌面外壳 v' + cur.shell + ' · 游戏玩法和窗口功能分别更新'))
   if (state.message !== null) head.appendChild(el('div', 'dp-req', state.message))
   // 刷新：重新问一遍 GitHub 和本机现在的版本（以前没有入口，出错时只能重开面板）。
@@ -132,7 +135,7 @@ export function renderUpdateTab(ui) {
   })
   again.textContent = state.loading ? '正在刷新…' : '🔄 刷新'
   again.disabled = state.loading || state.busy !== null || state.shellBusy
-  head.appendChild(again)
+  top.appendChild(again)
   // 正在用预览版时，预览版也算「最新」的候选；否则只看正式版。
   var onPreview = cur !== null && String(cur.version).indexOf('-') >= 0
   var eligible = function (r) { return !r.prerelease || onPreview }

@@ -10,7 +10,6 @@
   var MOUNTED = "data-dsh-pig";
   var OPEN_KEY = "dsh-piggy:open";
   var POSITION_KEY = "dsh-piggy:position";
-  var ICON_STYLE_KEY = "dsh-piggy:icon-style";
   var PANEL_WIDTH = 292;
   var PANEL_GAP = 8;
   var PANEL_MARGIN = 10;
@@ -1642,7 +1641,7 @@
         var next = await res.json();
         if (action === "buy" && next?.ok === true) ctx.justBought = extra?.item ?? null;
         ctx.render(next);
-        if ((action === "signIn" || action === "openGift") && next?.ok === true && !ctx.isOpen) {
+        if ((action === "signIn" || action === "openGift") && next?.ok === true) {
           var reward = str(next.reward, "");
           ctx.showBubble((action === "signIn" ? "\u7B7E\u5230\u6210\u529F" : "\u793C\u5305\u6253\u5F00") + (reward ? " \xB7 " + reward : ""), 4e3);
         }
@@ -2347,6 +2346,51 @@
     return stageSize * SCALE[pigSize()];
   }
 
+  // src/client/pat-cursor.js
+  var SIZE = 32;
+  var drawnFor = null;
+  function applyPatCursor(host) {
+    if (typeof document === "undefined" || typeof document.createElement !== "function" || typeof getComputedStyle !== "function") return;
+    let family = "sans-serif";
+    try {
+      family = String(getComputedStyle(host).getPropertyValue("--ac-font") || "").trim() || "sans-serif";
+    } catch {
+      return;
+    }
+    if (drawnFor === family) return;
+    drawnFor = family;
+    const font = `26px ${family}`;
+    const draw = () => {
+      try {
+        const canvas = (
+          /** @type {HTMLCanvasElement} */
+          document.createElement("canvas")
+        );
+        if (typeof canvas.getContext !== "function") return;
+        canvas.width = SIZE;
+        canvas.height = SIZE;
+        const ctx = canvas.getContext("2d");
+        if (ctx === null) return;
+        ctx.font = font;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("\u{1F44B}", SIZE / 2, SIZE / 2 + 1);
+        const url = canvas.toDataURL("image/png");
+        if (typeof url === "string" && url.startsWith("data:image/png")) host.style.setProperty("--pat-cursor", `url(${url}) 14 18, pointer`);
+      } catch {
+      }
+    };
+    const fonts = (
+      /** @type {any} */
+      document.fonts
+    );
+    try {
+      if (fonts !== void 0 && typeof fonts.load === "function") fonts.load(font, "\u{1F44B}").then(draw, draw);
+      else draw();
+    } catch {
+    }
+  }
+
   // src/client/emoji-style.js
   var EMOJI_STYLE_KEY = "dsh-piggy:emoji-style";
   function emojiStyle() {
@@ -2373,6 +2417,7 @@
   }
   function applyEmojiStyle(host) {
     host.setAttribute("data-emoji", emojiStyle());
+    applyPatCursor(host);
   }
 
   // src/client/css-base.js
@@ -2497,7 +2542,8 @@
     // it needs no asset and can carry the palette's warm outline; the hotspot
     // sits in the palm, which is where a pat actually lands. The `pointer`
     // after it is the fallback for browsers that refuse a custom cursor.
-    `.dp-pig{cursor:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="%23F7C9B6" stroke="%23794F27" stroke-width="1.7" stroke-linejoin="round"><rect x="10" y="13.5" width="14" height="12" rx="4.8"/><rect x="10.6" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="14.9" y="5.1" width="3.6" height="11.5" rx="1.8"/><rect x="19.2" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="5.7" y="12.4" width="3.4" height="7.8" rx="1.7" transform="rotate(-27 7.4 16.3)"/></g></svg>') 16 24, pointer}`,
+    // 运行时会用 canvas 画好挥手 emoji 写进 --pat-cursor（见 pat-cursor.js）；下面的手画手掌只是兜底。
+    `.dp-pig{cursor:var(--pat-cursor, url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><g fill="%23F7C9B6" stroke="%23794F27" stroke-width="1.7" stroke-linejoin="round"><rect x="10" y="13.5" width="14" height="12" rx="4.8"/><rect x="10.6" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="14.9" y="5.1" width="3.6" height="11.5" rx="1.8"/><rect x="19.2" y="6.6" width="3.6" height="10" rx="1.8"/><rect x="5.7" y="12.4" width="3.4" height="7.8" rx="1.7" transform="rotate(-27 7.4 16.3)"/></g></svg>') 16 24, pointer)}`,
     // Transform-only keyframes: the pig is an ordinary flex item, so there is
     // no translateX(-50%) centring to preserve.
     "@keyframes dp-bob{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-7px) rotate(-2.5deg)}}",
@@ -2831,13 +2877,16 @@
     "animation:dp-rise 1.1s ease-out forwards}",
     "@keyframes dp-rise{0%{opacity:0;transform:translate(var(--dx0,0),4px) scale(.5)}18%{opacity:1}",
     "100%{opacity:0;transform:translate(var(--dx,0),-56px) scale(1.15)}}",
-    ".dp-toast{position:absolute;left:9px;right:9px;top:8px;padding:8px 11px;",
+    // 提示条插在面板最上面、把内容往下推，不再浮在面板上压住标题和第一排图标（用户 2026-10-05 反馈）。
+    ".dp-toast{position:relative;flex:none;margin:8px 9px 0;padding:8px 11px;box-sizing:border-box;overflow:hidden;",
     "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.5;",
     "color:var(--ac-text);background:var(--ac-bg-input);border:2px solid var(--ac-border);",
     "box-shadow:var(--ac-shadow);pointer-events:none;white-space:normal;",
     "animation:dp-toast 4.6s var(--ac-ease) forwards}",
-    "@keyframes dp-toast{0%{opacity:0;transform:translateY(-8px)}8%{opacity:1;transform:translateY(0)}",
-    "82%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}"
+    "@keyframes dp-toast{0%{opacity:0;max-height:0;margin-top:0;padding-top:0;padding-bottom:0}",
+    "7%{opacity:1;max-height:72px;margin-top:8px;padding-top:8px;padding-bottom:8px}",
+    "86%{opacity:1;max-height:72px;margin-top:8px;padding-top:8px;padding-bottom:8px}",
+    "100%{opacity:0;max-height:0;margin-top:0;padding-top:0;padding-bottom:0;border-width:0}}"
   ].join("");
 
   // src/client/css-tiles.js
@@ -2958,9 +3007,10 @@
     // 更新 App: the release notes keep their line breaks but stay short.
     ".dp-update-notes{white-space:pre-wrap;font-size:10.5px;line-height:1.5;color:var(--ac-text-2);max-height:120px;overflow:auto;margin:4px 0 6px}",
     ".dp-update-back{margin-top:10px;width:100%}",
-    ".dp-update-now{margin-bottom:12px;position:relative}",
-    // 刷新按钮放在版本卡右上角。
-    ".dp-update-refresh{position:absolute;top:8px;right:8px}",
+    ".dp-update-now{margin-bottom:12px}",
+    ".dp-update-top{display:flex;align-items:center;gap:8px}",
+    ".dp-update-top .dp-pick-head{flex:1;min-width:0}",
+    ".dp-update-refresh{flex:none}",
     ".dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}"
   ].join("");
 
@@ -3745,10 +3795,7 @@
     "dev"
   ]);
   function iconStyle() {
-    return readStore(ICON_STYLE_KEY) === "built-in" ? "built-in" : "system";
-  }
-  function setIconStyle(style) {
-    writeStore(ICON_STYLE_KEY, style === "built-in" ? "built-in" : "system");
+    return "system";
   }
   function appIcon(key, emoji, className) {
     if (iconStyle() !== "built-in" || !BUNDLED.has(key)) return el("span", className, emoji);
@@ -4135,7 +4182,9 @@
     if (state.current === null && state.list === null && state.error === null) refresh(ui);
     var cur = state.current;
     var head = el("div", "dp-pick dp-tile-card dp-update-now");
-    head.appendChild(el("div", "dp-pick-head", cur === null ? "\u6B63\u5728\u770B\u73B0\u5728\u7684\u7248\u672C\u2026" : "\u6E38\u620F v" + cur.version + (cur.bundled ? "\uFF08\u5B89\u88C5\u5305\u81EA\u5E26\uFF09" : "")));
+    var top = el("div", "dp-update-top");
+    top.appendChild(el("div", "dp-pick-head", cur === null ? "\u6B63\u5728\u770B\u73B0\u5728\u7684\u7248\u672C\u2026" : "\u6E38\u620F v" + cur.version + (cur.bundled ? "\uFF08\u5B89\u88C5\u5305\u81EA\u5E26\uFF09" : "")));
+    head.appendChild(top);
     if (cur !== null) head.appendChild(el("div", "dp-dim", "\u684C\u9762\u5916\u58F3 v" + cur.shell + " \xB7 \u6E38\u620F\u73A9\u6CD5\u548C\u7A97\u53E3\u529F\u80FD\u5206\u522B\u66F4\u65B0"));
     if (state.message !== null) head.appendChild(el("div", "dp-req", state.message));
     var again = button("dp-mini dp-update-refresh", { "data-update-refresh": "" }, function() {
@@ -4145,7 +4194,7 @@
     });
     again.textContent = state.loading ? "\u6B63\u5728\u5237\u65B0\u2026" : "\u{1F504} \u5237\u65B0";
     again.disabled = state.loading || state.busy !== null || state.shellBusy;
-    head.appendChild(again);
+    top.appendChild(again);
     var onPreview = cur !== null && String(cur.version).indexOf("-") >= 0;
     var eligible = function(r) {
       return !r.prerelease || onPreview;
@@ -4447,14 +4496,6 @@
         ui.renderContent();
       });
     }
-    const icons = section(ui, "\u4E3B\u83DC\u5355\u56FE\u6807", "\u624B\u7ED8\u56FE\u6807\u968F\u6E38\u620F\u63D0\u4F9B\uFF0C\u8BBE\u5907\u4E4B\u95F4\u770B\u8D77\u6765\u4E00\u81F4");
-    segmented(icons, "data-icon-style", [
-      { key: "system", label: "Emoji" },
-      { key: "built-in", label: "\u624B\u7ED8\u56FE\u6807" }
-    ], iconStyle(), function(key) {
-      setIconStyle(key);
-      ui.renderContent();
-    });
     const close = section(ui, "\u70B9\u51FB\u522B\u5904\u65F6\u6536\u8D77\u9762\u677F", "\u7F51\u9875\u7248\u70B9\u9762\u677F\u5916\u3001\u684C\u9762\u7248\u5207\u5230\u5176\u4ED6\u7A97\u53E3\u65F6\u6536\u8D77");
     const on = autoCollapseEnabled();
     const toggle = button("dp-switch", { "data-auto-collapse": String(!on), "aria-pressed": String(on) }, function() {
@@ -4730,6 +4771,7 @@
           ctx.react("away", 900);
           continue;
         }
+        if (event.kind === "gift") continue;
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
         if (event.kind === "coronation") {
           ctx.react("levelup", 950);

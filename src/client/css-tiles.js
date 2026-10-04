@@ -129,8 +129,9 @@ export const CSS_TILES = [
   // 更新 App: the release notes keep their line breaks but stay short.
   '.dp-update-notes{white-space:pre-wrap;font-size:10.5px;line-height:1.5;color:var(--ac-text-2);max-height:120px;overflow:auto;margin:4px 0 6px}',
   '.dp-update-back{margin-top:10px;width:100%}',
-  '.dp-update-now{margin-bottom:12px;position:relative}',
-  // 刷新按钮放在版本卡右上角。
-  '.dp-update-refresh{position:absolute;top:8px;right:8px}',
+  '.dp-update-now{margin-bottom:12px}',
+  '.dp-update-top{display:flex;align-items:center;gap:8px}',
+  '.dp-update-top .dp-pick-head{flex:1;min-width:0}',
+  '.dp-update-refresh{flex:none}',
   '.dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}',
 ].join('')

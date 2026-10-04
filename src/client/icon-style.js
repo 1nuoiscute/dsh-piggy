@@ -1,20 +1,19 @@
 // @ts-check
 /** Local UI preference; it does not become part of the pig save. */
-import { ART_URL, ICON_STYLE_KEY } from './constants.js'
+import { ART_URL } from './constants.js'
 import { el } from './dom.js'
-import { readStore, writeStore } from './storage.js'
 
 const BUNDLED = new Set([
   'status', 'card', 'dex', 'skins', 'study', 'work', 'shop', 'travel',
   'bag', 'pomodoro', 'fishing', 'settings', 'update', 'quit', 'dev',
 ])
 
+/**
+ * 主菜单图标一律用 emoji（用户 2026-10-05：要的只是 Emoji 样式，「主菜单图标」选项多余，已从设置里拿掉）。
+ * 以前存过 built-in 的设备也回到 emoji，免得卡在一个看不到的选项上。手绘 SVG 素材先留着。
+ */
 export function iconStyle() {
-  return readStore(ICON_STYLE_KEY) === 'built-in' ? 'built-in' : 'system'
-}
-
-export function setIconStyle(style) {
-  writeStore(ICON_STYLE_KEY, style === 'built-in' ? 'built-in' : 'system')
+  return 'system'
 }
 
 /** Missing bundled files fall back to the device's Emoji. */
