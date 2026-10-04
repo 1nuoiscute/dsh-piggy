@@ -5034,10 +5034,18 @@
     input.addEventListener("change", function() {
       const file = input.files?.[0];
       if (!file) return;
-      fetch("/dsh-piggy/skins/import", { method: "POST", headers: { "content-type": "application/zip" }, body: file }).then((response) => response.json()).then((data) => {
+      file.arrayBuffer().then(function(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 32768) binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 32768)));
+        return fetch("/dsh-piggy/skins/import", { method: "POST", headers: { "content-type": "text/plain" }, body: btoa(binary) });
+      }).then((response) => response.json()).then((data) => {
         if (data.ok !== true) return ui.showBubble("\u5BFC\u5165\u5931\u8D25\uFF1A" + ((data.errors || [data.reason]).join("\uFF1B") || "\u8BF7\u68C0\u67E5\u76AE\u80A4\u5305"));
-        ui.view = data;
-        ui.renderContent();
+        if (typeof ui.render === "function") ui.render(data);
+        else {
+          ui.view = data;
+          ui.renderContent();
+        }
         ui.showBubble("\u76AE\u80A4\u5BFC\u5165\u6210\u529F \u{1F3A8}");
       }).catch(() => ui.showBubble("\u5BFC\u5165\u5931\u8D25\uFF1A\u65E0\u6CD5\u8BFB\u53D6\u76AE\u80A4\u5305"));
     });

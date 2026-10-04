@@ -167,8 +167,12 @@ function registerSkinRoute(webServer, store) {
     kind: 'exact', path: SKIN_ROUTE,
     handler: async (req, res) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed; use POST' }, { allow: 'POST' })
-      const zip = await readBuffer(req, SKIN_LIMIT_BYTES)
-      if (zip === null) return sendJson(res, 413, { ok: false, reason: 'too-large', errors: ['ZIP 不能超过 2 MB'] })
+      // 收原始 ZIP（老客户端、DSH 网页）或 base64 文本（新客户端；桌面版的本地协议会把二进制当文本读坏）。
+      const raw = await readBuffer(req, Math.ceil(SKIN_LIMIT_BYTES * 1.4))
+      if (raw === null) return sendJson(res, 413, { ok: false, reason: 'too-large', errors: ['ZIP 不能超过 2 MB'] })
+      const zip = raw[0] === 0x50 && raw[1] === 0x4b ? raw : Buffer.from(raw.toString('ascii').trim(), 'base64')
+      if (zip.length > SKIN_LIMIT_BYTES) return sendJson(res, 413, { ok: false, reason: 'too-large', errors: ['ZIP 不能超过 2 MB'] })
+      if (zip[0] !== 0x50 || zip[1] !== 0x4b) return sendJson(res, 400, { ok: false, reason: 'invalid-pack', errors: ['这不是 ZIP 文件'] })
       try {
         const result = installSkinPack(store.filePath, zip)
         if (!result.ok || result.metadata === undefined) return sendJson(res, 400, { ok: false, reason: 'invalid-pack', errors: result.errors })

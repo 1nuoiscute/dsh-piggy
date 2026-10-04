@@ -57,12 +57,20 @@ function importCard(ui) {
   input.addEventListener('change', function () {
     const file = input.files?.[0]
     if (!file) return
-    fetch('/dsh-piggy/skins/import', { method: 'POST', headers: { 'content-type': 'application/zip' }, body: file })
+    // 以 base64 文本发送：桌面版的本地协议会把请求体当文本读，直接发二进制 ZIP 会被读坏
+    // （G 批次实测：桌面版导入官方示例包也报「ZIP 目录损坏」）。宿主两种格式都认。
+    file.arrayBuffer()
+      .then(function (buffer) {
+        const bytes = new Uint8Array(buffer)
+        let binary = ''
+        for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)))
+        return fetch('/dsh-piggy/skins/import', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: btoa(binary) })
+      })
       .then(response => response.json())
       .then(data => {
         if (data.ok !== true) return ui.showBubble('导入失败：' + ((data.errors || [data.reason]).join('；') || '请检查皮肤包'))
-        ui.view = data
-        ui.renderContent()
+        if (typeof ui.render === 'function') ui.render(data)
+        else { ui.view = data; ui.renderContent() }
         ui.showBubble('皮肤导入成功 🎨')
       })
       .catch(() => ui.showBubble('导入失败：无法读取皮肤包'))
