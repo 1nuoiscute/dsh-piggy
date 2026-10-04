@@ -11,7 +11,7 @@
 import { GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS, SHOP, itemByKey } from '../data.js'
 import { dayKeyFor } from './clock.js'
 import { rollerFor } from './random.js'
-import { announce } from './effects.js'
+import { announce, remember } from './effects.js'
 import { say } from './lines.js'
 import { recordDex } from './dex.js'
 
@@ -20,7 +20,7 @@ export { dayKeyFor }
 /** 一份全新的日常状态：今天没签、没在线、没礼包。 */
 export function emptyDaily() {
   return {
-    signIn: { lastDay: null, index: 0, total: 0 },
+    signIn: { lastDay: null, index: 0, total: 0, cycle7: true },
     online: { day: null, onlineMs: 0, given: 0, unclaimed: 0 },
   }
 }
@@ -38,12 +38,17 @@ export function ensureDaily(state) {
   }
   const signIn = raw.signIn !== null && typeof raw.signIn === 'object' && !Array.isArray(raw.signIn) ? raw.signIn : {}
   const online = raw.online !== null && typeof raw.online === 'object' && !Array.isArray(raw.online) ? raw.online : {}
-  const index = Number.isInteger(signIn.index) && signIn.index >= 0 ? signIn.index % SIGN_IN_CYCLE : 0
+  let index = Number.isInteger(signIn.index) && signIn.index >= 0 ? signIn.index : 0
+  // G1（用户 2026-10-05 确认）：签到从 12 天改成 7 天。老存档正在第 8～12 天的，回到第 1 天，
+  // 并补发一份第 7 天礼包，不让人吃亏；第 1～7 天的原样接着领。只换算一次（cycle7 标记）。
+  let compensated = false
+  if (signIn.cycle7 !== true && index >= SIGN_IN_CYCLE) { index = 0; compensated = true }
   state.daily = {
     signIn: {
       lastDay: typeof signIn.lastDay === 'string' && signIn.lastDay !== '' ? signIn.lastDay : null,
-      index,
+      index: index % SIGN_IN_CYCLE,
       total: Number.isInteger(signIn.total) && signIn.total >= 0 ? signIn.total : 0,
+      cycle7: true,
     },
     online: {
       day: typeof online.day === 'string' && online.day !== '' ? online.day : null,
@@ -51,6 +56,10 @@ export function ensureDaily(state) {
       given: Number.isInteger(online.given) && online.given >= 0 ? online.given : 0,
       unclaimed: Number.isInteger(online.unclaimed) && online.unclaimed >= 0 ? online.unclaimed : 0,
     },
+  }
+  if (compensated) {
+    const text = grantReward(state, SIGN_IN_REWARDS[SIGN_IN_CYCLE - 1])
+    remember(state, `📅 签到改成 7 天一轮，补发第 7 天礼包：${text}`, 0)
   }
   return state.daily
 }

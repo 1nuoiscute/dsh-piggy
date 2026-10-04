@@ -62,30 +62,41 @@ test('a missed day does not reset the ladder', () => {
   assert.equal(result.day, 2, 'the next reward, not back to the start')
 })
 
-test('the ladder pays what the confirmed table says', () => {
-  // Day 1: 3 apples. Day 8: a 还魂丹. Day 12: the big one.
+test('the ladder pays what the confirmed G1 table says (7 days)', () => {
+  // G1（用户 2026-10-05 确认）：第 1 天苹果和香皂，第 7 天还魂丹 + 豪华大餐 ×2，然后回到第 1 天。
   const pig = hatchEgg(at(2026, 10, 1, 9))
   let clock = at(2026, 10, 1, 9)
-
   const first = signIn(pig, clock)
   assert.equal(pig.inventory.apple, 3)
+  assert.equal(pig.inventory.soap, 2)
   assert.ok(first.reward.includes('苹果'), first.reward)
   clock += DAY
-
-  for (let day = 2; day <= 7; day += 1) { signIn(pig, clock); clock += DAY }
+  for (let day = 2; day <= 6; day += 1) { signIn(pig, clock); clock += DAY }
+  assert.equal(pig.inventory.baicaodan, 1, 'day 6 is the 百草丹')
   const coinsBefore = pig.coins
-  const eighth = signIn(pig, clock)
-  assert.equal(pig.inventory.soul, 1, 'day 8 is the 还魂丹')
-  assert.ok(eighth.reward.includes('还魂丹'), eighth.reward)
-  assert.equal(pig.coins, coinsBefore, 'day 8 pays no coins, only the 还魂丹')
-  clock += DAY
-
-  for (let day = 9; day <= 11; day += 1) { signIn(pig, clock); clock += DAY }
-  const beforeTwelve = pig.coins
-  signIn(pig, clock)
+  const seventh = signIn(pig, clock)
+  assert.equal(pig.inventory.soul, 1, 'day 7 is the 还魂丹')
   assert.equal(pig.inventory.feast, 2)
-  assert.equal(pig.inventory.carousel, 1)
-  assert.equal(pig.coins, beforeTwelve + 500, 'day 12 pays 500 on top of its items')
+  assert.ok(seventh.reward.includes('还魂丹'), seventh.reward)
+  assert.equal(pig.coins, coinsBefore)
+  clock += DAY
+  assert.equal(signIn(pig, clock).day, 1, 'after day 7 comes day 1 again')
+})
+
+test('G1：老存档在第 8～12 天的回到第 1 天并补发第 7 天礼包；第 1～7 天原样接着领；只换算一次', () => {
+  const late = hatchEgg(at(2026, 10, 1, 9))
+  late.daily = { signIn: { lastDay: '2026-09-30', index: 9, total: 9 }, online: {} }
+  ensureDaily(late)
+  assert.equal(late.daily.signIn.index, 0)
+  assert.equal(late.inventory.soul, 1)
+  assert.equal(late.inventory.feast, 2)
+  ensureDaily(late)
+  assert.equal(late.inventory.soul, 1, '只补一次')
+  const early = hatchEgg(at(2026, 10, 1, 9))
+  early.daily = { signIn: { lastDay: '2026-09-30', index: 4, total: 4 }, online: {} }
+  ensureDaily(early)
+  assert.equal(early.daily.signIn.index, 4)
+  assert.equal(early.inventory.soul, undefined)
 })
 
 test('a dead pig and an unopened box can still sign in', () => {
@@ -122,7 +133,7 @@ test('daily survives a restart, and an old save without it gets sane defaults', 
   delete old.daily
   const upgraded = migrate(JSON.parse(JSON.stringify(old)), at(2026, 10, 1, 10))
   assert.deepEqual(upgraded.daily, {
-    signIn: { lastDay: null, index: 0, total: 0 },
+    signIn: { lastDay: null, index: 0, total: 0, cycle7: true },
     online: { day: null, onlineMs: 0, given: 0, unclaimed: 0 },
   })
 })
@@ -137,9 +148,9 @@ test('a corrupted daily block is repaired instead of crashing the load', () => {
   assert.equal(daily.online.given, 0)
 })
 
-test('the confirmed ladder is still 12 entries and every key is a real item', () => {
-  assert.equal(SIGN_IN_CYCLE, 12)
-  assert.deepEqual(SIGN_IN_REWARDS.map(entry => entry.items.length >= 1 || entry.coins > 0), Array(12).fill(true))
+test('the confirmed ladder is 7 entries and every key is a real item', () => {
+  assert.equal(SIGN_IN_CYCLE, 7)
+  assert.deepEqual(SIGN_IN_REWARDS.map(entry => entry.items.length >= 1 || entry.coins > 0), Array(7).fill(true))
 })
 
 // ===========================================================================

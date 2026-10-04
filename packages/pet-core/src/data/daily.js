@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * 日常玩法：签到 12 天、在线礼包、宠物日记的数值与文案。
+ * 日常玩法：签到 7 天、在线礼包、宠物日记的数值与文案。
  *
  * 数值以 docs/tasks/numbers/B5-daily.md（用户 2026-10-01 确认）为准 —— 不要随手改，
  * 觉得不合理就写进任务卡等人拍板。零逻辑、零 IO（见 docs/CONVENTIONS.md）。
@@ -17,43 +17,21 @@
  */
 
 /**
- * 12 天签到礼包，价值由低到高：第 8 天是还魂丹，第 12 天是豪华大餐。
- * 领完第 12 天回到第 1 天；断签不清零。
+ * 7 天签到礼包（G1，用户 2026-10-05 确认，见 docs/tasks/numbers/G1-signin-7.md），价值由低到高，
+ * 第 7 天大礼含还魂丹。领完第 7 天回到第 1 天；断签不清零。
  * @type {ReadonlyArray<DailyReward>}
  */
+const reward = (coins, items = []) => Object.freeze({ coins, items: Object.freeze(items.map(([key, count]) => Object.freeze({ key, count }))) })
 export const SIGN_IN_REWARDS = Object.freeze([
-  Object.freeze({ coins: 0, items: Object.freeze([Object.freeze({ key: 'apple', count: 3 })]) }),
-  Object.freeze({ coins: 50, items: Object.freeze([]) }),
-  Object.freeze({ coins: 0, items: Object.freeze([
-    Object.freeze({ key: 'soap', count: 3 }),
-    Object.freeze({ key: 'bread', count: 2 }),
-  ]) }),
-  Object.freeze({ coins: 100, items: Object.freeze([]) }),
-  Object.freeze({ coins: 0, items: Object.freeze([
-    Object.freeze({ key: 'plush', count: 1 }),
-    Object.freeze({ key: 'rice', count: 2 }),
-  ]) }),
-  Object.freeze({ coins: 0, items: Object.freeze([
-    Object.freeze({ key: 'banlangen', count: 1 }),
-    Object.freeze({ key: 'xiaoshipian', count: 1 }),
-    Object.freeze({ key: 'pipa-syrup', count: 1 }),
-  ]) }),
-  Object.freeze({ coins: 200, items: Object.freeze([]) }),
-  Object.freeze({ coins: 0, items: Object.freeze([Object.freeze({ key: 'soul', count: 1 })]) }),
-  Object.freeze({ coins: 0, items: Object.freeze([
-    Object.freeze({ key: 'bubble', count: 3 }),
-    Object.freeze({ key: 'skewer', count: 2 }),
-  ]) }),
-  Object.freeze({ coins: 300, items: Object.freeze([]) }),
-  Object.freeze({ coins: 0, items: Object.freeze([Object.freeze({ key: 'baicaodan', count: 1 })]) }),
-  Object.freeze({ coins: 500, items: Object.freeze([
-    Object.freeze({ key: 'feast', count: 2 }),
-    Object.freeze({ key: 'deadsea', count: 2 }),
-    Object.freeze({ key: 'carousel', count: 1 }),
-  ]) }),
+  reward(0, [['apple', 3], ['soap', 2]]),
+  reward(100),
+  reward(0, [['rice', 2], ['plush', 1]]),
+  reward(0, [['banlangen', 1], ['xiaoshipian', 1], ['pipa-syrup', 1], ['bubble', 2]]),
+  reward(200, [['skewer', 2]]),
+  reward(0, [['baicaodan', 1]]),
+  reward(0, [['soul', 1], ['feast', 2]]),
 ])
 
-/** 签到一轮多少天。 */
 export const SIGN_IN_CYCLE = SIGN_IN_REWARDS.length
 
 /**
