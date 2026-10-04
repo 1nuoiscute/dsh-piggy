@@ -257,11 +257,14 @@ export const CSS_TABS = [
   'animation:dp-rise 1.1s ease-out forwards}',
   '@keyframes dp-rise{0%{opacity:0;transform:translate(var(--dx0,0),4px) scale(.5)}18%{opacity:1}',
   '100%{opacity:0;transform:translate(var(--dx,0),-56px) scale(1.15)}}',
-  '.dp-toast{position:absolute;left:9px;right:9px;top:8px;padding:8px 11px;',
+  // 提示条插在面板最上面、把内容往下推，不再浮在面板上压住标题和第一排图标（用户 2026-10-05 反馈）。
+  '.dp-toast{position:relative;flex:none;margin:8px 9px 0;padding:8px 11px;box-sizing:border-box;overflow:hidden;',
   'border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.5;',
   'color:var(--ac-text);background:var(--ac-bg-input);border:2px solid var(--ac-border);',
   'box-shadow:var(--ac-shadow);pointer-events:none;white-space:normal;',
   'animation:dp-toast 4.6s var(--ac-ease) forwards}',
-  '@keyframes dp-toast{0%{opacity:0;transform:translateY(-8px)}8%{opacity:1;transform:translateY(0)}',
-  '82%{opacity:1}100%{opacity:0;transform:translateY(-6px)}}',
+  '@keyframes dp-toast{0%{opacity:0;max-height:0;margin-top:0;padding-top:0;padding-bottom:0}',
+  '7%{opacity:1;max-height:72px;margin-top:8px;padding-top:8px;padding-bottom:8px}',
+  '86%{opacity:1;max-height:72px;margin-top:8px;padding-top:8px;padding-bottom:8px}',
+  '100%{opacity:0;max-height:0;margin-top:0;padding-top:0;padding-bottom:0;border-width:0}}',
 ].join('')

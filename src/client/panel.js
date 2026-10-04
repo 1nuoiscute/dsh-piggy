@@ -361,6 +361,7 @@ export function createPanel(ctx) {
             ctx.react('away', 900)
             continue
           }
+          if (event.kind === 'gift') continue // 签到/礼包的结果由猪头气泡说（io.js），不重复弹提示条
           ctx.toast(str(event.text, '猪有新消息'))
           if (event.kind === 'coronation') { ctx.react('levelup', 950); ctx.transform('crown') }
           else if (event.kind === 'contract') { ctx.react('levelup', 950); ctx.transform('contract') }
