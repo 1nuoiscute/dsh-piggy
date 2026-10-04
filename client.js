@@ -65,7 +65,10 @@
     toy: "\u6CA1\u6709\u73A9\u5177\u4E86\uFF0C\u53BB\u5546\u5E97\u770B\u770B \u{1FA80}"
   };
   var KIND_TITLE = { food: "\u{1F34E} \u98DF\u7269", bath: "\u{1F9FC} \u6D17\u6D74", toy: "\u{1FA80} \u73A9\u5177", bait: "\u{1F3A3} \u9C7C\u9975", dress: "\u{1F455} \u88C5\u626E", medicine: "\u{1F48A} \u836F\u54C1", revive: "\u2728 \u590D\u6D3B", promotion: "\u2728 \u664B\u5347" };
-  var KIND_ORDER = ["food", "bath", "toy", "bait", "medicine", "revive", "promotion"];
+  var KIND_ORDER = ["food", "bath", "toy", "bait", "medicine", "promotion"];
+  function shelfOf(kind) {
+    return kind === "revive" ? "medicine" : kind;
+  }
   var STAGES = [
     { key: "preschool", label: "\u5E7C\u513F\u56ED" },
     { key: "extracurricular", label: "\u8BFE\u5916" },
@@ -106,6 +109,20 @@
     fill.style.width = Math.max(0, Math.min(100, num(value, 0))) + "%";
     wrap.appendChild(fill);
     return wrap;
+  }
+  function sideScroller(strip, active) {
+    if (typeof strip.addEventListener === "function") {
+      strip.addEventListener("wheel", function(event) {
+        if (strip.scrollWidth <= strip.clientWidth) return;
+        var delta = Math.abs(event.deltaY) > Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+        if (delta === 0) return;
+        strip.scrollLeft += delta;
+        event.preventDefault();
+      }, { passive: false });
+    }
+    if (active && typeof active.offsetLeft === "number") {
+      strip.scrollLeft = Math.max(0, active.offsetLeft - (strip.clientWidth - active.offsetWidth) / 2);
+    }
   }
 
   // src/client/widgets.js
@@ -182,7 +199,8 @@
   function drillHeader(ui, tab, title, info) {
     var row = el("div", "dp-drill");
     var back = button("dp-drill-back", { "data-back": tab }, function() {
-      drillTo(ui, tab, null);
+      if (ui.drill.from) ui.select(ui.drill.from);
+      else drillTo(ui, tab, null);
     });
     back.textContent = "\u2039";
     row.appendChild(back);
@@ -281,7 +299,7 @@
     drillHeader(ui, "shop", parts[0] + " " + parts[1], coins);
     var grid = tileGrid();
     var items = ui.view.shop.filter(function(item) {
-      return item.kind === shelf;
+      return shelfOf(item.kind) === shelf;
     });
     var boughtTile = null;
     for (var i = 0; i < items.length; i += 1) {
@@ -297,7 +315,7 @@
     for (var k = 0; k < KIND_ORDER.length; k += 1) {
       (function(kind) {
         var items = ui.view.shop.filter(function(item) {
-          return item.kind === kind;
+          return shelfOf(item.kind) === kind;
         });
         if (items.length === 0) return;
         var parts = shelfParts(kind);
@@ -343,6 +361,7 @@
   // src/client/tabs/bag.js
   var CONSUMABLES = KIND_ORDER;
   var CARE_ACTION = { food: "feed", bath: "bathe", toy: "play" };
+  var STAT_SHELVES = ["food", "bath", "toy", "medicine"];
   var EXTRA = {
     worn: { emoji: "\u{1F455}", label: "\u5DF2\u7A7F\u6234", color: "pink" },
     diary: { emoji: "\u{1F4D4}", label: "\u65E5\u8BB0", color: "brown" },
@@ -359,16 +378,13 @@
     else if (open === "souvenir") renderSouvenirs(ui);
     else if (open === "fish") renderFish(ui);
     else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open);
-    else {
-      statStrip(ui);
-      renderCategories(ui);
-    }
+    else renderCategories(ui);
   }
   function ownedOf(ui, kind) {
     var action = CARE_ACTION[kind];
     if (action !== void 0 && Array.isArray(ui.view.care[action]) && ui.view.care[action].length > 0) return ui.view.care[action];
     return ui.view.shop.filter(function(item) {
-      return item.kind === kind && num(ui.view.inventory[item.key], 0) > 0;
+      return shelfOf(item.kind) === kind && num(ui.view.inventory[item.key], 0) > 0;
     });
   }
   function renderCategories(ui) {
@@ -480,7 +496,7 @@
   function renderItems(ui, kind) {
     var parts = shelfParts(kind);
     drillHeader(ui, "bag", parts[0] + " " + parts[1], "\u70B9\u4E00\u4E0B\u5C31\u7528");
-    statStrip(ui);
+    if (STAT_SHELVES.indexOf(kind) >= 0) statStrip(ui);
     var items = ownedOf(ui, kind);
     var action = CARE_ACTION[kind];
     if (items.length === 0) {
@@ -1287,8 +1303,7 @@
     next.textContent = "\u203A";
     nav.appendChild(next);
     ui.content.appendChild(nav);
-    var active = tabs.children ? tabs.children[index] : null;
-    if (active && typeof active.offsetLeft === "number") tabs.scrollLeft = Math.max(0, active.offsetLeft - (tabs.clientWidth - active.offsetWidth) / 2);
+    sideScroller(tabs, tabs.children ? tabs.children[index] : null);
     var start2 = null;
     for (var k = 0; k < pages.length; k += 1) {
       var body = pages[k].body;
@@ -1313,6 +1328,14 @@
     var p = ui.view.pig;
     if (p === null) return;
     renderBanners(ui);
+    var lv = p.level;
+    labelledBar(
+      ui,
+      "\u2B50 Lv." + lv.level + " " + lv.titleEmoji + lv.titleLabel,
+      lv.maxed ? 100 : lv.percent,
+      lv.maxed ? "\u6EE1\u7EA7" : "\u8FD8\u5DEE " + Math.ceil(lv.toNext) + " \u6210\u957F",
+      "dp-level"
+    );
     labelledBar(ui, "\u{1F35A} \u9971\u98DF", p.satiety, p.satiety + "%");
     labelledBar(ui, "\u2764\uFE0F \u5FC3\u60C5", p.happiness, p.happiness + "%", "dp-mood");
     labelledBar(ui, "\u{1FAE7} \u6E05\u6D01", p.cleanliness, p.cleanliness + "%", "dp-clean");
@@ -1328,14 +1351,6 @@
     dailyLine.appendChild(el("span", null, "\u{1F4C5} \u7B7E\u5230"));
     dailyLine.appendChild(el("b", null, "\u7B2C " + daily.signInDay + "/" + daily.cycle + " \u5929" + (daily.canSignIn ? " \xB7 \u4ECA\u5929\u8FD8\u6CA1\u7B7E" : "") + (daily.unclaimed > 0 ? " \xB7 \u{1F381} " + daily.unclaimed : "")));
     ui.content.appendChild(dailyLine);
-    var pomodoro = ui.view.pomodoro;
-    if (pomodoro !== null && pomodoro.todayDone > 0) {
-      var pomoRow = el("div", "dp-row");
-      pomoRow.appendChild(el("span", null, "\u{1F345} \u756A\u8304\u949F"));
-      pomoRow.appendChild(el("b", null, "\u4ECA\u5929 " + pomodoro.todayDone + " \u4E2A"));
-      ui.content.appendChild(pomoRow);
-    }
-    renderLevel(ui, p);
     var grid = el("div", "dp-actions");
     for (var i = 0; i < MODES.length; i += 1) {
       (function(key) {
@@ -1345,6 +1360,7 @@
         var btn = button("dp-btn", { "data-action": key }, function() {
           if (BAG_SHELF[key] !== void 0) {
             ui.select("bag");
+            ui.drill.from = "status";
             drillTo(ui, "bag", BAG_SHELF[key]);
           } else {
             ui.send(key);
@@ -1370,39 +1386,9 @@
   var BAG_SHELF = { feed: "food", bathe: "bath", play: "toy" };
   function renderWeight(ui, p) {
     var row = el("div", "dp-row");
-    var w = p.bodyWeight;
-    row.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD " + p.weight + (w !== null ? " \xB7 " + w.label : "")));
-    row.appendChild(el("b", null, w !== null ? "\u7406\u60F3 " + w.ideal : "\u{1FA99} " + p.coins));
+    row.appendChild(el("span", null, "\u2696\uFE0F \u4F53\u91CD"));
+    row.appendChild(el("b", null, p.weight + (p.bodyWeight !== null ? " \xB7 " + p.bodyWeight.label : "")));
     ui.content.appendChild(row);
-    if (w === null) return;
-    var low = Math.min(w.idealG * 0.5, w.weightG);
-    var high = w.fatAtG * 1.15;
-    var at = function(g) {
-      return Math.max(0, Math.min(100, (g - low) / (high - low) * 100));
-    };
-    var scale = el("div", "dp-weightbar");
-    scale.setAttribute("data-class", w.class);
-    var fill = el("i", "dp-weightbar-fill");
-    fill.style.width = Math.max(4, at(w.weightG)) + "%";
-    scale.appendChild(fill);
-    var marks = [["\u7406\u60F3", w.idealG], ["\u5706\u6DA6", w.roundAtG], ["\u80D6\u80D6", w.fatAtG]];
-    for (var m = 0; m < marks.length; m += 1) {
-      var mark = el("span", "dp-weightbar-mark", marks[m][0]);
-      mark.style.left = at(marks[m][1]) + "%";
-      scale.appendChild(mark);
-    }
-    ui.content.appendChild(scale);
-    if (w.class === "fat") ui.content.appendChild(el("div", "dp-hint", "\u4ECA\u5929\u8FD8\u80FD\u9760\u73A9\u800D\u51CF\u91CD " + w.playsLeft + " \u6B21"));
-  }
-  function renderLevel(ui, p) {
-    var lv = p.level;
-    var row = el("div", "dp-row");
-    row.appendChild(el("span", null, "\u2B50 Lv." + lv.level + " " + lv.titleEmoji + lv.titleLabel));
-    row.appendChild(el("b", null, lv.maxed ? "\u6EE1\u7EA7" : "\u8FD8\u5DEE " + Math.ceil(lv.toNext) + " \u6210\u957F"));
-    ui.content.appendChild(row);
-    ui.content.appendChild(meter(lv.maxed ? 100 : lv.percent, "dp-level"));
-    var hint = lv.next !== null ? "\u5347\u5230 Lv." + lv.next.level + " \u5C31\u662F\u300C" + lv.next.emoji + lv.next.label + "\u300D\u3002" : "";
-    ui.content.appendChild(el("div", "dp-hint", hint + "\u6210\u957F\u503C\u968F\u65F6\u95F4\u81EA\u5DF1\u6DA8\uFF0C\u5403\u9971\u3001\u5E72\u51C0\u3001\u5FC3\u60C5\u597D\u957F\u5F97\u5FEB\uFF1B\u4E0A\u5B66\u3001\u6253\u5DE5\u3001\u65C5\u884C\u548C\u966A\u4F60\u5E72\u6D3B\u90FD\u4F1A\u989D\u5916\u52A0\u3002"));
   }
   function renderBanners(ui) {
     if (ui.view.pig !== null && ui.view.dead) {
@@ -3374,11 +3360,6 @@
     ".dp-app-title-icon.dp-tile-svg{width:17px;height:17px}",
     ".dp-setting-row{margin-top:8px}",
     // 状态页体重条：填充到现在的体重，三个刻度标理想 / 圆润 / 胖胖。
-    ".dp-weightbar{position:relative;height:8px;margin:4px 0 18px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled)}",
-    ".dp-weightbar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:var(--ac-pill);background:var(--ac-primary)}",
-    '.dp-weightbar[data-class="round"] .dp-weightbar-fill{background:#f2b24c}.dp-weightbar[data-class="fat"] .dp-weightbar-fill{background:#ef8a5b}',
-    ".dp-weightbar-mark{position:absolute;top:10px;transform:translateX(-50%);font-size:9px;color:var(--ac-text-2);white-space:nowrap}",
-    '.dp-weightbar-mark::before{content:"";position:absolute;left:50%;top:-12px;width:2px;height:10px;margin-left:-1px;background:var(--ac-text-2);opacity:.5}',
     ".dp-hint{margin:2px 0 8px;font-size:10px;line-height:1.5;color:var(--ac-text-2)}",
     // 调试页：顶上页签可横向滚动，左右箭头；每个按钮下面一行小字说明。
     ".dp-dev-nav{display:flex;align-items:center;gap:4px;margin:6px 0 8px}",
@@ -3386,9 +3367,11 @@
     ".dp-dev-tab{flex:none;font:inherit;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:var(--ac-pill);cursor:pointer;",
     "border:2px solid var(--ac-border-light);background:var(--ac-bg-content);color:var(--ac-text-2)}",
     '.dp-dev-tab[aria-pressed="true"]{background:var(--ac-primary);border-color:var(--ac-primary-active);color:#fff}',
-    ".dp-dev-list{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;margin:4px 0 10px}",
-    ".dp-dev-item{display:flex;flex-direction:column;gap:2px;min-width:0}.dp-dev-item .dp-dev-btn{width:100%}",
-    ".dp-dev-desc{font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}",
+    // 一行一个：左边小按钮、右边一句说明（按钮别拉满宽）。
+    ".dp-dev-list{display:flex;flex-direction:column;gap:5px;margin:4px 0 10px}",
+    ".dp-dev-item{display:flex;align-items:center;gap:8px;min-width:0}",
+    ".dp-dev-item .dp-dev-btn{flex:none;min-width:78px;justify-content:center;box-shadow:none}",
+    ".dp-dev-desc{flex:1;min-width:0;font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}",
     // 换肤「怎么做皮肤」页：两列图卡（缩略图 + 文件名 + 必须/可选 + 用途），规格和 skin.json 示例。
     ".dp-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 10px}",
     ".dp-guide-cell{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto auto;column-gap:6px;align-items:center;align-content:center;",
@@ -3516,6 +3499,11 @@
     ".dp-vcard-e{font-size:40px;line-height:1}",
     ".dp-vcard-who{display:flex;flex-direction:column;gap:3px;min-width:0}",
     ".dp-vcard-name{font-size:15px;font-weight:800;color:var(--ac-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+    // 名字旁边的蜡笔：平时藏着，鼠标移到名字这行才出来；没有鼠标的设备一直淡淡显示。
+    ".dp-vcard-nameline{display:flex;align-items:center;gap:6px;min-width:0}",
+    ".dp-vcard-name-edit{width:22px;height:22px;font-size:11px;opacity:0;transition:opacity .15s}",
+    ".dp-vcard-nameline:hover .dp-vcard-name-edit,.dp-vcard-name-edit:focus-visible{opacity:1}",
+    "@media (hover:none){.dp-vcard-name-edit{opacity:.6}}",
     ".dp-vcard-sub{font-size:10.5px;font-weight:600;color:var(--ac-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
     // 「标签：值」 rows.
     ".dp-vcard-row{display:flex;align-items:center;gap:6px;margin-top:7px;min-width:0}",
@@ -3531,8 +3519,8 @@
     ".dp-vcard-edit:hover{background:var(--ac-hover)}",
     ".dp-vcard-input{flex:1;min-width:0;padding:3px 9px;font-size:11px}",
     // In-place editing: the two buttons stay as small as the pencil they replace.
-    ".dp-vcard-row .dp-mini{flex:none;padding:3px 9px;font-size:10px;box-shadow:none}",
-    "[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}",
+    ".dp-vcard-row .dp-mini,.dp-vcard-nameline .dp-mini{flex:none;padding:3px 9px;font-size:10px;box-shadow:none}",
+    "[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain,[data-dsh-pig] .dp-vcard-nameline .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}",
     ".dp-vcard-foot{margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--vc-line);",
     "font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
     // 加冕 App: one cream box per form, its picture on the left, conditions as small chips.
@@ -3658,7 +3646,7 @@
 
   // src/client/css-skins.js
   var CSS_SKINS = `
-.dp-skin-intro{display:grid;gap:4px;margin:0 0 10px}.dp-skin-intro span{font-size:10.5px;line-height:1.5;color:var(--ac-text-2)}.dp-skin-grid{display:flex;flex-direction:column;gap:7px}.dp-skin-row{min-height:62px;padding:7px 9px}.dp-skin-current{background:var(--ac-active);border-color:#9db0d6}.dp-skin-row[data-locked="true"] .dp-skin-art{filter:grayscale(1);opacity:.48}.dp-skin-art{width:48px;height:48px;flex:none;object-fit:contain}.dp-skin-copy{display:grid;gap:3px}.dp-skin-copy b{font-size:10.5px}.dp-skin-copy small{line-height:1.35}.dp-skin-row>.dp-mini{flex:none;padding-inline:10px}.dp-skin-import{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;margin-top:10px;cursor:pointer}.dp-skin-import .dp-pick-head{margin:0}.dp-skin-import>.dp-dim{font-size:10px;line-height:1.4;color:var(--ac-text-2)}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{grid-column:2;grid-row:1/3;display:inline-flex!important;align-items:center;white-space:nowrap}
+.dp-skin-intro{display:grid;gap:4px;margin:0 0 10px}.dp-skin-intro span{font-size:10.5px;line-height:1.5;color:var(--ac-text-2)}.dp-skin-grid{display:flex;flex-direction:column;gap:7px}.dp-skin-row{min-height:62px;padding:7px 9px}.dp-skin-current{background:var(--ac-active);border-color:#9db0d6}.dp-skin-row[data-locked="true"] .dp-skin-art{filter:grayscale(1);opacity:.48}.dp-skin-art{width:48px;height:48px;flex:none;object-fit:contain}.dp-skin-copy{display:grid;gap:3px}.dp-skin-copy b{font-size:10.5px}.dp-skin-copy small{line-height:1.35}.dp-skin-row>.dp-mini{flex:none;padding-inline:10px}.dp-skin-import{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;margin-top:10px;cursor:pointer}.dp-skin-import .dp-pick-head{margin:0}.dp-skin-import>.dp-dim{font-size:10px;line-height:1.4;color:var(--ac-text-2)}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{grid-column:2;grid-row:1/3;display:inline-flex!important;align-items:center;white-space:nowrap}.dp-skin-howto{display:flex;width:100%;justify-content:center;margin:10px 0 8px}
 `;
 
   // src/client/styles.js
@@ -3691,7 +3679,7 @@
     }
     top.appendChild(avatar);
     var who = el("div", "dp-vcard-who");
-    who.appendChild(el("b", "dp-vcard-name", p.name + (p.sex !== null ? " " + p.sex.symbol : "")));
+    who.appendChild(nameLine(ui, p));
     who.appendChild(el("span", "dp-vcard-sub", "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel));
     who.appendChild(el("span", "dp-vcard-sub", p.stage.label));
     top.appendChild(who);
@@ -3704,7 +3692,6 @@
       return f.current;
     }) || null;
     if (worn !== null) card.appendChild(field("\u5F62\u6001", worn.emoji + " " + worn.label));
-    card.appendChild(editableField(ui, "name", "\u540D\u5B57", p.name));
     card.appendChild(editableField(ui, "owner", "\u53EB\u4F60", ui.view.dialogue.ownerName));
     card.appendChild(editableField(ui, "catchphrase", "\u53E3\u5934\u7985", profile.catchphrase));
     card.appendChild(editableField(ui, "motto", "\u7B7E\u540D", profile.motto));
@@ -3727,43 +3714,59 @@
     var row = el("div", "dp-vcard-row" + (key === "motto" ? " dp-vcard-motto-row" : ""));
     row.appendChild(el("span", "dp-vcard-label", label + "\uFF1A"));
     if (editing) {
-      var input = (
-        /** @type {HTMLInputElement} */
-        el("input", "dp-input dp-vcard-input")
-      );
-      input.value = ui.cardEdit.draft;
-      input.maxLength = LIMITS[key];
-      input.setAttribute("data-card-input", key);
-      input.addEventListener("input", function() {
-        ui.cardEdit = { field: key, draft: input.value };
-      });
-      var save = button("dp-mini", { "data-card-save": key }, function() {
-        var text = (ui.cardEdit === null ? "" : ui.cardEdit.draft).trim();
-        ui.cardEdit = null;
-        if (text !== "") ui.send(key, key === "name" || key === "owner" ? { name: text } : { text });
-        ui.renderContent();
-      });
-      save.textContent = "\u597D";
-      var cancel = button("dp-mini dp-mini-plain", { "data-card-cancel": key }, function() {
-        ui.cardEdit = null;
-        ui.renderContent();
-      });
-      cancel.textContent = "\u7B97\u4E86";
-      row.appendChild(input);
-      row.appendChild(save);
-      row.appendChild(cancel);
+      appendEditor(ui, row, key);
       return row;
     }
     if (key === "owner") row.appendChild(el("span", "dp-vcard-value dp-dim", "\u70B9\u94C5\u7B14\u4FEE\u6539"));
     else row.appendChild(el("span", key === "motto" ? "dp-vcard-value dp-vcard-motto" : "dp-vcard-value", key === "motto" ? "\u300C" + value + "\u300D" : value));
-    var pencil = button("dp-vcard-edit", { "data-card-edit": key }, function() {
+    row.appendChild(pencil(ui, key, label, value, "dp-vcard-edit"));
+    return row;
+  }
+  function nameLine(ui, p) {
+    var line2 = el("div", "dp-vcard-nameline");
+    if (ui.cardEdit !== null && ui.cardEdit.field === "name") {
+      appendEditor(ui, line2, "name");
+      return line2;
+    }
+    line2.appendChild(el("b", "dp-vcard-name", p.name + (p.sex !== null ? " " + p.sex.symbol : "")));
+    line2.appendChild(pencil(ui, "name", "\u540D\u5B57", p.name, "dp-vcard-edit dp-vcard-name-edit"));
+    return line2;
+  }
+  function pencil(ui, key, label, value, className) {
+    var btn = button(className, { "data-card-edit": key }, function() {
       ui.cardEdit = { field: key, draft: value };
       ui.renderContent();
     });
-    pencil.textContent = "\u270F\uFE0F";
-    pencil.title = "\u6539" + label;
-    row.appendChild(pencil);
-    return row;
+    btn.textContent = "\u270F\uFE0F";
+    btn.title = "\u6539" + label;
+    return btn;
+  }
+  function appendEditor(ui, parent, key) {
+    var input = (
+      /** @type {HTMLInputElement} */
+      el("input", "dp-input dp-vcard-input")
+    );
+    input.value = ui.cardEdit.draft;
+    input.maxLength = LIMITS[key];
+    input.setAttribute("data-card-input", key);
+    input.addEventListener("input", function() {
+      ui.cardEdit = { field: key, draft: input.value };
+    });
+    var save = button("dp-mini", { "data-card-save": key }, function() {
+      var text = (ui.cardEdit === null ? "" : ui.cardEdit.draft).trim();
+      ui.cardEdit = null;
+      if (text !== "") ui.send(key, key === "name" || key === "owner" ? { name: text } : { text });
+      ui.renderContent();
+    });
+    save.textContent = "\u597D";
+    var cancel = button("dp-mini dp-mini-plain", { "data-card-cancel": key }, function() {
+      ui.cardEdit = null;
+      ui.renderContent();
+    });
+    cancel.textContent = "\u7B97\u4E86";
+    parent.appendChild(input);
+    parent.appendChild(save);
+    parent.appendChild(cancel);
   }
 
   // src/client/tabs/dex.js
@@ -3774,7 +3777,6 @@
     ["bath", "\u6D17\u6D74"],
     ["toy", "\u73A9\u5177"],
     ["medicine", "\u836F\u54C1"],
-    ["revive", "\u590D\u6D3B"],
     ["promotion", "\u664B\u5347"],
     ["dress", "\u88C5\u626E"]
   ];
@@ -3891,7 +3893,7 @@
     controls.appendChild(search);
     const filters = el("div", "dp-dex-filters");
     const active = ui.drill.dexFilter ?? "all";
-    const available = new Set(entries.map((entry) => entry.kind));
+    const available = new Set(entries.map((entry) => shelfOf(entry.kind)));
     for (const [key, label] of ITEM_KINDS) {
       if (key !== "all" && !available.has(key)) continue;
       const filter = button("dp-dex-filter", { "data-dex-filter": key }, function() {
@@ -3905,10 +3907,11 @@
     }
     controls.appendChild(filters);
     ui.content.appendChild(controls);
+    sideScroller(filters, filters.querySelector ? filters.querySelector('[data-active="true"]') : null);
     const query = String(ui.drill.dexQuery ?? "").trim().toLowerCase();
     const list = el("div", "dp-dex-catalog");
     for (const entry of entries) {
-      if (active !== "all" && entry.kind !== active) continue;
+      if (active !== "all" && shelfOf(entry.kind) !== active) continue;
       const searchable = entry.acquired ? entry.label.toLowerCase() : ("\u672A\u77E5" + entry.kindLabel).toLowerCase();
       if (query !== "" && !searchable.includes(query)) continue;
       list.appendChild(catalogueRow(ui, entry));
@@ -4993,7 +4996,7 @@
     for (const skin of ui.view.skins.entries) grid.appendChild(skinCard(ui, skin));
     ui.content.appendChild(grid);
     ui.content.appendChild(importCard(ui));
-    const howto = button("dp-btn dp-btn-wide", { "data-skin-guide": "true" }, function() {
+    const howto = button("dp-btn dp-skin-howto", { "data-skin-guide": "true" }, function() {
       drillTo(ui, "skins", "guide");
     });
     howto.textContent = "\u{1F4D0} \u600E\u4E48\u505A\u76AE\u80A4\uFF1A\u9700\u8981\u54EA\u4E9B\u56FE";
@@ -5245,6 +5248,7 @@
       if (next in ctx.drill) {
         ctx.drill[next] = null;
         ctx.drill.pick = null;
+        ctx.drill.from = null;
       }
       renderContent();
       if (previous !== next) {
@@ -6271,7 +6275,7 @@
         var tab = "home";
         var stage = "primary";
         var stagePicked = false;
-        var drill = { study: null, shop: null, bag: null, work: null, dex: null, skins: null, pick: null };
+        var drill = { study: null, shop: null, bag: null, work: null, dex: null, skins: null, pick: null, from: null };
         var picker = null;
         var ownerEdit = null;
         var pigNameEdit = null;

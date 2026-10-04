@@ -17,10 +17,9 @@ test('C7 status shows body class, ideal weight and the useful next action', asyn
   const { dom } = await mount({ status })
   openPanel(dom, 'status')
   const text = contentOf(dom).allText()
-  // G 批次：体重、体型、理想体重合成一行，下面一条刻度条。
-  assert.match(text, /体重 64\.0 kg · 胖胖/)
-  assert.match(text, /理想 39\.7 kg/)
-  assert.match(text, /玩耍减重 7 次/)
+  // G 批次反馈：体重就一行小字，不要刻度条和说明。
+  assert.match(text, /体重\s*64\.0 kg · 胖胖/)
+  assert.equal(text.includes("理想"), false)
 })
 
 test('C7 debug page has normal, round and fat weight entries that send symbolic patches', () => {

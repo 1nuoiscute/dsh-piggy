@@ -144,7 +144,11 @@ export function drillTo(ui, tab, key) {
  */
 export function drillHeader(ui, tab, title, info) {
   var row = el('div', 'dp-drill')
-  var back = button('dp-drill-back', { 'data-back': tab }, function () { drillTo(ui, tab, null) })
+  // 从别的 App 跳进来的（状态页点喂食 → 背包食物），返回回到原来那个 App。
+  var back = button('dp-drill-back', { 'data-back': tab }, function () {
+    if (ui.drill.from) ui.select(ui.drill.from)
+    else drillTo(ui, tab, null)
+  })
   back.textContent = '‹'
   row.appendChild(back)
   row.appendChild(el('b', 'dp-drill-title', title))

@@ -90,7 +90,7 @@ export function createPanel(ctx) {
         ctx.tab = next
         ctx.picker = null
         // Opening a tile tab always starts at its top layer.
-        if (next in ctx.drill) { ctx.drill[next] = null; ctx.drill.pick = null }
+        if (next in ctx.drill) { ctx.drill[next] = null; ctx.drill.pick = null; ctx.drill.from = null }
         renderContent()
         if (previous !== next) {
           ctx.content.scrollTop = 0

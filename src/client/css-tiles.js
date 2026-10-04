@@ -55,11 +55,6 @@ export const CSS_TILES = [
   '.dp-app-title-icon.dp-tile-svg{width:17px;height:17px}',
   '.dp-setting-row{margin-top:8px}',
   // 状态页体重条：填充到现在的体重，三个刻度标理想 / 圆润 / 胖胖。
-  '.dp-weightbar{position:relative;height:8px;margin:4px 0 18px;border-radius:var(--ac-pill);background:var(--ac-bg-disabled)}',
-  '.dp-weightbar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:var(--ac-pill);background:var(--ac-primary)}',
-  '.dp-weightbar[data-class="round"] .dp-weightbar-fill{background:#f2b24c}.dp-weightbar[data-class="fat"] .dp-weightbar-fill{background:#ef8a5b}',
-  '.dp-weightbar-mark{position:absolute;top:10px;transform:translateX(-50%);font-size:9px;color:var(--ac-text-2);white-space:nowrap}',
-  '.dp-weightbar-mark::before{content:"";position:absolute;left:50%;top:-12px;width:2px;height:10px;margin-left:-1px;background:var(--ac-text-2);opacity:.5}',
   '.dp-hint{margin:2px 0 8px;font-size:10px;line-height:1.5;color:var(--ac-text-2)}',
   // 调试页：顶上页签可横向滚动，左右箭头；每个按钮下面一行小字说明。
   '.dp-dev-nav{display:flex;align-items:center;gap:4px;margin:6px 0 8px}',
@@ -67,9 +62,11 @@ export const CSS_TILES = [
   '.dp-dev-tab{flex:none;font:inherit;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:var(--ac-pill);cursor:pointer;',
   'border:2px solid var(--ac-border-light);background:var(--ac-bg-content);color:var(--ac-text-2)}',
   '.dp-dev-tab[aria-pressed="true"]{background:var(--ac-primary);border-color:var(--ac-primary-active);color:#fff}',
-  '.dp-dev-list{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;margin:4px 0 10px}',
-  '.dp-dev-item{display:flex;flex-direction:column;gap:2px;min-width:0}.dp-dev-item .dp-dev-btn{width:100%}',
-  '.dp-dev-desc{font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}',
+  // 一行一个：左边小按钮、右边一句说明（按钮别拉满宽）。
+  '.dp-dev-list{display:flex;flex-direction:column;gap:5px;margin:4px 0 10px}',
+  '.dp-dev-item{display:flex;align-items:center;gap:8px;min-width:0}',
+  '.dp-dev-item .dp-dev-btn{flex:none;min-width:78px;justify-content:center;box-shadow:none}',
+  '.dp-dev-desc{flex:1;min-width:0;font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}',
   // 换肤「怎么做皮肤」页：两列图卡（缩略图 + 文件名 + 必须/可选 + 用途），规格和 skin.json 示例。
   '.dp-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 10px}',
   '.dp-guide-cell{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto auto;column-gap:6px;align-items:center;align-content:center;',

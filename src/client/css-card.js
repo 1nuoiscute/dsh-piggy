@@ -23,6 +23,11 @@ export const CSS_CARD = [
   '.dp-vcard-e{font-size:40px;line-height:1}',
   '.dp-vcard-who{display:flex;flex-direction:column;gap:3px;min-width:0}',
   '.dp-vcard-name{font-size:15px;font-weight:800;color:var(--ac-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+  // 名字旁边的蜡笔：平时藏着，鼠标移到名字这行才出来；没有鼠标的设备一直淡淡显示。
+  '.dp-vcard-nameline{display:flex;align-items:center;gap:6px;min-width:0}',
+  '.dp-vcard-name-edit{width:22px;height:22px;font-size:11px;opacity:0;transition:opacity .15s}',
+  '.dp-vcard-nameline:hover .dp-vcard-name-edit,.dp-vcard-name-edit:focus-visible{opacity:1}',
+  '@media (hover:none){.dp-vcard-name-edit{opacity:.6}}',
   '.dp-vcard-sub{font-size:10.5px;font-weight:600;color:var(--ac-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
 
   // 「标签：值」 rows.
@@ -39,8 +44,8 @@ export const CSS_CARD = [
   '.dp-vcard-edit:hover{background:var(--ac-hover)}',
   '.dp-vcard-input{flex:1;min-width:0;padding:3px 9px;font-size:11px}',
   // In-place editing: the two buttons stay as small as the pencil they replace.
-  '.dp-vcard-row .dp-mini{flex:none;padding:3px 9px;font-size:10px;box-shadow:none}',
-  '[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}',
+  '.dp-vcard-row .dp-mini,.dp-vcard-nameline .dp-mini{flex:none;padding:3px 9px;font-size:10px;box-shadow:none}',
+  '[data-dsh-pig] .dp-vcard-row .dp-mini.dp-mini-plain,[data-dsh-pig] .dp-vcard-nameline .dp-mini.dp-mini-plain{background:#fffbe7;color:var(--ac-text);border:2px solid var(--vc-line);box-shadow:none}',
 
   '.dp-vcard-foot{margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--vc-line);',
   'font-size:10px;font-weight:600;color:var(--ac-text-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',

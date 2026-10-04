@@ -7,7 +7,7 @@
  * @module dsh-piggy/client/tabs/bag
  */
 
-import { KIND_ORDER } from '../constants.js'
+import { KIND_ORDER, shelfOf } from '../constants.js'
 import { button, el } from '../dom.js'
 import { num } from '../values.js'
 import { careEffectLine, drillHeader, drillTo, statStrip, tile, tileGrid } from '../widgets.js'
@@ -18,6 +18,9 @@ var CONSUMABLES = KIND_ORDER
 
 /** 这三个货架的东西用了就是一次照料（喂食 / 洗澡 / 玩耍），和状态页原来的按钮一样。 */
 var CARE_ACTION = { food: 'feed', bath: 'bathe', toy: 'play' }
+
+/** 打开时顶上显示状态条的货架。 */
+var STAT_SHELVES = ['food', 'bath', 'toy', 'medicine']
 
 /** The non-shelf categories: what they are called and how they look. */
 var EXTRA = {
@@ -39,7 +42,7 @@ export function renderBagTab(ui) {
   else if (open === 'souvenir') renderSouvenirs(ui)
   else if (open === 'fish') renderFish(ui)
   else if (open !== null && CONSUMABLES.indexOf(open) >= 0) renderItems(ui, open)
-  else { statStrip(ui); renderCategories(ui) }
+  else renderCategories(ui)
 }
 
 /** What the pig owns of one shelf, with counts. 照料货架用宿主给的 care 列表（含免费的小皮球）。 */
@@ -47,7 +50,7 @@ function ownedOf(ui, kind) {
   var action = CARE_ACTION[kind]
   if (action !== undefined && Array.isArray(ui.view.care[action]) && ui.view.care[action].length > 0) return ui.view.care[action]
   return ui.view.shop.filter(function (item) {
-    return item.kind === kind && num(ui.view.inventory[item.key], 0) > 0
+    return shelfOf(item.kind) === kind && num(ui.view.inventory[item.key], 0) > 0
   })
 }
 
@@ -131,7 +134,8 @@ function renderFish(ui) {
 function renderItems(ui, kind) {
   var parts = shelfParts(kind)
   drillHeader(ui, 'bag', parts[0] + ' ' + parts[1], '点一下就用')
-  statStrip(ui)
+  // 只有用了会改状态的货架才看状态（G 批次反馈：背包首页不要状态条）。
+  if (STAT_SHELVES.indexOf(kind) >= 0) statStrip(ui)
   var items = ownedOf(ui, kind)
   var action = CARE_ACTION[kind]
   if (items.length === 0) {

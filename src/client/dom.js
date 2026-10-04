@@ -31,3 +31,22 @@ export function meter(value, variant) {
   wrap.appendChild(fill)
   return wrap
 }
+
+/**
+ * 一排横着放不下的页签：鼠标滚轮上下滚也能左右翻，并把当前选中的那个滚到中间
+ * （重画后滚动位置会归零，不然后面的页签一选中就看不见了）。
+ */
+export function sideScroller(strip, active) {
+  if (typeof strip.addEventListener === 'function') {
+    strip.addEventListener('wheel', function (event) {
+      if (strip.scrollWidth <= strip.clientWidth) return
+      var delta = Math.abs(event.deltaY) > Math.abs(event.deltaX) ? event.deltaY : event.deltaX
+      if (delta === 0) return
+      strip.scrollLeft += delta
+      event.preventDefault()
+    }, { passive: false })
+  }
+  if (active && typeof active.offsetLeft === 'number') {
+    strip.scrollLeft = Math.max(0, active.offsetLeft - (strip.clientWidth - active.offsetWidth) / 2)
+  }
+}

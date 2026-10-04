@@ -6,7 +6,7 @@
  * @module dsh-piggy/client/tabs/shop
  */
 
-import { KIND_ORDER, KIND_TITLE } from '../constants.js'
+import { KIND_ORDER, KIND_TITLE, shelfOf } from '../constants.js'
 import { animatePurchase } from '../interaction-motion.js'
 import { el } from '../dom.js'
 import { num } from '../values.js'
@@ -36,7 +36,7 @@ export function renderShopTab(ui) {
   var parts = shelfParts(shelf)
   drillHeader(ui, 'shop', parts[0] + ' ' + parts[1], coins)
   var grid = tileGrid()
-  var items = ui.view.shop.filter(function (item) { return item.kind === shelf })
+  var items = ui.view.shop.filter(function (item) { return shelfOf(item.kind) === shelf })
   var boughtTile = null
   for (var i = 0; i < items.length; i += 1) {
     var node = itemTile(ui, items[i], SHELF_COLOR[shelf])
@@ -52,7 +52,7 @@ function renderShelves(ui) {
   var grid = tileGrid()
   for (var k = 0; k < KIND_ORDER.length; k += 1) {
     (function (kind) {
-      var items = ui.view.shop.filter(function (item) { return item.kind === kind })
+      var items = ui.view.shop.filter(function (item) { return shelfOf(item.kind) === kind })
       if (items.length === 0) return
       var parts = shelfParts(kind)
       var needed = items.some(function (item) { return item.needed })

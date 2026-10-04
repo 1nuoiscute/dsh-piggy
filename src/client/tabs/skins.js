@@ -18,7 +18,7 @@ export function renderSkinsTab(ui) {
   ui.content.appendChild(grid)
   ui.content.appendChild(importCard(ui))
   // G 批次：说清楚自己做皮肤要哪些图、什么规格（以前只有一行字）。
-  const howto = button('dp-btn dp-btn-wide', { 'data-skin-guide': 'true' }, function () { drillTo(ui, 'skins', 'guide') })
+  const howto = button('dp-btn dp-skin-howto', { 'data-skin-guide': 'true' }, function () { drillTo(ui, 'skins', 'guide') })
   howto.textContent = '📐 怎么做皮肤：需要哪些图'
   ui.content.appendChild(howto)
 }

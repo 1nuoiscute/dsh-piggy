@@ -1200,7 +1200,8 @@ test('the shop tab is a grid that fades what the pig cannot afford and flags the
 
   // Tiles are never disabled: a tap on one it cannot afford should explain how
   // much is missing rather than doing nothing. Unaffordable is faded.
-  tap(dom, 'data-shelf', 'revive')
+  // 还魂丹放在药品货架里（G 批次反馈）。
+  tap(dom, 'data-shelf', 'medicine')
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').disabled, false)
   assert.equal(findByAttr(contentOf(dom), 'data-buy', 'soul').attributes['data-dim'], 'true')
   tap(dom, 'data-back', 'shop')
@@ -1904,10 +1905,12 @@ test('tile tabs: coloured top layer, back returns, a poll keeps you inside, a ne
       pickTab(dom, tab)
       const tiles = []
       contentOf(dom).walk(node => { if (node.attributes?.[attr] !== undefined) tiles.push(node) })
-      assert.ok(tiles.length >= 3, `${tab}: a grid of category tiles`)
+      // 商店只摆有货的货架，测试快照里只有食物和药品两排。
+      const least = tab === 'shop' ? 2 : 3
+      assert.ok(tiles.length >= least, `${tab}: a grid of category tiles`)
       const colours = new Set(tiles.map(node => node.attributes['data-color']))
       assert.equal(colours.has(undefined), false, `${tab}: every tile has a colour`)
-      assert.ok(colours.size >= 3, `${tab}: the categories are told apart by colour`)
+      assert.ok(colours.size >= least, `${tab}: the categories are told apart by colour`)
     }
 
     pickTab(dom, 'shop')

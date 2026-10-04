@@ -38,7 +38,7 @@ export function renderCardTab(ui) {
   }
   top.appendChild(avatar)
   var who = el('div', 'dp-vcard-who')
-  who.appendChild(el('b', 'dp-vcard-name', p.name + (p.sex !== null ? ' ' + p.sex.symbol : '')))
+  who.appendChild(nameLine(ui, p))
   who.appendChild(el('span', 'dp-vcard-sub', 'Lv.' + p.level.level + ' ' + p.level.titleEmoji + p.level.titleLabel))
   who.appendChild(el('span', 'dp-vcard-sub', p.stage.label))
   top.appendChild(who)
@@ -50,8 +50,7 @@ export function renderCardTab(ui) {
   var forms = ui.view.forms
   var worn = forms === null ? null : forms.forms.find(function (f) { return f.current }) || null
   if (worn !== null) card.appendChild(field('形态', worn.emoji + ' ' + worn.label))
-  // G 批次：猪的名字和它怎么称呼你，从状态页挪到居民卡里改。
-  card.appendChild(editableField(ui, 'name', '名字', p.name))
+  // 猪怎么称呼你从状态页挪到这里改；名字在上面名字旁边的蜡笔改。
   card.appendChild(editableField(ui, 'owner', '叫你', ui.view.dialogue.ownerName))
   card.appendChild(editableField(ui, 'catchphrase', '口头禅', profile.catchphrase))
   card.appendChild(editableField(ui, 'motto', '签名', profile.motto))
@@ -79,38 +78,61 @@ function editableField(ui, key, label, value) {
   var row = el('div', 'dp-vcard-row' + (key === 'motto' ? ' dp-vcard-motto-row' : ''))
   row.appendChild(el('span', 'dp-vcard-label', label + '：'))
   if (editing) {
-    var input = /** @type {HTMLInputElement} */ (el('input', 'dp-input dp-vcard-input'))
-    input.value = ui.cardEdit.draft
-    input.maxLength = LIMITS[key]
-    input.setAttribute('data-card-input', key)
-    input.addEventListener('input', function () { ui.cardEdit = { field: key, draft: input.value } })
-    var save = button('dp-mini', { 'data-card-save': key }, function () {
-      var text = (ui.cardEdit === null ? '' : ui.cardEdit.draft).trim()
-      ui.cardEdit = null
-      // 名字和称呼的接口收的是 name，口头禅和签名收的是 text。
-      if (text !== '') ui.send(key, key === 'name' || key === 'owner' ? { name: text } : { text: text })
-      ui.renderContent()
-    })
-    save.textContent = '好'
-    var cancel = button('dp-mini dp-mini-plain', { 'data-card-cancel': key }, function () {
-      ui.cardEdit = null
-      ui.renderContent()
-    })
-    cancel.textContent = '算了'
-    row.appendChild(input)
-    row.appendChild(save)
-    row.appendChild(cancel)
+    appendEditor(ui, row, key)
     return row
   }
   // 称呼只给改的按钮、不把它印在面板上（用户 2026-10-01：「叫你『大爹』」那行删了）。
   if (key === 'owner') row.appendChild(el('span', 'dp-vcard-value dp-dim', '点铅笔修改'))
   else row.appendChild(el('span', key === 'motto' ? 'dp-vcard-value dp-vcard-motto' : 'dp-vcard-value', key === 'motto' ? '「' + value + '」' : value))
-  var pencil = button('dp-vcard-edit', { 'data-card-edit': key }, function () {
+  row.appendChild(pencil(ui, key, label, value, 'dp-vcard-edit'))
+  return row
+}
+
+/**
+ * 名字那一行：平时只是名字，鼠标移上去旁边冒出蜡笔，点了就地改（没有单独的「名字」行）。
+ */
+function nameLine(ui, p) {
+  var line = el('div', 'dp-vcard-nameline')
+  if (ui.cardEdit !== null && ui.cardEdit.field === 'name') {
+    appendEditor(ui, line, 'name')
+    return line
+  }
+  line.appendChild(el('b', 'dp-vcard-name', p.name + (p.sex !== null ? ' ' + p.sex.symbol : '')))
+  line.appendChild(pencil(ui, 'name', '名字', p.name, 'dp-vcard-edit dp-vcard-name-edit'))
+  return line
+}
+
+function pencil(ui, key, label, value, className) {
+  var btn = button(className, { 'data-card-edit': key }, function () {
     ui.cardEdit = { field: key, draft: value }
     ui.renderContent()
   })
-  pencil.textContent = '✏️'
-  pencil.title = '改' + label
-  row.appendChild(pencil)
-  return row
+  btn.textContent = '✏️'
+  btn.title = '改' + label
+  return btn
+}
+
+/** 输入框 + 好 + 算了，接在 `parent` 后面。 */
+function appendEditor(ui, parent, key) {
+  var input = /** @type {HTMLInputElement} */ (el('input', 'dp-input dp-vcard-input'))
+  input.value = ui.cardEdit.draft
+  input.maxLength = LIMITS[key]
+  input.setAttribute('data-card-input', key)
+  input.addEventListener('input', function () { ui.cardEdit = { field: key, draft: input.value } })
+  var save = button('dp-mini', { 'data-card-save': key }, function () {
+    var text = (ui.cardEdit === null ? '' : ui.cardEdit.draft).trim()
+    ui.cardEdit = null
+    // 名字和称呼的接口收的是 name，口头禅和签名收的是 text。
+    if (text !== '') ui.send(key, key === 'name' || key === 'owner' ? { name: text } : { text: text })
+    ui.renderContent()
+  })
+  save.textContent = '好'
+  var cancel = button('dp-mini dp-mini-plain', { 'data-card-cancel': key }, function () {
+    ui.cardEdit = null
+    ui.renderContent()
+  })
+  cancel.textContent = '算了'
+  parent.appendChild(input)
+  parent.appendChild(save)
+  parent.appendChild(cancel)
 }

@@ -287,10 +287,10 @@ test('放弃按钮发 pomodoroAbandon', async () => {
   assert.deepEqual(post, { action: 'pomodoroAbandon' })
 })
 
-test('状态页显示今天完成了几个', async () => {
+test('状态页不显示番茄钟（G 批次反馈：状态页保持简洁）', async () => {
   const { dom } = await mount({ status: { ...SNAPSHOT, pomodoro: { ...POMO_OFF, todayDone: 3 } } })
   openPanel(dom, 'status')
-  assert.ok(contentOf(dom).allText().includes('今天 3 个'), contentOf(dom).allText())
+  assert.equal(contentOf(dom).allText().includes('番茄钟'), false, contentOf(dom).allText())
 })
 
 test('完成时：有通知权限就发浏览器通知，没有就退回猪的气泡', async () => {

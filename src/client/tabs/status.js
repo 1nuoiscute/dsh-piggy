@@ -9,12 +9,14 @@
 import { CARE_LABEL, MODES } from '../constants.js'
 import { button, el } from '../dom.js'
 import { drillTo, labelledBar } from '../widgets.js'
-import { meter } from '../dom.js'
 
 export function renderStatusTab(ui) {
   var p = ui.view.pig
   if (p === null) return
   renderBanners(ui)
+  var lv = p.level
+  labelledBar(ui, '⭐ Lv.' + lv.level + ' ' + lv.titleEmoji + lv.titleLabel, lv.maxed ? 100 : lv.percent,
+    lv.maxed ? '满级' : '还差 ' + Math.ceil(lv.toNext) + ' 成长', 'dp-level')
   labelledBar(ui, '🍚 饱食', p.satiety, p.satiety + '%')
   labelledBar(ui, '❤️ 心情', p.happiness, p.happiness + '%', 'dp-mood')
   labelledBar(ui, '🫧 清洁', p.cleanliness, p.cleanliness + '%', 'dp-clean')
@@ -37,16 +39,6 @@ export function renderStatusTab(ui) {
     + (daily.unclaimed > 0 ? ' · 🎁 ' + daily.unclaimed : '')))
   ui.content.appendChild(dailyLine)
 
-  // C2：番茄钟今天完成了几个（没有番茄钟字段的老宿主不显示）。
-  var pomodoro = ui.view.pomodoro
-  if (pomodoro !== null && pomodoro.todayDone > 0) {
-    var pomoRow = el('div', 'dp-row')
-    pomoRow.appendChild(el('span', null, '🍅 番茄钟'))
-    pomoRow.appendChild(el('b', null, '今天 ' + pomodoro.todayDone + ' 个'))
-    ui.content.appendChild(pomoRow)
-  }
-
-  renderLevel(ui, p)
 
   var grid = el('div', 'dp-actions')
   for (var i = 0; i < MODES.length; i += 1) {
@@ -59,6 +51,7 @@ export function renderStatusTab(ui) {
         // 不再在这里维护一份物品列表。摸摸不用东西，直接摸。
         if (BAG_SHELF[key] !== undefined) {
           ui.select('bag')
+          ui.drill.from = 'status'
           drillTo(ui, 'bag', BAG_SHELF[key])
         } else {
           ui.send(key)
@@ -88,48 +81,12 @@ export function renderStatusTab(ui) {
 /** 状态页的照料按钮跳到背包的哪个货架。 */
 var BAG_SHELF = { feed: 'food', bathe: 'bath', play: 'toy' }
 
-/**
- * 体重一行：现在多重、什么体型、理想体重；下面一条细条标出理想 / 圆润 / 胖胖三个点
- * （G 批次：以前体重、体型、理想体重分三行，说的是同一件事）。
- */
+/** 体重一行小字：多重、什么体型。 */
 function renderWeight(ui, p) {
   var row = el('div', 'dp-row')
-  var w = p.bodyWeight
-  row.appendChild(el('span', null, '⚖️ 体重 ' + p.weight + (w !== null ? ' · ' + w.label : '')))
-  row.appendChild(el('b', null, w !== null ? '理想 ' + w.ideal : '🪙 ' + p.coins))
+  row.appendChild(el('span', null, '⚖️ 体重'))
+  row.appendChild(el('b', null, p.weight + (p.bodyWeight !== null ? ' · ' + p.bodyWeight.label : '')))
   ui.content.appendChild(row)
-  if (w === null) return
-  // 起点放到理想的一半：小猪仔常常比理想轻不少，起点太高整条就是空的。
-  var low = Math.min(w.idealG * 0.5, w.weightG)
-  var high = w.fatAtG * 1.15
-  var at = function (g) { return Math.max(0, Math.min(100, (g - low) / (high - low) * 100)) }
-  var scale = el('div', 'dp-weightbar')
-  scale.setAttribute('data-class', w.class)
-  var fill = el('i', 'dp-weightbar-fill')
-  fill.style.width = Math.max(4, at(w.weightG)) + '%'
-  scale.appendChild(fill)
-  var marks = [['理想', w.idealG], ['圆润', w.roundAtG], ['胖胖', w.fatAtG]]
-  for (var m = 0; m < marks.length; m += 1) {
-    var mark = el('span', 'dp-weightbar-mark', marks[m][0])
-    mark.style.left = at(marks[m][1]) + '%'
-    scale.appendChild(mark)
-  }
-  ui.content.appendChild(scale)
-  if (w.class === 'fat') ui.content.appendChild(el('div', 'dp-hint', '今天还能靠玩耍减重 ' + w.playsLeft + ' 次'))
-}
-
-/**
- * 等级：称号、经验条、下一个称号，再说一句成长值从哪来（按 data/growth.js 的实际来源写）。
- */
-function renderLevel(ui, p) {
-  var lv = p.level
-  var row = el('div', 'dp-row')
-  row.appendChild(el('span', null, '⭐ Lv.' + lv.level + ' ' + lv.titleEmoji + lv.titleLabel))
-  row.appendChild(el('b', null, lv.maxed ? '满级' : '还差 ' + Math.ceil(lv.toNext) + ' 成长'))
-  ui.content.appendChild(row)
-  ui.content.appendChild(meter(lv.maxed ? 100 : lv.percent, 'dp-level'))
-  var hint = lv.next !== null ? '升到 Lv.' + lv.next.level + ' 就是「' + lv.next.emoji + lv.next.label + '」。' : ''
-  ui.content.appendChild(el('div', 'dp-hint', hint + '成长值随时间自己涨，吃饱、干净、心情好长得快；上学、打工、旅行和陪你干活都会额外加。'))
 }
 
 /**

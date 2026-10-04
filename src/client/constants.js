@@ -96,7 +96,12 @@ export const NO_ITEM_LINE = {
   toy: '没有玩具了，去商店看看 🪀',
 }
 export const KIND_TITLE = { food: '🍎 食物', bath: '🧼 洗浴', toy: '🪀 玩具', bait: '🎣 鱼饵', dress: '👕 装扮', medicine: '💊 药品', revive: '✨ 复活', promotion: '✨ 晋升' }
-export const KIND_ORDER = ['food', 'bath', 'toy', 'bait', 'medicine', 'revive', 'promotion']
+export const KIND_ORDER = ['food', 'bath', 'toy', 'bait', 'medicine', 'promotion']
+
+/** 物品放在哪个货架：还魂丹算药品（商店、背包、图鉴都一样）。 */
+export function shelfOf(kind) {
+  return kind === 'revive' ? 'medicine' : kind
+}
 export const STAGES = [
   { key: 'preschool', label: '幼儿园' },
   { key: 'extracurricular', label: '课外' },

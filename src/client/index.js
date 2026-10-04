@@ -111,7 +111,7 @@ import { desktop } from './desktop/index.js'
       // 用户自己点过学段之后，轮询就不许再替他改（B1 的「默认学段」只在没选过时生效）。
       var stagePicked = false
       // B8: which category each tile tab is opened into (null = the top layer), and a picked tile inside it.
-      var drill = { study: null, shop: null, bag: null, work: null, dex: null, skins: null, pick: null }
+      var drill = { study: null, shop: null, bag: null, work: null, dex: null, skins: null, pick: null, from: null }
       // Which care action's item picker is open, if any.
       var picker = null
       // The owner-name draft while it is being edited on the status tab (null = not editing).
