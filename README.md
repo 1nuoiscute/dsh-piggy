@@ -43,7 +43,7 @@ dsh plugin --profile web add dsh-piggy
 
 macOS 包暂未签名，第一次打开请在访达中右键应用并选择“打开”。更多安装与存档说明见[桌面版指南](docs/guides/desktop.md)。
 
-主菜单「更新」会分别显示游戏版本和桌面外壳版本。游戏包可在 App 内更新；桌面外壳从 v0.2.0 起，Windows 安装版和 Linux AppImage 可在 App 内下载并重启安装。Windows 便携版、未签名 macOS 版需到发布页手动替换；旧版外壳需先手动升级一次。详见[更新说明](docs/guides/updates.md)。
+「设置 → 更新」会分别显示游戏版本和桌面外壳版本（有新正式版时设置图标上有红点）。游戏包可在 App 内更新；桌面外壳从 v0.2.0 起，Windows 安装版和 Linux AppImage 可在 App 内下载并重启安装。Windows 便携版、未签名 macOS 版需到发布页手动替换；旧版外壳需先手动升级一次。详见[更新说明](docs/guides/updates.md)。
 
 v0.27.3 起桌面外壳是 v0.3.0：窗口摆放、可点区域、桌面样式等都放进了游戏包，以后这类修复在「更新」里点一下就到，不用再重装桌面程序。从更早版本升级的桌面版需要先升级一次外壳。
 

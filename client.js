@@ -84,8 +84,8 @@
   var str = (v, dflt) => typeof v === "string" && v !== "" ? v : dflt;
 
   // src/client/dom.js
-  function el(tag, className, text) {
-    var node = document.createElement(tag);
+  function el(tag2, className, text) {
+    var node = document.createElement(tag2);
     if (className) node.className = className;
     if (text !== void 0) node.textContent = text;
     return node;
@@ -3085,6 +3085,16 @@
     ".dp-update-notes{white-space:pre-wrap;font-size:10.5px;line-height:1.5;color:var(--ac-text-2);max-height:120px;overflow:auto;margin:4px 0 6px}",
     ".dp-update-back{margin-top:10px;width:100%}",
     ".dp-update-now{margin-bottom:12px}",
+    // 设置页的更新入口：小按钮右上角挂红点。
+    ".dp-update-entry{position:relative;margin-left:auto}.dp-update-dot{position:absolute;top:-6px;right:-6px}",
+    // 更新面板：按正式版分组的列表，测试版折叠在组里。
+    ".dp-rel{border:2px solid var(--ac-border-light);border-radius:var(--ac-radius-sm);background:var(--ac-bg-input);margin:0 0 8px;overflow:hidden}",
+    ".dp-rel-head{display:flex;align-items:center;gap:6px;width:100%;padding:8px 10px;border:0;background:transparent;font:inherit;cursor:pointer;text-align:left;color:var(--ac-text)}",
+    ".dp-rel-head b{font-size:12px}.dp-rel-head small{color:var(--ac-text-2);font-size:10px}.dp-rel-tags{margin-left:auto;display:flex;gap:4px}",
+    ".dp-rel-tag{font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:var(--ac-pill);background:var(--ac-bg-content);color:var(--ac-text-2)}",
+    '.dp-rel-tag[data-tag="current"]{background:#ffd65c;color:#6b4a00}.dp-rel-tag[data-tag="latest"]{background:var(--ac-primary);color:#fff}',
+    ".dp-rel-body{padding:0 10px 10px}.dp-rel-pre{margin-top:6px;border-top:1.5px dashed var(--ac-border-light);padding-top:6px}",
+    ".dp-rel-pre-row{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:10.5px}.dp-rel-pre-row .dp-mini{margin-left:auto}",
     ".dp-update-top{display:flex;align-items:center;gap:8px}",
     ".dp-update-top .dp-pick-head{flex:1;min-width:0}",
     ".dp-update-refresh{flex:none}",
@@ -3926,8 +3936,9 @@
           icon: appIcon(app.key, app.emoji, "dp-tile-e"),
           label: app.label,
           color: APP_COLOR[app.key] ?? "blue",
-          tag: app.key === "update" ? "" : alertFor(ui, app.key),
-          badge: app.key === "update" ? alertFor(ui, app.key) : "",
+          // 更新入口收进了设置：有新正式版时设置格子冒红点（G 批次）。
+          tag: app.key === "update" || app.key === "settings" ? "" : alertFor(ui, app.key),
+          badge: app.key === "update" || app.key === "settings" ? alertFor(ui, "update") : "",
           data: { "data-app": app.key },
           onPick: function() {
             ui.select(app.key);
@@ -4146,6 +4157,7 @@
     error: null,
     loading: false,
     pick: null,
+    previews: null,
     busy: null,
     fraction: 0,
     message: null,
@@ -4277,9 +4289,8 @@
     again.textContent = state.loading ? "\u6B63\u5728\u5237\u65B0\u2026" : "\u{1F504} \u5237\u65B0";
     again.disabled = state.loading || state.busy !== null || state.shellBusy;
     top.appendChild(again);
-    var onPreview = cur !== null && String(cur.version).indexOf("-") >= 0;
     var eligible = function(r) {
-      return !r.prerelease || onPreview;
+      return !r.prerelease;
     };
     var shellOf = function(r) {
       return r.latestShell || r.manifest && r.manifest.shellVersion || null;
@@ -4334,7 +4345,7 @@
       again.textContent = "\u518D\u8BD5\u4E00\u6B21";
       ui.content.appendChild(again);
     }
-    if (state.list !== null) renderList(ui, state.list.filter(eligible));
+    if (state.list !== null) renderList(ui, state.list);
     if (cur !== null && cur.previous !== null) {
       var back = button("dp-btn dp-btn-wide dp-update-back", { "data-update-rollback": "" }, function() {
         rollback(ui);
@@ -4381,37 +4392,92 @@
     box.appendChild(go);
     ui.content.appendChild(box);
   }
+  function baseOf(version) {
+    return String(version).split("-")[0];
+  }
   function renderList(ui, list) {
     if (list.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "GitHub \u4E0A\u8FD8\u6CA1\u6709\u80FD\u70ED\u66F4\u65B0\u7684\u7248\u672C"));
       return;
     }
-    var grid = tileGrid();
-    var picked = null;
+    var groups = [];
+    var byBase = {};
     for (var i = 0; i < list.length; i += 1) {
-      (function(release, first) {
-        var active = state.pick === release.version;
-        if (active) picked = release;
-        grid.appendChild(tile({
-          emoji: release.current ? "\u{1F416}" : "\u{1F4E6}",
-          label: "v" + release.version,
-          color: "lime",
-          soft: true,
-          active,
-          note: release.date,
-          badge: first && release.blocked === null ? "\u65B0" : "",
-          tag: release.current ? "\u5728\u7528" : release.blocked !== null ? "\u{1F512}" : "",
-          dim: release.blocked !== null,
-          data: { "data-release": release.version },
-          onPick: function() {
-            state.pick = active ? null : release.version;
-            ui.renderContent();
-          }
-        }));
-      })(list[i], i === 0);
+      var release = list[i];
+      var base = baseOf(release.version);
+      if (byBase[base] === void 0) {
+        byBase[base] = { base, stable: null, previews: [] };
+        groups.push(byBase[base]);
+      }
+      if (release.prerelease) byBase[base].previews.push(release);
+      else byBase[base].stable = release;
     }
-    ui.content.appendChild(grid);
-    if (picked !== null) ui.content.appendChild(details(ui, picked));
+    groups.sort(function(a, b) {
+      return compareVersions(b.base, a.base);
+    });
+    var newestStable = list.find(function(r) {
+      return !r.prerelease && r.blocked === null;
+    }) || null;
+    for (var g = 0; g < groups.length; g += 1) renderGroup(ui, groups[g], newestStable);
+  }
+  function renderGroup(ui, group, newestStable) {
+    var key = group.base;
+    var head = group.stable ?? group.previews[0];
+    var open = state.pick === key;
+    var box = el("div", "dp-rel");
+    box.setAttribute("data-release-group", key);
+    var row = button("dp-rel-head", { "data-release": head.version }, function() {
+      state.pick = open ? null : key;
+      ui.renderContent();
+    });
+    row.appendChild(el("b", null, "v" + key));
+    row.appendChild(el("small", null, group.stable !== null ? group.stable.date : "\u8FD8\u6CA1\u53D1\u6B63\u5F0F\u7248"));
+    var tags = el("span", "dp-rel-tags");
+    var current = group.stable !== null && group.stable.current || group.previews.some(function(r) {
+      return r.current;
+    });
+    if (current) tags.appendChild(tag("current", "\u5728\u7528"));
+    if (group.stable !== null && newestStable !== null && group.stable.version === newestStable.version) tags.appendChild(tag("latest", "\u6700\u65B0"));
+    if (group.stable !== null && group.stable.blocked !== null) tags.appendChild(tag("blocked", "\u{1F512}"));
+    row.appendChild(tags);
+    box.appendChild(row);
+    if (open) {
+      var body = el("div", "dp-rel-body");
+      if (group.stable !== null) body.appendChild(details(ui, group.stable));
+      if (group.previews.length > 0) {
+        var pre = el("div", "dp-rel-pre");
+        var showing = state.previews === key;
+        var toggle = button("dp-mini dp-mini-plain", { "data-previews": key }, function() {
+          state.previews = showing ? null : key;
+          ui.renderContent();
+        });
+        toggle.textContent = (showing ? "\u25BE " : "\u25B8 ") + "\u6D4B\u8BD5\u7248 " + group.previews.length + " \u4E2A \xB7 \u624B\u52A8\u5B89\u88C5";
+        pre.appendChild(toggle);
+        if (showing) {
+          for (var p = 0; p < group.previews.length; p += 1) pre.appendChild(previewRow(ui, group.previews[p]));
+        }
+        body.appendChild(pre);
+      }
+      box.appendChild(body);
+    }
+    ui.content.appendChild(box);
+  }
+  function tag(kind, text) {
+    var node = el("span", "dp-rel-tag", text);
+    node.setAttribute("data-tag", kind);
+    return node;
+  }
+  function previewRow(ui, release) {
+    var row = el("div", "dp-rel-pre-row");
+    row.appendChild(el("span", null, "v" + release.version + (release.date ? " \xB7 " + release.date : "")));
+    var go = button("dp-mini", { "data-update-install": release.version }, function() {
+      if (release.blocked === "shell") updatesBridge().openPage(release.page);
+      else install(ui, release.version);
+    });
+    go.textContent = release.current ? "\u6B63\u5728\u7528" : release.blocked === "shell" ? "\u9700\u8981\u65B0\u5916\u58F3" : release.blocked === "save" ? "\u6362\u4E0D\u4E86" : "\u5B89\u88C5\u6D4B\u8BD5\u7248";
+    go.disabled = release.current || release.blocked === "save" || state.busy !== null;
+    row.appendChild(go);
+    return row;
   }
   function details(ui, release) {
     var box = el("div", "dp-pick dp-tile-card dp-update-detail");
@@ -4511,8 +4577,8 @@
   function attachAutoCollapse(context) {
     function focusedInput() {
       const active = document.activeElement;
-      const tag = active?.tagName?.toLowerCase?.() ?? "";
-      return tag === "input" || tag === "textarea" || active?.getAttribute?.("contenteditable") === "true";
+      const tag2 = active?.tagName?.toLowerCase?.() ?? "";
+      return tag2 === "input" || tag2 === "textarea" || active?.getAttribute?.("contenteditable") === "true";
     }
     function canClose() {
       return context.isOpen() && autoCollapseEnabled() && !context.isDragging() && !focusedInput() && !context.isFishing();
@@ -4560,6 +4626,15 @@
     box.appendChild(row);
   }
   function renderSettingsTab(ui) {
+    const notice = ui.updateNotice;
+    const fresh = notice?.unread === true && notice.latest !== null;
+    const update = section(ui, "\u66F4\u65B0", fresh ? "\u6709\u65B0\u7248\u672C v" + notice.latest.version : "\u67E5\u770B\u7248\u672C\u3001\u66F4\u65B0\u6216\u6362\u56DE\u65E7\u7248\u672C");
+    const go = button("dp-mini dp-update-entry", { "data-open-update": "true" }, function() {
+      ui.select("update");
+    });
+    go.textContent = "\u{1F504} \u66F4\u65B0";
+    if (fresh) go.appendChild(el("b", "dp-tile-badge dp-update-dot", "!"));
+    update.head.appendChild(go);
     const size = section(ui, "\u5C0F\u732A\u5927\u5C0F", "\u53EA\u6539\u8FD9\u53F0\u8BBE\u5907\u4E0A\u7684\u663E\u793A\u5927\u5C0F\uFF0C\u4E0D\u6539\u5B58\u6863");
     const sizeLabels = { small: "\u5C0F", standard: "\u6807\u51C6", large: "\u5927", extra: "\u7279\u5927" };
     segmented(size, "data-pig-size", PIG_SIZES.map((key) => ({ key, label: sizeLabels[key] })), pigSize(), function(key) {
@@ -4738,7 +4813,9 @@
       var shell = updatesBridge();
       var apps = enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
       if (ctx.tab === "home") {
-        renderHome(ctx, apps);
+        renderHome(ctx, apps.filter(function(a) {
+          return a.key !== "update";
+        }));
         ctx.fitPanel();
         return;
       }

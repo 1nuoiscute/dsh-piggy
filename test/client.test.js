@@ -2019,6 +2019,12 @@ function fakeDesktop() {
   return { piggyShell, calls }
 }
 
+/** 更新入口收进了设置（G 批次）：设置 → 🔄 更新。 */
+function openUpdate(dom) {
+  openPanel(dom, 'settings')
+  tap(dom, 'data-open-update', 'true')
+}
+
 test('DSH gets a notification-only 更新 app, while desktop keeps the updater', async () => {
   const plain = await loadClient({ latestRelease: {
     tag_name: 'v0.27.0', html_url: 'https://github.com/CLICGGER-TYPES/dsh-piggy/releases/tag/v0.27.0',
@@ -2027,8 +2033,9 @@ test('DSH gets a notification-only 更新 app, while desktop keeps the updater',
   plain.registration.factory(() => {}).apply({})
   await settle()
   openPanel(plain.dom, 'home')
-  assert.notEqual(findByAttr(contentOf(plain.dom), 'data-app', 'update'), undefined)
-  tap(plain.dom, 'data-app', 'update')
+  assert.equal(findByAttr(contentOf(plain.dom), 'data-app', 'update'), undefined, '主菜单不再有更新格子')
+  tap(plain.dom, 'data-app', 'settings')
+  tap(plain.dom, 'data-open-update', 'true')
   await settle()
   await settle()
   assert.match(contentOf(plain.dom).allText(), /只提醒新版本/)
@@ -2039,8 +2046,8 @@ test('DSH gets a notification-only 更新 app, while desktop keeps the updater',
   const desk = await loadClient({ windowExtra: { piggyShell } })
   desk.registration.factory(() => {}).apply({})
   await settle()
-  openPanel(desk.dom, 'home')
-  assert.notEqual(findByAttr(contentOf(desk.dom), 'data-app', 'update'), undefined)
+  openPanel(desk.dom, 'settings')
+  assert.notEqual(findByAttr(contentOf(desk.dom), 'data-open-update', 'true'), undefined)
 })
 
 test('the 更新 app offers the newest version it can install, and a newer installer opens its page', async () => {
@@ -2048,7 +2055,7 @@ test('the 更新 app offers the newest version it can install, and a newer insta
   const { registration, dom } = await loadClient({ windowExtra: { piggyShell } })
   registration.factory(() => {}).apply({})
   await settle()
-  openPanel(dom, 'update')
+  openUpdate(dom)
   await settle()
   await settle()
   const latest = findByAttr(contentOf(dom), 'data-update-latest', '0.25.0')
@@ -2073,7 +2080,7 @@ test('installed desktop downloads a newer shell, then offers a restart; game upd
   const { registration, dom } = await loadClient({ windowExtra: { piggyShell } })
   registration.factory(() => {}).apply({})
   await settle()
-  openPanel(dom, 'update')
+  openUpdate(dom)
   await settle()
   await settle()
   assert.match(contentOf(dom).allText(), /游戏 v0\.24\.0/)
@@ -2092,7 +2099,7 @@ test('unsigned macOS desktop explains why its shell update opens the download pa
   const { registration, dom } = await loadClient({ windowExtra: { piggyShell } })
   registration.factory(() => {}).apply({})
   await settle()
-  openPanel(dom, 'update')
+  openUpdate(dom)
   await settle()
   await settle()
   assert.match(contentOf(dom).allText(), /macOS 包暂未签名/)
@@ -2182,4 +2189,30 @@ test('C3 transformation announcement creates one full-screen emoji effect and cl
   assert.match(overlay.allText(), /✨/)
   dispose()
   assert.equal(findByClass(dom.body, 'dp-transform'), undefined)
+})
+
+test('更新面板按正式版分组：测试版折叠在对应正式版下，只能手动装，「更新到最新」不推测试版', async () => {
+  const { piggyShell, calls } = fakeDesktop()
+  const releases = [
+    { version: '0.25.1-rc.1', date: '2026-10-03', notes: '', current: false, blocked: null, minShell: '0.1.0', page: 'p', prerelease: true },
+    { version: '0.25.0-rc.2', date: '2026-09-30', notes: '', current: false, blocked: null, minShell: '0.1.0', page: 'p', prerelease: true },
+    { version: '0.25.0', date: '2026-10-01', notes: '加了更新', current: false, blocked: null, minShell: '0.1.0', page: 'p', prerelease: false },
+    { version: '0.24.0', date: '2026-09-30', notes: '', current: true, blocked: null, minShell: '0.1.0', page: 'p', prerelease: false },
+  ]
+  piggyShell.updates.list = () => Promise.resolve({ ok: true, releases })
+  const { registration, dom } = await loadClient({ windowExtra: { piggyShell } })
+  registration.factory(() => {}).apply({})
+  await settle()
+  openUpdate(dom)
+  await settle()
+  await settle()
+  assert.equal(findByAttr(contentOf(dom), 'data-update-latest', '0.25.1-rc.1'), undefined, '不推荐测试版')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-update-latest', '0.25.0'), undefined)
+  assert.notEqual(findByAttr(contentOf(dom), 'data-release-group', '0.25.0'), undefined)
+  assert.notEqual(findByAttr(contentOf(dom), 'data-release-group', '0.25.1'), undefined, '还没发正式版的测试版自成一组')
+  assert.equal(findByAttr(contentOf(dom), 'data-update-install', '0.25.0-rc.2'), undefined, '测试版默认折叠')
+  tap(dom, 'data-release', '0.25.0')
+  tap(dom, 'data-previews', '0.25.0')
+  findByAttr(contentOf(dom), 'data-update-install', '0.25.0-rc.2').fire('click')
+  assert.deepEqual(calls.at(-1), ['install', '0.25.0-rc.2'])
 })

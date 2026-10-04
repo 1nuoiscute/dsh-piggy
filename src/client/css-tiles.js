@@ -147,6 +147,16 @@ export const CSS_TILES = [
   '.dp-update-notes{white-space:pre-wrap;font-size:10.5px;line-height:1.5;color:var(--ac-text-2);max-height:120px;overflow:auto;margin:4px 0 6px}',
   '.dp-update-back{margin-top:10px;width:100%}',
   '.dp-update-now{margin-bottom:12px}',
+  // 设置页的更新入口：小按钮右上角挂红点。
+  '.dp-update-entry{position:relative;margin-left:auto}.dp-update-dot{position:absolute;top:-6px;right:-6px}',
+  // 更新面板：按正式版分组的列表，测试版折叠在组里。
+  '.dp-rel{border:2px solid var(--ac-border-light);border-radius:var(--ac-radius-sm);background:var(--ac-bg-input);margin:0 0 8px;overflow:hidden}',
+  '.dp-rel-head{display:flex;align-items:center;gap:6px;width:100%;padding:8px 10px;border:0;background:transparent;font:inherit;cursor:pointer;text-align:left;color:var(--ac-text)}',
+  '.dp-rel-head b{font-size:12px}.dp-rel-head small{color:var(--ac-text-2);font-size:10px}.dp-rel-tags{margin-left:auto;display:flex;gap:4px}',
+  '.dp-rel-tag{font-size:9.5px;font-weight:800;padding:1px 6px;border-radius:var(--ac-pill);background:var(--ac-bg-content);color:var(--ac-text-2)}',
+  '.dp-rel-tag[data-tag="current"]{background:#ffd65c;color:#6b4a00}.dp-rel-tag[data-tag="latest"]{background:var(--ac-primary);color:#fff}',
+  '.dp-rel-body{padding:0 10px 10px}.dp-rel-pre{margin-top:6px;border-top:1.5px dashed var(--ac-border-light);padding-top:6px}',
+  '.dp-rel-pre-row{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:10.5px}.dp-rel-pre-row .dp-mini{margin-left:auto}',
   '.dp-update-top{display:flex;align-items:center;gap:8px}',
   '.dp-update-top .dp-pick-head{flex:1;min-width:0}',
   '.dp-update-refresh{flex:none}',

@@ -34,6 +34,15 @@ function segmented({ box }, attr, options, current, onPick) {
 }
 
 export function renderSettingsTab(ui) {
+  // 更新：从主菜单收进设置（G 批次）。有新正式版时带红点，点进去还是原来的更新面板。
+  const notice = ui.updateNotice
+  const fresh = notice?.unread === true && notice.latest !== null
+  const update = section(ui, '更新', fresh ? '有新版本 v' + notice.latest.version : '查看版本、更新或换回旧版本')
+  const go = button('dp-mini dp-update-entry', { 'data-open-update': 'true' }, function () { ui.select('update') })
+  go.textContent = '🔄 更新'
+  if (fresh) go.appendChild(el('b', 'dp-tile-badge dp-update-dot', '!'))
+  update.head.appendChild(go)
+
   const size = section(ui, '小猪大小', '只改这台设备上的显示大小，不改存档')
   const sizeLabels = { small: '小', standard: '标准', large: '大', extra: '特大' }
   segmented(size, 'data-pig-size', PIG_SIZES.map(key => ({ key, label: sizeLabels[key] })), pigSize(), function (key) {

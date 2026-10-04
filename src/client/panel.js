@@ -160,7 +160,7 @@ export function createPanel(ctx) {
         var shell = updatesBridge()
         var apps = enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : [])
         if (ctx.tab === 'home') {
-          renderHome(ctx, apps)
+          renderHome(ctx, apps.filter(function (a) { return a.key !== 'update' })) // 更新入口在设置里（G 批次）
           ctx.fitPanel()
           return
         }
