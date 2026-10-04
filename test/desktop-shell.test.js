@@ -372,7 +372,7 @@ test('CSS：朝右开时场景改左对齐，气泡/道具跟着镜像（网页�
   const css = String(dom.document.head.children.map(node => node.textContent ?? '').join('\n'))
   assert.match(css, /\[data-dsh-pig\]\[data-panel-side="right"\] \.dp-scene\{[^}]*justify-content:flex-start/,
     '朝右开时猪要待在场景左端（不然面板一开猪从右端跑到左端，位移 207px）')
-  assert.match(css, /\[data-dsh-pig\]\[data-panel-side="right"\] \.dp-bubble\{[^}]*left:8px/,
+  assert.match(css, /\[data-dsh-pig\]\[data-panel-side="right"\] \.dp-bubble\{[^}]*left:6px/,
     '气泡要跟着猪挪到左边')
   assert.match(css, /\[data-dsh-pig\]\[data-panel-side="right"\] \.dp-work\{margin:0 0 6px 2px\}/,
     '打工道具的间距也要镜像')

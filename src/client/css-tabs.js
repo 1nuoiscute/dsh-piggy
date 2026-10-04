@@ -37,18 +37,22 @@ export const CSS_TABS = [
   // `z-index` matters: the pig comes later in the DOM, so without it the pig
   // paints over the bubble whenever the two boxes overlap — which is exactly
   // what happened when collapsed and the scene was only as wide as the pig.
-  '.dp-bubble{position:absolute;right:8px;top:auto;bottom:calc(var(--pig-gap-below) + var(--pig-size) + 8px);',
+  // 气泡钉在猪头上：右边和猪的右边对齐（场景左右各 6px 内边距，猪贴着它），底边在猪头上方 10px，
+  // 尾巴指着猪头正中。收起/打开、面板朝左/朝右都是这一个位置（用户 2026-10-04：「不要飘来飘去」）。
+  '.dp-bubble{position:absolute;right:6px;left:auto;top:auto;bottom:calc(var(--pig-gap-below) + var(--pig-size) + 10px);',
   'z-index:2;width:max-content;max-width:calc(var(--panel-width) - 24px);box-sizing:border-box;padding:6px 10px;',
   'border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.45;',
   'color:var(--ac-text-body);background:var(--ac-bg-input);',
   'border:2px solid var(--ac-border-light);box-shadow:var(--ac-shadow-sm)}',
   '.dp-bubble-text{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;',
   'overflow:hidden;white-space:normal;overflow-wrap:anywhere}',
-  '[data-dsh-pig][data-panel-side="right"] .dp-bubble::after{left:auto;right:14px}',
   // Tail drawn as a small rotated square so the 2px border stays continuous.
-  '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
+  '.dp-bubble::after{content:"";position:absolute;left:auto;right:calc(var(--pig-size) / 2 - 5px);top:100%;bottom:auto;',
+  'margin-top:-4px;width:8px;height:8px;',
   'background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);',
   'border-bottom:2px solid var(--ac-border-light);transform:rotate(45deg)}',
+  '[data-dsh-pig][data-panel-side="right"] .dp-bubble{right:auto;left:6px}',
+  '[data-dsh-pig][data-panel-side="right"] .dp-bubble::after{right:auto;left:calc(var(--pig-size) / 2 - 5px)}',
   // Reply buttons under a line: small pills, the mint of the primary colour
   // without the 3D base, which the spec keeps for real primary buttons.
   '.dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}',
@@ -73,6 +77,8 @@ export const CSS_TABS = [
   // 而那个动画的 transform 一被替掉，猪就会横跳半个身位。
   // 只上下浮：横向居中改用 margin，展开时才能挪到猪旁边。
   '@keyframes dp-daily-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}',
+  // 收起时礼包按钮也在猪头上方：猪说话时先藏起来，和番茄钟角标一样，不跟气泡抢位置。
+  '[data-dsh-pig][data-open="false"]:has(.dp-bubble:not([hidden])) .dp-daily{visibility:hidden}',
   // 日记：折叠时只有首句，展开是全文。
   '.dp-diary{cursor:pointer}',
   '.dp-diary[data-open="true"] .dp-diary-full{display:block}',
@@ -82,18 +88,6 @@ export const CSS_TABS = [
   'color:var(--ac-text);transition:border-color .15s var(--ac-ease)}',
   '.dp-reply:hover{border-color:var(--ac-border-hover)}',
   '.dp-reply:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}',
-  // Collapsed, the scene is exactly the pig, so a bubble drawn inside it
-  // would sit on the pig's face. Float it above the head with the tail
-  // pointing down, anchored to the right edge so it can never run off the
-  // window. The hearts rise from behind it.
-  '[data-dsh-pig][data-open="false"] .dp-bubble{left:auto;right:0}',
-  // 收起时气泡给礼包按钮让位，不压住它（用户反馈「有东西挡住了」）。番茄钟角标在猪说话时本来就先藏起来。
-  '[data-dsh-pig][data-open="false"]:has(.dp-daily:not([hidden])) .dp-bubble{bottom:calc(var(--pig-gap-below) + var(--pig-size) + 46px)}',
-  '[data-dsh-pig][data-panel-side="right"][data-open="false"] .dp-bubble{right:auto;left:0}',
-  '[data-dsh-pig][data-open="false"] .dp-bubble::after{left:auto;right:26px;',
-  'top:100%;bottom:auto;margin:0;transform:rotate(45deg);',
-  'border:0;border-right:2px solid var(--ac-border-light);',
-  'border-bottom:2px solid var(--ac-border-light)}',
 
   /* ---------- icon bar: the library sidebar, laid on its side ---------- */
   '.dp-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:8px;',
