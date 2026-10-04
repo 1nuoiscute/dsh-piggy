@@ -2271,8 +2271,8 @@
   function normalizeDex(raw) {
     const source = obj(raw);
     const out = {};
-    for (const section of ["forms", "skins", "fish", "items", "souvenirs"]) {
-      out[section] = arr(source[section]).map(function(value) {
+    for (const section2 of ["forms", "skins", "fish", "items", "souvenirs"]) {
+      out[section2] = arr(source[section2]).map(function(value) {
         const entry = obj(value);
         return {
           key: str(entry.key, ""),
@@ -2345,6 +2345,34 @@
   }
   function displayedPigSize(stageSize) {
     return stageSize * SCALE[pigSize()];
+  }
+
+  // src/client/emoji-style.js
+  var EMOJI_STYLE_KEY = "dsh-piggy:emoji-style";
+  function emojiStyle() {
+    return readStore(EMOJI_STYLE_KEY) === "system" ? "system" : "bundled";
+  }
+  function setEmojiStyle(style) {
+    writeStore(EMOJI_STYLE_KEY, style === "system" ? "system" : "bundled");
+  }
+  function hasBundledEmoji() {
+    try {
+      const fonts = (
+        /** @type {any} */
+        document.fonts
+      );
+      if (fonts === void 0 || typeof fonts.forEach !== "function") return false;
+      let found = false;
+      fonts.forEach(function(face) {
+        if (String(face.family).replace(/["']/g, "") === "Piggy Emoji") found = true;
+      });
+      return found;
+    } catch {
+      return false;
+    }
+  }
+  function applyEmojiStyle(host) {
+    host.setAttribute("data-emoji", emojiStyle());
   }
 
   // src/client/css-base.js
@@ -2437,10 +2465,12 @@
     // Near the desktop's top edge the panel opens below. Keep the pig at the
     // same foot line as the collapsed scene instead of dropping it by 64px.
     '[data-dsh-pig][data-panel-vertical="below"][data-open="true"] .dp-scene{height:calc(var(--pig-size) + var(--pig-gap-below))}',
+    // 面板朝下开时场景只有猪那么高，名牌从顶上往下排会贴着面板（用户反馈「状态栏和菜单贴太近」）。
+    // 改成名牌底边对齐猪脚上方一点，和下面的面板留出 16px，跟朝上开时一样宽。
+    '[data-dsh-pig][data-panel-vertical="below"][data-open="true"] .dp-hud{top:auto;bottom:8px}',
     // 桌面版面板朝右开时（外壳把窗口贴着猪、右边有地方），猪改待在场景左端，
     // 跟着猪定位的气泡和打工道具也要镜像 —— 网页版没有这个属性，规则不命中。
     '[data-dsh-pig][data-panel-side="right"] .dp-scene{justify-content:flex-start}',
-    '[data-dsh-pig][data-panel-side="right"] .dp-bubble{right:auto;left:8px}',
     '[data-dsh-pig][data-panel-side="right"] .dp-work{margin:0 0 6px 2px}',
     // Collapsed the scene shrinks to just the pig. An explicit height rather
     // than `auto` keeps the pig's line box identical in both states, so
@@ -2592,18 +2622,22 @@
     // `z-index` matters: the pig comes later in the DOM, so without it the pig
     // paints over the bubble whenever the two boxes overlap — which is exactly
     // what happened when collapsed and the scene was only as wide as the pig.
-    ".dp-bubble{position:absolute;right:8px;top:auto;bottom:calc(var(--pig-gap-below) + var(--pig-size) + 8px);",
+    // 气泡钉在猪头上：右边和猪的右边对齐（场景左右各 6px 内边距，猪贴着它），底边在猪头上方 10px，
+    // 尾巴指着猪头正中。收起/打开、面板朝左/朝右都是这一个位置（用户 2026-10-04：「不要飘来飘去」）。
+    ".dp-bubble{position:absolute;right:6px;left:auto;top:auto;bottom:calc(var(--pig-gap-below) + var(--pig-size) + 10px);",
     "z-index:2;width:max-content;max-width:calc(var(--panel-width) - 24px);box-sizing:border-box;padding:6px 10px;",
     "border-radius:var(--ac-radius-sm);font-size:10.5px;font-weight:600;line-height:1.45;",
     "color:var(--ac-text-body);background:var(--ac-bg-input);",
     "border:2px solid var(--ac-border-light);box-shadow:var(--ac-shadow-sm)}",
     ".dp-bubble-text{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;",
     "overflow:hidden;white-space:normal;overflow-wrap:anywhere}",
-    '[data-dsh-pig][data-panel-side="right"] .dp-bubble::after{left:auto;right:14px}',
     // Tail drawn as a small rotated square so the 2px border stays continuous.
-    '.dp-bubble::after{content:"";position:absolute;left:14px;bottom:-6px;width:8px;height:8px;',
+    '.dp-bubble::after{content:"";position:absolute;left:auto;right:calc(var(--pig-size) / 2 - 5px);top:100%;bottom:auto;',
+    "margin-top:-4px;width:8px;height:8px;",
     "background:var(--ac-bg-input);border-right:2px solid var(--ac-border-light);",
     "border-bottom:2px solid var(--ac-border-light);transform:rotate(45deg)}",
+    '[data-dsh-pig][data-panel-side="right"] .dp-bubble{right:auto;left:6px}',
+    '[data-dsh-pig][data-panel-side="right"] .dp-bubble::after{right:auto;left:calc(var(--pig-size) / 2 - 5px)}',
     // Reply buttons under a line: small pills, the mint of the primary colour
     // without the 3D base, which the spec keeps for real primary buttons.
     ".dp-bubble-replies{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}",
@@ -2628,6 +2662,8 @@
     // 而那个动画的 transform 一被替掉，猪就会横跳半个身位。
     // 只上下浮：横向居中改用 margin，展开时才能挪到猪旁边。
     "@keyframes dp-daily-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}",
+    // 收起时礼包按钮也在猪头上方：猪说话时先藏起来，和番茄钟角标一样，不跟气泡抢位置。
+    '[data-dsh-pig][data-open="false"]:has(.dp-bubble:not([hidden])) .dp-daily{visibility:hidden}',
     // 日记：折叠时只有首句，展开是全文。
     ".dp-diary{cursor:pointer}",
     '.dp-diary[data-open="true"] .dp-diary-full{display:block}',
@@ -2637,18 +2673,6 @@
     "color:var(--ac-text);transition:border-color .15s var(--ac-ease)}",
     ".dp-reply:hover{border-color:var(--ac-border-hover)}",
     ".dp-reply:focus-visible{outline:2px solid var(--ac-primary);outline-offset:1px}",
-    // Collapsed, the scene is exactly the pig, so a bubble drawn inside it
-    // would sit on the pig's face. Float it above the head with the tail
-    // pointing down, anchored to the right edge so it can never run off the
-    // window. The hearts rise from behind it.
-    '[data-dsh-pig][data-open="false"] .dp-bubble{left:auto;right:0}',
-    // 收起时气泡给礼包按钮让位，不压住它（用户反馈「有东西挡住了」）。番茄钟角标在猪说话时本来就先藏起来。
-    '[data-dsh-pig][data-open="false"]:has(.dp-daily:not([hidden])) .dp-bubble{bottom:calc(var(--pig-gap-below) + var(--pig-size) + 46px)}',
-    '[data-dsh-pig][data-panel-side="right"][data-open="false"] .dp-bubble{right:auto;left:0}',
-    '[data-dsh-pig][data-open="false"] .dp-bubble::after{left:auto;right:26px;',
-    "top:100%;bottom:auto;margin:0;transform:rotate(45deg);",
-    "border:0;border-right:2px solid var(--ac-border-light);",
-    "border-bottom:2px solid var(--ac-border-light)}",
     /* ---------- icon bar: the library sidebar, laid on its side ---------- */
     ".dp-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:8px;",
     "background:var(--ac-bg-content);border-top:2px solid var(--ac-border-light);",
@@ -2860,6 +2884,28 @@
     ".dp-app-title-icon{font-size:14px;line-height:1}",
     ".dp-app-title-icon.dp-tile-svg{width:17px;height:17px}",
     ".dp-setting-row{margin-top:8px}",
+    // 设置页：每项一块，标题+说明，下面一排分段按钮；开关放在标题右边。
+    ".dp-set{padding:10px 0;border-bottom:1.5px dashed var(--ac-border-light)}",
+    ".dp-set:first-child{padding-top:2px}.dp-set:last-child{border-bottom:0}",
+    ".dp-set-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}",
+    ".dp-set-head b{font-size:12px;color:var(--ac-text)}",
+    ".dp-set-head small{flex-basis:100%;order:3;font-size:10px;line-height:1.45}",
+    ".dp-seg{display:flex;gap:4px;margin-top:8px;padding:3px;border-radius:var(--ac-pill);background:var(--ac-bg-content);",
+    "border:2px solid var(--ac-border-light)}",
+    ".dp-seg-btn{flex:1;min-width:0;font:inherit;font-size:11px;font-weight:700;padding:5px 0;cursor:pointer;",
+    "border:0;border-radius:var(--ac-pill);background:transparent;color:var(--ac-text-2);",
+    "transition:background-color .15s var(--ac-ease),color .15s var(--ac-ease)}",
+    ".dp-seg-btn:hover:not(:disabled){background:var(--ac-bg-input);color:var(--ac-text)}",
+    '.dp-seg-btn[aria-pressed="true"]{background:var(--ac-primary);color:#fff;cursor:default;',
+    "box-shadow:0 2px 0 var(--ac-primary-active)}",
+    ".dp-seg-btn:focus-visible,.dp-switch:focus-visible{outline:2px solid var(--ac-yellow, #ffcf45);outline-offset:1px}",
+    ".dp-switch{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:10.5px;font-weight:700;",
+    "padding:2px 8px 2px 2px;cursor:pointer;border-radius:var(--ac-pill);border:2px solid var(--ac-border-light);",
+    "background:var(--ac-bg-content);color:var(--ac-text-2);transition:background-color .15s var(--ac-ease)}",
+    ".dp-switch-knob{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--ac-border-light);",
+    "transition:transform .15s var(--ac-ease)}",
+    '.dp-switch[aria-pressed="true"]{background:var(--ac-primary);border-color:var(--ac-primary-active);color:#fff;',
+    "flex-direction:row-reverse;padding:2px 2px 2px 8px}",
     ".dp-setting-emoji{font-size:22px;line-height:1;width:28px;text-align:center}",
     ".dp-tile:hover:not(:disabled) .dp-tile-icon{transform:translateY(-2px);box-shadow:0 5px 0 rgba(61,52,40,.16)}",
     ".dp-tile:active:not(:disabled) .dp-tile-icon{transform:translateY(2px);box-shadow:0 1px 0 rgba(61,52,40,.16)}",
@@ -3192,43 +3238,43 @@
     ["promotion", "\u664B\u5347"],
     ["dress", "\u88C5\u626E"]
   ];
-  function registerDexSection(section) {
-    if (section === null || typeof section !== "object" || typeof section.key !== "string") return;
-    const index = SECTIONS.findIndex((entry) => entry.key === section.key);
-    if (index >= 0) SECTIONS[index] = section;
-    else SECTIONS.push(section);
+  function registerDexSection(section2) {
+    if (section2 === null || typeof section2 !== "object" || typeof section2.key !== "string") return;
+    const index = SECTIONS.findIndex((entry) => entry.key === section2.key);
+    if (index >= 0) SECTIONS[index] = section2;
+    else SECTIONS.push(section2);
   }
-  for (const section of [
+  for (const section2 of [
     { key: "forms", label: "\u5F62\u6001", emoji: "\u{1F437}", color: "pink" },
     { key: "skins", label: "\u76AE\u80A4", emoji: "\u{1F3A8}", color: "purple" },
     { key: "fish", label: "\u9C7C\u7C7B", emoji: "\u{1F41F}", color: "blue" },
     { key: "items", label: "\u9053\u5177", emoji: "\u{1F392}", color: "orange" },
     { key: "souvenirs", label: "\u7EAA\u5FF5\u54C1", emoji: "\u{1F9F3}", color: "teal" }
-  ]) registerDexSection(section);
+  ]) registerDexSection(section2);
   function renderDexTab(ui) {
     const picked = ui.drill.dex;
     if (picked === null) return renderSections(ui);
-    const section = SECTIONS.find((entry) => entry.key === picked);
-    if (section === void 0) return drillTo(ui, "dex", null);
-    const entries = ui.view.dex[section.key] ?? [];
+    const section2 = SECTIONS.find((entry) => entry.key === picked);
+    if (section2 === void 0) return drillTo(ui, "dex", null);
+    const entries = ui.view.dex[section2.key] ?? [];
     const detail = entries.find((entry) => entry.key === ui.drill.pick);
-    if (detail !== void 0) return renderDetail(ui, section, detail);
-    renderEntries(ui, section, entries);
+    if (detail !== void 0) return renderDetail(ui, section2, detail);
+    renderEntries(ui, section2, entries);
   }
   function renderSections(ui) {
     const grid = tileGrid();
     grid.className += " dp-dex-sections";
-    for (const section of SECTIONS) {
-      const entries = ui.view.dex[section.key] ?? [];
+    for (const section2 of SECTIONS) {
+      const entries = ui.view.dex[section2.key] ?? [];
       const got = entries.filter((entry) => entry.acquired).length;
       const node = tile({
-        emoji: section.emoji,
-        label: section.label,
-        color: section.color,
+        emoji: section2.emoji,
+        label: section2.label,
+        color: section2.color,
         note: entries.length === 0 ? "\u7B49\u5F85\u6536\u5F55" : got + "/" + entries.length,
-        data: { "data-dex-section": section.key },
+        data: { "data-dex-section": section2.key },
         onPick: function() {
-          drillTo(ui, "dex", section.key);
+          drillTo(ui, "dex", section2.key);
         }
       });
       const progress = el("span", "dp-dex-progress");
@@ -3240,23 +3286,23 @@
     }
     ui.content.appendChild(grid);
   }
-  function renderEntries(ui, section, entries) {
+  function renderEntries(ui, section2, entries) {
     const acquired = entries.filter((entry) => entry.acquired).length;
-    drillHeader(ui, "dex", section.emoji + " " + section.label, acquired + "/" + entries.length);
+    drillHeader(ui, "dex", section2.emoji + " " + section2.label, acquired + "/" + entries.length);
     if (entries.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E00\u9875\u8FD8\u6CA1\u6709\u6536\u5F55\u5185\u5BB9"));
       return;
     }
-    if (section.key === "forms" || section.key === "skins") renderFlashShelf(ui, section, entries);
-    else if (section.key === "items") renderCatalogue(ui, entries);
-    else renderMuseum(ui, section, entries);
+    if (section2.key === "forms" || section2.key === "skins") renderFlashShelf(ui, section2, entries);
+    else if (section2.key === "items") renderCatalogue(ui, entries);
+    else renderMuseum(ui, section2, entries);
   }
-  function renderFlashShelf(ui, section, entries) {
+  function renderFlashShelf(ui, section2, entries) {
     const grid = el("div", "dp-dex-flash-grid");
-    for (const entry of entries) grid.appendChild(flashCard(ui, section, entry));
+    for (const entry of entries) grid.appendChild(flashCard(ui, section2, entry));
     ui.content.appendChild(grid);
   }
-  function flashCard(ui, section, entry) {
+  function flashCard(ui, section2, entry) {
     const classes = ["dp-dex-card"];
     if (entry.acquired) classes.push("dp-dex-card-foil");
     else classes.push("dp-dex-card-locked");
@@ -3267,11 +3313,11 @@
     appendArt(art, entry, true);
     if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
     card.appendChild(art);
-    card.appendChild(el("span", "dp-dex-caption", entry.acquired ? entry.label : "\u672A\u77E5" + section.label));
+    card.appendChild(el("span", "dp-dex-caption", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
     if (entry.acquired) tilt(card);
     return card;
   }
-  function renderMuseum(ui, section, entries) {
+  function renderMuseum(ui, section2, entries) {
     const grid = el("div", "dp-dex-museum");
     for (const entry of entries) {
       const card = button(
@@ -3285,7 +3331,7 @@
       appendArt(art, entry, false);
       if (!entry.acquired) art.appendChild(el("span", "dp-dex-museum-lock", "\u{1F512}"));
       card.appendChild(art);
-      card.appendChild(el("span", "dp-dex-museum-name", entry.acquired ? entry.label : "\u672A\u77E5" + section.label));
+      card.appendChild(el("span", "dp-dex-museum-name", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
       grid.appendChild(card);
     }
     ui.content.appendChild(grid);
@@ -3352,19 +3398,19 @@
     row.appendChild(el("span", "dp-dex-row-count", entry.acquired ? "\xD7" + entry.count : "\u{1F512}"));
     return row;
   }
-  function renderDetail(ui, section, entry) {
+  function renderDetail(ui, section2, entry) {
     const header = el("div", "dp-drill");
-    const back = button("dp-drill-back", { "data-dex-detail-back": section.key }, function() {
+    const back = button("dp-drill-back", { "data-dex-detail-back": section2.key }, function() {
       ui.drill.pick = null;
       ui.renderContent();
       ui.content.scrollTop = 0;
     });
     back.textContent = "\u2039";
     header.appendChild(back);
-    header.appendChild(el("b", "dp-drill-title", section.emoji + " " + section.label));
+    header.appendChild(el("b", "dp-drill-title", section2.emoji + " " + section2.label));
     header.appendChild(el("span", "dp-drill-info", entry.acquired ? "\u5DF2\u6536\u5F55" : "\u672A\u89E3\u9501"));
     ui.content.appendChild(header);
-    const flash = section.key === "forms" || section.key === "skins";
+    const flash = section2.key === "forms" || section2.key === "skins";
     const wrap = el("div", "dp-dex-detail");
     wrap.setAttribute("data-dex-detail", entry.key);
     const card = el("div", flash ? "dp-dex-big" + (entry.acquired ? " dp-dex-big-foil" : " dp-dex-big-locked") : "dp-dex-info" + (entry.acquired ? "" : " dp-dex-info-locked"));
@@ -3372,11 +3418,11 @@
     appendArt(art, entry, flash);
     if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
     card.appendChild(art);
-    card.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + section.label));
+    card.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + section2.label));
     if (entry.acquired) {
       card.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
       card.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
-      if (section.key === "skins") {
+      if (section2.key === "skins") {
         const current = ui.view.skins.current === entry.key;
         const pick = button("dp-mini", { "data-dex-skin": entry.key }, function() {
           ui.send("skin", { skin: entry.key });
@@ -3797,6 +3843,171 @@
     ui.content.appendChild(row);
   }
 
+  // src/client/update-notice.js
+  var READ_KEY = "dsh-piggy:update-read";
+  var NOTIFIED_KEY = "dsh-piggy:update-notified";
+  var GITHUB_LATEST = "https://api.github.com/repos/CLICGGER-TYPES/dsh-piggy/releases/latest";
+  function compareVersions(a, b) {
+    const split = (value) => {
+      const [main, pre] = String(value).replace(/^v/, "").split("-", 2);
+      return { main: main.split(".").map((part) => Number.parseInt(part, 10) || 0), pre: pre === void 0 ? null : pre.split(".") };
+    };
+    const left = split(a), right = split(b);
+    for (let i = 0; i < Math.max(left.main.length, right.main.length); i += 1) {
+      if ((left.main[i] ?? 0) !== (right.main[i] ?? 0)) return (left.main[i] ?? 0) - (right.main[i] ?? 0);
+    }
+    if (left.pre === null || right.pre === null) return (left.pre === null ? 1 : 0) - (right.pre === null ? 1 : 0);
+    for (let i = 0; i < Math.max(left.pre.length, right.pre.length); i += 1) {
+      const x = left.pre[i], y = right.pre[i];
+      if (x === void 0 || y === void 0) return x === void 0 ? -1 : 1;
+      if (x === y) continue;
+      const nx = Number(x), ny = Number(y);
+      if (Number.isInteger(nx) && Number.isInteger(ny)) return nx - ny;
+      return x < y ? -1 : 1;
+    }
+    return 0;
+  }
+  function newestRelease(releases) {
+    return (Array.isArray(releases) ? releases : []).filter((release) => release && release.prerelease !== true).sort((a, b) => compareVersions(b.version, a.version))[0] ?? null;
+  }
+  async function fetchGithubLatest(doFetch = fetch) {
+    const response = await doFetch(GITHUB_LATEST, { headers: { accept: "application/vnd.github+json" }, cache: "no-store" });
+    if (!response.ok) throw new Error("GitHub " + response.status);
+    const release = await response.json();
+    if (release?.draft === true || release?.prerelease === true) return null;
+    const version = String(release?.tag_name ?? "").replace(/^v/, "");
+    if (version === "") return null;
+    return {
+      version,
+      page: String(release?.html_url ?? "https://github.com/CLICGGER-TYPES/dsh-piggy/releases"),
+      notes: String(release?.body ?? "").slice(0, 1200),
+      prerelease: false
+    };
+  }
+  function createUpdateNotice(options) {
+    let remote = null;
+    let latest = null;
+    let unread = false;
+    let checking = false;
+    let checked = false;
+    let error = null;
+    let timer = null;
+    let interval = null;
+    function signalId(candidate) {
+      if (candidate === null) return "";
+      return [candidate.kind, candidate.version, candidate.latestShell ?? ""].join(":");
+    }
+    function maybeBubble() {
+      if (!unread || latest === null || !options.canBubble()) return;
+      const id = signalId(latest);
+      if (options.read(NOTIFIED_KEY) === id) return;
+      const text = latest.kind === "shell" ? "\u684C\u9762\u7248\u6709\u66F4\u65B0\u5566\uFF0C\u53BB\u66F4\u65B0 App \u770B\u770B\u5427\uFF5E" : "\u6709\u65B0\u7248\u672C v" + latest.version + " \u5566\uFF0C\u53BB\u66F4\u65B0\u770B\u770B\u5427\uFF5E";
+      options.showBubble(text);
+      options.write(NOTIFIED_KEY, id);
+    }
+    function accept(candidate, newest) {
+      latest = candidate;
+      remote = newest;
+      const id = signalId(candidate);
+      unread = candidate !== null && options.read(READ_KEY) !== id;
+      if (unread && options.isViewing?.()) {
+        options.write(READ_KEY, id);
+        unread = false;
+      }
+      checking = false;
+      checked = true;
+      error = null;
+      maybeBubble();
+      options.changed();
+    }
+    async function check() {
+      if (checking) return;
+      checking = true;
+      error = null;
+      try {
+        const desktop = options.getDesktop();
+        if (desktop !== null && desktop?.updates) {
+          const [current, result] = await Promise.all([desktop.updates.current(), desktop.updates.list()]);
+          if (!result?.ok) throw new Error(result?.reason || "\u6CA1\u95EE\u5230 GitHub");
+          const newest2 = newestRelease(result.releases);
+          const gameNew = newest2 !== null && compareVersions(newest2.version, current?.version ?? options.currentVersion()) > 0;
+          const shellNew = newestRelease((result.releases ?? []).filter((release) => release.shellUpdate === true));
+          let candidate2 = null;
+          if (gameNew) candidate2 = { ...newest2, kind: newest2.blocked === "shell" ? "shell" : "game" };
+          else if (shellNew !== null) candidate2 = { ...shellNew, kind: "shell" };
+          accept(candidate2, newest2);
+          return;
+        }
+        const newest = await options.fetchLatest();
+        const candidate = newest !== null && compareVersions(newest.version, options.currentVersion()) > 0 ? { ...newest, kind: "game" } : null;
+        accept(candidate, newest);
+      } catch (caught) {
+        checking = false;
+        error = caught instanceof Error ? caught.message : "\u68C0\u67E5\u66F4\u65B0\u5931\u8D25";
+        options.changed();
+      }
+    }
+    function markRead() {
+      if (latest === null) return;
+      options.write(READ_KEY, signalId(latest));
+      unread = false;
+      options.changed();
+    }
+    function start() {
+      timer = window.setTimeout(check, 1e4);
+      interval = window.setInterval(check, 6 * 60 * 60 * 1e3);
+    }
+    function stop() {
+      if (timer !== null) window.clearTimeout(timer);
+      if (interval !== null) window.clearInterval(interval);
+      timer = null;
+      interval = null;
+    }
+    return {
+      check,
+      markRead,
+      maybeBubble,
+      start,
+      stop,
+      get latest() {
+        return latest;
+      },
+      get remote() {
+        return remote;
+      },
+      get unread() {
+        return unread;
+      },
+      get checking() {
+        return checking;
+      },
+      get checked() {
+        return checked;
+      },
+      get error() {
+        return error;
+      }
+    };
+  }
+  function attachUpdateNotice(ctx, getDesktop, doFetch = fetch) {
+    const notice = createUpdateNotice({
+      currentVersion: () => ctx.view.version,
+      getDesktop,
+      fetchLatest: () => fetchGithubLatest(doFetch),
+      read: readStore,
+      write: writeStore,
+      canBubble: () => ctx.view.pig !== null && ctx.bubble.hidden !== false,
+      showBubble: (text) => ctx.showBubble(text, 4e3),
+      isViewing: () => ctx.tab === "update",
+      changed: () => {
+        if (!ctx.stopped && ctx.isOpen && (ctx.tab === "home" || ctx.tab === "update")) ctx.renderContent();
+      }
+    });
+    ctx.updateNotice = notice;
+    notice.start();
+    return notice;
+  }
+
   // src/client/tabs/update.js
   var state = {
     current: null,
@@ -3924,13 +4135,21 @@
     head.appendChild(el("div", "dp-pick-head", cur === null ? "\u6B63\u5728\u770B\u73B0\u5728\u7684\u7248\u672C\u2026" : "\u6E38\u620F v" + cur.version + (cur.bundled ? "\uFF08\u5B89\u88C5\u5305\u81EA\u5E26\uFF09" : "")));
     if (cur !== null) head.appendChild(el("div", "dp-dim", "\u684C\u9762\u5916\u58F3 v" + cur.shell + " \xB7 \u6E38\u620F\u73A9\u6CD5\u548C\u7A97\u53E3\u529F\u80FD\u5206\u522B\u66F4\u65B0"));
     if (state.message !== null) head.appendChild(el("div", "dp-req", state.message));
-    var shellRelease = state.list === null ? null : state.list.find(function(r) {
-      return r.shellUpdate && !r.prerelease;
+    var onPreview = cur !== null && String(cur.version).indexOf("-") >= 0;
+    var eligible = function(r) {
+      return !r.prerelease || onPreview;
+    };
+    var shellOf = function(r) {
+      return r.latestShell || r.manifest && r.manifest.shellVersion || null;
+    };
+    var shellRelease = state.list === null || cur === null ? null : state.list.find(function(r) {
+      return eligible(r) && shellOf(r) !== null && compareVersions(shellOf(r), cur.shell) > 0;
     }) || null;
     if (shellRelease !== null) {
-      var shellVersion = shellRelease.latestShell;
+      var shellVersion = shellOf(shellRelease);
       var mode = state.shellStatus && state.shellStatus.mode;
       head.appendChild(el("div", "dp-req", "\u684C\u9762\u5916\u58F3 v" + cur.shell + " \u2192 v" + shellVersion));
+      if (compareVersions(cur.shell, "0.2.0") < 0) head.appendChild(el("div", "dp-dim", "\u4F60\u7684\u684C\u9762\u5916\u58F3\u662F\u94FA\u6EE1\u5168\u5C4F\u7684\u65E7\u7248\uFF0C\u4F1A\u5361\u3001\u4F1A\u95EA\uFF1B\u65B0\u5916\u58F3\u53EA\u6846\u4F4F\u732A\u548C\u9762\u677F\u3002\u8BF7\u4E0B\u8F7D\u65B0\u5B89\u88C5\u5305\u8986\u76D6\u5B89\u88C5\uFF0C\u5B58\u6863\u4E0D\u4F1A\u4E22\u3002"));
       if (mode !== "automatic") head.appendChild(el("div", "dp-dim", shellManualReason(mode)));
       if (state.shellMessage !== null) head.appendChild(el("div", "dp-req", state.shellMessage));
       if (state.shellBusy) head.appendChild(el("div", "dp-dim", "\u6B63\u5728\u4E0B\u8F7D\u684C\u9762\u5916\u58F3 " + Math.round(state.shellFraction * 100) + "%"));
@@ -3947,9 +4166,9 @@
       head.appendChild(el("div", "dp-dim", state.busy === "rollback" ? "\u6B63\u5728\u6362\u56DE\u53BB\u2026" : "\u4E0B\u8F7D\u4E2D " + Math.round(state.fraction * 100) + "%"));
     }
     var latest = state.list === null ? null : state.list.find(function(r) {
-      return r.blocked === null && !r.prerelease;
+      return r.blocked === null && eligible(r);
     }) || null;
-    if (latest !== null && cur !== null && !latest.current) {
+    if (latest !== null && cur !== null && compareVersions(latest.version, cur.version) > 0) {
       var up = button("dp-btn dp-btn-wide", { "data-update-latest": latest.version }, function() {
         install(ui, latest.version);
       });
@@ -4173,68 +4392,66 @@
   }
 
   // src/client/tabs/settings.js
-  function renderSettingsTab(ui) {
-    const sizeIntro = el("div", "dp-pick");
-    sizeIntro.appendChild(el("b", null, "\u5C0F\u732A\u5927\u5C0F"));
-    sizeIntro.appendChild(el("span", null, "\u53EA\u8C03\u6574\u8FD9\u53F0\u8BBE\u5907\u4E0A\u7684\u663E\u793A\u5927\u5C0F\uFF0C\u4E0D\u6539\u53D8\u5B58\u6863\u3002"));
-    ui.content.appendChild(sizeIntro);
-    const labels = { small: "\u5C0F", standard: "\u6807\u51C6", large: "\u5927", extra: "\u7279\u5927" };
-    for (const size of PIG_SIZES) {
-      const row = el("div", "dp-item dp-setting-row");
-      row.appendChild(el("span", "dp-setting-emoji", "\u{1F416}"));
-      const copy = el("span", "dp-grow");
-      copy.appendChild(el("b", null, labels[size]));
-      row.appendChild(copy);
-      const pick = button("dp-mini", { "data-pig-size": String(size) }, function() {
-        setPigSize(size);
-        const stageSize = ui.view.hatched ? ui.view.pig.stage.size : ui.view.boxStage.size;
-        ui.host.style.setProperty("--pig-size", displayedPigSize(stageSize) + "px");
-        ui.renderContent();
-        ui.fitPanel();
-        desktopShell()?.syncGeometry?.();
+  function section(ui, title, note) {
+    const box = el("div", "dp-set");
+    const head = el("div", "dp-set-head");
+    head.appendChild(el("b", null, title));
+    if (note) head.appendChild(el("small", "dp-dim", note));
+    box.appendChild(head);
+    ui.content.appendChild(box);
+    return { box, head };
+  }
+  function segmented({ box }, attr, options, current, onPick) {
+    const row = el("div", "dp-seg");
+    for (const option of options) {
+      const pick = button("dp-seg-btn", { [attr]: option.key, "aria-pressed": String(option.key === current) }, function() {
+        onPick(option.key);
       });
-      pick.textContent = pigSize() === size ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
-      pick.disabled = pigSize() === size;
+      pick.textContent = option.label;
+      pick.disabled = option.key === current;
       row.appendChild(pick);
-      ui.content.appendChild(row);
     }
-    const closeRow = el("div", "dp-item dp-setting-row");
-    closeRow.appendChild(el("span", "dp-setting-emoji", "\u{1FA9F}"));
-    const closeCopy = el("span", "dp-grow");
-    closeCopy.appendChild(el("b", null, "\u70B9\u51FB\u522B\u5904\u65F6\u6536\u8D77\u9762\u677F"));
-    closeCopy.appendChild(el("small", "dp-dim", "\u7F51\u9875\u7248\u70B9\u9762\u677F\u5916\uFF0C\u684C\u9762\u7248\u5207\u5230\u5176\u4ED6\u7A97\u53E3\u65F6\u6536\u8D77"));
-    closeRow.appendChild(closeCopy);
-    const close = button("dp-mini", { "data-auto-collapse": String(!autoCollapseEnabled()) }, function() {
+    box.appendChild(row);
+  }
+  function renderSettingsTab(ui) {
+    const size = section(ui, "\u5C0F\u732A\u5927\u5C0F", "\u53EA\u6539\u8FD9\u53F0\u8BBE\u5907\u4E0A\u7684\u663E\u793A\u5927\u5C0F\uFF0C\u4E0D\u6539\u5B58\u6863");
+    const sizeLabels = { small: "\u5C0F", standard: "\u6807\u51C6", large: "\u5927", extra: "\u7279\u5927" };
+    segmented(size, "data-pig-size", PIG_SIZES.map((key) => ({ key, label: sizeLabels[key] })), pigSize(), function(key) {
+      setPigSize(key);
+      const stageSize = ui.view.hatched ? ui.view.pig.stage.size : ui.view.boxStage.size;
+      ui.host.style.setProperty("--pig-size", displayedPigSize(stageSize) + "px");
+      ui.renderContent();
+      ui.fitPanel();
+      desktopShell()?.syncGeometry?.();
+    });
+    if (desktopShell() !== null && hasBundledEmoji()) {
+      const emoji = section(ui, "Emoji \u6837\u5F0F", "\u5185\u7F6E\u662F\u968F\u6E38\u620F\u9644\u5E26\u7684\u4E00\u6574\u5957 Noto \u5F69\u8272 emoji\uFF0C\u5404\u7CFB\u7EDF\u770B\u8D77\u6765\u4E00\u6837");
+      segmented(emoji, "data-emoji-style", [
+        { key: "bundled", label: "\u5185\u7F6E" },
+        { key: "system", label: "\u7CFB\u7EDF\u81EA\u5E26" }
+      ], emojiStyle(), function(key) {
+        setEmojiStyle(key);
+        applyEmojiStyle(ui.host);
+        ui.renderContent();
+      });
+    }
+    const icons = section(ui, "\u4E3B\u83DC\u5355\u56FE\u6807", "\u624B\u7ED8\u56FE\u6807\u968F\u6E38\u620F\u63D0\u4F9B\uFF0C\u8BBE\u5907\u4E4B\u95F4\u770B\u8D77\u6765\u4E00\u81F4");
+    segmented(icons, "data-icon-style", [
+      { key: "system", label: "Emoji" },
+      { key: "built-in", label: "\u624B\u7ED8\u56FE\u6807" }
+    ], iconStyle(), function(key) {
+      setIconStyle(key);
+      ui.renderContent();
+    });
+    const close = section(ui, "\u70B9\u51FB\u522B\u5904\u65F6\u6536\u8D77\u9762\u677F", "\u7F51\u9875\u7248\u70B9\u9762\u677F\u5916\u3001\u684C\u9762\u7248\u5207\u5230\u5176\u4ED6\u7A97\u53E3\u65F6\u6536\u8D77");
+    const on = autoCollapseEnabled();
+    const toggle = button("dp-switch", { "data-auto-collapse": String(!on), "aria-pressed": String(on) }, function() {
       setAutoCollapse(!autoCollapseEnabled());
       ui.renderContent();
     });
-    close.textContent = autoCollapseEnabled() ? "\u5DF2\u5F00\u542F" : "\u5DF2\u5173\u95ED";
-    closeRow.appendChild(close);
-    ui.content.appendChild(closeRow);
-    const intro = el("div", "dp-pick");
-    intro.appendChild(el("b", null, "\u56FE\u6807\u663E\u793A"));
-    intro.appendChild(el("span", null, "\u9009\u62E9\u4E3B\u83DC\u5355 App \u56FE\u6807\u7684\u6837\u5B50\u3002\u5185\u7F6E\u56FE\u6807\u968F\u6E38\u620F\u63D0\u4F9B\uFF0C\u8BBE\u5907\u4E4B\u95F4\u770B\u8D77\u6765\u4E00\u81F4\u3002"));
-    ui.content.appendChild(intro);
-    const chosen = iconStyle();
-    for (const option of [
-      { key: "system", title: "\u7CFB\u7EDF Emoji", detail: "\u4F7F\u7528\u8FD9\u53F0\u8BBE\u5907\u81EA\u5E26\u7684\u8868\u60C5\u56FE\u6807", icon: "\u{1F416}" },
-      { key: "built-in", title: "\u5185\u7F6E\u56FE\u6807", detail: "\u4F7F\u7528\u6E38\u620F\u9644\u5E26\u7684\u624B\u7ED8 SVG \u56FE\u6807", icon: "\u{1F3A8}" }
-    ]) {
-      const row = el("div", "dp-item dp-setting-row");
-      row.appendChild(el("span", "dp-setting-emoji", option.icon));
-      const copy = el("span", "dp-grow");
-      copy.appendChild(el("b", null, option.title));
-      copy.appendChild(el("small", "dp-dim", option.detail));
-      row.appendChild(copy);
-      const pick = button("dp-mini", { "data-icon-style": option.key }, function() {
-        setIconStyle(option.key);
-        ui.renderContent();
-      });
-      pick.textContent = chosen === option.key ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
-      pick.disabled = chosen === option.key;
-      row.appendChild(pick);
-      ui.content.appendChild(row);
-    }
+    toggle.appendChild(el("span", "dp-switch-knob"));
+    toggle.appendChild(el("span", "dp-switch-text", on ? "\u5F00" : "\u5173"));
+    close.head.appendChild(toggle);
   }
 
   // src/client/panel.js
@@ -4399,6 +4616,7 @@
         ctx.pig.removeAttribute("data-art");
         ctx.pig.setAttribute("data-mood", "box");
         ctx.host.style.setProperty("--pig-size", displayedPigSize(ctx.view.boxStage.size) + "px");
+        applyEmojiStyle(ctx.host);
         ctx.soul.hidden = true;
         ctx.host.setAttribute("data-soul", "false");
         ctx.host.setAttribute("data-faded", "false");
@@ -4430,6 +4648,7 @@
           ctx.host.removeAttribute("data-art-actions");
         }
         ctx.host.style.setProperty("--pig-size", displayedPigSize(pigStage.size) + "px");
+        applyEmojiStyle(ctx.host);
         ctx.pig.setAttribute("data-mood", ctx.view.pig.mood);
         ctx.host.setAttribute("data-soul", ctx.view.pig.soul ? "true" : "false");
         ctx.host.setAttribute("data-faded", pigStage.faded ? "true" : "false");
@@ -4707,159 +4926,6 @@
     }, ui.showBubble);
     dev.install();
     return dev;
-  }
-
-  // src/client/update-notice.js
-  var READ_KEY = "dsh-piggy:update-read";
-  var NOTIFIED_KEY = "dsh-piggy:update-notified";
-  var GITHUB_LATEST = "https://api.github.com/repos/CLICGGER-TYPES/dsh-piggy/releases/latest";
-  function compareVersions(a, b) {
-    const parts = (value) => String(value).replace(/^v/, "").split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
-    const left = parts(a), right = parts(b);
-    for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
-      if ((left[i] ?? 0) !== (right[i] ?? 0)) return (left[i] ?? 0) - (right[i] ?? 0);
-    }
-    return 0;
-  }
-  function newestRelease(releases) {
-    return (Array.isArray(releases) ? releases : []).filter((release) => release && release.prerelease !== true).sort((a, b) => compareVersions(b.version, a.version))[0] ?? null;
-  }
-  async function fetchGithubLatest(doFetch = fetch) {
-    const response = await doFetch(GITHUB_LATEST, { headers: { accept: "application/vnd.github+json" }, cache: "no-store" });
-    if (!response.ok) throw new Error("GitHub " + response.status);
-    const release = await response.json();
-    if (release?.draft === true || release?.prerelease === true) return null;
-    const version = String(release?.tag_name ?? "").replace(/^v/, "");
-    if (version === "") return null;
-    return {
-      version,
-      page: String(release?.html_url ?? "https://github.com/CLICGGER-TYPES/dsh-piggy/releases"),
-      notes: String(release?.body ?? "").slice(0, 1200),
-      prerelease: false
-    };
-  }
-  function createUpdateNotice(options) {
-    let remote = null;
-    let latest = null;
-    let unread = false;
-    let checking = false;
-    let checked = false;
-    let error = null;
-    let timer = null;
-    let interval = null;
-    function signalId(candidate) {
-      if (candidate === null) return "";
-      return [candidate.kind, candidate.version, candidate.latestShell ?? ""].join(":");
-    }
-    function maybeBubble() {
-      if (!unread || latest === null || !options.canBubble()) return;
-      const id = signalId(latest);
-      if (options.read(NOTIFIED_KEY) === id) return;
-      const text = latest.kind === "shell" ? "\u684C\u9762\u7248\u6709\u66F4\u65B0\u5566\uFF0C\u53BB\u66F4\u65B0 App \u770B\u770B\u5427\uFF5E" : "\u6709\u65B0\u7248\u672C v" + latest.version + " \u5566\uFF0C\u53BB\u66F4\u65B0\u770B\u770B\u5427\uFF5E";
-      options.showBubble(text);
-      options.write(NOTIFIED_KEY, id);
-    }
-    function accept(candidate, newest) {
-      latest = candidate;
-      remote = newest;
-      const id = signalId(candidate);
-      unread = candidate !== null && options.read(READ_KEY) !== id;
-      if (unread && options.isViewing?.()) {
-        options.write(READ_KEY, id);
-        unread = false;
-      }
-      checking = false;
-      checked = true;
-      error = null;
-      maybeBubble();
-      options.changed();
-    }
-    async function check() {
-      if (checking) return;
-      checking = true;
-      error = null;
-      try {
-        const desktop = options.getDesktop();
-        if (desktop !== null && desktop?.updates) {
-          const [current, result] = await Promise.all([desktop.updates.current(), desktop.updates.list()]);
-          if (!result?.ok) throw new Error(result?.reason || "\u6CA1\u95EE\u5230 GitHub");
-          const newest2 = newestRelease(result.releases);
-          const gameNew = newest2 !== null && compareVersions(newest2.version, current?.version ?? options.currentVersion()) > 0;
-          const shellNew = newestRelease((result.releases ?? []).filter((release) => release.shellUpdate === true));
-          let candidate2 = null;
-          if (gameNew) candidate2 = { ...newest2, kind: newest2.blocked === "shell" ? "shell" : "game" };
-          else if (shellNew !== null) candidate2 = { ...shellNew, kind: "shell" };
-          accept(candidate2, newest2);
-          return;
-        }
-        const newest = await options.fetchLatest();
-        const candidate = newest !== null && compareVersions(newest.version, options.currentVersion()) > 0 ? { ...newest, kind: "game" } : null;
-        accept(candidate, newest);
-      } catch (caught) {
-        checking = false;
-        error = caught instanceof Error ? caught.message : "\u68C0\u67E5\u66F4\u65B0\u5931\u8D25";
-        options.changed();
-      }
-    }
-    function markRead() {
-      if (latest === null) return;
-      options.write(READ_KEY, signalId(latest));
-      unread = false;
-      options.changed();
-    }
-    function start() {
-      timer = window.setTimeout(check, 1e4);
-      interval = window.setInterval(check, 6 * 60 * 60 * 1e3);
-    }
-    function stop() {
-      if (timer !== null) window.clearTimeout(timer);
-      if (interval !== null) window.clearInterval(interval);
-      timer = null;
-      interval = null;
-    }
-    return {
-      check,
-      markRead,
-      maybeBubble,
-      start,
-      stop,
-      get latest() {
-        return latest;
-      },
-      get remote() {
-        return remote;
-      },
-      get unread() {
-        return unread;
-      },
-      get checking() {
-        return checking;
-      },
-      get checked() {
-        return checked;
-      },
-      get error() {
-        return error;
-      }
-    };
-  }
-  function attachUpdateNotice(ctx, getDesktop, doFetch = fetch) {
-    const notice = createUpdateNotice({
-      currentVersion: () => ctx.view.version,
-      getDesktop,
-      fetchLatest: () => fetchGithubLatest(doFetch),
-      read: readStore,
-      write: writeStore,
-      canBubble: () => ctx.view.pig !== null && ctx.bubble.hidden !== false,
-      showBubble: (text) => ctx.showBubble(text, 4e3),
-      isViewing: () => ctx.tab === "update",
-      changed: () => {
-        if (!ctx.stopped && ctx.isOpen && (ctx.tab === "home" || ctx.tab === "update")) ctx.renderContent();
-      }
-    });
-    ctx.updateNotice = notice;
-    notice.start();
-    return notice;
   }
 
   // src/client/index.js

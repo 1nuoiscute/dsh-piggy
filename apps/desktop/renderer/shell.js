@@ -29,6 +29,17 @@
    */
   var BUBBLE_ZONE = { width: 272, height: 104 }
 
+  /**
+   * 面板打开时整块内容（面板 + 名牌 + 猪）相对猪的外框，按面板朝向和猪的大小记在本机。
+   * 收起时窗口仍按这个外框留位置：开、关面板只改可点区域，窗口一像素不动 ——
+   * Windows 上透明窗口每改一次大小都可能闪一下白底（用户 2026-10-04「右键猪出现白底」）。
+   * 只有第一次打开、或者面板换了朝向/猪换了大小时，才会改一次窗口。
+   */
+  var OPEN_BOX_KEY = 'dsh-piggy:desktop-open-box'
+  var openBoxes = {}
+  try { openBoxes = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || '{}') || {} } catch (e) { openBoxes = {} }
+  function openBoxKey(pigBox) { return lastVertical + '|' + lastHorizontal + '|' + Math.round(pigBox.width) }
+
   /** 可点/可见区域四周放宽几像素：礼包上下浮动、猪摇摆会越出布局盒一点，别被切平。 */
   var SHAPE_SLACK = 6
 
@@ -192,6 +203,27 @@
       }
     }
     var outline = zone === null ? rects : rects.concat([zone])
+    if (shell.platform !== 'darwin' && pigNode !== null) {
+      var keyNow = openBoxKey(pigBox)
+      if (host.getAttribute('data-open') === 'true' && card !== null && card.hidden !== true) {
+        // 记下打开时的外框（相对猪）。
+        var l = Infinity, t = Infinity, r = -Infinity, b = -Infinity
+        for (var o = 0; o < outline.length; o += 1) {
+          l = Math.min(l, outline[o].x); t = Math.min(t, outline[o].y)
+          r = Math.max(r, outline[o].r); b = Math.max(b, outline[o].b)
+        }
+        var rel = { l: Math.round(l - pigBox.x), t: Math.round(t - pigBox.y), r: Math.round(r - pigBox.x), b: Math.round(b - pigBox.y) }
+        var old = openBoxes[keyNow]
+        if (old === undefined || old.l !== rel.l || old.t !== rel.t || old.r !== rel.r || old.b !== rel.b) {
+          openBoxes[keyNow] = rel
+          try { localStorage.setItem(OPEN_BOX_KEY, JSON.stringify(openBoxes)) } catch (e) { /* 存不下就每次启动重新量 */ }
+        }
+      } else if (openBoxes[keyNow] !== undefined) {
+        // 收起：按打开时的外框留位置。
+        var saved = openBoxes[keyNow]
+        outline = outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }])
+      }
+    }
     for (var m = 0; m < outline.length; m += 1) {
       left = Math.min(left, outline[m].x)
       top = Math.min(top, outline[m].y)
@@ -212,6 +244,12 @@
       var y = Math.max(0, Math.floor(r.y) - SHAPE_SLACK)
       return { x: x, y: y, width: Math.ceil(r.r) + SHAPE_SLACK - x, height: Math.ceil(r.b) + SHAPE_SLACK - y }
     })
+    // 摸猪、喂食冒出的爱心等粒子会从猪头往上飘约 56px：飘的时候把这块也加进可见区域，
+    // 不然粒子飞出可点区域就被切掉一半，看起来一闪一闪的。只改可点区域，不改窗口大小。
+    if (pigNode !== null && host.querySelector !== undefined && host.querySelector('.dp-fx') !== null) {
+      var fx = { x: Math.max(0, Math.floor(pigBox.x - 36)), y: Math.max(0, Math.floor(pigBox.y - 84)) }
+      shape.push({ x: fx.x, y: fx.y, width: Math.ceil(pigBox.x + pigBox.width + 36) - fx.x, height: Math.ceil(pigBox.y + 12) - fx.y })
+    }
     var contentBox = { left: left, top: top, right: right, bottom: bottom }
     return { content: content, shape: shape, pig: pig, hostBox: hostBox, pigBox: pigBox, contentBox: contentBox }
   }
