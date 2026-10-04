@@ -75,6 +75,41 @@ test('丢失指针捕获会结束桌面拖动，移动时给主进程发送心�
   assert.deepEqual(calls, ['start', 'beat', 'end'])
 })
 
+test('按住 1.5 秒不移动后再拖，桌面窗口仍跟着鼠标，松开即停止心跳', async () => {
+  let now = 0
+  let lastHeartbeat = 0
+  let active = false
+  let windowX = 100
+  let cursorX = 100
+  let beats = 0
+  const shell = {
+    beginDrag: () => { active = true; lastHeartbeat = now },
+    dragHeartbeat: () => { if (active) { lastHeartbeat = now; beats += 1 } },
+    endDrag: () => { active = false },
+  }
+  const { dom, intervals } = await mount({ windowExtra: { __dshPiggyShell: shell } })
+  const cleared = new Set()
+  window.clearInterval = id => cleared.add(id)
+  const scene = sceneOf(dom)
+  scene.fire('pointerdown', { button: 0, clientX: 20, clientY: 20, screenX: 100, screenY: 100, pointerId: 1 })
+  const heartbeats = intervals.map((timer, index) => ({ ...timer, id: index + 1 })).filter(timer => timer.delay === 250)
+  assert.equal(heartbeats.length, 1, '拖动期间须每 250ms 发一次心跳')
+  for (now = 250; now <= 1500; now += 250) {
+    for (const timer of heartbeats) if (!cleared.has(timer.id)) timer.fn()
+    if (now - lastHeartbeat > 1000) active = false // 主进程的超时保险
+  }
+  cursorX = 150
+  scene.fire('pointermove', { clientX: 70, clientY: 20, screenX: cursorX, screenY: 100, pointerId: 1 })
+  if (active) windowX = cursorX // 主进程下一次 60Hz 采样
+  assert.equal(windowX, 150, '停住再移动时窗口仍跟手')
+  scene.fire('pointerup', { pointerId: 1 })
+  const before = beats
+  assert.ok(cleared.has(heartbeats[0].id), '结束拖动时清除心跳定时器')
+  now += 250
+  for (const timer of heartbeats) if (!cleared.has(timer.id)) timer.fn()
+  assert.equal(beats, before)
+})
+
 test('桌面版：面板按屏幕空间朝上开（小窗口的 innerWidth 不算数）', async () => {
   const { shell } = fakeShell({ above: 900, below: 100, width: 1920, height: 1040 })
   const { dom } = await mount({ windowExtra: { __dshPiggyShell: shell } })

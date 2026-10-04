@@ -4615,6 +4615,16 @@
     return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
   }
 
+  // src/client/drag-heartbeat.js
+  function startDragHeartbeat(shell, isDragging) {
+    if (typeof shell?.dragHeartbeat !== "function") return () => {
+    };
+    const timer = window.setInterval(() => {
+      if (isDragging()) shell.dragHeartbeat();
+    }, 250);
+    return () => window.clearInterval(timer);
+  }
+
   // src/client/position.js
   function readPosition(raw) {
     if (raw === null || raw === void 0) return null;
@@ -5110,8 +5120,11 @@
           if (action !== null && action !== "") send(action);
         });
         var drag = null;
+        var stopDragHeartbeat = function() {
+        };
         scene.addEventListener("pointerdown", function(event) {
           if (event.button !== 0) return;
+          stopDragHeartbeat();
           drag = {
             x: event.clientX,
             y: event.clientY,
@@ -5125,7 +5138,11 @@
           };
           scene.setAttribute("data-dragging", "true");
           scene.setPointerCapture?.(event.pointerId);
-          desktopShell()?.beginDrag?.();
+          var shellAtStart = desktopShell();
+          shellAtStart?.beginDrag?.();
+          stopDragHeartbeat = startDragHeartbeat(shellAtStart, function() {
+            return drag !== null;
+          });
         });
         scene.addEventListener("pointermove", function(event) {
           if (drag === null) return;
@@ -5156,6 +5173,9 @@
           if (drag === null) return false;
           var moved = drag.moved;
           drag = null;
+          stopDragHeartbeat();
+          stopDragHeartbeat = function() {
+          };
           desktopShell()?.endDrag?.();
           scene.removeAttribute("data-dragging");
           clampPig();
@@ -5250,6 +5270,7 @@
         devMode = false;
         function dispose() {
           stopped = true;
+          stopDragHeartbeat();
           updateNotice.stop();
           stopResize();
           autoCollapse.dispose();

@@ -30,6 +30,7 @@ import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_TA
 import { button, el, meter } from './dom.js'
 import { normalize } from './normalize.js'
 import { desktopShell } from './desktop-shell.js'
+import { startDragHeartbeat } from './drag-heartbeat.js'
 import { attachAutoCollapse } from './auto-collapse.js'
 import { readPosition } from './position.js'
 import { attachDevMode } from './dev-mode.js'
@@ -232,8 +233,10 @@ import { arr, num, obj, str } from './values.js'
 
       // ---- drag the pig; right-click it for the menu ----
       var drag = null
+      var stopDragHeartbeat = function () {}
       scene.addEventListener('pointerdown', function (event) {
         if (event.button !== 0) return
+        stopDragHeartbeat()
         drag = {
           x: event.clientX, y: event.clientY,
           startX: typeof event.screenX === 'number' ? event.screenX : event.clientX,
@@ -246,14 +249,15 @@ import { arr, num, obj, str } from './values.js'
         }
         scene.setAttribute('data-dragging', 'true')
         scene.setPointerCapture?.(event.pointerId)
-        desktopShell()?.beginDrag?.()
+        var shellAtStart = desktopShell()
+        shellAtStart?.beginDrag?.()
+        stopDragHeartbeat = startDragHeartbeat(shellAtStart, function () { return drag !== null })
       })
       scene.addEventListener('pointermove', function (event) {
         if (drag === null) return
         var dx = event.clientX - drag.x
         var dy = event.clientY - drag.y
-        // Desktop: main process samples the pointer against the original window
-        // position. The renderer only tracks whether this was a drag or a pat.
+        // Desktop samples the cursor in the main process; the page detects a pat.
         var shellNow = desktopShell()
         if (shellNow !== null) {
           shellNow.dragHeartbeat?.()
@@ -273,13 +277,14 @@ import { arr, num, obj, str } from './values.js'
         userRight = drag.right - dx
         userBottom = drag.bottom - dy
         clampPig()
-        // The panel rides along so it is never left behind off screen.
         fitPanel()
       })
       function endDrag() {
         if (drag === null) return false
         var moved = drag.moved
         drag = null
+        stopDragHeartbeat()
+        stopDragHeartbeat = function () {}
         desktopShell()?.endDrag?.()
         scene.removeAttribute('data-dragging')
         clampPig()
@@ -291,12 +296,7 @@ import { arr, num, obj, str } from './values.js'
         return moved
       }
       var boxPokes = 0
-
-      /**
-       * Poke the box. Three pokes and the piglet comes out — the count is what
-       * makes it feel like something is in there rather than a button that
-       * happens to be cardboard-shaped.
-       */
+      /** Three pokes open the box. */
       function pokeBox() {
         boxPokes += 1
         react('poke', 560)
@@ -313,8 +313,7 @@ import { arr, num, obj, str } from './values.js'
         showBubble(BOX_POKE_LINES[boxPokes - 1], 2200)
       }
 
-      // Left click is a pat on the head. The menu is on the context menu, so a
-      // stray click can no longer open or close the panel by accident.
+      // Left click pats; context menu opens the panel.
       scene.addEventListener('pointerup', function () {
         if (endDrag()) return
         // An unhatched save is a box, whether or not one exists yet.
@@ -373,6 +372,7 @@ import { arr, num, obj, str } from './values.js'
 
       function dispose() {
         stopped = true
+        stopDragHeartbeat()
         updateNotice.stop()
         stopResize()
         autoCollapse.dispose()
