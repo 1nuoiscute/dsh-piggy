@@ -45,7 +45,7 @@ jobs:
       - name: 建 Release 并上传游戏包
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --generate-notes
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --generate-notes $([[ "$GITHUB_REF_NAME" == *-* ]] && echo --prerelease)
           gh release upload "$GITHUB_REF_NAME" dist-game/* --clobber
 
   desktop:

@@ -5,7 +5,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
-## Unreleased · 桌面交互（目标 v0.27.3）
+## [0.27.3-rc.1] — 2026-10-04 · 桌面交互预览版（Windows 实测用，不会自动推送）
 
 ### Added
 - 设置 App 增加小猪大小四档：小 ×0.85、标准 ×1、大 ×1.3、特大 ×1.7，乘在成长阶段原有尺寸上；标准档与旧版相同。仅保存在当前设备，旧 48/56/72/96px 偏好自动换算成对应档位。
