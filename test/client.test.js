@@ -1151,7 +1151,7 @@ test('the time-scale switch lives in the debug tab, not in the panel', async () 
   // The fake DOM cannot dispatch the Ctrl+Shift+D listener, so read the source.
   const dev = await readModule('tabs/dev.js')
   const status = await readModule('tabs/status.js')
-  assert.match(dev, /group\('时间', \[[\s\S]{0,400}timeScale/, 'the time switch must be a debug-tab group')
+  assert.match(dev, /time\('时间', \[[\s\S]{0,400}timeScale/, 'the time switch must be a debug-tab group')
   assert.ok(!/data-scale/.test(status), 'and must not be built in the status tab')
 })
 

@@ -619,7 +619,7 @@
   // packages/pet-core/src/data/skins.js
   var SKIN_SCENES = Object.freeze(["idle", "eat", "bathe", "play", "pet", "relaxed", "work", "study", "trip", "fish"]);
   var REQUIRED_SKIN_SCENES = Object.freeze(SKIN_SCENES.slice(0, 5));
-  var CHARACTER_SCENES = Object.freeze(SKIN_SCENES.filter((scene) => scene !== "fish"));
+  var CHARACTER_SCENES = Object.freeze(SKIN_SCENES.filter((scene2) => scene2 !== "fish"));
   var SKINS = Object.freeze([
     Object.freeze({
       key: "mint",
@@ -697,7 +697,220 @@
     })
   ]);
 
+  // packages/pet-core/src/data/lines.js
+  var IDLE_CHAT_MINUTES2 = Object.freeze({ min: 20, max: 40 });
+  var line = (text, reply) => Object.freeze(reply === void 0 ? { text } : { text, replies: Object.freeze([Object.freeze({ label: reply })]) });
+  var scene = (...lines) => Object.freeze(lines);
+  var LINES = Object.freeze({
+    // --- 照顾 -----------------------------------------------------------------
+    eat: scene(
+      line("\u597D\u5403\uFF01\u8FD8\u6709\u5417\uFF1F", "\u771F\u4E56"),
+      line("\u5427\u5527\u5427\u5527\u2026\u2026"),
+      line("[\u4E3B\u4EBA]\u6700\u597D\u4E86\uFF5E"),
+      line("\u8FD9\u4E2A\u5473\u9053\u6211\u8BB0\u4F4F\u4E86"),
+      line("\u5403\u9971\u9971\u624D\u6709\u529B\u6C14\u966A\u4F60\u52A0\u73ED"),
+      line("\u55DD\u2014\u2014\uFF08\u4E0D\u597D\u610F\u601D\uFF09")
+    ),
+    full: scene(
+      line("\u5403\u9971\u5566\uFF0C\u809A\u5B50\u5706\u6EDA\u6EDA\u7684"),
+      line("\u597D\u9971\u597D\u9971\uFF0C\u518D\u5403\u5C31\u8981\u6491\u7740\u4E86"),
+      line("\u55DD\u2014\u2014\u8C22\u8C22[\u4E3B\u4EBA]\uFF0C\u9971\u9971\u7684")
+    ),
+    overfull: scene(
+      line("\u6491\u2026\u2026\u6491\u4F4F\u4E86\u2026\u2026"),
+      line("\u771F\u7684\u5403\u4E0D\u4E0B\u4E86\uFF0C\u4F60\u770B\u6211\u809A\u5B50"),
+      line("\u518D\u5582\u6211\u5C31\u8981\u53D8\u6210\u7403\u4E86", "\u6700\u540E\u4E00\u53E3")
+    ),
+    bathe: scene(
+      line("\u9999\u55B7\u55B7\u7684\uFF01"),
+      line("\u6C34\u6709\u70B9\u51C9\u2026\u2026", "\u9A6C\u4E0A\u64E6\u5E72"),
+      line("\u6413\u6413\u80CC\uFF0C\u8212\u670D\uFF5E"),
+      line("\u6CE1\u6CE1\uFF01\u662F\u6CE1\u6CE1\uFF01"),
+      line("\u6D17\u5E72\u51C0\u4E86\uFF0C\u53EF\u4EE5\u62B1\u4E86")
+    ),
+    play: scene(
+      line("\u518D\u6765\u4E00\u6B21\uFF01"),
+      line("\u63A5\u4F4F\u5566\uFF01", "\u771F\u68D2"),
+      line("\u54C8\u54C8\u54C8\u597D\u597D\u73A9"),
+      line("\u6211\u8DD1\u5F97\u6BD4\u7403\u5FEB"),
+      line("\u73A9\u7D2F\u4E86\u2026\u2026\u518D\u73A9\u4E94\u5206\u949F")
+    ),
+    pet: scene(
+      line("\u597D\u8212\u670D\u2026\u2026"),
+      line("\u518D\u6478\u6478\uFF5E", "\u597D"),
+      line("\u547C\u565C\u547C\u565C\u2026\u2026"),
+      line("\uFF08\u772F\u8D77\u773C\u775B\uFF09"),
+      line("\u8FD9\u91CC\u8FD9\u91CC\uFF01\u5DE6\u8FB9\u4E00\u70B9\uFF01"),
+      line("\u5514\u2026\u2026\u597D\u75D2"),
+      line("[\u4E3B\u4EBA]\u7684\u624B\u6696\u6696\u7684")
+    ),
+    // --- 状态提醒（闲着时优先说这些）-------------------------------------------
+    hungry: scene(
+      line("\u809A\u5B50\u5495\u5495\u53EB\u4E86\u2026\u2026"),
+      line("[\u4E3B\u4EBA]\uFF0C\u996D\u996D\uFF01", "\u9A6C\u4E0A\u6765"),
+      line("\u6211\u53EF\u4EE5\u5403\u4E00\u6574\u4E2A\u82F9\u679C\u6811")
+    ),
+    dirty: scene(
+      line("\u8EAB\u4E0A\u6709\u70B9\u75D2\u75D2\u7684"),
+      line("\u6211\u662F\u4E0D\u662F\u6709\u70B9\u5473\u9053\u4E86\u2026\u2026"),
+      line("\u60F3\u6D17\u6CE1\u6CE1\u6D74", "\u597D\uFF0C\u8FD9\u5C31\u6D17")
+    ),
+    lonely: scene(
+      line("[\u4E3B\u4EBA]\u5728\u5FD9\u4EC0\u4E48\u5440\uFF1F"),
+      line("\u4F60\u597D\u4E45\u6CA1\u7406\u6211\u4E86\u2026\u2026", "\u966A\u4F60\u4E00\u4F1A\u513F"),
+      line("\u6211\u4E00\u4E2A\u4EBA\u5728\u8FD9\u513F\u6570\u50CF\u7D20")
+    ),
+    idle: scene(
+      line("\uFF08\u6253\u4E86\u4E2A\u54C8\u6B20\uFF09"),
+      line("\u4ECA\u5929\u5929\u6C14\u597D\u50CF\u4E0D\u9519"),
+      line("\u4F60\u5199\u7684\u4EE3\u7801\u6211\u770B\u61C2\u4E86\u4E00\u884C\uFF01"),
+      line("\u8981\u4E0D\u8981\u4F11\u606F\u4E00\u4E0B\u773C\u775B\uFF1F", "\u597D"),
+      line("\u6211\u5728\u60F3\u665A\u996D\u5403\u4EC0\u4E48"),
+      line("\uFF08\u5728\u89D2\u843D\u91CC\u6EDA\u4E86\u4E00\u5708\uFF09"),
+      line("[\u4E3B\u4EBA]\u52A0\u6CB9\uFF0C\u6211\u5728\u65C1\u8FB9\u770B\u7740"),
+      line("\u521A\u624D\u90A3\u4E2A\u62A5\u9519\u6211\u4E5F\u770B\u89C1\u4E86\u2026\u2026")
+    ),
+    // --- 出门 -----------------------------------------------------------------
+    workDone: scene(
+      line("\u6211\u56DE\u6765\u5566\uFF01\u8D5A\u5230\u94B1\u4E86\uFF01", "\u8F9B\u82E6\u4E86"),
+      line("\u4ECA\u5929\u8001\u677F\u5938\u6211\u4E86"),
+      line("\u7D2F\u662F\u7D2F\u4E86\u70B9\uFF0C\u4F46\u662F\u6709\u94B1\u4E86")
+    ),
+    tired: scene(
+      line("\u597D\u7D2F\u554A\u2026\u2026", "\u6B47\u4F1A\u513F\u5427"),
+      line("\u80FD\u4E0D\u80FD\u5148\u8BA9\u6211\u8EBA\u4E00\u4E0B"),
+      line("\u518D\u5E72\u4E0B\u53BB\u6211\u8981\u5934\u6655\u4E86")
+    ),
+    study: scene(
+      line("\u4ECA\u5929\u5B66\u5230\u597D\u591A\uFF01", "\u771F\u4E56"),
+      line("\u8001\u5E08\u8BB2\u7684\u6211\u90FD\u542C\u61C2\u4E86\uFF08\u5927\u6982\uFF09"),
+      line("\u4F5C\u4E1A\u2026\u2026\u660E\u5929\u518D\u8BF4")
+    ),
+    graduate: scene(
+      line("\u6211\u6BD5\u4E1A\u5566\uFF01\u6211\u6CA1\u6709\u7559\u7EA7\uFF01", "\u771F\u68D2"),
+      line("\u770B\uFF0C\u6211\u7684\u6BD5\u4E1A\u7167\uFF01"),
+      line("\u4E0B\u4E00\u6BB5\u6211\u4E5F\u80FD\u5FF5\u5B8C")
+    ),
+    tripBack: scene(
+      line("\u6211\u7ED9\u4F60\u5E26\u4E86\u4E1C\u897F\uFF01", "\u662F\u4EC0\u4E48\uFF1F"),
+      line("\u5916\u9762\u597D\u5927\u554A"),
+      line("\u4E0B\u6B21\u5E26\u4F60\u4E00\u8D77\u53BB")
+    ),
+    // --- 生病 -----------------------------------------------------------------
+    sick: scene(
+      line("\u963F\u2014\u2014\u568F\uFF01[\u4E3B\u4EBA]\uFF0C\u6211\u597D\u50CF\u75C5\u4E86\u2026\u2026", "\u4E56\uFF0C\u5403\u836F"),
+      line("\u5934\u6709\u70B9\u6655\u6655\u7684"),
+      line("\u6211\u4E0D\u60F3\u52A8\u2026\u2026")
+    ),
+    wrongMedicine: scene(
+      line("\u8FD9\u836F\u597D\u82E6\u2026\u2026\u597D\u50CF\u4E0D\u662F\u8FD9\u4E2A", "\u5BF9\u4E0D\u8D77"),
+      line("\u545C\uFF0C\u66F4\u96BE\u53D7\u4E86"),
+      line("[\u4E3B\u4EBA]\u4F60\u662F\u4E0D\u662F\u770B\u9519\u8BF4\u660E\u4E66\u4E86")
+    ),
+    cured: scene(
+      line("\u6211\u597D\u5566\uFF01\u8C22\u8C22[\u4E3B\u4EBA]\uFF5E", "\u771F\u4E56"),
+      line("\u53C8\u80FD\u8DD1\u80FD\u8DF3\u4E86\uFF01"),
+      line("\u4EE5\u540E\u6211\u4F1A\u4E56\u4E56\u5403\u996D\u7684")
+    ),
+    // --- 成长与生死 -------------------------------------------------------------
+    levelup: scene(
+      line("\u6211\u53C8\u957F\u5927\u4E86\u4E00\u70B9\uFF01", "\u771F\u4E56"),
+      line("\u611F\u89C9\u81EA\u5DF1\u53D8\u5389\u5BB3\u4E86"),
+      line("\u4F60\u770B\u6211\u662F\u4E0D\u662F\u9AD8\u4E86\u4E00\u70B9")
+    ),
+    growUp: scene(
+      line("\u6211\u957F\u5927\u5566\uFF01"),
+      line("\u4EE5\u524D\u7684\u8863\u670D\u597D\u50CF\u7A7F\u4E0D\u4E0B\u4E86"),
+      line("[\u4E3B\u4EBA]\uFF0C\u6211\u73B0\u5728\u662F\u5927\u732A\u4E86")
+    ),
+    coronation: scene(
+      line("\u738B\u51A0\u6709\u70B9\u91CD\uFF0C\u4F46\u6211\u4F1A\u597D\u597D\u6234\u7740\u7684\uFF0C[\u4E3B\u4EBA]\u3002", "\u4F60\u53EF\u4EE5\u7684"),
+      line("\u4ECE\u4ECA\u5929\u8D77\uFF0C\u96F6\u98DF\u4E5F\u7B97\u738B\u5BA4\u4E8B\u52A1\uFF01"),
+      line("\u6211\u5BA3\u5E03\uFF1A[\u4E3B\u4EBA]\u6C38\u8FDC\u662F\u6211\u7684\u7B2C\u4E00\u4F4D\u8D35\u5BA2\u3002"),
+      line("\u54B3\u54B3\uFF0C\u672C\u738B\u60F3\u5148\u5403\u4E2A\u82F9\u679C\u3002")
+    ),
+    contract: scene(
+      line("\u5951\u7EA6\u7B7E\u597D\u4E86\u3002\u5148\u8BF4\u597D\uFF0C\u6211\u8FD8\u662F\u4F60\u90A3\u53EA\u732A\u3002", "\u5F53\u7136"),
+      line("\u89D2\u957F\u51FA\u6765\u4E86\uFF0C\u6492\u5A07\u7684\u672C\u4E8B\u53EF\u6CA1\u4E22\u3002"),
+      line("\u6076\u9B54\u4E5F\u8981\u5403\u996D\u5440\uFF0C[\u4E3B\u4EBA]\u3002"),
+      line("\u8FD9\u7B14\u4EA4\u6613\u6211\u8D5A\u4E86\uFF1A\u4EE5\u540E\u8FD8\u80FD\u548C\u4F60\u5728\u4E00\u8D77\u3002")
+    ),
+    enter: scene(
+      line("[\u4E3B\u4EBA]\u4F60\u56DE\u6765\u5566\uFF01", "\u56DE\u6765\u4E86"),
+      line("\u7B49\u4F60\u597D\u4E45\u4E86\uFF5E"),
+      line("\u4ECA\u5929\u4E5F\u8981\u4E00\u8D77\u52A0\u6CB9\u54E6")
+    ),
+    death: scene(
+      line("[\u4E3B\u4EBA]\u4FDD\u91CD\uFF0C\u6211\u8D70\u4E86\uFF0C\u4E0D\u5E26\u8D70\u4E00\u7247\u4E91\u5F69\uFF5E"),
+      line("\u4E0B\u8F88\u5B50\u8FD8\u7ED9\u4F60\u5F53\u732A")
+    ),
+    revive: scene(
+      line("\u6211\u2026\u2026\u6211\u56DE\u6765\u4E86\uFF1F"),
+      line("\u90A3\u8FB9\u597D\u51B7\uFF0C\u8FD8\u662F\u8FD9\u91CC\u597D"),
+      line("\u8C22\u8C22\u4F60\u6CA1\u653E\u5F03\u6211", "\u6B22\u8FCE\u56DE\u6765")
+    ),
+    // --- B5 用 ------------------------------------------------------------------
+    signIn: scene(
+      line("\u7B7E\u5230\u5566\uFF01\u4ECA\u5929\u4E5F\u8981\u597D\u597D\u7684"),
+      line("\u8FD9\u662F\u4ECA\u5929\u7684\u793C\u7269\uFF0C\u7ED9\u4F60\uFF5E")
+    ),
+    gift: scene(
+      line("\u6211\u5728\u5730\u4E0A\u6361\u5230\u4E00\u4E2A\u76D2\u5B50\uFF01"),
+      line("\u966A\u4F60\u8FD9\u4E48\u4E45\uFF0C\u8FD9\u662F\u5956\u52B1")
+    ),
+    // --- C2 番茄钟 --------------------------------------------------------------
+    pomodoroStart: scene(
+      line("[\u4E3B\u4EBA]\u5FD9\u5427\uFF0C\u6211\u8DB4\u8FD9\u513F\u4E0D\u52A8"),
+      line("\u4E13\u6CE8\u6A21\u5F0F\uFF01\u6211\u5E2E\u4F60\u770B\u7740\u65F6\u95F4"),
+      line("\u8FD9 25 \u5206\u949F\u6211\u4E5F\u4E0D\u5435\u4F60\uFF0C\u8BF4\u597D\u4E86")
+    ),
+    pomodoroDone: scene(
+      line("\u65F6\u95F4\u5230\uFF01[\u4E3B\u4EBA]\u771F\u5389\u5BB3"),
+      line("\u505A\u5B8C\u4E00\u4E2A\u5566\uFF0C\u8D77\u6765\u52A8\u52A8\u8116\u5B50"),
+      line("\u6211\u966A\u4F60\u6570\u7740\u5462\uFF0C\u4E00\u4E2A\u90FD\u4E0D\u5C11")
+    ),
+    pomodoroAbandon: scene(
+      line("\u4E0D\u505A\u4E86\u5440\uFF1F\u90A3\u5C31\u6B47\u4F1A\u513F"),
+      line("\u6CA1\u4E8B\uFF0C\u7B49\u4F60\u51C6\u5907\u597D\u518D\u6765"),
+      line("\u6211\u5148\u628A\u756A\u8304\u6536\u8D77\u6765\u5566")
+    )
+  });
+  var LINE_SCENES = Object.freeze(Object.keys(LINES));
+
   // src/client/tabs/dev.js
+  var SCENE_NAMES = {
+    eat: "\u5403\u996D",
+    full: "\u5403\u9971",
+    overfull: "\u6491\u7740",
+    bathe: "\u6D17\u6FA1",
+    play: "\u73A9\u800D",
+    pet: "\u6478\u6478",
+    hungry: "\u997F\u4E86",
+    dirty: "\u810F\u4E86",
+    lonely: "\u5B64\u5355",
+    idle: "\u95F2\u804A",
+    workDone: "\u6253\u5DE5\u56DE\u6765",
+    tired: "\u7D2F\u4E86",
+    study: "\u4E0A\u5B66",
+    graduate: "\u6BD5\u4E1A",
+    tripBack: "\u65C5\u884C\u56DE\u6765",
+    sick: "\u751F\u75C5",
+    wrongMedicine: "\u5403\u9519\u836F",
+    cured: "\u6CBB\u597D",
+    levelup: "\u5347\u7EA7",
+    growUp: "\u957F\u5927",
+    coronation: "\u52A0\u5195",
+    contract: "\u7B7E\u7EA6",
+    enter: "\u8FDB\u95E8",
+    death: "\u53BB\u4E16",
+    revive: "\u590D\u6D3B",
+    signIn: "\u7B7E\u5230",
+    gift: "\u793C\u5305",
+    pomodoroStart: "\u756A\u8304\u5F00\u59CB",
+    pomodoroDone: "\u756A\u8304\u5B8C\u6210",
+    pomodoroAbandon: "\u756A\u8304\u653E\u5F03"
+  };
+  var currentPage = "status";
   function renderDevTab(ui) {
     var topBar = el("div", "dp-dev-row");
     var off = button("dp-mini dp-dev-btn", { "data-dev": "devOff" }, function() {
@@ -711,39 +924,50 @@
       ui.content.appendChild(el(
         "div",
         "dp-dev-note",
-        "\u26A0\uFE0F \u5E74\u9F84\u662F\u8C03\u8BD5\u6539\u7684\uFF08HUD \u4E0A\u6709 \u{1F527}\uFF09\u2014\u2014 \u6309\u300C\u23EA \u5E74\u9F84\u5F52\u96F6\u300D\u624D\u4F1A\u91CD\u65B0\u6309\u771F\u5B9E\u65F6\u95F4\u7B97"
+        "\u26A0\uFE0F \u5E74\u9F84\u662F\u8C03\u8BD5\u6539\u7684\uFF08HUD \u4E0A\u6709 \u{1F527}\uFF09\u2014\u2014 \u6309\u300C\u23EA \u5929\u6570\u5F52\u96F6\u300D\u624D\u4F1A\u91CD\u65B0\u6309\u771F\u5B9E\u65F6\u95F4\u7B97"
       ));
-    }
-    function group(title, entries, note) {
-      var head = el("div", "dp-title");
-      head.appendChild(el("b", null, title));
-      ui.content.appendChild(head);
-      if (note !== void 0 && note !== "") ui.content.appendChild(el("div", "dp-dev-note", note));
-      var wrap = el("div", "dp-dev-row");
-      for (var i = 0; i < entries.length; i += 1) {
-        (function(entry) {
-          var btn = button("dp-mini dp-dev-btn", { "data-dev": entry.key }, function() {
-            entry.run();
-          });
-          btn.textContent = entry.label;
-          if (entry.off === true) btn.disabled = true;
-          wrap.appendChild(btn);
-        })(entries[i]);
-      }
-      ui.content.appendChild(wrap);
     }
     var patch = function(body) {
       ui.send("dev", { patch: body });
     };
+    var pages = [];
+    function page(key, label) {
+      var body = el("div", "dp-dev-page");
+      body.setAttribute("data-dev-page-body", key);
+      pages.push({ key, label, body });
+      return function group(title, entries, note) {
+        var head = el("div", "dp-title");
+        head.appendChild(el("b", null, title));
+        body.appendChild(head);
+        if (note !== void 0 && note !== "") body.appendChild(el("div", "dp-dev-note", note));
+        var wrap = el("div", "dp-dev-list");
+        for (var i = 0; i < entries.length; i += 1) {
+          (function(entry) {
+            var item = el("div", "dp-dev-item");
+            var btn = button("dp-mini dp-dev-btn", { "data-dev": entry.key }, function() {
+              entry.run();
+            });
+            btn.textContent = entry.label;
+            if (entry.off === true) btn.disabled = true;
+            item.appendChild(btn);
+            if (entry.desc) item.appendChild(el("small", "dp-dev-desc", entry.desc));
+            wrap.appendChild(item);
+          })(entries[i]);
+        }
+        body.appendChild(wrap);
+      };
+    }
     var boxed = ui.view.hatched !== true || ui.view.pig === null;
     var dead = ui.view.dead === true;
     var why = boxed ? "\u5148\u5B75\u5316" : dead ? "\u5148\u590D\u6D3B" : "";
     var forms = ui.view.forms === null ? [] : ui.view.forms.forms;
+    var looks = page("looks", "\u5F62\u6001\u76AE\u80A4");
     var formEntries = forms.map(function(form) {
       return {
         key: "form:" + form.key,
         label: form.emoji + " " + form.label,
         off: boxed || dead,
+        desc: "\u76F4\u63A5\u53D8\u6210" + form.label + "\uFF0C\u4E0D\u770B\u6761\u4EF6\uFF1B\u7B49\u7EA7\u4E0D\u591F\u4F1A\u987A\u624B\u8865\u5230\u8FD9\u4E00\u9636\u6BB5",
         run: function() {
           var body = { form: form.key };
           var level = ui.view.pig === null ? 0 : ui.view.pig.level.level;
@@ -752,180 +976,334 @@
         }
       };
     });
-    formEntries.push({ key: "form:none", label: "\u{1F416} \u6062\u590D\u666E\u901A", run: function() {
+    formEntries.push({ key: "form:none", label: "\u{1F416} \u6062\u590D\u666E\u901A", desc: "\u53BB\u6389\u5F62\u6001\uFF0C\u56DE\u5230\u666E\u901A\u5C0F\u732A", run: function() {
       patch({ form: null });
     } });
-    group("\u5F62\u6001", formEntries, why);
+    looks("\u5F62\u6001", formEntries, why);
     var p = ui.view.pig;
     if (p === null) {
+      currentPage = "looks";
+      renderPages(ui, pages);
       ui.content.appendChild(el("div", "dp-empty", "\u8FD8\u6CA1\u6709\u732A\u3002\u5148\u300C\u62C6\u5F00\u7EB8\u76D2\u300D\u518D\u8C03\u3002"));
       return;
     }
     var skinRows = ui.view.skins?.entries?.length > 0 ? ui.view.skins.entries : SKINS;
-    group("\u76AE\u80A4", skinRows.map(function(skin) {
-      return { key: "skin:" + skin.key, label: skin.emoji + " " + skin.label, run: function() {
-        if (skin.unlockJob) patch({ skin: skin.key });
-        else ui.send("skin", { skin: skin.key });
-      } };
+    looks("\u76AE\u80A4", skinRows.map(function(skin) {
+      return {
+        key: "skin:" + skin.key,
+        label: skin.emoji + " " + skin.label,
+        desc: skin.unlockJob ? "\u804C\u4E1A\u76AE\u80A4\uFF1A\u4E0D\u7528\u6253\u5DE5\u76F4\u63A5\u8BD5\u7A7F" : "\u6362\u4E0A\u8FD9\u6B3E\u76AE\u80A4",
+        run: function() {
+          if (skin.unlockJob) patch({ skin: skin.key });
+          else ui.send("skin", { skin: skin.key });
+        }
+      };
     }), "\u5F62\u6001\u663E\u793A\u4F18\u5148\u4E8E\u76AE\u80A4\uFF1B\u6062\u590D\u666E\u901A\u5F62\u6001\u5373\u53EF\u770B\u5230\u76AE\u80A4\u3002");
-    group("\u9053\u5177", forms.filter(function(form) {
+    looks("\u9053\u5177", forms.filter(function(form) {
       return form.item !== "";
     }).map(function(form) {
       return {
         key: "item:" + form.item,
         label: form.emoji + " \u7ED9" + form.label + "\u9053\u5177",
+        desc: "\u80CC\u5305\u91CC\u52A0\u4E00\u4E2A\u664B\u5347\u9053\u5177\uFF0C\u7528\u6765\u6D4B\u6B63\u5E38\u7684\u664B\u5347\u6D41\u7A0B",
         run: function() {
-          var count = num(ui.view.inventory[form.item], 0);
-          patch({ inventory: { [form.item]: count + 1 } });
+          patch({ inventory: { [form.item]: num(ui.view.inventory[form.item], 0) + 1 } });
         }
       };
     }));
-    group("\u4F53\u91CD", [
-      { key: "weight:normal", label: "\u2696\uFE0F \u6B63\u5E38", run: function() {
-        patch({ weightClass: "normal" });
-      } },
-      { key: "weight:round", label: "\u{1F437} \u80D6\u80D6\u732A", run: function() {
-        patch({ weightClass: "round" });
-      } },
-      { key: "weight:fat", label: "\u{1F416} \u5927\u80A5\u732A", run: function() {
-        patch({ weightClass: "fat" });
-      } }
-    ], "\u5706\u6DA6\u4F7F\u7528\u539F\u80D6\u732A\u7ACB\u7ED8\uFF1B\u5927\u80A5\u732A\u4F7F\u7528\u66F4\u80D6\u7684\u65B0\u52A8\u4F5C\u7ACB\u7ED8\u3002");
-    group("\u72B6\u6001", [
-      { key: "full", label: "\u{1F60A} \u6EE1\u72B6\u6001", run: function() {
+    var status = page("status", "\u72B6\u6001");
+    status("\u72B6\u6001", [
+      { key: "full", label: "\u{1F60A} \u6EE1\u72B6\u6001", desc: "\u9971\u98DF\u3001\u5FC3\u60C5\u3001\u6E05\u6D01 100\uFF0C\u5065\u5EB7\u6EE1\u683C", run: function() {
         patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 });
       } },
-      { key: "hungry", label: "\u{1F34E} \u997F", run: function() {
+      { key: "hungry", label: "\u{1F34E} \u997F", desc: "\u9971\u98DF 10\uFF1A\u770B\u997F\u4E86\u7684\u53F0\u8BCD\u548C\u751F\u75C5\u98CE\u9669", run: function() {
         patch({ satiety: 10 });
       } },
-      { key: "dirty", label: "\u{1FAE7} \u810F", run: function() {
+      { key: "dirty", label: "\u{1FAE7} \u810F", desc: "\u6E05\u6D01 10", run: function() {
         patch({ cleanliness: 10 });
       } },
-      { key: "lonely", label: "\u{1F97A} \u5B64\u5355", run: function() {
+      { key: "lonely", label: "\u{1F97A} \u5B64\u5355", desc: "\u5FC3\u60C5 10", run: function() {
         patch({ happiness: 10 });
       } },
-      { key: "sleepy", label: "\u{1F4A4} \u56F0", run: function() {
+      { key: "sleepy", label: "\u{1F4A4} \u56F0", desc: "\u4E09\u9879\u90FD 90\uFF0C\u6D4B\u8BD5\u56F0\u4E86\u7684\u95F2\u804A", run: function() {
         patch({ satiety: 90, happiness: 90, cleanliness: 90 });
       } }
     ]);
-    group("\u751F\u75C5", [
-      { key: "cold1", label: "\u{1F927} \u611F\u5192", run: function() {
-        patch({ illness: { chain: 0, stage: 1 }, health: 4 });
+    status("\u8D44\u6E90", [
+      { key: "coin100", label: "\u{1FA99} +100", desc: "\u91D1\u5E01\u52A0 100", run: function() {
+        patch({ coins: p.coins + 100 });
       } },
-      { key: "cough1", label: "\u{1F637} \u54B3\u55FD", run: function() {
-        patch({ illness: { chain: 1, stage: 1 }, health: 4 });
+      { key: "coin999", label: "\u{1FA99} 9999", desc: "\u91D1\u5E01\u8BBE\u6210 9999", run: function() {
+        patch({ coins: 9999 });
       } },
-      { key: "belly1", label: "\u{1F922} \u809A\u5B50\u80C0", run: function() {
-        patch({ illness: { chain: 2, stage: 1 }, health: 4 });
+      { key: "traits", label: "\u{1F9E0}+5 \u2728+5 \u{1F4AA}+5", desc: "\u667A\u529B\u3001\u9B45\u529B\u3001\u6B66\u529B\u5404 +5", run: function() {
+        patch({ traits: { intel: 5, charm: 5, strong: 5 } });
       } },
-      { key: "dizzy1", label: "\u{1F635} \u5934\u6655", run: function() {
-        patch({ illness: { chain: 3, stage: 1 }, health: 4 });
-      } },
-      { key: "skin1", label: "\u{1FA79} \u7619\u75D2", run: function() {
-        patch({ illness: { chain: 4, stage: 1 }, health: 4 });
-      } },
-      { key: "cold4", label: "\u2620\uFE0F \u80BA\u708E", run: function() {
-        patch({ illness: { chain: 0, stage: 4 }, health: 1 });
-      } },
-      { key: "cure", label: "\u{1F49A} \u6CBB\u597D", run: function() {
-        patch({ illness: null, health: 5 });
+      { key: "all", label: "\u{1F381} \u4E00\u952E\u62FF\u9F50", desc: "\u5546\u5E97\u91CC\u6BCF\u6837\u4E1C\u897F\u90FD\u7ED9\u51E0\u4E2A", run: function() {
+        ui.send("giveAll");
       } }
     ]);
-    group("\u7B49\u7EA7", [
-      { key: "box", label: "\u{1F4E6} \u7EB8\u76D2", run: function() {
+    status("\u751F\u6B7B", [
+      { key: "kill", label: "\u{1F480} \u5F04\u6B7B", desc: "\u76F4\u63A5\u53BB\u4E16\uFF08\u53D8\u5893\u7891\uFF09\uFF0C\u6D4B\u590D\u6D3B\u548C\u9886\u517B", run: function() {
+        patch({ dead: true });
+      } },
+      { key: "revive", label: "\u2728 \u590D\u6D3B", desc: "\u4E0D\u7528\u8FD8\u9B42\u4E39\u76F4\u63A5\u590D\u6D3B", run: function() {
+        patch({ dead: false, health: 5 });
+      } },
+      { key: "adopt", label: "\u{1F4E6} \u9886\u517B", desc: "\u9886\u517B\u4E00\u53EA\u65B0\u732A\uFF08\u65E7\u732A\u7684\u6545\u4E8B\u7559\u5728\u8BB0\u5FC6\u91CC\uFF09", run: function() {
+        ui.send("adopt");
+      } },
+      { key: "reset", label: "\u{1F504} \u91CD\u7F6E", desc: "\u6E05\u7A7A\u5B58\u6863\uFF0C\u4ECE\u7EB8\u76D2\u91CD\u65B0\u5F00\u59CB", run: function() {
+        ui.send("reset");
+      } }
+    ]);
+    var growth = page("growth", "\u6210\u957F\u751F\u75C5");
+    growth("\u7B49\u7EA7", [
+      { key: "box", label: "\u{1F4E6} \u7EB8\u76D2", desc: "\u56DE\u5230\u6CA1\u62C6\u7684\u7EB8\u76D2", run: function() {
         patch({ hatched: false });
       } },
-      { key: "lv1", label: "\u5E7C\u5E74 Lv1", run: function() {
+      { key: "lv1", label: "\u5E7C\u5E74 Lv1", desc: "\u62C6\u76D2\u5E76\u8BBE\u6210 1 \u7EA7", run: function() {
         patch({ hatched: true, level: 1 });
       } },
-      { key: "lv10", label: "\u9752\u5E74 Lv10", run: function() {
+      { key: "lv10", label: "\u9752\u5E74 Lv10", desc: "\u8BBE\u6210 10 \u7EA7\uFF08\u9752\u5E74\u4F53\u578B\uFF09", run: function() {
         patch({ level: 10 });
       } },
-      { key: "lv40", label: "\u6210\u5E74 Lv40", run: function() {
+      { key: "lv40", label: "\u6210\u5E74 Lv40", desc: "\u8BBE\u6210 40 \u7EA7\uFF08\u6210\u5E74\u4F53\u578B\uFF09", run: function() {
         patch({ level: 40 });
       } },
-      { key: "lv60", label: "\u6EE1\u7EA7 Lv60", run: function() {
+      { key: "lv60", label: "\u6EE1\u7EA7 Lv60", desc: "\u8BBE\u6210\u6EE1\u7EA7", run: function() {
         patch({ level: 60 });
       } },
-      { key: "real", label: "\u23EA \u5929\u6570\u5F52\u96F6", run: function() {
+      { key: "real", label: "\u23EA \u5929\u6570\u5F52\u96F6", desc: "\u53D6\u6D88\u8C03\u8BD5\u6539\u8FC7\u7684\u5E74\u9F84\uFF0C\u6309\u771F\u5B9E\u65F6\u95F4\u91CD\u65B0\u7B97", run: function() {
         ui.send("ageFromNow");
       } }
     ]);
-    group("\u756A\u8304\u949F", [
-      { key: "pomoDone", label: "\u{1F345} \u5B8C\u6210\u5F53\u524D", run: function() {
+    growth("\u4F53\u91CD", [
+      { key: "weight:normal", label: "\u2696\uFE0F \u6B63\u5E38", desc: "\u4F53\u91CD\u8BBE\u5230\u7406\u60F3\u4F53\u91CD", run: function() {
+        patch({ weightClass: "normal" });
+      } },
+      { key: "weight:round", label: "\u{1F437} \u5706\u6DA6", desc: "\u4F53\u91CD\u8BBE\u5230\u5706\u6DA6\u6863\uFF08\u6362\u5706\u6DA6\u7ACB\u7ED8\uFF09", run: function() {
+        patch({ weightClass: "round" });
+      } },
+      { key: "weight:fat", label: "\u{1F416} \u80D6\u80D6", desc: "\u4F53\u91CD\u8BBE\u5230\u80D6\u80D6\u6863\uFF08\u6362\u80D6\u80D6\u52A8\u4F5C\u7ACB\u7ED8\uFF09", run: function() {
+        patch({ weightClass: "fat" });
+      } }
+    ]);
+    growth("\u751F\u75C5", [
+      { key: "cold1", label: "\u{1F927} \u611F\u5192", desc: "\u611F\u5192\u7B2C 1 \u671F\uFF0C\u5065\u5EB7 4", run: function() {
+        patch({ illness: { chain: 0, stage: 1 }, health: 4 });
+      } },
+      { key: "cough1", label: "\u{1F637} \u54B3\u55FD", desc: "\u54B3\u55FD\u7B2C 1 \u671F", run: function() {
+        patch({ illness: { chain: 1, stage: 1 }, health: 4 });
+      } },
+      { key: "belly1", label: "\u{1F922} \u809A\u5B50\u80C0", desc: "\u80A0\u80C3\u7B2C 1 \u671F\uFF08\u80C3\u80C0\u6C14\u90A3\u6761\uFF09", run: function() {
+        patch({ illness: { chain: 2, stage: 1 }, health: 4 });
+      } },
+      { key: "dizzy1", label: "\u{1F635} \u5934\u6655", desc: "\u5934\u6655\u7B2C 1 \u671F\uFF08\u8FDE\u7EED\u51FA\u95E8\u592A\u591A\u90A3\u6761\uFF09", run: function() {
+        patch({ illness: { chain: 3, stage: 1 }, health: 4 });
+      } },
+      { key: "skin1", label: "\u{1FA79} \u7619\u75D2", desc: "\u76AE\u80A4\u7B2C 1 \u671F\uFF08\u592A\u810F\u90A3\u6761\uFF09", run: function() {
+        patch({ illness: { chain: 4, stage: 1 }, health: 4 });
+      } },
+      { key: "cold4", label: "\u2620\uFE0F \u80BA\u708E", desc: "\u611F\u5192\u6700\u540E\u4E00\u671F\uFF0C\u5065\u5EB7 1\uFF1A\u518D\u62D6\u5C31\u4F1A\u6B7B", run: function() {
+        patch({ illness: { chain: 0, stage: 4 }, health: 1 });
+      } },
+      { key: "cure", label: "\u{1F49A} \u6CBB\u597D", desc: "\u76F4\u63A5\u75C5\u597D\uFF0C\u5065\u5EB7\u6EE1\u683C", run: function() {
+        patch({ illness: null, health: 5 });
+      } }
+    ]);
+    page("pomodoro", "\u756A\u8304\u949F")("\u756A\u8304\u949F", [
+      { key: "pomoDone", label: "\u{1F345} \u5B8C\u6210\u5F53\u524D", desc: "\u6B63\u5728\u4E13\u6CE8\u7684\u8FD9\u4E00\u4E2A\u7ACB\u523B\u5230\u70B9\uFF0C\u7167\u5E38\u53D1\u5956", run: function() {
         patch({ pomodoro: { finish: true } });
       } },
-      { key: "pomoCap", label: "\u{1F522} \u4ECA\u5929=8", run: function() {
+      { key: "pomoCap", label: "\u{1F522} \u4ECA\u5929=8", desc: "\u4ECA\u5929\u5B8C\u6210\u6570\u8BBE\u6210 8\uFF0C\u6D4B\u300C\u6BCF\u5929\u524D 8 \u4E2A\u6709\u5956\u52B1\u300D\u7684\u4E0A\u9650", run: function() {
         patch({ pomodoro: { todayDone: 8 } });
       } }
     ]);
     var fishEntries = FISH.map(function(fish2) {
-      return { key: "fish:" + fish2.key, label: fish2.emoji + " " + fish2.label, run: function() {
+      return { key: "fish:" + fish2.key, label: fish2.emoji + " " + fish2.label, desc: "\u9C7C\u7BD3\u91CC\u76F4\u63A5\u653E\u4E00\u6761", run: function() {
         ui.send("fishGive", { fish: fish2.key });
       } };
     });
-    fishEntries.push({ key: "fish:skip", label: "\u2757 \u8DF3\u8FC7\u7B49\u5F85", run: function() {
+    fishEntries.push({ key: "fish:skip", label: "\u2757 \u8DF3\u8FC7\u7B49\u5F85", desc: "\u629B\u7AFF\u540E\u4E0D\u7528\u7B49\uFF0C\u9A6C\u4E0A\u54AC\u94A9", run: function() {
       ui.send("fishSkip");
     } });
-    group("\u9493\u9C7C", fishEntries);
-    group("\u8D44\u6E90", [
-      { key: "coin100", label: "\u{1FA99} +100", run: function() {
-        patch({ coins: p.coins + 100 });
+    page("fishing", "\u9493\u9C7C")("\u9493\u9C7C", fishEntries);
+    var dailyView = ui.view.daily ?? { cycle: 7, signInDay: 1, canSignIn: true, signInTotal: 0, unclaimed: 0 };
+    var extensions = ui.view.extensions ?? [];
+    var daily = page("daily", "\u7B7E\u5230\u793C\u5305");
+    var days = [];
+    for (var d = 1; d <= dailyView.cycle; d += 1) {
+      (function(day) {
+        days.push({ key: "signin:" + day, label: "\u{1F4C5} \u7B2C " + day + " \u5929", desc: "\u4E0B\u4E00\u6B21\u7B7E\u5230\u9886\u7B2C " + day + " \u5929\uFF0C\u4ECA\u5929\u53EF\u4EE5\u518D\u7B7E", run: function() {
+          patch({ signInDay: day });
+        } });
+      })(d);
+    }
+    daily("\u7B7E\u5230", days, "\u73B0\u5728\uFF1A\u7B2C " + dailyView.signInDay + "/" + dailyView.cycle + " \u5929" + (dailyView.canSignIn ? " \xB7 \u4ECA\u5929\u8FD8\u6CA1\u7B7E" : " \xB7 \u4ECA\u5929\u5DF2\u7B7E"));
+    daily("\u5728\u7EBF\u793C\u5305", [
+      { key: "gifts:1", label: "\u{1F381} \u6512 1 \u4E2A", desc: "\u732A\u5934\u4E0A\u51FA\u73B0\u793C\u5305\u6309\u94AE", run: function() {
+        patch({ gifts: 1 });
       } },
-      { key: "coin999", label: "\u{1FA99} 9999", run: function() {
-        patch({ coins: 9999 });
+      { key: "gifts:3", label: "\u{1F381} \u6512\u6EE1 3 \u4E2A", desc: "\u793C\u5305\u4E0A\u9650\u662F 3 \u4E2A", run: function() {
+        patch({ gifts: 3 });
       } },
-      { key: "traits", label: "\u{1F9E0}+5 \u2728+5 \u{1F4AA}+5", run: function() {
-        patch({ traits: { intel: 5, charm: 5, strong: 5 } });
-      } },
-      { key: "all", label: "\u{1F381} \u4E00\u952E\u62FF\u9F50", run: function() {
-        ui.send("giveAll");
+      { key: "gifts:0", label: "\u{1F6AB} \u6E05\u7A7A", desc: "\u6CA1\u6709\u5F85\u9886\u7684\u793C\u5305", run: function() {
+        patch({ gifts: 0 });
       } }
     ]);
-    group("\u65F6\u95F4", [
-      { key: "real", label: "\xD71 \u771F\u5B9E", run: function() {
+    var system = page("system", "\u66F4\u65B0\u6269\u5C55");
+    var notice = ui.updateNotice;
+    system("\u66F4\u65B0", [
+      {
+        key: "update:fake",
+        label: "\u{1F534} \u5047\u88C5\u6709\u65B0\u7248",
+        desc: "\u8BA9\u8BBE\u7F6E\u56FE\u6807\u548C\u8BBE\u7F6E\u9875\u5192\u7EA2\u70B9\uFF08\u4E0D\u4F1A\u771F\u7684\u4E0B\u8F7D\uFF09",
+        off: !notice || typeof notice.simulate !== "function",
+        run: function() {
+          notice.simulate("9.9.9");
+          ui.renderContent();
+        }
+      },
+      {
+        key: "update:read",
+        label: "\u2705 \u6807\u4E3A\u5DF2\u8BFB",
+        desc: "\u7EA2\u70B9\u6D88\u5931\uFF08\u548C\u6253\u5F00\u66F4\u65B0\u9875\u4E00\u6837\uFF09",
+        off: !notice,
+        run: function() {
+          notice.markRead();
+          ui.renderContent();
+        }
+      }
+    ]);
+    system("\u6269\u5C55", extensions.map(function(extension) {
+      return {
+        key: "ext:" + extension.key,
+        label: extension.emoji + " " + (extension.on ? "\u5173\u6389" : "\u6253\u5F00") + extension.label,
+        desc: extension.on ? "\u548C\u6269\u5C55 App \u91CC\u5173\u6389\u4E00\u6837\uFF08\u8FDB\u884C\u4E2D\u7684\u4F1A\u6536\u5C3E\uFF09" : "\u91CD\u65B0\u6253\u5F00\uFF0C\u6570\u636E\u539F\u6837\u56DE\u6765",
+        run: function() {
+          ui.send("setExtension", { key: extension.key, on: !extension.on });
+        }
+      };
+    }));
+    page("lines", "\u53F0\u8BCD")("\u8BA9\u732A\u8BF4\u4E00\u53E5", Object.keys(LINES).map(function(scene2) {
+      return {
+        key: "say:" + scene2,
+        label: "\u{1F4AC} " + (SCENE_NAMES[scene2] ?? scene2),
+        desc: "\u968F\u673A\u8BF4\u300C" + scene2 + "\u300D\u573A\u666F\u91CC\u7684\u4E00\u53E5\uFF08\u514D\u6253\u6270\u65F6\u4E0D\u8BF4\uFF09",
+        run: function() {
+          patch({ say: scene2 });
+        }
+      };
+    }));
+    var time = page("time", "\u65F6\u95F4\u9762\u677F");
+    time("\u65F6\u95F4", [
+      { key: "real", label: "\xD71 \u771F\u5B9E", desc: "\u65F6\u95F4\u6309\u771F\u5B9E\u901F\u5EA6\u8D70", run: function() {
         ui.send("timeScale", { scale: 1 });
       } },
-      { key: "fast12", label: "\xD712", run: function() {
+      { key: "fast12", label: "\xD712", desc: "1 \u5206\u949F = \u732A\u7684 12 \u5206\u949F", run: function() {
         ui.send("timeScale", { scale: 12 });
       } },
-      { key: "fast30", label: "\xD730", run: function() {
+      { key: "fast30", label: "\xD730", desc: "1 \u5206\u949F = \u732A\u7684\u534A\u5C0F\u65F6", run: function() {
         ui.send("timeScale", { scale: 30 });
       } },
-      { key: "fast60", label: "\xD760", run: function() {
+      { key: "fast60", label: "\xD760", desc: "1 \u5206\u949F = \u732A\u7684 1 \u5C0F\u65F6", run: function() {
         ui.send("timeScale", { scale: 60 });
       } }
     ]);
-    group("\u751F\u6B7B", [
-      { key: "kill", label: "\u{1F480} \u5F04\u6B7B", run: function() {
-        patch({ dead: true });
-      } },
-      { key: "revive", label: "\u2728 \u590D\u6D3B", run: function() {
-        patch({ dead: false, health: 5 });
-      } },
-      { key: "adopt", label: "\u{1F4E6} \u9886\u517B", run: function() {
-        ui.send("adopt");
-      } },
-      { key: "reset", label: "\u{1F504} \u91CD\u7F6E", run: function() {
-        ui.send("reset");
-      } }
-    ]);
-    group("\u9762\u677F", [
-      { key: "open", label: "\u5C55\u5F00/\u6536\u8D77", run: function() {
+    time("\u9762\u677F", [
+      { key: "open", label: "\u5C55\u5F00/\u6536\u8D77", desc: "\u5207\u6362\u9762\u677F\u5F00\u5173\uFF08\u6D4B\u5F00\u5173\u52A8\u753B\uFF09", run: function() {
         ui.setOpen(ui.host.getAttribute("data-open") !== "true");
       } },
-      { key: "away1", label: "\u23E9 +1 \u5C0F\u65F6", run: function() {
+      { key: "away1", label: "\u23E9 +1 \u5C0F\u65F6", desc: "\u65F6\u95F4\u76F4\u63A5\u8FC7\u53BB 1 \u5C0F\u65F6\uFF08\u7ED3\u7B97\u6570\u503C\u3001\u6210\u957F\u3001\u6253\u5DE5\uFF09", run: function() {
         patch({ __advanceMs: 36e5 });
       } },
-      { key: "away24", label: "\u23E9 +1 \u5929", run: function() {
+      { key: "away24", label: "\u23E9 +1 \u5929", desc: "\u65F6\u95F4\u76F4\u63A5\u8FC7\u53BB 1 \u5929\uFF08\u6362\u5929\u3001\u7B7E\u5230\u3001\u65E5\u8BB0\uFF09", run: function() {
         patch({ __advanceMs: 864e5 });
       } }
     ]);
-    ui.content.appendChild(el(
-      "div",
-      "dp-dev-note",
-      "\u5F53\u524D\uFF1A" + p.stage.label + " \xB7 \u5065\u5EB7 " + p.health + " \xB7 \u{1FA99} " + p.coins + (p.illness === null ? "" : " \xB7 " + p.illness.name)
-    ));
+    var values = el("div", "dp-dev-page");
+    values.setAttribute("data-dev-page-body", "values");
+    pages.push({ key: "values", label: "\u6570\u503C", body: values });
+    var rows = [
+      ["\u9636\u6BB5", p.stage?.label ?? "\u2014"],
+      ["\u7B49\u7EA7", p.level ? "Lv." + p.level.level + "\uFF08\u8FD8\u5DEE " + Math.ceil(p.level.toNext) + "\uFF09" : "\u2014"],
+      ["\u9971\u98DF", p.satiety],
+      ["\u5FC3\u60C5", p.happiness],
+      ["\u6E05\u6D01", p.cleanliness],
+      ["\u5065\u5EB7", p.health + "/" + (ui.view.maxHealth ?? 5)],
+      ["\u4F53\u91CD", p.weight + (p.bodyWeight ? "\uFF08" + p.bodyWeight.weightG + " g \xB7 " + p.bodyWeight.label + "\uFF09" : "")],
+      ["\u91D1\u5E01", p.coins],
+      ["\u667A\u529B / \u9B45\u529B / \u6B66\u529B", p.traits ? p.traits.intel + " / " + p.traits.charm + " / " + p.traits.strong : "\u2014"],
+      ["\u751F\u75C5", p.illness ? p.illness.name : "\u2014"],
+      ["\u5728\u5916\u9762", ui.view.activity ? ui.view.activity.label : "\u2014"],
+      ["\u7B7E\u5230", "\u7B2C " + dailyView.signInDay + " \u5929 \xB7 \u7D2F\u8BA1 " + dailyView.signInTotal + " \u6B21"],
+      ["\u5F85\u9886\u793C\u5305", dailyView.unclaimed],
+      ["\u6269\u5C55", extensions.map(function(e) {
+        return e.label + (e.on ? "\u5F00" : "\u5173");
+      }).join(" \xB7 ")],
+      ["\u514D\u6253\u6270", ui.view.dialogue?.quiet ? "\u5F00" : "\u5173"],
+      ["\u65F6\u95F4\u500D\u7387", "\xD7" + (ui.view.timeScale ?? 1)]
+    ];
+    for (var r = 0; r < rows.length; r += 1) {
+      var row = el("div", "dp-row");
+      row.appendChild(el("span", null, rows[r][0]));
+      row.appendChild(el("b", null, String(rows[r][1])));
+      values.appendChild(row);
+    }
+    renderPages(ui, pages);
+  }
+  function renderPages(ui, pages) {
+    if (!pages.some(function(entry) {
+      return entry.key === currentPage;
+    })) currentPage = pages[0].key;
+    var index = pages.findIndex(function(entry) {
+      return entry.key === currentPage;
+    });
+    var go = function(to) {
+      currentPage = pages[(to + pages.length) % pages.length].key;
+      ui.renderContent();
+    };
+    var nav = el("div", "dp-dev-nav");
+    var prev = button("dp-mini dp-mini-plain", { "data-dev-prev": "true" }, function() {
+      go(index - 1);
+    });
+    prev.textContent = "\u2039";
+    nav.appendChild(prev);
+    var tabs = el("div", "dp-dev-tabs");
+    for (var i = 0; i < pages.length; i += 1) {
+      (function(entry, at) {
+        var tab = button("dp-dev-tab", { "data-dev-page": entry.key, "aria-pressed": String(at === index) }, function() {
+          go(at);
+        });
+        tab.textContent = entry.label;
+        tabs.appendChild(tab);
+      })(pages[i], i);
+    }
+    nav.appendChild(tabs);
+    var next = button("dp-mini dp-mini-plain", { "data-dev-next": "true" }, function() {
+      go(index + 1);
+    });
+    next.textContent = "\u203A";
+    nav.appendChild(next);
+    ui.content.appendChild(nav);
+    var start2 = null;
+    for (var k = 0; k < pages.length; k += 1) {
+      var body = pages[k].body;
+      body.hidden = k !== index;
+      if (typeof body.addEventListener === "function") {
+        body.addEventListener("pointerdown", function(event) {
+          start2 = event.clientX;
+        });
+        body.addEventListener("pointerup", function(event) {
+          if (start2 === null || typeof event.clientX !== "number") return;
+          var dx = event.clientX - start2;
+          start2 = null;
+          if (Math.abs(dx) > 50) go(dx < 0 ? index + 1 : index - 1);
+        });
+      }
+      ui.content.appendChild(body);
+    }
   }
 
   // src/client/tabs/status.js
@@ -1377,7 +1755,7 @@
 
   // src/client/effects.js
   function createEffects(deps) {
-    var scene = deps.scene;
+    var scene2 = deps.scene;
     var pig = deps.pig;
     var card = deps.card;
     var bubble = deps.bubble;
@@ -1435,7 +1813,7 @@
             var spot = headSpot();
             node.style.left = spot.x + Math.round((Math.random() - 0.5) * 22) + "px";
             node.style.top = spot.y + "px";
-            scene.appendChild(node);
+            scene2.appendChild(node);
             window.setTimeout(function() {
               node.remove();
             }, 1200);
@@ -1445,9 +1823,9 @@
     }
     function headSpot() {
       var fallback = { x: 24, y: 8 };
-      if (typeof pig.getBoundingClientRect !== "function" || typeof scene.getBoundingClientRect !== "function") return fallback;
+      if (typeof pig.getBoundingClientRect !== "function" || typeof scene2.getBoundingClientRect !== "function") return fallback;
       var p = pig.getBoundingClientRect();
-      var s = scene.getBoundingClientRect();
+      var s = scene2.getBoundingClientRect();
       if (p.width === 0 && p.height === 0) return fallback;
       return { x: p.left - s.left + p.width / 2, y: p.top - s.top - 20 };
     }
@@ -1954,7 +2332,7 @@
           current: entry.current === true,
           unlocked: entry.unlocked !== false,
           unlockJob: str(entry.unlockJob, ""),
-          scenes: arr(entry.scenes).filter((scene) => typeof scene === "string")
+          scenes: arr(entry.scenes).filter((scene2) => typeof scene2 === "string")
         };
       }).filter((entry) => entry.key !== "")
     };
@@ -1985,7 +2363,7 @@
           faded: obj(pig.stage).faded === true,
           // 加冕后的形态：有没有动作立绘、盖住哪些装扮位置。
           actionArt: obj(pig.stage).actionArt === true,
-          artScenes: arr(obj(pig.stage).artScenes).filter((scene) => typeof scene === "string"),
+          artScenes: arr(obj(pig.stage).artScenes).filter((scene2) => typeof scene2 === "string"),
           hides: arr(obj(pig.stage).hides).map(function(slot) {
             return str(slot, "");
           })
@@ -3000,6 +3378,15 @@
     ".dp-weightbar-mark{position:absolute;top:10px;transform:translateX(-50%);font-size:9px;color:var(--ac-text-2);white-space:nowrap}",
     '.dp-weightbar-mark::before{content:"";position:absolute;left:50%;top:-12px;width:2px;height:10px;margin-left:-1px;background:var(--ac-text-2);opacity:.5}',
     ".dp-hint{margin:2px 0 8px;font-size:10px;line-height:1.5;color:var(--ac-text-2)}",
+    // 调试页：顶上页签可横向滚动，左右箭头；每个按钮下面一行小字说明。
+    ".dp-dev-nav{display:flex;align-items:center;gap:4px;margin:6px 0 8px}",
+    ".dp-dev-tabs{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}.dp-dev-tabs::-webkit-scrollbar{display:none}",
+    ".dp-dev-tab{flex:none;font:inherit;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:var(--ac-pill);cursor:pointer;",
+    "border:2px solid var(--ac-border-light);background:var(--ac-bg-content);color:var(--ac-text-2)}",
+    '.dp-dev-tab[aria-pressed="true"]{background:var(--ac-primary);border-color:var(--ac-primary-active);color:#fff}',
+    ".dp-dev-list{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;margin:4px 0 10px}",
+    ".dp-dev-item{display:flex;flex-direction:column;gap:2px;min-width:0}.dp-dev-item .dp-dev-btn{width:100%}",
+    ".dp-dev-desc{font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}",
     // 背包顶上的状态条：两列四格 + 一行体重。
     ".dp-statstrip{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 10px;padding:8px 10px;",
     "border-radius:var(--ac-radius-sm);background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}",
@@ -3709,15 +4096,15 @@
   function renderWaiting(ui, pending) {
     const water = button("dp-fish-waiting", { "data-fish": "hook" }, function() {
       if (Date.now() < pending.bitesAt) {
-        line.textContent = "\u8FD8\u6CA1\u4E0A\u94A9\uFF0C\u7EE7\u7EED\u7B49\u2026";
+        line2.textContent = "\u8FD8\u6CA1\u4E0A\u94A9\uFF0C\u7EE7\u7EED\u7B49\u2026";
         return;
       }
       ui.send("fishHook");
     });
     const mark = el("span", "dp-fish-bobber", "\u{1F3A3}");
-    const line = el("b", null, "\u5B89\u9759\u7B49\u9C7C\u54AC\u94A9\u2026");
+    const line2 = el("b", null, "\u5B89\u9759\u7B49\u9C7C\u54AC\u94A9\u2026");
     water.appendChild(mark);
-    water.appendChild(line);
+    water.appendChild(line2);
     ui.content.appendChild(water);
     activeUi = ui;
     function tick2() {
@@ -3725,7 +4112,7 @@
       const now = Date.now();
       if (now >= pending.bitesAt && now <= pending.hookUntil) {
         mark.textContent = "\u2757";
-        line.textContent = "\u4E0A\u94A9\u4E86\uFF01\u5FEB\u70B9\uFF01";
+        line2.textContent = "\u4E0A\u94A9\u4E86\uFF01\u5FEB\u70B9\uFF01";
         water.setAttribute("data-bite", "true");
       } else if (now > pending.hookUntil) {
         stopLoop();
@@ -4089,6 +4476,11 @@
         options.changed();
       }
     }
+    function simulate(version) {
+      latest = { version: String(version), kind: "game", prerelease: false };
+      unread = true;
+      options.changed();
+    }
     function markRead() {
       if (latest === null) return;
       options.write(READ_KEY, signalId(latest));
@@ -4109,6 +4501,7 @@
       check,
       markRead,
       maybeBubble,
+      simulate,
       start: start2,
       stop,
       get latest() {
@@ -5032,7 +5425,7 @@
     var host2 = document.createElement("div");
     host2.setAttribute(MOUNTED, "");
     var card = el("div", "dp-card");
-    var scene = el("div", "dp-scene");
+    var scene2 = el("div", "dp-scene");
     var hud = el("div", "dp-hud");
     var hudName = el("div", null, "\u732A\u732A");
     var hudCoins = el("div", null, "\u{1FA99} 0");
@@ -5040,10 +5433,10 @@
     hud.appendChild(hudName);
     hud.appendChild(hudCoins);
     hud.appendChild(hudHealth);
-    scene.appendChild(hud);
+    scene2.appendChild(hud);
     var bubble = el("div", "dp-bubble", "");
     bubble.hidden = true;
-    scene.appendChild(bubble);
+    scene2.appendChild(bubble);
     var work = el("div", "dp-work");
     var prop = el("span", "dp-prop", "\u{1F4BC}");
     var progressWrap = el("div", "dp-progress");
@@ -5052,18 +5445,18 @@
     work.appendChild(prop);
     work.appendChild(progressWrap);
     work.hidden = true;
-    scene.appendChild(work);
+    scene2.appendChild(work);
     var pokeHint = el("div", "dp-poke-hint");
     pokeHint.appendChild(el("span", null, "\u{1F446}"));
     pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
     pokeHint.hidden = true;
-    scene.appendChild(pokeHint);
+    scene2.appendChild(pokeHint);
     var dailyHint = el("button", "dp-daily");
     dailyHint.hidden = true;
-    scene.appendChild(dailyHint);
+    scene2.appendChild(dailyHint);
     var soul = el("span", "dp-soul", "\u{1F47B}");
     soul.hidden = true;
-    scene.appendChild(soul);
+    scene2.appendChild(soul);
     var pigArt = document.createElement("img");
     pigArt.className = "dp-pig-img";
     pigArt.alt = "";
@@ -5078,8 +5471,8 @@
     pomoHint.setAttribute("data-pomo-pill", "true");
     pomoHint.hidden = true;
     pig.appendChild(pomoHint);
-    scene.appendChild(pig);
-    scene.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
+    scene2.appendChild(pig);
+    scene2.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
     var bar = el("div", "dp-bar");
     var content = el("div", "dp-content");
     var footer = el("div", "dp-panel-footer");
@@ -5088,7 +5481,7 @@
     card.appendChild(footer);
     card.appendChild(bar);
     host2.appendChild(card);
-    host2.appendChild(scene);
+    host2.appendChild(scene2);
     if (document.body !== null && document.body !== void 0) {
       document.body.appendChild(host2);
     } else {
@@ -5099,7 +5492,7 @@
         }
       }, { once: true });
     }
-    return { font, style, host: host2, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
+    return { font, style, host: host2, card, scene: scene2, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
   }
 
   // src/client/drag-heartbeat.js
@@ -5557,8 +5950,8 @@
     return typeof bridge.geometry === "function" ? bridge.geometry() : null;
   }
   function dragging() {
-    const scene = document.querySelector("[data-dsh-pig] .dp-scene");
-    return scene !== null && scene.getAttribute("data-dragging") === "true";
+    const scene2 = document.querySelector("[data-dsh-pig] .dp-scene");
+    return scene2 !== null && scene2.getAttribute("data-dragging") === "true";
   }
   function room() {
     const h = host();
@@ -5743,7 +6136,7 @@
           style,
           host: host2,
           card,
-          scene,
+          scene: scene2,
           hud,
           hudName,
           hudCoins,
@@ -5792,7 +6185,7 @@
         var lastPendingId = 0;
         var pollTimer = null;
         var fx = createEffects({
-          scene,
+          scene: scene2,
           pig,
           pigArt,
           card,
@@ -5811,7 +6204,7 @@
           card,
           content,
           footer,
-          scene,
+          scene: scene2,
           hud,
           hudName,
           hudCoins,
@@ -5983,7 +6376,7 @@
         var drag = null;
         var stopDragHeartbeat = function() {
         };
-        scene.addEventListener("pointerdown", function(event) {
+        scene2.addEventListener("pointerdown", function(event) {
           if (event.button !== 0) return;
           stopDragHeartbeat();
           drag = {
@@ -5997,15 +6390,15 @@
             bottom: parseFloat(getComputedStyle(host2).bottom) || 18,
             moved: false
           };
-          scene.setAttribute("data-dragging", "true");
-          scene.setPointerCapture?.(event.pointerId);
+          scene2.setAttribute("data-dragging", "true");
+          scene2.setPointerCapture?.(event.pointerId);
           var shellAtStart = desktopShell();
           shellAtStart?.beginDrag?.();
           stopDragHeartbeat = startDragHeartbeat(shellAtStart, function() {
             return drag !== null;
           });
         });
-        scene.addEventListener("pointermove", function(event) {
+        scene2.addEventListener("pointermove", function(event) {
           if (drag === null) return;
           var dx = event.clientX - drag.x;
           var dy = event.clientY - drag.y;
@@ -6038,7 +6431,7 @@
           stopDragHeartbeat = function() {
           };
           desktopShell()?.endDrag?.();
-          scene.removeAttribute("data-dragging");
+          scene2.removeAttribute("data-dragging");
           clampPig();
           if (deskShell === null) writeStore(POSITION_KEY, JSON.stringify({ right: userRight, bottom: userBottom }));
           deskShell?.refreshRoom?.();
@@ -6062,7 +6455,7 @@
           burst(["\u{1F4A8}"], 2);
           showBubble(BOX_POKE_LINES[boxPokes - 1], 2200);
         }
-        scene.addEventListener("pointerup", function() {
+        scene2.addEventListener("pointerup", function() {
           if (endDrag()) return;
           if (view.hatched !== true) {
             pokeBox();
@@ -6070,13 +6463,13 @@
           }
           if (!view.dead) flash("pet");
         });
-        scene.addEventListener("pointercancel", function() {
+        scene2.addEventListener("pointercancel", function() {
           endDrag();
         });
-        scene.addEventListener("lostpointercapture", function() {
+        scene2.addEventListener("lostpointercapture", function() {
           endDrag();
         });
-        scene.addEventListener("contextmenu", function(event) {
+        scene2.addEventListener("contextmenu", function(event) {
           event.preventDefault();
           if (!isOpen && view.pig !== null) flash("pet");
           setOpen(!isOpen);

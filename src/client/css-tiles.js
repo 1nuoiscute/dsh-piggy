@@ -61,6 +61,15 @@ export const CSS_TILES = [
   '.dp-weightbar-mark{position:absolute;top:10px;transform:translateX(-50%);font-size:9px;color:var(--ac-text-2);white-space:nowrap}',
   '.dp-weightbar-mark::before{content:"";position:absolute;left:50%;top:-12px;width:2px;height:10px;margin-left:-1px;background:var(--ac-text-2);opacity:.5}',
   '.dp-hint{margin:2px 0 8px;font-size:10px;line-height:1.5;color:var(--ac-text-2)}',
+  // 调试页：顶上页签可横向滚动，左右箭头；每个按钮下面一行小字说明。
+  '.dp-dev-nav{display:flex;align-items:center;gap:4px;margin:6px 0 8px}',
+  '.dp-dev-tabs{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}.dp-dev-tabs::-webkit-scrollbar{display:none}',
+  '.dp-dev-tab{flex:none;font:inherit;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:var(--ac-pill);cursor:pointer;',
+  'border:2px solid var(--ac-border-light);background:var(--ac-bg-content);color:var(--ac-text-2)}',
+  '.dp-dev-tab[aria-pressed="true"]{background:var(--ac-primary);border-color:var(--ac-primary-active);color:#fff}',
+  '.dp-dev-list{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;margin:4px 0 10px}',
+  '.dp-dev-item{display:flex;flex-direction:column;gap:2px;min-width:0}.dp-dev-item .dp-dev-btn{width:100%}',
+  '.dp-dev-desc{font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}',
   // 背包顶上的状态条：两列四格 + 一行体重。
   '.dp-statstrip{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 10px;padding:8px 10px;',
   'border-radius:var(--ac-radius-sm);background:var(--ac-bg-content);border:2px solid var(--ac-border-light)}',

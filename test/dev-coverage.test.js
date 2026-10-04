@@ -325,3 +325,23 @@ test('死了的猪：形态按钮置灰并写明「先复活」', async () => {
   assert.ok(contentOf(dom).allText().includes('先复活'), contentOf(dom).allText())
   assert.equal(findByAttr(contentOf(dom), 'data-dev', 'form:none').disabled, false)
 })
+
+test('G 批次：调试页按模块分页，只显示当前页；左右箭头能切；每个按钮有说明', async () => {
+  const { dom } = await mount({ status: { ...SNAPSHOT } })
+  openPanel(dom)
+  const realNow = Date.now
+  let now = 4_000_000
+  Date.now = () => now
+  try { for (let i = 0; i < 7; i += 1) { now += 100; tapVersion(dom) } } finally { Date.now = realNow }
+  // 解锁后直接落在调试页
+  const pages = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-dev-page-body'] !== undefined) pages.push(node) })
+  assert.ok(pages.length >= 9, '至少九页')
+  assert.equal(pages.filter(page => !page.hidden).length, 1, '只显示一页')
+  const before = pages.find(page => !page.hidden).attributes['data-dev-page-body']
+  findByAttr(contentOf(dom), 'data-dev-next', 'true').fire('click')
+  const after = []
+  contentOf(dom).walk(node => { if (node.attributes?.['data-dev-page-body'] !== undefined && !node.hidden) after.push(node.attributes['data-dev-page-body']) })
+  assert.notEqual(after[0], before, '右箭头切到下一页')
+  for (const key of ['signin:7', 'gifts:3', 'update:fake', 'say:eat']) assert.notEqual(findByAttr(contentOf(dom), 'data-dev', key), undefined, key)
+})
