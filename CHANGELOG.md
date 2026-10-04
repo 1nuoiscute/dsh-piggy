@@ -5,6 +5,13 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [0.27.3-rc.4] — 2026-10-05 · 桌面交互预览版第四轮
+
+### Fixed
+- Windows 上在更新页切换版本时，主进程弹出「A JavaScript error occurred in the main process / Object has been destroyed」：重启前旧窗口已销毁，页面消息还在路上。现在所有页面消息先确认窗口没被销毁，退出/重启时先关掉入口；万一还有漏网的异常只写日志，不弹错误框。
+- 更新页加了「🔄 刷新」按钮。下载外壳失败时不再提示一句没处可点的「请先刷新版本列表」。
+- 在用预览版游戏时，新外壳（0.2.5 起）可以直接在应用内下载预览版里的外壳；0.2.4 以前的外壳遇到预览版外壳会改成「打开发布页下载」。
+
 ## [0.27.3-rc.3] — 2026-10-05 · 桌面交互预览版第三轮
 
 ### Changed
