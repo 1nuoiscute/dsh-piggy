@@ -56,3 +56,12 @@ test('游戏包导出桌面模块；更新页只给普通玩家看正式版，�
   assert.match(update, /renderList\(ui, state\.list\.filter\(eligible\)\)/)
   assert.match(update, /required \? 'dp-req' : 'dp-dim'/)
 })
+
+test('启动复位完成之前不记猪的位置（占位纸盒阶段记下来会让下次启动摆错）', () => {
+  memory.clear()
+  memory.set('dsh-piggy:desktop-pig', JSON.stringify({ x: 1700, y: 900 }))
+  const place = createPlacement({ now: () => 0 })
+  place.decide(report({ pig: { x: 219, y: 78, width: 73, height: 58 }, pigWindow: { x: 219, y: 78 }, pigNow: { x: 219, y: 78 } }), { x: 1400, y: 300, width: 336, height: 736 }, AREA)
+  place.remember({ x: 1462, y: 810, width: 336, height: 736 })
+  assert.deepEqual(JSON.parse(memory.get('dsh-piggy:desktop-pig')), { x: 1700, y: 900 })
+})

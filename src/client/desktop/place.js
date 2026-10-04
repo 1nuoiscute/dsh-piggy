@@ -87,7 +87,8 @@ export function createPlacement(options = {}) {
 
   /** 记下猪在屏幕上的位置，下次启动按它摆。 */
   function remember(windowBounds) {
-    if (lastPigWindow === null) return
+    // 启动复位还没完成时不记：那时页面可能还画着占位纸盒，记下来下次启动猪就被摆错位置。
+    if (lastPigWindow === null || saved !== null) return
     const x = windowBounds.x + lastPigWindow.x
     const y = windowBounds.y + lastPigWindow.y
     const key = x + ',' + y

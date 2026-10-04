@@ -221,6 +221,52 @@
       { transform: "scale(1)", opacity: 1 }
     ], { duration: 320, easing: "ease-out" });
   }
+  function panelOrigin(ctx) {
+    const below = ctx.host.getAttribute("data-panel-vertical") === "below" || ctx.card.style.top !== "auto" && ctx.card.style.top !== "";
+    const right = ctx.host.getAttribute("data-panel-side") === "right";
+    return { below, origin: (below ? "top " : "bottom ") + (right ? "left" : "right") };
+  }
+  function animatePanelOpen(ctx) {
+    const { below, origin } = panelOrigin(ctx);
+    for (const node of [ctx.card, ctx.hud]) {
+      if (!node || node.hidden || !canAnimate(node)) continue;
+      node.style.transformOrigin = origin;
+      node.animate([
+        { opacity: 0, transform: `translateY(${below ? -6 : 6}px) scale(.94)` },
+        { opacity: 1, transform: "none" }
+      ], { duration: 180, easing: "cubic-bezier(.2,.8,.2,1)" });
+    }
+  }
+  function animatePanelClose(ctx) {
+    const { below, origin } = panelOrigin(ctx);
+    const host2 = ctx.host;
+    for (const node of [ctx.card, ctx.hud]) {
+      if (!node || node.hidden || !canAnimate(node) || typeof node.cloneNode !== "function") continue;
+      const ghost = node.cloneNode(true);
+      ghost.setAttribute("data-ghost", "true");
+      ghost.setAttribute("aria-hidden", "true");
+      const fromTop = host2.style.top !== "" && host2.style.top !== "auto";
+      const fromLeft = host2.style.left !== "" && host2.style.left !== "auto";
+      const style = ghost.style;
+      style.pointerEvents = "none";
+      style.margin = "0";
+      style.width = node.offsetWidth + "px";
+      style.height = node.offsetHeight + "px";
+      style.maxHeight = "none";
+      style.top = fromTop ? node.offsetTop + "px" : "auto";
+      style.bottom = fromTop ? "auto" : host2.offsetHeight - node.offsetTop - node.offsetHeight + "px";
+      style.left = fromLeft ? node.offsetLeft + "px" : "auto";
+      style.right = fromLeft ? "auto" : host2.offsetWidth - node.offsetLeft - node.offsetWidth + "px";
+      style.transformOrigin = origin;
+      node.parentNode.insertBefore(ghost, node.nextSibling);
+      const fade = ghost.animate([
+        { opacity: 1, transform: "none" },
+        { opacity: 0, transform: `translateY(${below ? -4 : 4}px) scale(.96)` }
+      ], { duration: 140, easing: "cubic-bezier(.4,0,1,1)", fill: "forwards" });
+      fade.onfinish = () => ghost.remove();
+      setTimeout(() => ghost.remove(), 400);
+    }
+  }
 
   // src/client/tabs/shop.js
   var SHELF_COLOR = { food: "red", bath: "teal", toy: "yellow", bait: "blue", medicine: "green", revive: "purple", promotion: "blue" };
@@ -4520,7 +4566,10 @@
       trip: "\u5728\u8DEF\u4E0A"
     };
     function setOpen(next) {
-      if (!next) closeFishing(ctx);
+      if (!next) {
+        closeFishing(ctx);
+        if (ctx.isOpen) animatePanelClose(ctx);
+      }
       if (next && !ctx.isOpen) desktopShell()?.room?.();
       ctx.host.removeAttribute("data-panel-side-locked");
       ctx.isOpen = next;
@@ -4532,6 +4581,7 @@
       if (next) {
         renderContent();
         ctx.fitPanel();
+        animatePanelOpen(ctx);
       } else {
         ctx.card.style.right = "";
         ctx.card.style.top = "auto";
@@ -5280,7 +5330,7 @@
       saved = null;
     }
     function remember(windowBounds) {
-      if (lastPigWindow === null) return;
+      if (lastPigWindow === null || saved !== null) return;
       const x = windowBounds.x + lastPigWindow.x;
       const y = windowBounds.y + lastPigWindow.y;
       const key = x + "," + y;
@@ -5385,7 +5435,11 @@
     if (key === lastKey) return;
     lastKey = key;
     const info = geometry();
-    const bounds = info?.window ?? { x: 0, y: 0, width: next.content.width, height: next.content.height };
+    if (info === null || !info.window) {
+      lastKey = null;
+      return;
+    }
+    const bounds = info.window;
     const grownX = side.horizontal === "right" ? next.content.width - bounds.width : 0;
     const grownY = side.vertical === "bottom" ? next.content.height - bounds.height : 0;
     const want = placement.decide({
@@ -5398,6 +5452,17 @@
       panelOpen: h.getAttribute("data-open") === "true"
     }, bounds, info?.workAreas ?? (info ? [info.workArea] : []));
     const request = { shape: next.shape, bounds: want !== null && !sameBounds(want, bounds, TOLERANCE) ? want : void 0 };
+    if (request.bounds !== void 0) {
+      console.warn("[piggy-desktop] move " + JSON.stringify({
+        open: h.getAttribute("data-open"),
+        side,
+        from: bounds,
+        to: want,
+        content: { w: next.content.width, h: next.content.height },
+        pigBox: next.pigBox,
+        ghosts: h.querySelectorAll("[data-ghost]").length
+      }));
+    }
     const after = bridge.place(request);
     if (after && after.window) placement.remember(after.window);
   }
@@ -5419,6 +5484,7 @@
     document.head.appendChild(style);
     if (typeof shell.onGeometry === "function") shell.onGeometry(function(info) {
       if (info && info.window && !dragging()) placement.remember(info.window);
+      schedule();
     });
     if (typeof shell.askGeometry === "function") shell.askGeometry();
     window.__dshPiggyShell = {

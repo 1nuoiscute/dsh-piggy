@@ -96,7 +96,9 @@ function tick() {
   if (key === lastKey) return
   lastKey = key
   const info = geometry()
-  const bounds = info?.window ?? { x: 0, y: 0, width: next.content.width, height: next.content.height }
+  // 还没拿到窗口在哪：先不摆（以前按 (0,0) 算，启动时会把窗口摆错一次）。几何一到会再量。
+  if (info === null || !info.window) { lastKey = null; return }
+  const bounds = info.window
   const grownX = side.horizontal === 'right' ? next.content.width - bounds.width : 0
   const grownY = side.vertical === 'bottom' ? next.content.height - bounds.height : 0
   const want = placement.decide({
@@ -106,6 +108,12 @@ function tick() {
     panelOpen: h.getAttribute('data-open') === 'true',
   }, bounds, info?.workAreas ?? (info ? [info.workArea] : []))
   const request = { shape: next.shape, bounds: want !== null && !sameBounds(want, bounds, TOLERANCE) ? want : undefined }
+  // 每次要挪窗口都写进桌面程序日志（piggy.log）：平时开关面板、摸猪不会挪窗口，所以很少写；
+  // 万一玩家看到「整块跳一下」，日志里就能看出是哪次、为什么挪。
+  if (request.bounds !== undefined) {
+    console.warn('[piggy-desktop] move ' + JSON.stringify({ open: h.getAttribute('data-open'), side, from: bounds, to: want,
+      content: { w: next.content.width, h: next.content.height }, pigBox: next.pigBox, ghosts: h.querySelectorAll('[data-ghost]').length }))
+  }
   const after = bridge.place(request)
   if (after && after.window) placement.remember(after.window)
 }
@@ -128,7 +136,10 @@ export function install(shell) {
   style.setAttribute('data-piggy-desktop-style', '')
   style.textContent = DESKTOP_CSS
   document.head.appendChild(style)
-  if (typeof shell.onGeometry === 'function') shell.onGeometry(function (info) { if (info && info.window && !dragging()) placement.remember(info.window) })
+  if (typeof shell.onGeometry === 'function') shell.onGeometry(function (info) {
+    if (info && info.window && !dragging()) placement.remember(info.window)
+    schedule()
+  })
   if (typeof shell.askGeometry === 'function') shell.askGeometry()
   ;/** @type {any} */ (window).__dshPiggyShell = {
     room,
