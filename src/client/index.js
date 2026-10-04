@@ -38,7 +38,7 @@ import { readStore, writeStore } from './storage.js'
 import { attachUpdateNotice } from './update-notice.js'
 import { updatesBridge } from './tabs/update.js'
 import { arr, num, obj, str } from './values.js'
-
+import { desktop } from './desktop/index.js'
 /** @type {any} */ (window).__ModuleLoader__.load({
   id: 'dsh-piggy',
   factory: (require) => {
@@ -394,7 +394,7 @@ import { arr, num, obj, str } from './values.js'
     }
 
     exports.name = 'dsh-piggy'
-    exports.apply = apply
+    exports.apply = apply; exports.desktop = desktop // 桌面程序 0.3.0 起用游戏包自带的桌面逻辑
     return module.exports
   },
 })

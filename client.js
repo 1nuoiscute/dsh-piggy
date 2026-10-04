@@ -1556,11 +1556,11 @@
       var row = el("div", "dp-dev-row");
       for (var i = 0; i < view.options.length; i += 1) {
         (function(minutes) {
-          var start = button("dp-mini dp-dev-btn", { "data-pomo-start": String(minutes) }, function() {
+          var start2 = button("dp-mini dp-dev-btn", { "data-pomo-start": String(minutes) }, function() {
             ui.send("pomodoro", { minutes });
           });
-          start.textContent = minutes + " \u5206\u949F";
-          row.appendChild(start);
+          start2.textContent = minutes + " \u5206\u949F";
+          row.appendChild(start2);
         })(view.options[i]);
       }
       ui.content.appendChild(row);
@@ -1585,7 +1585,7 @@
       if (local === 0 || server === 0) return server;
       return Math.abs(server - local) > 1500 ? server : local;
     }
-    function tick() {
+    function tick2() {
       if (isStopped()) {
         window.clearInterval(timer);
         return;
@@ -1615,8 +1615,8 @@
         if (rest === 0) breakEndsAt = 0;
       }
     }
-    var timer = window.setInterval(tick, 1e3);
-    return { tick, dispose: function() {
+    var timer = window.setInterval(tick2, 1e3);
+    return { tick: tick2, dispose: function() {
       window.clearInterval(timer);
     } };
   }
@@ -1757,9 +1757,9 @@
       var shell = desktopShell();
       if (shell !== null) {
         if (ctx.host.getAttribute("data-panel-side-locked") === "true") return;
-        var room = shell.room();
-        if (room !== null) {
-          var opensBelow = room.above < room.below;
+        var room2 = shell.room();
+        if (room2 !== null) {
+          var opensBelow = room2.above < room2.below;
           var fixedHeight = function(space) {
             return Math.max(PANEL_MIN_HEIGHT, Math.min(PANEL_MAX_HEIGHT, Math.round(space - PANEL_GAP - PANEL_MARGIN - 42))) + "px";
           };
@@ -1767,14 +1767,14 @@
           if (!opensBelow) {
             ctx.card.style.top = "auto";
             ctx.card.style.bottom = "calc(100% + " + PANEL_GAP + "px)";
-            ctx.card.style.maxHeight = fixedHeight(room.above);
+            ctx.card.style.maxHeight = fixedHeight(room2.above);
           } else {
             ctx.card.style.bottom = "auto";
             ctx.card.style.top = "calc(100% + " + PANEL_GAP + "px)";
-            ctx.card.style.maxHeight = fixedHeight(room.below);
+            ctx.card.style.maxHeight = fixedHeight(room2.below);
           }
-          var width = Math.round(Math.min(PANEL_WIDTH, room.width - 2 * PANEL_MARGIN));
-          var opensRight = typeof room.left === "number" && typeof room.right === "number" && room.left < width + PANEL_MARGIN && room.right > room.left;
+          var width = Math.round(Math.min(PANEL_WIDTH, room2.width - 2 * PANEL_MARGIN));
+          var opensRight = typeof room2.left === "number" && typeof room2.right === "number" && room2.left < width + PANEL_MARGIN && room2.right > room2.left;
           ctx.host.setAttribute("data-panel-side", opensRight ? "right" : "left");
           if (opensRight) {
             ctx.card.style.right = "auto";
@@ -2349,11 +2349,11 @@
   // src/client/pat-cursor.js
   var SIZE = 32;
   var drawnFor = null;
-  function applyPatCursor(host) {
+  function applyPatCursor(host2) {
     if (typeof document === "undefined" || typeof document.createElement !== "function" || typeof getComputedStyle !== "function") return;
     let family = "sans-serif";
     try {
-      family = String(getComputedStyle(host).getPropertyValue("--ac-font") || "").trim() || "sans-serif";
+      family = String(getComputedStyle(host2).getPropertyValue("--ac-font") || "").trim() || "sans-serif";
     } catch {
       return;
     }
@@ -2376,7 +2376,7 @@
         ctx.textBaseline = "middle";
         ctx.fillText("\u{1F44B}", SIZE / 2, SIZE / 2 + 1);
         const url = canvas.toDataURL("image/png");
-        if (typeof url === "string" && url.startsWith("data:image/png")) host.style.setProperty("--pat-cursor", `url(${url}) 14 18, pointer`);
+        if (typeof url === "string" && url.startsWith("data:image/png")) host2.style.setProperty("--pat-cursor", `url(${url}) 14 18, pointer`);
       } catch {
       }
     };
@@ -2415,9 +2415,9 @@
       return false;
     }
   }
-  function applyEmojiStyle(host) {
-    host.setAttribute("data-emoji", emojiStyle());
-    applyPatCursor(host);
+  function applyEmojiStyle(host2) {
+    host2.setAttribute("data-emoji", emojiStyle());
+    applyPatCursor(host2);
   }
 
   // src/client/css-base.js
@@ -3628,7 +3628,7 @@
     water.appendChild(line);
     ui.content.appendChild(water);
     activeUi = ui;
-    function tick() {
+    function tick2() {
       if (activeUi !== ui) return;
       const now = Date.now();
       if (now >= pending.bitesAt && now <= pending.hookUntil) {
@@ -3640,9 +3640,9 @@
         ui.send("fishHook");
         return;
       }
-      frame = raf(tick);
+      frame = raf(tick2);
     }
-    frame = raf(tick);
+    frame = raf(tick2);
   }
   function qteRules(rawDifficulty) {
     const difficulty = Math.max(1, Math.min(100, Number(rawDifficulty) || 1));
@@ -3741,7 +3741,7 @@
         paint();
       }, 380);
     }
-    function tick(now) {
+    function tick2(now) {
       if (activeUi !== ui || ui.host.getAttribute("data-open") !== "true") return finish(false);
       if (!session.startedAt) session.startedAt = now;
       if (!session.locked) session.angle = (now - session.startedAt) * session.rotationsPerSecond * 0.36;
@@ -3754,10 +3754,10 @@
         paint();
         if (session.misses >= 3) return finish(false);
       }
-      frame = raf(tick);
+      frame = raf(tick2);
     }
     paint();
-    frame = raf(tick);
+    frame = raf(tick2);
   }
   function renderResult(ui, fish2) {
     const card = el("div", "dp-fish-result");
@@ -3974,9 +3974,9 @@
       checking = true;
       error = null;
       try {
-        const desktop = options.getDesktop();
-        if (desktop !== null && desktop?.updates) {
-          const [current, result] = await Promise.all([desktop.updates.current(), desktop.updates.list()]);
+        const desktop2 = options.getDesktop();
+        if (desktop2 !== null && desktop2?.updates) {
+          const [current, result] = await Promise.all([desktop2.updates.current(), desktop2.updates.list()]);
           if (!result?.ok) throw new Error(result?.reason || "\u6CA1\u95EE\u5230 GitHub");
           const newest2 = newestRelease(result.releases);
           const gameNew = newest2 !== null && compareVersions(newest2.version, current?.version ?? options.currentVersion()) > 0;
@@ -4002,7 +4002,7 @@
       unread = false;
       options.changed();
     }
-    function start() {
+    function start2() {
       timer = window.setTimeout(check, 1e4);
       interval = window.setInterval(check, 6 * 60 * 60 * 1e3);
     }
@@ -4016,7 +4016,7 @@
       check,
       markRead,
       maybeBubble,
-      start,
+      start: start2,
       stop,
       get latest() {
         return latest;
@@ -4209,12 +4209,15 @@
       var shellVersion = shellOf(shellRelease);
       var mode = state.shellStatus && state.shellStatus.mode;
       if (shellRelease.prerelease && compareVersions(cur.shell, "0.2.5") < 0) mode = "preview-manual";
-      head.appendChild(el("div", "dp-req", "\u684C\u9762\u5916\u58F3 v" + cur.shell + " \u2192 v" + shellVersion));
+      var required = compareVersions(cur.shell, "0.2.0") < 0 || state.list.some(function(r) {
+        return eligible(r) && r.blocked === "shell" && compareVersions(r.version, cur.version) > 0;
+      });
+      head.appendChild(el("div", required ? "dp-req" : "dp-dim", required ? "\u684C\u9762\u5916\u58F3 v" + cur.shell + " \u2192 v" + shellVersion + "\uFF1A\u65B0\u7248\u672C\u6E38\u620F\u9700\u8981\u5B83" : "\u684C\u9762\u5916\u58F3\u6709\u53EF\u9009\u66F4\u65B0 v" + shellVersion + "\uFF0C\u4E0D\u66F4\u65B0\u4E5F\u80FD\u6B63\u5E38\u73A9"));
       if (compareVersions(cur.shell, "0.2.0") < 0) head.appendChild(el("div", "dp-dim", "\u4F60\u7684\u684C\u9762\u5916\u58F3\u662F\u94FA\u6EE1\u5168\u5C4F\u7684\u65E7\u7248\uFF0C\u4F1A\u5361\u3001\u4F1A\u95EA\uFF1B\u65B0\u5916\u58F3\u53EA\u6846\u4F4F\u732A\u548C\u9762\u677F\u3002\u8BF7\u4E0B\u8F7D\u65B0\u5B89\u88C5\u5305\u8986\u76D6\u5B89\u88C5\uFF0C\u5B58\u6863\u4E0D\u4F1A\u4E22\u3002"));
-      if (mode !== "automatic") head.appendChild(el("div", "dp-dim", shellManualReason(mode)));
+      if (mode !== "automatic" && required) head.appendChild(el("div", "dp-dim", shellManualReason(mode)));
       if (state.shellMessage !== null) head.appendChild(el("div", "dp-req", state.shellMessage));
       if (state.shellBusy) head.appendChild(el("div", "dp-dim", "\u6B63\u5728\u4E0B\u8F7D\u684C\u9762\u5916\u58F3 " + Math.round(state.shellFraction * 100) + "%"));
-      var shellGo = button("dp-btn dp-btn-wide", { "data-update-shell": shellRelease.version }, function() {
+      var shellGo = button(required ? "dp-btn dp-btn-wide" : "dp-mini", { "data-update-shell": shellRelease.version }, function() {
         if (mode !== "automatic") updatesBridge().openPage(shellRelease.page);
         else if (state.shellReady === shellVersion) installShell(ui);
         else downloadShell(ui, shellVersion);
@@ -4249,7 +4252,7 @@
       again.textContent = "\u518D\u8BD5\u4E00\u6B21";
       ui.content.appendChild(again);
     }
-    if (state.list !== null) renderList(ui, state.list);
+    if (state.list !== null) renderList(ui, state.list.filter(eligible));
     if (cur !== null && cur.previous !== null) {
       var back = button("dp-btn dp-btn-wide dp-update-back", { "data-update-rollback": "" }, function() {
         rollback(ui);
@@ -4823,8 +4826,8 @@
     var style = document.createElement("style");
     style.textContent = CSS;
     document.head.appendChild(style);
-    var host = document.createElement("div");
-    host.setAttribute(MOUNTED, "");
+    var host2 = document.createElement("div");
+    host2.setAttribute(MOUNTED, "");
     var card = el("div", "dp-card");
     var scene = el("div", "dp-scene");
     var hud = el("div", "dp-hud");
@@ -4881,19 +4884,19 @@
     card.appendChild(content);
     card.appendChild(footer);
     card.appendChild(bar);
-    host.appendChild(card);
-    host.appendChild(scene);
+    host2.appendChild(card);
+    host2.appendChild(scene);
     if (document.body !== null && document.body !== void 0) {
-      document.body.appendChild(host);
+      document.body.appendChild(host2);
     } else {
       document.addEventListener("DOMContentLoaded", function() {
         try {
-          document.body.appendChild(host);
+          document.body.appendChild(host2);
         } catch (error) {
         }
       }, { once: true });
     }
-    return { font, style, host, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
+    return { font, style, host: host2, card, scene, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
   }
 
   // src/client/drag-heartbeat.js
@@ -4944,7 +4947,7 @@
       }
       if (taps >= DEV_TAP_HINT_FROM) say("\u518D\u70B9 " + (DEV_TAPS_TO_UNLOCK - taps) + " \u6B21", DEV_TAP_HINT_MS);
     }
-    function install2() {
+    function install3() {
       writeStore(DEV_KEY, "0");
       try {
         window.dshPigDev = { off: function() {
@@ -4962,7 +4965,7 @@
     }
     return { isOn: function() {
       return on;
-    }, set, tap, install: install2, dispose };
+    }, set, tap, install: install3, dispose };
   }
   function attachDevMode(ui) {
     const dev = createDevMode(function(next) {
@@ -4981,6 +4984,497 @@
     dev.install();
     return dev;
   }
+
+  // src/client/desktop/geometry.js
+  var PAD = 16;
+  var STEP = 4;
+  var MIN_WINDOW = Object.freeze({ width: 96, height: 96 });
+  var round = (value) => Math.round(Number(value) || 0);
+  function contentBoundsForPig(content, targetPigScreen, area) {
+    const width = Math.max(MIN_WINDOW.width, round(content.width));
+    const height = Math.max(MIN_WINDOW.height, round(content.height));
+    const pig = content.pigWindow;
+    function axis(target, pigOffset, pigSize2, windowSize, areaStart, areaSize) {
+      const desired = round(target) - round(pigOffset);
+      if (!content.panelOpen) return desired;
+      if (content.allowPanelOverflow) {
+        const minStart = round(areaStart) - round(pigOffset);
+        const maxStart = round(areaStart + areaSize) - round(pigOffset) - round(pigSize2);
+        return Math.max(minStart, Math.min(desired, maxStart));
+      }
+      const before = round(pigOffset);
+      const after = windowSize - before - round(pigSize2);
+      const availableBefore = round(target) - round(areaStart);
+      const availableAfter = round(areaStart + areaSize - target - pigSize2);
+      const chosenFits = availableBefore >= before && availableAfter >= after;
+      const otherFits = availableBefore >= after && availableAfter >= before;
+      if (chosenFits || otherFits) return desired;
+      const lastStart = round(areaStart + areaSize - windowSize);
+      return Math.max(round(areaStart), Math.min(desired, lastStart));
+    }
+    return {
+      x: axis(targetPigScreen.x, pig.x, pig.width, width, area.x, area.width),
+      y: axis(targetPigScreen.y, pig.y, pig.height, height, area.y, area.height),
+      width,
+      height
+    };
+  }
+  function resizedPigScreenPoint(point, before, after) {
+    return {
+      x: round(point.x + (before.width - after.width) / 2),
+      y: round(point.y + before.height - after.height)
+    };
+  }
+  function nearestArea(point, areas) {
+    let best = null;
+    let bestDistance = Infinity;
+    for (const area of areas) {
+      const dx = Math.max(area.x - point.x, 0, point.x - (area.x + area.width));
+      const dy = Math.max(area.y - point.y, 0, point.y - (area.y + area.height));
+      const distance = dx * dx + dy * dy;
+      if (distance < bestDistance) {
+        best = area;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+  function sameBounds(a, b, tolerance) {
+    return Math.abs(a.x - b.x) <= tolerance && Math.abs(a.y - b.y) <= tolerance && Math.abs(a.width - b.width) <= tolerance && Math.abs(a.height - b.height) <= tolerance;
+  }
+
+  // src/client/desktop/measure.js
+  var BUBBLE_ZONE = { width: 272, height: 104 };
+  var SHAPE_SLACK = 6;
+  var OPEN_BOX_KEY = "dsh-piggy:desktop-open-box";
+  function layoutBox(node) {
+    let x = 0;
+    let y = 0;
+    let walk = node;
+    while (walk !== null && walk !== void 0 && walk !== document.body) {
+      x += walk.offsetLeft || 0;
+      y += walk.offsetTop || 0;
+      walk = walk.offsetParent;
+    }
+    return { x, y, width: node.offsetWidth || 0, height: node.offsetHeight || 0 };
+  }
+  function visible(node) {
+    const style = getComputedStyle(node);
+    return style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0.01;
+  }
+  function createMeasure(env) {
+    let openBoxes = {};
+    try {
+      openBoxes = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || "{}") || {};
+    } catch {
+      openBoxes = {};
+    }
+    const state2 = { vertical: "bottom", horizontal: "right", pinned: "" };
+    const reserves = env.platform !== "darwin";
+    function openBoxKey(pigBox) {
+      return state2.vertical + "|" + state2.horizontal + "|" + Math.round(pigBox.width);
+    }
+    function boxes(host2) {
+      const nodes = [host2];
+      const all = host2.querySelectorAll("*");
+      for (let a = 0; a < all.length; a += 1) {
+        const candidate = all[a];
+        const inCard = candidate.closest(".dp-card");
+        if (inCard !== null && inCard !== candidate || candidate.closest(".dp-fx") !== null) continue;
+        nodes.push(candidate);
+      }
+      const geometry2 = env.geometry();
+      let rects = [];
+      for (const node of nodes) {
+        if (node.closest("[hidden]") !== null || !visible(node)) continue;
+        const bubble = node.closest(".dp-bubble");
+        if (bubble !== null && geometry2 !== null && geometry2.window.y + layoutBox(bubble).y < geometry2.workArea.y) continue;
+        const box = layoutBox(node);
+        if (box.width < 1 || box.height < 1) continue;
+        rects.push({ x: box.x, y: box.y, r: box.x + box.width, b: box.y + box.height });
+      }
+      if (rects.length === 0) return null;
+      const hostBox = layoutBox(host2);
+      const pigNode = host2.querySelector(".dp-pig");
+      const pigBox = pigNode === null ? { x: 0, y: 0, width: 0, height: 0 } : layoutBox(pigNode);
+      const open = host2.getAttribute("data-open") === "true";
+      let zone = null;
+      if (reserves && !open && pigNode !== null) {
+        const zoneLeft = host2.getAttribute("data-panel-side") === "right" ? hostBox.x : hostBox.x + hostBox.width - BUBBLE_ZONE.width;
+        zone = { x: zoneLeft, y: pigBox.y - BUBBLE_ZONE.height, r: zoneLeft + BUBBLE_ZONE.width, b: pigBox.y };
+      }
+      let merged = true;
+      while (merged) {
+        merged = false;
+        for (let p = 0; p < rects.length && !merged; p += 1) {
+          for (let q = p + 1; q < rects.length; q += 1) {
+            const one = rects[p];
+            const two = rects[q];
+            if (one.x <= two.r && two.x <= one.r && one.y <= two.b && two.y <= one.b) {
+              rects[p] = { x: Math.min(one.x, two.x), y: Math.min(one.y, two.y), r: Math.max(one.r, two.r), b: Math.max(one.b, two.b) };
+              rects.splice(q, 1);
+              merged = true;
+              break;
+            }
+          }
+        }
+      }
+      const card = (
+        /** @type {any} */
+        host2.querySelector(".dp-card")
+      );
+      if (reserves && open && card !== null && card.hidden !== true) {
+        const cardBox = layoutBox(card);
+        const maxHeight = Math.min(PANEL_MAX_HEIGHT, parseFloat(card.style.maxHeight) || 0);
+        if (maxHeight > cardBox.height && cardBox.width > 0) {
+          zone = cardBox.y > pigBox.y ? { x: cardBox.x, y: cardBox.y, r: cardBox.x + cardBox.width, b: cardBox.y + maxHeight } : { x: cardBox.x, y: cardBox.y + cardBox.height - maxHeight, r: cardBox.x + cardBox.width, b: cardBox.y + cardBox.height };
+        }
+      }
+      let outline = zone === null ? rects : rects.concat([zone]);
+      if (reserves && pigNode !== null) {
+        const key = openBoxKey(pigBox);
+        if (open && card !== null && card.hidden !== true) {
+          let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+          for (const o of outline) {
+            l = Math.min(l, o.x);
+            t = Math.min(t, o.y);
+            r = Math.max(r, o.r);
+            b = Math.max(b, o.b);
+          }
+          const rel = { l: Math.round(l - pigBox.x), t: Math.round(t - pigBox.y), r: Math.round(r - pigBox.x), b: Math.round(b - pigBox.y) };
+          const old = openBoxes[key];
+          if (old === void 0 || old.l !== rel.l || old.t !== rel.t || old.r !== rel.r || old.b !== rel.b) {
+            openBoxes[key] = rel;
+            try {
+              localStorage.setItem(OPEN_BOX_KEY, JSON.stringify(openBoxes));
+            } catch {
+            }
+          }
+        } else if (openBoxes[key] !== void 0) {
+          const saved = openBoxes[key];
+          outline = outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }]);
+        }
+      }
+      let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+      for (const o of outline) {
+        left = Math.min(left, o.x);
+        top = Math.min(top, o.y);
+        right = Math.max(right, o.r);
+        bottom = Math.max(bottom, o.b);
+      }
+      const content = {
+        x: left - PAD,
+        y: top - PAD,
+        width: Math.ceil((right - left + PAD * 2) / STEP) * STEP,
+        height: Math.ceil((bottom - top + PAD * 2) / STEP) * STEP
+      };
+      const pig = { x: pigBox.x - content.x, y: pigBox.y - content.y, width: pigBox.width, height: pigBox.height };
+      const shape = rects.map(function(rect) {
+        const x = Math.max(0, Math.floor(rect.x) - SHAPE_SLACK);
+        const y = Math.max(0, Math.floor(rect.y) - SHAPE_SLACK);
+        return { x, y, width: Math.ceil(rect.r) + SHAPE_SLACK - x, height: Math.ceil(rect.b) + SHAPE_SLACK - y };
+      });
+      if (pigNode !== null && host2.querySelector(".dp-fx") !== null) {
+        const fx = { x: Math.max(0, Math.floor(pigBox.x - 36)), y: Math.max(0, Math.floor(pigBox.y - 84)) };
+        shape.push({ x: fx.x, y: fx.y, width: Math.ceil(pigBox.x + pigBox.width + 36) - fx.x, height: Math.ceil(pigBox.y + 12) - fx.y });
+      }
+      return { content, shape, pig, hostBox, pigBox, contentBox: { left, top, right, bottom } };
+    }
+    function sides(host2) {
+      const card = (
+        /** @type {any} */
+        host2.querySelector(".dp-card")
+      );
+      const pigNode = host2.querySelector(".dp-pig");
+      if (card === null || pigNode === null || card.hidden === true) return { vertical: state2.vertical, horizontal: state2.horizontal };
+      const cardBox = layoutBox(card);
+      const pigBox = layoutBox(pigNode);
+      if (cardBox.width < 1 || cardBox.height < 1) return { vertical: state2.vertical, horizontal: state2.horizontal };
+      state2.vertical = cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? "bottom" : "top";
+      state2.horizontal = cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? "right" : "left";
+      return { vertical: state2.vertical, horizontal: state2.horizontal };
+    }
+    function pin(host2, side, hostBox, contentBox) {
+      const want = { left: "auto", right: "auto", top: "auto", bottom: "auto" };
+      if (side.horizontal === "left") want.left = Math.round(hostBox.x - contentBox.left + PAD) + "px";
+      else want.right = Math.round(contentBox.right - hostBox.x - hostBox.width + PAD) + "px";
+      if (side.vertical === "top") want.top = Math.round(hostBox.y - contentBox.top + PAD) + "px";
+      else want.bottom = Math.round(contentBox.bottom - hostBox.y - hostBox.height + PAD) + "px";
+      const key = [side.vertical, side.horizontal, want.left, want.right, want.top, want.bottom].join("|");
+      if (key === state2.pinned) return;
+      state2.pinned = key;
+      host2.style.left = want.left;
+      host2.style.right = want.right;
+      host2.style.top = want.top;
+      host2.style.bottom = want.bottom;
+    }
+    function keyOf(next) {
+      const head = [
+        Math.floor(next.content.width / STEP),
+        Math.floor(next.content.height / STEP),
+        Math.floor(next.pig.x / STEP),
+        Math.floor(next.pig.y / STEP),
+        Math.floor(next.pigBox.x),
+        Math.floor(next.pigBox.y)
+      ];
+      const tail = [];
+      for (const s of next.shape) tail.push(s.x, s.y, s.width, s.height);
+      return head.concat(tail.map((n) => Math.floor(n / STEP))).join(",");
+    }
+    return { boxes, sides, pin, keyOf, state: state2 };
+  }
+
+  // src/client/desktop/place.js
+  var PIG_SCREEN_KEY = "dsh-piggy:desktop-pig";
+  var STARTUP_MS = 4e3;
+  function createPlacement(options = {}) {
+    const now = options.now ?? (() => Date.now());
+    let lastContent = null;
+    let lastPigWindow = null;
+    let lastPigSize = { width: 56, height: 56 };
+    let resting = null;
+    let saved = null;
+    try {
+      const raw = JSON.parse(localStorage.getItem(PIG_SCREEN_KEY) || "null");
+      if (raw !== null && Number.isFinite(raw.x) && Number.isFinite(raw.y)) saved = { x: raw.x, y: raw.y };
+    } catch {
+      saved = null;
+    }
+    const startedAt = now();
+    let stored = saved === null ? "" : saved.x + "," + saved.y;
+    function decide(report, bounds, areas) {
+      const width = report.width;
+      const height = report.height;
+      const anchor = report.anchor;
+      const pigWindow = report.pigWindow;
+      const pigNow = report.pigNow;
+      const pigSize2 = report.pig.width > 0 && report.pig.height > 0 ? { width: report.pig.width, height: report.pig.height } : lastPigSize;
+      const panelOpen = report.panelOpen === true;
+      const sizeChanged = lastPigWindow !== null && (lastPigSize.width !== pigSize2.width || lastPigSize.height !== pigSize2.height);
+      const changed = lastContent === null || lastContent.width !== width || lastContent.height !== height || lastContent.anchor.vertical !== anchor.vertical || lastContent.anchor.horizontal !== anchor.horizontal || sizeChanged || lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y);
+      if (saved !== null) {
+        const settled = bounds.width === Math.max(MIN_WINDOW.width, Math.round(width)) && bounds.height === Math.max(MIN_WINDOW.height, Math.round(height)) && Math.abs(bounds.x + pigNow.x - saved.x) <= 1 && Math.abs(bounds.y + pigNow.y - saved.y) <= 1;
+        if (settled || panelOpen || now() - startedAt > STARTUP_MS) saved = null;
+      }
+      if (panelOpen && lastContent?.panelOpen !== true) {
+        const base = lastPigWindow ?? pigWindow;
+        resting = saved ?? { x: bounds.x + base.x, y: bounds.y + base.y };
+      }
+      let next = null;
+      if (changed) {
+        const before = lastPigWindow ?? pigNow;
+        const pigBefore = saved ?? { x: bounds.x + before.x, y: bounds.y + before.y };
+        const target = saved !== null ? saved : sizeChanged ? resizedPigScreenPoint(resting ?? pigBefore, lastPigSize, pigSize2) : resting ?? pigBefore;
+        if (sizeChanged && resting !== null) resting = target;
+        const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+        next = contentBoundsForPig({ width, height, pigWindow: { ...pigWindow, ...pigSize2 }, panelOpen, allowPanelOverflow: sizeChanged }, target, area);
+      }
+      if (!panelOpen) resting = null;
+      lastContent = { width, height, anchor, panelOpen };
+      lastPigWindow = pigWindow;
+      lastPigSize = pigSize2;
+      return next;
+    }
+    function dragStarted() {
+      resting = null;
+      saved = null;
+    }
+    function remember(windowBounds) {
+      if (lastPigWindow === null) return;
+      const x = windowBounds.x + lastPigWindow.x;
+      const y = windowBounds.y + lastPigWindow.y;
+      const key = x + "," + y;
+      if (key === stored) return;
+      stored = key;
+      try {
+        localStorage.setItem(PIG_SCREEN_KEY, JSON.stringify({ x, y }));
+      } catch {
+      }
+    }
+    return { decide, dragStarted, remember, pigWindow: () => lastPigWindow, pigSize: () => lastPigSize };
+  }
+
+  // src/client/desktop/index.js
+  var DESKTOP_VERSION = 2;
+  var FONT_STACK = 'Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif';
+  var DESKTOP_CSS = [
+    `[data-dsh-pig][data-dsh-pig]{--ac-font:"Piggy Emoji",${FONT_STACK}}`,
+    `[data-dsh-pig][data-dsh-pig][data-emoji="system"]{--ac-font:${FONT_STACK}}`,
+    '[data-dsh-pig][data-open="false"] .dp-pig{filter:none!important}',
+    "[data-dsh-pig] .dp-pig-img,[data-dsh-pig] .dp-pig-emoji{filter:none!important}",
+    "[data-dsh-pig] .dp-card{box-shadow:inset 0 1px 2px rgba(61,52,40,.09)!important}",
+    "[data-dsh-pig] .dp-panel-footer{max-height:270px!important}"
+  ].join("\n");
+  var TOLERANCE = 2;
+  var bridge = (
+    /** @type {any} */
+    null
+  );
+  var measure = (
+    /** @type {any} */
+    null
+  );
+  var placement = (
+    /** @type {any} */
+    null
+  );
+  var lastKey = null;
+  var closedRoom = null;
+  var hitRects = [];
+  var lastHit = null;
+  var mouse = { x: -1, y: -1 };
+  var scheduled = false;
+  function host() {
+    return (
+      /** @type {any} */
+      document.querySelector("[data-dsh-pig]")
+    );
+  }
+  function geometry() {
+    return typeof bridge.geometry === "function" ? bridge.geometry() : null;
+  }
+  function dragging() {
+    const scene = document.querySelector("[data-dsh-pig] .dp-scene");
+    return scene !== null && scene.getAttribute("data-dragging") === "true";
+  }
+  function room() {
+    const h = host();
+    if (h !== null && h.getAttribute("data-open") === "true" && closedRoom !== null) return closedRoom;
+    const info = geometry();
+    if (info === null || h === null) return null;
+    const pigNode = h.querySelector(".dp-pig");
+    if (pigNode === null) return null;
+    const box = layoutBox(pigNode);
+    const left = info.window.x + box.x;
+    const top = info.window.y + box.y;
+    const result = {
+      above: Math.round(top - info.workArea.y),
+      below: Math.round(info.workArea.y + info.workArea.height - (top + box.height)),
+      left: Math.round(left - info.workArea.x),
+      right: Math.round(info.workArea.x + info.workArea.width - (left + box.width)),
+      width: info.workArea.width,
+      height: info.workArea.height
+    };
+    if (h.getAttribute("data-open") === "false") closedRoom = result;
+    return result;
+  }
+  function updateHit(x, y) {
+    mouse = { x, y };
+    if (typeof bridge.setHit !== "function") return;
+    let inside = dragging();
+    for (let i = 0; !inside && i < hitRects.length; i += 1) {
+      const r = hitRects[i];
+      inside = x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height;
+    }
+    if (inside === lastHit) return;
+    lastHit = inside;
+    bridge.setHit(inside);
+  }
+  function tick() {
+    const h = host();
+    if (h === null) return;
+    let next = measure.boxes(h);
+    if (next === null) return;
+    const side = measure.sides(h);
+    measure.pin(h, side, next.hostBox, next.contentBox);
+    next = measure.boxes(h);
+    if (next === null) return;
+    hitRects = next.shape;
+    if (mouse.x >= 0) updateHit(mouse.x, mouse.y);
+    const key = measure.keyOf(next);
+    if (key === lastKey) return;
+    lastKey = key;
+    const info = geometry();
+    const bounds = info?.window ?? { x: 0, y: 0, width: next.content.width, height: next.content.height };
+    const grownX = side.horizontal === "right" ? next.content.width - bounds.width : 0;
+    const grownY = side.vertical === "bottom" ? next.content.height - bounds.height : 0;
+    const want = placement.decide({
+      width: next.content.width,
+      height: next.content.height,
+      anchor: side,
+      pig: next.pig,
+      pigWindow: { x: next.pigBox.x + grownX, y: next.pigBox.y + grownY },
+      pigNow: { x: next.pigBox.x, y: next.pigBox.y },
+      panelOpen: h.getAttribute("data-open") === "true"
+    }, bounds, info?.workAreas ?? (info ? [info.workArea] : []));
+    const request = { shape: next.shape, bounds: want !== null && !sameBounds(want, bounds, TOLERANCE) ? want : void 0 };
+    const after = bridge.place(request);
+    if (after && after.window) placement.remember(after.window);
+  }
+  function schedule() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(function() {
+      scheduled = false;
+      if (!dragging()) tick();
+    });
+  }
+  function install2(shell) {
+    bridge = shell;
+    measure = createMeasure({ platform: shell.platform || "", geometry });
+    placement = createPlacement();
+    const style = document.createElement("style");
+    style.setAttribute("data-piggy-desktop-style", "");
+    style.textContent = DESKTOP_CSS;
+    document.head.appendChild(style);
+    if (typeof shell.onGeometry === "function") shell.onGeometry(function(info) {
+      if (info && info.window && !dragging()) placement.remember(info.window);
+    });
+    if (typeof shell.askGeometry === "function") shell.askGeometry();
+    window.__dshPiggyShell = {
+      room,
+      refreshRoom: function() {
+        closedRoom = null;
+      },
+      beginDrag: function() {
+        placement.dragStarted();
+        const pig = placement.pigWindow();
+        const size = placement.pigSize();
+        shell.beginDrag(pig === null ? null : { x: pig.x, y: pig.y, width: size.width, height: size.height });
+      },
+      dragHeartbeat: function() {
+        if (typeof shell.dragHeartbeat === "function") shell.dragHeartbeat();
+      },
+      endDrag: function() {
+        shell.endDrag();
+      },
+      syncGeometry: function() {
+        tick();
+      }
+    };
+    document.addEventListener("mouseover", function(event) {
+      const target = (
+        /** @type {any} */
+        event.target
+      );
+      const titled = target !== null && typeof target.closest === "function" ? target.closest("[title]") : null;
+      if (titled === null) return;
+      if (!titled.getAttribute("aria-label")) titled.setAttribute("aria-label", titled.getAttribute("title"));
+      titled.removeAttribute("title");
+    }, true);
+    document.addEventListener("mousemove", function(event) {
+      updateHit(event.clientX, event.clientY);
+    }, true);
+    document.documentElement.addEventListener("mouseleave", function() {
+      if (dragging()) return;
+      mouse = { x: -1, y: -1 };
+      lastHit = false;
+      if (typeof shell.setHit === "function") shell.setHit(false);
+    });
+  }
+  function start() {
+    const h = host();
+    if (h !== null && typeof MutationObserver === "function") {
+      new MutationObserver(schedule).observe(h, { subtree: true, childList: true, attributes: true, characterData: true });
+    }
+    window.addEventListener("resize", schedule);
+    window.addEventListener("pointerup", schedule);
+    setInterval(function() {
+      if (!dragging()) tick();
+    }, 1e3);
+    tick();
+  }
+  var desktop = { version: DESKTOP_VERSION, install: install2, start };
 
   // src/client/index.js
   window.__ModuleLoader__.load({
@@ -5008,7 +5502,7 @@
         var {
           font,
           style,
-          host,
+          host: host2,
           card,
           scene,
           hud,
@@ -5037,11 +5531,11 @@
         var userRight = savedPos === null ? 18 : savedPos.right;
         var userBottom = savedPos === null ? 18 : savedPos.bottom;
         if (deskShell === null) {
-          host.style.right = userRight + "px";
-          host.style.bottom = userBottom + "px";
+          host2.style.right = userRight + "px";
+          host2.style.bottom = userBottom + "px";
         } else {
-          host.style.right = "auto";
-          host.style.bottom = "auto";
+          host2.style.right = "auto";
+          host2.style.bottom = "auto";
         }
         var icons = {};
         var view = normalize(null);
@@ -5074,7 +5568,7 @@
         var stopped = false;
         var busy = false;
         var ctx = {
-          host,
+          host: host2,
           card,
           content,
           footer,
@@ -5260,8 +5754,8 @@
             startY: typeof event.screenY === "number" ? event.screenY : event.clientY,
             lastX: typeof event.screenX === "number" ? event.screenX : event.clientX,
             lastY: typeof event.screenY === "number" ? event.screenY : event.clientY,
-            right: parseFloat(getComputedStyle(host).right) || 18,
-            bottom: parseFloat(getComputedStyle(host).bottom) || 18,
+            right: parseFloat(getComputedStyle(host2).right) || 18,
+            bottom: parseFloat(getComputedStyle(host2).bottom) || 18,
             moved: false
           };
           scene.setAttribute("data-dragging", "true");
@@ -5309,7 +5803,7 @@
           clampPig();
           if (deskShell === null) writeStore(POSITION_KEY, JSON.stringify({ right: userRight, bottom: userBottom }));
           deskShell?.refreshRoom?.();
-          host.removeAttribute("data-panel-side-locked");
+          host2.removeAttribute("data-panel-side-locked");
           fitPanel();
           return moved;
         }
@@ -5319,13 +5813,13 @@
           react("poke", 560);
           if (boxPokes >= BOX_POKES_TO_OPEN) {
             boxPokes = 0;
-            host.removeAttribute("data-poke");
+            host2.removeAttribute("data-poke");
             showBubble("\u54C7\u2014\u2014\uFF01", 1200);
             burst(["\u2728", "\u{1F389}", "\u{1F4A8}"], 6);
             send("hatch");
             return;
           }
-          host.setAttribute("data-poke", String(boxPokes));
+          host2.setAttribute("data-poke", String(boxPokes));
           burst(["\u{1F4A8}"], 2);
           showBubble(BOX_POKE_LINES[boxPokes - 1], 2200);
         }
@@ -5349,7 +5843,7 @@
           setOpen(!isOpen);
         });
         var autoCollapse = attachAutoCollapse({
-          host,
+          host: host2,
           isOpen: function() {
             return isOpen;
           },
@@ -5386,7 +5880,7 @@
           setEnabled: function(next) {
             devMode = next;
           },
-          host,
+          host: host2,
           paintBar,
           setOpen,
           select,
@@ -5408,7 +5902,7 @@
           window.clearTimeout(greetTimer);
           fx.dispose();
           pollTimer = null;
-          host.remove();
+          host2.remove();
           style.remove();
           font.remove();
         }
@@ -5416,6 +5910,7 @@
       }
       exports.name = "dsh-piggy";
       exports.apply = apply;
+      exports.desktop = desktop;
       return module.exports;
     }
   });
