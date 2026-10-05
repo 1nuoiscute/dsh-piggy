@@ -18,4 +18,10 @@ export const FISH = Object.freeze([
   { key: 'fish_moon', label: '月影鱼', emoji: '🌙', rarity: 'legend', times: ['night'], behavior: 'mixed', difficulty: 100, minCm: 60, maxCm: 160, price: 300 },
 ])
 
+/**
+ * 鱼咬钩后的搏斗玩法（G 批次，用户 2026-10-05：三种都要，每次随机一种）：
+ * ring 圆盘点击、bar 竖条拉锯、pull 拉力收线。
+ */
+export const FISH_FIGHTS = Object.freeze(['ring', 'bar', 'pull'])
+
 export const fishByKey = key => FISH.find(fish => fish.key === key) ?? null

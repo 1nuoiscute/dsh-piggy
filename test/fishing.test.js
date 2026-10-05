@@ -2,10 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  STATE_VERSION, applyDevPatch, callOffActivity, castFishing, feedFish, finishActivity, grantFish, hatchEgg,
+  STATE_VERSION, applyDevPatch, callOffActivity, castFishing, ensureFishing, feedFish, finishActivity, grantFish, hatchEgg,
   hookFishing, keepFish, migrate, resolveFishing, sellFish, startAutoFishing,
 } from '../packages/pet-core/src/core.js'
-import { FISH, SHOP } from '../packages/pet-core/src/data.js'
+import { FISH, FISH_FIGHTS, SHOP } from '../packages/pet-core/src/data.js'
 
 const NOW = new Date(2026, 9, 2, 19, 0).getTime()
 const fresh = () => { const state = hatchEgg(NOW); state.inventory.bait_worm = 40; return state }
@@ -159,4 +159,21 @@ test('developer fast-forward settles an automatic fishing activity', () => {
   applyDevPatch(state, { __advanceMs: 30 * 60_000 }, NOW)
   assert.equal(state.activity, null)
   assert.equal(state.stats.fishingAuto, 1)
+})
+
+test('a hooked fish gets one of the three fights, kept in the save', () => {
+  const seen = new Set()
+  for (let i = 0; i < 30; i += 1) {
+    const state = fresh()
+    state.seed = 1000 + i * 7919
+    castFishing(state, 0.5, NOW, () => 0, 'bait_worm')
+    const bite = state.fishing.pending.bitesAt
+    assert.equal(hookFishing(state, bite).ok, true)
+    assert.ok(FISH_FIGHTS.includes(state.fishing.pending.fight), state.fishing.pending.fight)
+    seen.add(state.fishing.pending.fight)
+    // 存档清洗时保留玩法。
+    ensureFishing(state)
+    assert.ok(FISH_FIGHTS.includes(state.fishing.pending.fight))
+  }
+  assert.equal(seen.size, 3, 'all three fights come up')
 })

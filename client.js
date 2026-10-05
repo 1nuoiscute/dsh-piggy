@@ -631,6 +631,7 @@
     { key: "fish_koi", label: "\u9EC4\u91D1\u9526\u9CA4", emoji: "\u{1F38F}", rarity: "rare", times: ["early", "evening"], behavior: "mixed", difficulty: 86, minCm: 30, maxCm: 88, price: 220 },
     { key: "fish_moon", label: "\u6708\u5F71\u9C7C", emoji: "\u{1F319}", rarity: "legend", times: ["night"], behavior: "mixed", difficulty: 100, minCm: 60, maxCm: 160, price: 300 }
   ]);
+  var FISH_FIGHTS = Object.freeze(["ring", "bar", "pull"]);
 
   // packages/pet-core/src/data/skins.js
   var SKIN_SCENES = Object.freeze(["idle", "eat", "bathe", "play", "pet", "relaxed", "work", "study", "trip", "fish"]);
@@ -2288,7 +2289,10 @@
       castPower: num(entry.castPower, 0),
       bitesAt: num(entry.bitesAt, 0),
       hookUntil: num(entry.hookUntil, 0),
-      expiresAt: num(entry.expiresAt, 0)
+      expiresAt: num(entry.expiresAt, 0),
+      // 搏斗玩法（ring / bar / pull，没有就是老宿主：圆盘）；maxCm 用来说「大个的」。
+      fight: str(entry.fight, "ring"),
+      maxCm: num(entry.maxCm, 0)
     };
   }
   function normalizeFishing(raw) {
@@ -3639,9 +3643,30 @@
 
   // src/client/css-fishing.js
   var CSS_FISHING = `
-.dp-fish-baits{margin:12px 0 16px;gap:8px}.dp-fish-blocked{margin:10px 0 6px;padding:9px 11px;border-radius:10px;background:#fff1df;color:#8f5123;font-size:12px;font-weight:700}.dp-fish-care{margin-bottom:8px}.dp-fish-cast{display:block;width:100%;min-height:44px;margin-top:12px;touch-action:manipulation}
-.dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-cast{touch-action:manipulation}.dp-fish-bait[aria-pressed=true]{background:#d7f3e2;border-color:#4ca678;color:#245d43}.dp-fish-auto{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:10px;border-radius:12px;background:#f5fafb}.dp-fish-auto span{width:100%;font-size:11px;color:#718188}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
+.dp-fish-blocked{margin:10px 0 6px;padding:9px 11px;border-radius:10px;background:#fff1df;color:#8f5123;font-size:12px;font-weight:700}.dp-fish-care{margin-bottom:8px}.dp-fish-cast{display:block;width:100%;min-height:44px;margin-top:12px;touch-action:manipulation}
+.dp-fish-scene{margin:8px 0;padding:20px 8px;border-radius:16px;background:linear-gradient(#c8f2ff 0 45%,#69c9e8 46%);text-align:center;font-size:24px;letter-spacing:4px}.dp-fish-copy{font-size:12px;line-height:1.55;color:#61727a;margin:8px 2px}.dp-fish-cast{touch-action:manipulation}.dp-fish-waiting{width:100%;height:245px;border:0;border-radius:18px;background:linear-gradient(#d7f6ff 0 34%,#5cc7e8 35% 72%,#2d9ac3 73%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#16495b;cursor:pointer}.dp-fish-bobber{font-size:42px;animation:dp-fish-bob 1.3s ease-in-out infinite}.dp-fish-waiting[data-bite=true]{box-shadow:0 0 0 4px #ffcf45 inset}.dp-fish-waiting[data-bite=true] .dp-fish-bobber{animation:dp-fish-bite .18s ease-in-out infinite alternate}@keyframes dp-fish-bob{50%{transform:translateY(5px)}}@keyframes dp-fish-bite{to{transform:scale(1.2) rotate(7deg)}}
 .dp-fish-qte{width:100%;min-height:318px;border:0;border-radius:18px;padding:15px 12px 12px;box-sizing:border-box;background:linear-gradient(155deg,#eefcff,#d8f3f8);display:flex;flex-direction:column;align-items:center;gap:9px;color:#294950;cursor:pointer;touch-action:manipulation;outline:0}.dp-fish-qte:focus-visible{box-shadow:0 0 0 3px #43b96f}.dp-fish-qte-title{font-size:15px;font-weight:800}.dp-fish-qte-ring{position:relative;width:178px;height:178px;border-radius:50%;box-shadow:0 3px 12px #246a7a44,inset 0 0 0 2px #fff;transform:rotate(-90deg)}.dp-fish-qte-ring:after{content:"";position:absolute;inset:17px;border-radius:50%;background:#f8feff;box-shadow:inset 0 2px 8px #8ab7c044}.dp-fish-qte-needle{position:absolute;z-index:3;left:50%;bottom:50%;width:4px;height:47%;border-radius:4px;background:#ed5d55;box-shadow:0 0 0 1px #fff,0 0 6px #d64a45;transform-origin:50% 100%}.dp-fish-qte-needle:after{content:"";position:absolute;top:-5px;left:-3px;width:10px;height:10px;border-radius:50%;background:#ed5d55}.dp-fish-qte-core{position:absolute;z-index:4;inset:31px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,#fff 0 48%,#e9f9fb 70%);font-size:42px;transform:rotate(90deg)}.dp-fish-qte-score{font-size:14px}.dp-fish-qte-feedback{min-height:18px;font-size:12px;color:#55727a}.dp-fish-qte[data-qte-feedback^="\u8FD8\u6CA1\u5230"] .dp-fish-qte-feedback,.dp-fish-qte[data-qte-feedback^="\u5DF2\u7ECF\u5212\u8FC7"] .dp-fish-qte-feedback{color:#bd5545;font-weight:700}.dp-fish-help{text-align:center;font-size:11px;color:#718188}.dp-fish-result,.dp-fish-away{display:flex;flex-direction:column;align-items:center;gap:10px;margin:16px 0;padding:22px 14px;border-radius:18px;background:#edfaff;text-align:center}.dp-fish-result-emoji,.dp-fish-away{font-size:58px}.dp-fish-result span{color:#65757b;font-size:13px}
+.dp-fish-label{margin:4px 2px 6px;font-size:11px;font-weight:800;color:var(--ac-text-2);letter-spacing:.04em}
+.dp-fish-baits{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.dp-fish-bait{font:inherit;display:grid;justify-items:center;gap:2px;padding:8px 4px;border-radius:14px;border:2px solid var(--ac-border-light);background:var(--ac-bg-input);color:var(--ac-text-body);cursor:pointer}
+.dp-fish-bait em{font-style:normal;font-size:22px;line-height:1.2}.dp-fish-bait b{font-size:11px;color:var(--ac-text)}.dp-fish-bait small{font-size:9.5px;color:var(--ac-text-2)}
+.dp-fish-bait[aria-pressed=true]{border-color:var(--ac-primary);background:var(--ac-primary-bg)}.dp-fish-bait:disabled{opacity:.5;cursor:not-allowed}
+.dp-fish-auto{display:grid;gap:6px;margin-top:12px;padding-top:9px;border-top:1.5px dashed var(--ac-border-light);font-size:11px;color:var(--ac-text-body)}
+.dp-fish-auto summary{cursor:pointer;font-weight:800;color:var(--ac-text)}.dp-fish-auto-row{display:flex;flex-wrap:wrap;gap:6px}.dp-fish-why{color:var(--ac-text-2)}
+.dp-fish-stars{color:#e8b400;letter-spacing:2px;font-size:14px!important}
+.dp-fish-stage{width:100%;border:0;border-radius:18px;padding:14px 12px 12px;box-sizing:border-box;background:linear-gradient(155deg,#eefcff,#d8f3f8);display:flex;flex-direction:column;align-items:center;gap:10px;color:#294950;cursor:pointer;touch-action:none;user-select:none;outline:0}
+.dp-fish-stage:focus-visible{box-shadow:0 0 0 3px #43b96f}
+.dp-fish-bar{display:grid;grid-template-columns:56px 14px;gap:10px;height:220px}
+.dp-fish-track{position:relative;border-radius:14px;background:linear-gradient(#bfe6ef,#8fd0df);overflow:hidden}
+.dp-fish-zone{position:absolute;left:3px;right:3px;border-radius:10px;background:#6bd47bbb;border:2px solid #4cb860;box-sizing:border-box}
+.dp-fish-swimmer{position:absolute;left:50%;font-size:24px;line-height:1;transform:translate(-50%,50%)}
+.dp-fish-vmeter{position:relative;border-radius:10px;background:#dce8e9;overflow:hidden}.dp-fish-vmeter i{position:absolute;left:0;right:0;bottom:0;background:#ffd45d}
+.dp-fish-stage[data-inside=true] .dp-fish-vmeter i{background:#6bd47b}
+.dp-fish-line{display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:#4a7a86}.dp-fish-rod{font-size:36px;transition:transform .1s}
+.dp-fish-gauge{position:relative;width:100%;height:24px;border-radius:50px;background:linear-gradient(90deg,#bfe6ef 0 30%,#6bd47b 30% 72%,#ffd45d 72% 85%,#e05a5a 85%)}
+.dp-fish-gauge b{position:absolute;top:-6px;width:6px;height:36px;border-radius:4px;background:#794f27;transform:translateX(-50%)}
+.dp-fish-pull-state{font-size:12px;font-weight:800;min-height:16px}
+.dp-fish-hmeter{width:100%;height:10px;border-radius:50px;background:#dce8e9;overflow:hidden}.dp-fish-hmeter i{display:block;height:100%;width:0;background:#6bd47b}
 `;
 
   // src/client/css-skins.js
@@ -4024,61 +4049,375 @@
     });
   }
 
-  // src/client/tabs/fishing.js
+  // src/client/tabs/fishing-fight.js
   var frame = 0;
   var activeUi = null;
   var resolving = false;
-  var qteSession = null;
-  var selectedBait = null;
+  var session = null;
   var raf = (fn) => typeof requestAnimationFrame === "function" ? requestAnimationFrame(fn) : 0;
   var caf = (id) => {
     if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(id);
   };
-  function stopLoop(clearSession = false) {
+  var releaseHold = null;
+  function stopFight(clear = false) {
     if (frame) caf(frame);
     frame = 0;
     activeUi = null;
-    if (clearSession) qteSession = null;
+    if (releaseHold !== null) {
+      releaseHold();
+      releaseHold = null;
+    }
+    if (clear) session = null;
+  }
+  function fightActive(ui) {
+    return activeUi === ui;
+  }
+  function resetFightResolve() {
+    resolving = false;
+  }
+  function difficultyOf(fish2) {
+    return Math.max(1, Math.min(100, Number(fish2.difficulty) || 1));
+  }
+  function renderFight(ui, fish2) {
+    const mode = fish2.fight === "bar" || fish2.fight === "pull" ? fish2.fight : "ring";
+    if (session?.id !== fish2.id || session.mode !== mode) session = { id: fish2.id, mode };
+    activeUi = ui;
+    const finish = (success) => {
+      if (resolving) return;
+      resolving = true;
+      stopFight(true);
+      ui.send("fishResolve", { success });
+    };
+    if (mode === "bar") return renderBar(ui, fish2, session, finish);
+    if (mode === "pull") return renderPull(ui, fish2, session, finish);
+    return renderRing(ui, fish2, session, finish);
+  }
+  function stillOpen(ui) {
+    return activeUi === ui && ui.host.getAttribute("data-open") === "true";
+  }
+  function holdControls(stage, s) {
+    stage.addEventListener("pointerdown", function(event) {
+      event?.preventDefault?.();
+      s.holding = true;
+    });
+    stage.addEventListener("keydown", function(event) {
+      if (event.code === "Space" || event.key === " ") {
+        event.preventDefault?.();
+        s.holding = true;
+      }
+    });
+    stage.addEventListener("keyup", function(event) {
+      if (event.code === "Space" || event.key === " ") s.holding = false;
+    });
+    const up = function() {
+      s.holding = false;
+    };
+    if (typeof window.addEventListener === "function") {
+      window.addEventListener("pointerup", up);
+      releaseHold = function() {
+        if (typeof window.removeEventListener === "function") window.removeEventListener("pointerup", up);
+      };
+    }
+  }
+  function ringRules(difficulty) {
+    return {
+      zoneDegrees: Math.round(115 - difficulty * 0.38),
+      perfectDegrees: Math.round(16 - difficulty * 0.06),
+      rotationsPerSecond: 0.28 + difficulty * 18e-4,
+      hitsNeeded: difficulty >= 80 ? 4 : difficulty >= 45 ? 3 : 2
+    };
+  }
+  function newRingRound(s) {
+    s.zoneStart = 105 + Math.random() * 135;
+    s.angle = 0;
+    s.completedCircles = 0;
+    s.startedAt = 0;
+    s.locked = false;
+    s.feedback = "\u770B\u51C6\u7EFF\u8272\u533A\u57DF";
+  }
+  function renderRing(ui, fish2, s, finish) {
+    if (s.hits === void 0) {
+      Object.assign(s, { hits: 0, misses: 0 }, ringRules(difficultyOf(fish2)));
+      newRingRound(s);
+    }
+    let lastPointerAt = -Infinity;
+    const wrap = button("dp-fish-qte", {
+      "data-fish-qte": "true",
+      "data-fish-fight": "ring",
+      "data-qte-difficulty": String(fish2.difficulty),
+      "data-qte-needed": String(s.hitsNeeded),
+      "aria-label": "\u9493\u9C7C\u6280\u80FD\u68C0\u5B9A\uFF0C\u6307\u9488\u8FDB\u5165\u7EFF\u8272\u533A\u57DF\u65F6\u70B9\u51FB"
+    }, function(event) {
+      if (event.detail > 0 && event.timeStamp - lastPointerAt < 700) return;
+      hit(event);
+    });
+    wrap.addEventListener("pointerdown", function(event) {
+      lastPointerAt = event.timeStamp;
+      hit(event);
+    });
+    const ring = el("div", "dp-fish-qte-ring");
+    const needle = el("i", "dp-fish-qte-needle");
+    const score = el("b", "dp-fish-qte-score");
+    const feedback = el("span", "dp-fish-qte-feedback");
+    ring.appendChild(needle);
+    ring.appendChild(el("span", "dp-fish-qte-core", fish2.emoji));
+    wrap.appendChild(el("div", "dp-fish-qte-title", fish2.emoji + "\u3000\u54AC\u7D27\u4E86\uFF01"));
+    wrap.appendChild(ring);
+    wrap.appendChild(score);
+    wrap.appendChild(feedback);
+    wrap.appendChild(el("div", "dp-fish-help", "\u6307\u9488\u8FDB\u5165\u7EFF\u8272\u533A\u57DF\u65F6\u70B9\u51FB\u6216\u6309\u7A7A\u683C \xB7 \u9EC4\u8272\u4E3A\u5B8C\u7F8E\u5224\u5B9A"));
+    wrap.setAttribute("tabindex", "0");
+    ui.content.appendChild(wrap);
+    function paint() {
+      const angle = s.angle % 360;
+      const perfectEnd = s.zoneStart + s.perfectDegrees;
+      const zoneEnd = s.zoneStart + s.zoneDegrees;
+      ring.style.background = `conic-gradient(from 0deg,#dce8e9 0deg ${s.zoneStart}deg,#ffd45d ${s.zoneStart}deg ${perfectEnd}deg,#6bd47b ${perfectEnd}deg ${zoneEnd}deg,#dce8e9 ${zoneEnd}deg 360deg)`;
+      needle.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+      score.textContent = `\u6280\u80FD\u68C0\u5B9A ${Math.min(s.hits, s.hitsNeeded)} / ${s.hitsNeeded}`;
+      feedback.textContent = `${s.feedback} \xB7 \u673A\u4F1A ${"\u2665".repeat(3 - s.misses)}${"\u2661".repeat(s.misses)}`;
+      wrap.setAttribute("data-qte-angle", angle.toFixed(1));
+      wrap.setAttribute("data-qte-zone-start", s.zoneStart.toFixed(1));
+      wrap.setAttribute("data-qte-zone-size", String(s.zoneDegrees));
+      wrap.setAttribute("data-qte-misses", String(s.misses));
+      wrap.setAttribute("data-qte-speed", String(s.rotationsPerSecond));
+      wrap.setAttribute("data-qte-feedback", s.feedback);
+    }
+    function hit(event) {
+      event?.preventDefault?.();
+      if (s.locked || activeUi !== ui) return;
+      const offset = s.angle % 360 - s.zoneStart;
+      if (offset < 0 || offset > s.zoneDegrees) {
+        s.feedback = offset < 0 ? "\u8FD8\u6CA1\u5230\u65F6\u673A\uFF0C\u518D\u7B49\u7B49" : "\u5DF2\u7ECF\u5212\u8FC7\u53BB\u4E86\uFF0C\u7B49\u4E0B\u4E00\u5708";
+        paint();
+        return;
+      }
+      const perfect = offset <= s.perfectDegrees;
+      s.hits += perfect ? 2 : 1;
+      s.misses = 0;
+      s.feedback = perfect ? "\u5B8C\u7F8E\uFF01\u8FDB\u5EA6 +2" : "\u547D\u4E2D\uFF01";
+      s.locked = true;
+      paint();
+      if (s.hits >= s.hitsNeeded) return setTimeout(() => finish(true), 260);
+      setTimeout(() => {
+        if (session !== s || resolving) return;
+        newRingRound(s);
+        paint();
+      }, 380);
+    }
+    function tick2(now) {
+      if (!stillOpen(ui)) return finish(false);
+      if (!s.startedAt) s.startedAt = now;
+      if (!s.locked) s.angle = (now - s.startedAt) * s.rotationsPerSecond * 0.36;
+      const circles = Math.floor(s.angle / 360);
+      if (!s.locked && circles > s.completedCircles) {
+        s.misses += circles - s.completedCircles;
+        s.completedCircles = circles;
+        s.feedback = s.misses >= 3 ? "\u8FDE\u7EED\u7A7A\u4E86\u4E09\u5708\uFF0C\u9C7C\u8DD1\u6389\u4E86\u2026" : `\u7A7A\u4E86\u4E00\u5708\uFF0C\u8FD8\u5269 ${3 - s.misses} \u5708\u673A\u4F1A`;
+        paint();
+        if (s.misses >= 3) return finish(false);
+      }
+      paint();
+      frame = raf(tick2);
+    }
+    paint();
+    frame = raf(tick2);
+  }
+  var BAR_HEIGHT = 220;
+  function renderBar(ui, fish2, s, finish) {
+    const d = difficultyOf(fish2);
+    if (s.progress === void 0) {
+      Object.assign(s, {
+        zoneH: Math.round(Math.max(46, 96 - d * 0.5)),
+        zone: 0,
+        vel: 0,
+        fishY: BAR_HEIGHT * 0.3,
+        target: BAR_HEIGHT * 0.3,
+        wait: 0,
+        progress: 30,
+        holding: false,
+        last: 0
+      });
+    }
+    const stage = button("dp-fish-stage", { "data-fish-fight": "bar", "data-fish-bar": "true", "aria-label": "\u6309\u4F4F\u8BA9\u7EFF\u6761\u4E0A\u6D6E\uFF0C\u8BA9\u9C7C\u5F85\u5728\u7EFF\u6761\u91CC" }, function() {
+    });
+    stage.setAttribute("tabindex", "0");
+    const bar = el("div", "dp-fish-bar");
+    const track = el("div", "dp-fish-track");
+    const zone = el("i", "dp-fish-zone");
+    const swimmer = el("span", "dp-fish-swimmer", fish2.emoji);
+    const meter2 = el("div", "dp-fish-vmeter");
+    const fill = el("i");
+    track.appendChild(zone);
+    track.appendChild(swimmer);
+    meter2.appendChild(fill);
+    bar.appendChild(track);
+    bar.appendChild(meter2);
+    stage.appendChild(el("div", "dp-fish-qte-title", fish2.emoji + "\u3000\u54AC\u7D27\u4E86\uFF01"));
+    stage.appendChild(bar);
+    const hint = el("div", "dp-fish-help", "\u6309\u4F4F\uFF08\u6216\u7A7A\u683C\uFF09\u7EFF\u6761\u4E0A\u6D6E\uFF0C\u677E\u5F00\u4E0B\u6C89 \xB7 \u8BA9\u9C7C\u5F85\u5728\u7EFF\u6761\u91CC");
+    stage.appendChild(hint);
+    ui.content.appendChild(stage);
+    holdControls(stage, s);
+    function moveFish(dt) {
+      s.wait -= dt;
+      if (s.wait <= 0) {
+        const calm = fish2.behavior === "smooth";
+        let target = s.fishY + (Math.random() - 0.5) * (calm ? 90 : 60 + d * 1.6);
+        if (fish2.behavior === "rise") target += 30;
+        if (fish2.behavior === "sink") target -= 30;
+        s.target = Math.max(8, Math.min(BAR_HEIGHT - 8, target));
+        s.wait = calm ? 900 : Math.max(250, 900 - d * 6);
+      }
+      const dash = (fish2.behavior === "dash" || fish2.behavior === "mixed") && Math.random() < 0.02 ? 6 : 1;
+      s.fishY += (s.target - s.fishY) * Math.min(1, dt * (18e-4 + d * 5e-5) * dash);
+    }
+    function tick2(now) {
+      if (!stillOpen(ui)) return finish(false);
+      const dt = s.last ? Math.min(50, now - s.last) : 16;
+      s.last = now;
+      s.vel = Math.max(-0.5, Math.min(0.5, s.vel + (s.holding ? 16e-4 : -13e-4) * dt));
+      s.zone += s.vel * dt;
+      if (s.zone < 0) {
+        s.zone = 0;
+        s.vel = s.vel < 0 ? -s.vel * 0.3 : s.vel;
+      }
+      if (s.zone > BAR_HEIGHT - s.zoneH) {
+        s.zone = BAR_HEIGHT - s.zoneH;
+        s.vel = Math.min(0, s.vel);
+      }
+      moveFish(dt);
+      const inside = s.fishY >= s.zone && s.fishY <= s.zone + s.zoneH;
+      s.progress = Math.max(0, Math.min(100, s.progress + (inside ? 0.028 : -0.022 - d * 1e-4) * dt));
+      zone.style.bottom = s.zone + "px";
+      zone.style.height = s.zoneH + "px";
+      swimmer.style.bottom = s.fishY + "px";
+      fill.style.height = s.progress + "%";
+      stage.setAttribute("data-inside", inside ? "true" : "false");
+      stage.setAttribute("data-progress", s.progress.toFixed(0));
+      if (s.progress >= 100) return finish(true);
+      if (s.progress <= 0) return finish(false);
+      frame = raf(tick2);
+    }
+    frame = raf(tick2);
+  }
+  function renderPull(ui, fish2, s, finish) {
+    const d = difficultyOf(fish2);
+    if (s.distance === void 0) {
+      Object.assign(s, { tension: 40, distance: 100, loose: 0, surge: 0, surgeCd: 1500, holding: false, last: 0 });
+    }
+    const stage = button("dp-fish-stage", { "data-fish-fight": "pull", "data-fish-pull": "true", "aria-label": "\u6309\u4F4F\u6536\u7EBF\uFF0C\u677E\u5F00\u653E\u7EBF\uFF0C\u6307\u9488\u522B\u8FDB\u7EA2\u533A" }, function() {
+    });
+    stage.setAttribute("tabindex", "0");
+    const line2 = el("div", "dp-fish-line");
+    const rod = el("span", "dp-fish-rod", "\u{1F3A3}");
+    line2.appendChild(rod);
+    line2.appendChild(el("span", "dp-fish-string", "\u3030\u3030\u3030"));
+    line2.appendChild(el("span", "dp-fish-rod", fish2.emoji));
+    const gauge = el("div", "dp-fish-gauge");
+    const pin = el("b");
+    gauge.appendChild(pin);
+    const state2 = el("div", "dp-fish-pull-state");
+    const meter2 = el("div", "dp-fish-hmeter");
+    const fill = el("i");
+    meter2.appendChild(fill);
+    stage.appendChild(el("div", "dp-fish-qte-title", fish2.emoji + "\u3000\u54AC\u7D27\u4E86\uFF01"));
+    stage.appendChild(line2);
+    stage.appendChild(gauge);
+    stage.appendChild(state2);
+    stage.appendChild(meter2);
+    stage.appendChild(el("div", "dp-fish-help", "\u6309\u4F4F\uFF08\u6216\u7A7A\u683C\uFF09\u6536\u7EBF\uFF0C\u677E\u5F00\u653E\u7EBF \xB7 \u9C7C\u53D1\u529B\u65F6\u677E\u4E00\u677E"));
+    ui.content.appendChild(stage);
+    holdControls(stage, s);
+    function tick2(now) {
+      if (!stillOpen(ui)) return finish(false);
+      const dt = s.last ? Math.min(50, now - s.last) : 16;
+      s.last = now;
+      s.surgeCd -= dt;
+      if (s.surgeCd <= 0) {
+        s.surge = 10 + d * 0.28;
+        s.surgeCd = Math.max(700, 2600 - d * 16) + Math.random() * 900;
+      }
+      s.tension = Math.max(0, Math.min(100, s.tension + ((s.holding ? 0.055 : -0.05) + s.surge * 4e-3) * dt));
+      s.surge = Math.max(0, s.surge - dt * 0.02);
+      const green = s.tension >= 30 && s.tension < 85;
+      const sweet = s.tension >= 72 && s.tension < 85;
+      if (green) {
+        s.distance -= (sweet ? 0.022 : 0.012) * dt * (1 - d * 4e-3);
+        s.loose = Math.max(0, s.loose - dt);
+      }
+      if (s.tension < 30) s.loose += dt;
+      pin.style.left = s.tension + "%";
+      rod.style.transform = s.holding ? "rotate(-12deg)" : "none";
+      fill.style.width = 100 - Math.max(0, s.distance) + "%";
+      state2.textContent = (s.surge > 2 ? fish2.emoji + " \u53D1\u529B\u4E86\uFF01" : s.tension < 30 ? "\u592A\u677E\u4E86\uFF01" : s.tension >= 85 ? "\u8981\u65AD\u4E86\uFF01" : sweet ? "\u7A33\uFF01\u6536\u5F97\u5FEB" : "\u6536\u7EBF\u4E2D") + " \xB7 \u79BB\u5CB8 " + Math.max(0, s.distance).toFixed(0) + " \u7C73";
+      stage.setAttribute("data-tension", s.tension.toFixed(0));
+      if (s.tension >= 100) return finish(false);
+      if (s.loose > 2600) return finish(false);
+      if (s.distance <= 0) return finish(true);
+      frame = raf(tick2);
+    }
+    frame = raf(tick2);
+  }
+
+  // src/client/tabs/fishing.js
+  var selectedBait = null;
+  var waitFrame = 0;
+  var waitUi = null;
+  var raf2 = (fn) => typeof requestAnimationFrame === "function" ? requestAnimationFrame(fn) : 0;
+  var caf2 = (id) => {
+    if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(id);
+  };
+  function stopWait() {
+    if (waitFrame) caf2(waitFrame);
+    waitFrame = 0;
+    waitUi = null;
   }
   function closeFishing(ui) {
-    const playing = activeUi === ui && ui.view.fishing.pending?.phase === "hooked";
-    stopLoop(true);
+    const playing = fightActive(ui) && ui.view.fishing.pending?.phase === "hooked";
+    stopFight(true);
+    stopWait();
     if (playing) ui.send("fishResolve", { success: false });
   }
   function renderFishingTab(ui) {
-    stopLoop();
+    stopFight();
+    stopWait();
     const pending = ui.view.fishing.pending;
-    if (pending?.phase !== "hooked") resolving = false;
+    if (pending?.phase !== "hooked") resetFightResolve();
     if (ui.view.activity?.kind === "fishing") {
-      qteSession = null;
+      stopFight(true);
       return renderAway(ui);
     }
     if (pending?.phase === "waiting") {
-      qteSession = null;
+      stopFight(true);
       return renderWaiting(ui, pending);
     }
-    if (pending?.phase === "hooked") return renderGame(ui, pending);
-    qteSession = null;
+    if (pending?.phase === "hooked") return renderFight(ui, pending);
+    stopFight(true);
     if (pending?.phase === "caught") return renderResult(ui, pending);
     renderReady(ui);
   }
+  var BAIT_NOTE = { bait_worm: "\u666E\u901A\u9C7C", bait_shrimp: "\u5C11\u89C1\u7684\u591A\u4E00\u70B9", bait_glow: "\u7A00\u6709\u7684\u591A\u5F88\u591A" };
   function renderReady(ui) {
-    ui.content.appendChild(el("div", "dp-fish-scene", "\u{1F30A}\u3000\u{1F41F}\u3000\uFF5E\u3000\u{1F33F}"));
-    ui.content.appendChild(el("div", "dp-fish-copy", "\u6BCF\u6B21\u629B\u7AFF\u6D88\u8017 1 \u4E2A\u9C7C\u9975\u3002\u770B\u5230\u300C\u2757\u300D\u540E\u53CA\u65F6\u63D0\u7AFF\u3002"));
-    const baits = ui.view.shop.filter((item) => item.kind === "bait" && (ui.view.inventory[item.key] ?? 0) > 0);
-    if (!baits.some((item) => item.key === selectedBait)) selectedBait = baits[0]?.key ?? null;
-    const choices = el("div", "dp-dev-row dp-fish-baits");
+    const baits = ui.view.shop.filter((item) => item.kind === "bait");
+    const owned = (key) => ui.view.inventory[key] ?? 0;
+    if (!baits.some((item) => item.key === selectedBait && owned(item.key) > 0)) selectedBait = baits.find((item) => owned(item.key) > 0)?.key ?? null;
+    ui.content.appendChild(el("div", "dp-fish-label", "\u9009\u9C7C\u9975"));
+    const choices = el("div", "dp-fish-baits");
     for (const bait of baits) {
-      const choice = button("dp-mini dp-fish-bait", { "data-fish-bait": bait.key }, function() {
+      const choice = button("dp-fish-bait", { "data-fish-bait": bait.key }, function() {
         selectedBait = bait.key;
         ui.renderContent();
       });
-      choice.textContent = `${bait.emoji} ${bait.label} \xD7${ui.view.inventory[bait.key]}`;
+      choice.appendChild(el("em", null, bait.emoji));
+      choice.appendChild(el("b", null, bait.label.replace(/鱼饵$/, "") + " \xD7" + owned(bait.key)));
+      choice.appendChild(el("small", null, BAIT_NOTE[bait.key] ?? ""));
       choice.setAttribute("aria-pressed", String(selectedBait === bait.key));
+      choice.disabled = owned(bait.key) === 0;
       choices.appendChild(choice);
     }
     ui.content.appendChild(choices);
-    if (baits.length === 0) ui.content.appendChild(el("div", "dp-fish-copy", "\u6CA1\u6709\u9C7C\u9975\u4E86\uFF0C\u5148\u53BB\u5546\u5E97\u7684\u9C7C\u9975\u8D27\u67B6\u4E70\u3002"));
+    if (selectedBait === null) ui.content.appendChild(el("div", "dp-fish-blocked", "\u6CA1\u6709\u9C7C\u9975\u4E86\uFF0C\u5148\u53BB\u5546\u5E97\u7684\u9C7C\u9975\u8D27\u67B6\u4E70\u3002"));
     const hungry = (ui.view.pig?.satiety ?? 0) < 1;
     if (hungry) {
       ui.content.appendChild(el("div", "dp-fish-blocked", "\u9971\u98DF\u4E3A 0\uFF0C\u5148\u5582\u98DF\u624D\u80FD\u629B\u7AFF\u3002"));
@@ -4094,17 +4433,31 @@
     cast.textContent = hungry ? "\u{1F35A} \u5582\u98DF\u540E\u624D\u80FD\u629B\u7AFF" : "\u{1F3A3} \u629B\u7AFF";
     cast.disabled = selectedBait === null || hungry;
     ui.content.appendChild(cast);
-    const auto = el("div", "dp-fish-auto");
-    auto.appendChild(el("b", null, "\u81EA\u52A8\u9493\u9C7C"));
-    auto.appendChild(el("span", null, "\u4ECA\u5929\u8FD8\u53EF\u51FA\u53D1 " + ui.view.fishing.autoLeft + " \u6B21 \xB7 \u6BCF 3 \u5206\u949F\u6D88\u8017 1 \u4E2A\u9C7C\u9975\uFF0C\u6536\u83B7\u653E\u8FDB\u9C7C\u7BD3"));
+    renderAuto(ui);
+  }
+  function renderAuto(ui) {
+    const auto = el("details", "dp-fish-auto");
+    auto.appendChild(el("summary", null, "\u{1F437} \u8BA9\u732A\u81EA\u5DF1\u53BB\u9493\uFF08\u4ECA\u5929\u8FD8\u80FD\u53BB " + ui.view.fishing.autoLeft + " \u6B21\uFF09"));
+    auto.appendChild(el("span", null, "\u732A\u51FA\u95E8 30 / 60 \u5206\u949F\uFF0C\u6BCF 3 \u5206\u949F\u7528 1 \u4E2A\u9009\u4E2D\u7684\u9C7C\u9975\uFF0C\u9493\u5230\u7684\u653E\u8FDB\u9C7C\u7BD3\u3002"));
+    const row = el("div", "dp-fish-auto-row");
+    const reasons = [];
     for (const minutes of [30, 60]) {
+      const need = minutes / 3;
+      const have = ui.view.inventory[selectedBait] ?? 0;
       const go = button("dp-mini", { "data-fish-auto": String(minutes) }, function() {
         ui.send("fishAuto", { minutes, bait: selectedBait });
       });
-      go.textContent = `${minutes} \u5206\u949F\uFF08\u9C7C\u9975 ${minutes / 3} \u4E2A\uFF09`;
-      go.disabled = ui.view.fishing.autoLeft <= 0 || ui.view.canGoOut !== true || (ui.view.inventory[selectedBait] ?? 0) < minutes / 3;
-      auto.appendChild(go);
+      go.textContent = `${minutes} \u5206\u949F\uFF08\u9C7C\u9975 ${need} \u4E2A\uFF09`;
+      go.disabled = ui.view.fishing.autoLeft <= 0 || ui.view.canGoOut !== true || have < need;
+      if (go.disabled && minutes === 30) {
+        if (ui.view.fishing.autoLeft <= 0) reasons.push("\u4ECA\u5929\u5DF2\u7ECF\u53BB\u8FC7 2 \u6B21\u4E86");
+        else if (ui.view.canGoOut !== true) reasons.push("\u732A\u73B0\u5728\u4E0D\u80FD\u51FA\u95E8");
+        else reasons.push("\u9C7C\u9975\u53EA\u5269 " + have + " \u4E2A\uFF0C\u4E0D\u591F " + need + " \u4E2A");
+      }
+      row.appendChild(go);
     }
+    auto.appendChild(row);
+    if (reasons.length > 0) auto.appendChild(el("span", "dp-fish-why", "\u70B9\u4E0D\u4E86\uFF1A" + reasons[0] + "\u3002"));
     ui.content.appendChild(auto);
   }
   function renderWaiting(ui, pending) {
@@ -4120,147 +4473,36 @@
     water.appendChild(mark);
     water.appendChild(line2);
     ui.content.appendChild(water);
-    activeUi = ui;
+    waitUi = ui;
     function tick2() {
-      if (activeUi !== ui) return;
+      if (waitUi !== ui) return;
       const now = Date.now();
       if (now >= pending.bitesAt && now <= pending.hookUntil) {
         mark.textContent = "\u2757";
         line2.textContent = "\u4E0A\u94A9\u4E86\uFF01\u5FEB\u70B9\uFF01";
         water.setAttribute("data-bite", "true");
       } else if (now > pending.hookUntil) {
-        stopLoop();
+        stopWait();
         ui.send("fishHook");
         return;
       }
-      frame = raf(tick2);
+      waitFrame = raf2(tick2);
     }
-    frame = raf(tick2);
+    waitFrame = raf2(tick2);
   }
-  function qteRules(rawDifficulty) {
-    const difficulty = Math.max(1, Math.min(100, Number(rawDifficulty) || 1));
-    return {
-      zoneDegrees: Math.round(115 - difficulty * 0.38),
-      perfectDegrees: Math.round(16 - difficulty * 0.06),
-      rotationsPerSecond: 0.28 + difficulty * 18e-4,
-      hitsNeeded: difficulty >= 80 ? 4 : difficulty >= 45 ? 3 : 2
-    };
-  }
-  function newQteRound(session) {
-    session.zoneStart = 105 + Math.random() * 135;
-    session.angle = 0;
-    session.completedCircles = 0;
-    session.startedAt = 0;
-    session.locked = false;
-    session.feedback = "\u770B\u51C6\u7EFF\u8272\u533A\u57DF";
-  }
-  function renderGame(ui, fish2) {
-    const rules = qteRules(fish2.difficulty);
-    if (qteSession?.id !== fish2.id) {
-      qteSession = { id: fish2.id, hits: 0, misses: 0, ...rules };
-      newQteRound(qteSession);
-    }
-    const session = qteSession;
-    const wrap = button("dp-fish-qte", {
-      "data-fish-qte": "true",
-      "data-qte-difficulty": String(fish2.difficulty),
-      "data-qte-needed": String(session.hitsNeeded),
-      "aria-label": "\u9493\u9C7C\u6280\u80FD\u68C0\u5B9A\uFF0C\u6307\u9488\u8FDB\u5165\u7EFF\u8272\u533A\u57DF\u65F6\u70B9\u51FB"
-    }, function(event) {
-      if (event.detail > 0 && event.timeStamp - lastPointerAt < 700) return;
-      hit(event);
-    });
-    let lastPointerAt = -Infinity;
-    wrap.addEventListener("pointerdown", function(event) {
-      lastPointerAt = event.timeStamp;
-      hit(event);
-    });
-    const title = el("div", "dp-fish-qte-title", fish2.emoji + "\u3000\u54AC\u7D27\u4E86\uFF01");
-    const ring = el("div", "dp-fish-qte-ring");
-    const needle = el("i", "dp-fish-qte-needle");
-    const core = el("span", "dp-fish-qte-core", fish2.emoji);
-    const score = el("b", "dp-fish-qte-score");
-    const feedback = el("span", "dp-fish-qte-feedback");
-    ring.appendChild(needle);
-    ring.appendChild(core);
-    wrap.appendChild(title);
-    wrap.appendChild(ring);
-    wrap.appendChild(score);
-    wrap.appendChild(feedback);
-    wrap.appendChild(el("div", "dp-fish-help", "\u6307\u9488\u8FDB\u5165\u7EFF\u8272\u533A\u57DF\u65F6\u70B9\u51FB\u6216\u6309\u7A7A\u683C \xB7 \u9EC4\u8272\u4E3A\u5B8C\u7F8E\u5224\u5B9A"));
-    wrap.setAttribute("tabindex", "0");
-    ui.content.appendChild(wrap);
-    activeUi = ui;
-    function paint() {
-      const displayAngle = session.angle % 360;
-      const perfectEnd = session.zoneStart + session.perfectDegrees;
-      const zoneEnd = session.zoneStart + session.zoneDegrees;
-      ring.style.background = `conic-gradient(from 0deg,#dce8e9 0deg ${session.zoneStart}deg,#ffd45d ${session.zoneStart}deg ${perfectEnd}deg,#6bd47b ${perfectEnd}deg ${zoneEnd}deg,#dce8e9 ${zoneEnd}deg 360deg)`;
-      needle.style.transform = `translateX(-50%) rotate(${displayAngle}deg)`;
-      score.textContent = `\u6280\u80FD\u68C0\u5B9A ${Math.min(session.hits, session.hitsNeeded)} / ${session.hitsNeeded}`;
-      feedback.textContent = `${session.feedback} \xB7 \u673A\u4F1A ${"\u2665".repeat(3 - session.misses)}${"\u2661".repeat(session.misses)}`;
-      wrap.setAttribute("data-qte-angle", displayAngle.toFixed(1));
-      wrap.setAttribute("data-qte-zone-start", session.zoneStart.toFixed(1));
-      wrap.setAttribute("data-qte-zone-size", String(session.zoneDegrees));
-      wrap.setAttribute("data-qte-misses", String(session.misses));
-      wrap.setAttribute("data-qte-speed", String(session.rotationsPerSecond));
-      wrap.setAttribute("data-qte-feedback", session.feedback);
-    }
-    function finish(success) {
-      if (resolving) return;
-      resolving = true;
-      stopLoop(true);
-      ui.send("fishResolve", { success });
-    }
-    function hit(event) {
-      event?.preventDefault?.();
-      if (session.locked || activeUi !== ui) return;
-      const offset = session.angle % 360 - session.zoneStart;
-      if (offset < 0 || offset > session.zoneDegrees) {
-        session.feedback = offset < 0 ? "\u8FD8\u6CA1\u5230\u65F6\u673A\uFF0C\u518D\u7B49\u7B49" : "\u5DF2\u7ECF\u5212\u8FC7\u53BB\u4E86\uFF0C\u7B49\u4E0B\u4E00\u5708";
-        paint();
-        return;
-      }
-      const perfect = offset <= session.perfectDegrees;
-      session.hits += perfect ? 2 : 1;
-      session.misses = 0;
-      session.feedback = perfect ? "\u5B8C\u7F8E\uFF01\u8FDB\u5EA6 +2" : "\u547D\u4E2D\uFF01";
-      session.locked = true;
-      paint();
-      if (session.hits >= session.hitsNeeded) return setTimeout(() => finish(true), 260);
-      setTimeout(() => {
-        if (qteSession !== session || resolving) return;
-        newQteRound(session);
-        paint();
-      }, 380);
-    }
-    function tick2(now) {
-      if (activeUi !== ui || ui.host.getAttribute("data-open") !== "true") return finish(false);
-      if (!session.startedAt) session.startedAt = now;
-      if (!session.locked) session.angle = (now - session.startedAt) * session.rotationsPerSecond * 0.36;
-      paint();
-      const completedCircles = Math.floor(session.angle / 360);
-      if (!session.locked && completedCircles > session.completedCircles) {
-        session.misses += completedCircles - session.completedCircles;
-        session.completedCircles = completedCircles;
-        session.feedback = session.misses >= 3 ? "\u8FDE\u7EED\u7A7A\u4E86\u4E09\u5708\uFF0C\u9C7C\u8DD1\u6389\u4E86\u2026" : `\u7A7A\u4E86\u4E00\u5708\uFF0C\u8FD8\u5269 ${3 - session.misses} \u5708\u673A\u4F1A`;
-        paint();
-        if (session.misses >= 3) return finish(false);
-      }
-      frame = raf(tick2);
-    }
-    paint();
-    frame = raf(tick2);
-  }
+  var STARS = { common: 1, uncommon: 2, rare: 3, legend: 4 };
   function renderResult(ui, fish2) {
     const card = el("div", "dp-fish-result");
     card.appendChild(el("div", "dp-fish-result-emoji", fish2.emoji));
     card.appendChild(el("b", null, "\u9493\u5230\u4E86 " + fish2.label + "\uFF01"));
-    card.appendChild(el("span", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price));
+    const stars = STARS[fish2.rarity] ?? 1;
+    card.appendChild(el("span", "dp-fish-stars", "\u2605".repeat(stars) + "\u2606".repeat(4 - stars)));
+    const record = fish2.maxCm > 0 && fish2.sizeCm >= fish2.maxCm * 0.85 ? " \xB7 \u5927\u4E2A\u7684\uFF01" : "";
+    card.appendChild(el("span", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price + record));
     const keep = button("dp-btn dp-btn-wide", { "data-fish": "keep" }, function() {
       ui.send("fishKeep");
     });
-    keep.textContent = "\u{1F392} \u653E\u8FDB\u80CC\u5305";
+    keep.textContent = "\u{1F392} \u653E\u8FDB\u9C7C\u7BD3";
     card.appendChild(keep);
     ui.content.appendChild(card);
   }

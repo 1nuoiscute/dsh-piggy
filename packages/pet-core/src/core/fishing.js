@@ -1,11 +1,11 @@
 // @ts-check
 /** C5 manual and automatic fishing; all core randomness comes through random.js. */
-import { FISH, fishByKey, itemByKey } from '../data.js'
+import { FISH, FISH_FIGHTS, fishByKey, itemByKey } from '../data.js'
 import { begin, awayBlockedReason } from './activity.js'
 import { dayKeyFor } from './clock.js'
 import { clamp100, remember } from './effects.js'
 import { ensureDex } from './dex.js'
-import { chance, rollerFor } from './random.js'
+import { chance, pickOne, rollerFor } from './random.js'
 import { reduceFishingWeight } from './weight.js'
 
 const WEIGHT = { common: 60, uncommon: 24, rare: 8, legend: 1 }
@@ -22,7 +22,8 @@ function cleanPending(value) {
   const caught = cleanCatch(value)
   if (caught === null || !['waiting', 'hooked', 'caught'].includes(value.phase)) return null
   if (![value.castPower, value.bitesAt, value.hookUntil, value.expiresAt].every(Number.isFinite)) return null
-  return { ...caught, phase: value.phase, castPower: Math.max(0, Math.min(1, value.castPower)), bitesAt: value.bitesAt, hookUntil: value.hookUntil, expiresAt: value.expiresAt }
+  const fight = FISH_FIGHTS.includes(value.fight) ? { fight: value.fight } : {}
+  return { ...caught, phase: value.phase, castPower: Math.max(0, Math.min(1, value.castPower)), bitesAt: value.bitesAt, hookUntil: value.hookUntil, expiresAt: value.expiresAt, ...fight }
 }
 
 export function ensureFishing(state) {
@@ -89,6 +90,9 @@ export function hookFishing(state, nowMs) {
   if (nowMs < pending.bitesAt) return { ok: false, reason: 'early' }
   if (nowMs > pending.hookUntil) { fishing.pending = null; return { ok: false, reason: 'escaped' } }
   pending.phase = 'hooked'
+  // 三种搏斗玩法随机一种；竖条和拉力要拉一会儿，给足一分钟。
+  pending.fight = pickOne(rollerFor(state), FISH_FIGHTS) ?? 'ring'
+  pending.expiresAt = Math.max(pending.expiresAt, nowMs + 60_000)
   return { ok: true, fish: fishByKey(pending.key), pending }
 }
 

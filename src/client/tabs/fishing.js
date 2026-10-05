@@ -1,55 +1,64 @@
 // @ts-check
-/** Fishing App: one-click cast, bite reflex and a circular skill-check QTE. */
+/**
+ * 钓鱼 App：选鱼饵 → 抛竿 → 等咬钩 → 搏斗（三种玩法随机一种，见 fishing-fight.js）→ 结果。
+ * G 批次按原型 docs/prototypes/fishing-fight.html 重做了界面。
+ */
 import { button, el } from '../dom.js'
+import { fightActive, renderFight, resetFightResolve, stopFight } from './fishing-fight.js'
 
-let frame = 0
-let activeUi = null
-let resolving = false
-let qteSession = null
 let selectedBait = null
+let waitFrame = 0
+let waitUi = null
 const raf = fn => typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : 0
 const caf = id => { if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(id) }
 
-function stopLoop(clearSession = false) {
-  if (frame) caf(frame)
-  frame = 0
-  activeUi = null
-  if (clearSession) qteSession = null
+function stopWait() {
+  if (waitFrame) caf(waitFrame)
+  waitFrame = 0
+  waitUi = null
 }
 
-/** Closing the panel during a hooked game is a loss and stops its animation. */
+/** 搏斗中关掉面板算输，并停掉动画。 */
 export function closeFishing(ui) {
-  const playing = activeUi === ui && ui.view.fishing.pending?.phase === 'hooked'
-  stopLoop(true)
+  const playing = fightActive(ui) && ui.view.fishing.pending?.phase === 'hooked'
+  stopFight(true)
+  stopWait()
   if (playing) ui.send('fishResolve', { success: false })
 }
 
 export function renderFishingTab(ui) {
-  stopLoop()
+  stopFight()
+  stopWait()
   const pending = ui.view.fishing.pending
-  if (pending?.phase !== 'hooked') resolving = false
-  if (ui.view.activity?.kind === 'fishing') { qteSession = null; return renderAway(ui) }
-  if (pending?.phase === 'waiting') { qteSession = null; return renderWaiting(ui, pending) }
-  if (pending?.phase === 'hooked') return renderGame(ui, pending)
-  qteSession = null
+  if (pending?.phase !== 'hooked') resetFightResolve()
+  if (ui.view.activity?.kind === 'fishing') { stopFight(true); return renderAway(ui) }
+  if (pending?.phase === 'waiting') { stopFight(true); return renderWaiting(ui, pending) }
+  if (pending?.phase === 'hooked') return renderFight(ui, pending)
+  stopFight(true)
   if (pending?.phase === 'caught') return renderResult(ui, pending)
   renderReady(ui)
 }
 
+/** 鱼饵说明：越贵的饵，稀有鱼越多。 */
+var BAIT_NOTE = { bait_worm: '普通鱼', bait_shrimp: '少见的多一点', bait_glow: '稀有的多很多' }
+
 function renderReady(ui) {
-  ui.content.appendChild(el('div', 'dp-fish-scene', '🌊　🐟　～　🌿'))
-  ui.content.appendChild(el('div', 'dp-fish-copy', '每次抛竿消耗 1 个鱼饵。看到「❗」后及时提竿。'))
-  const baits = ui.view.shop.filter(item => item.kind === 'bait' && (ui.view.inventory[item.key] ?? 0) > 0)
-  if (!baits.some(item => item.key === selectedBait)) selectedBait = baits[0]?.key ?? null
-  const choices = el('div', 'dp-dev-row dp-fish-baits')
+  const baits = ui.view.shop.filter(item => item.kind === 'bait')
+  const owned = key => ui.view.inventory[key] ?? 0
+  if (!baits.some(item => item.key === selectedBait && owned(item.key) > 0)) selectedBait = baits.find(item => owned(item.key) > 0)?.key ?? null
+  ui.content.appendChild(el('div', 'dp-fish-label', '选鱼饵'))
+  const choices = el('div', 'dp-fish-baits')
   for (const bait of baits) {
-    const choice = button('dp-mini dp-fish-bait', { 'data-fish-bait': bait.key }, function () { selectedBait = bait.key; ui.renderContent() })
-    choice.textContent = `${bait.emoji} ${bait.label} ×${ui.view.inventory[bait.key]}`
+    const choice = button('dp-fish-bait', { 'data-fish-bait': bait.key }, function () { selectedBait = bait.key; ui.renderContent() })
+    choice.appendChild(el('em', null, bait.emoji))
+    choice.appendChild(el('b', null, bait.label.replace(/鱼饵$/, '') + ' ×' + owned(bait.key)))
+    choice.appendChild(el('small', null, BAIT_NOTE[bait.key] ?? ''))
     choice.setAttribute('aria-pressed', String(selectedBait === bait.key))
+    choice.disabled = owned(bait.key) === 0
     choices.appendChild(choice)
   }
   ui.content.appendChild(choices)
-  if (baits.length === 0) ui.content.appendChild(el('div', 'dp-fish-copy', '没有鱼饵了，先去商店的鱼饵货架买。'))
+  if (selectedBait === null) ui.content.appendChild(el('div', 'dp-fish-blocked', '没有鱼饵了，先去商店的鱼饵货架买。'))
   const hungry = (ui.view.pig?.satiety ?? 0) < 1
   if (hungry) {
     ui.content.appendChild(el('div', 'dp-fish-blocked', '饱食为 0，先喂食才能抛竿。'))
@@ -61,15 +70,31 @@ function renderReady(ui) {
   cast.textContent = hungry ? '🍚 喂食后才能抛竿' : '🎣 抛竿'
   cast.disabled = selectedBait === null || hungry
   ui.content.appendChild(cast)
-  const auto = el('div', 'dp-fish-auto')
-  auto.appendChild(el('b', null, '自动钓鱼'))
-  auto.appendChild(el('span', null, '今天还可出发 ' + ui.view.fishing.autoLeft + ' 次 · 每 3 分钟消耗 1 个鱼饵，收获放进鱼篓'))
+  renderAuto(ui)
+}
+
+/** 自动钓鱼收在下面：点不了的时候写清楚为什么。 */
+function renderAuto(ui) {
+  const auto = el('details', 'dp-fish-auto')
+  auto.appendChild(el('summary', null, '🐷 让猪自己去钓（今天还能去 ' + ui.view.fishing.autoLeft + ' 次）'))
+  auto.appendChild(el('span', null, '猪出门 30 / 60 分钟，每 3 分钟用 1 个选中的鱼饵，钓到的放进鱼篓。'))
+  const row = el('div', 'dp-fish-auto-row')
+  const reasons = []
   for (const minutes of [30, 60]) {
+    const need = minutes / 3
+    const have = ui.view.inventory[selectedBait] ?? 0
     const go = button('dp-mini', { 'data-fish-auto': String(minutes) }, function () { ui.send('fishAuto', { minutes, bait: selectedBait }) })
-    go.textContent = `${minutes} 分钟（鱼饵 ${minutes / 3} 个）`
-    go.disabled = ui.view.fishing.autoLeft <= 0 || ui.view.canGoOut !== true || (ui.view.inventory[selectedBait] ?? 0) < minutes / 3
-    auto.appendChild(go)
+    go.textContent = `${minutes} 分钟（鱼饵 ${need} 个）`
+    go.disabled = ui.view.fishing.autoLeft <= 0 || ui.view.canGoOut !== true || have < need
+    if (go.disabled && minutes === 30) {
+      if (ui.view.fishing.autoLeft <= 0) reasons.push('今天已经去过 2 次了')
+      else if (ui.view.canGoOut !== true) reasons.push('猪现在不能出门')
+      else reasons.push('鱼饵只剩 ' + have + ' 个，不够 ' + need + ' 个')
+    }
+    row.appendChild(go)
   }
+  auto.appendChild(row)
+  if (reasons.length > 0) auto.appendChild(el('span', 'dp-fish-why', '点不了：' + reasons[0] + '。'))
   ui.content.appendChild(auto)
 }
 
@@ -83,144 +108,30 @@ function renderWaiting(ui, pending) {
   water.appendChild(mark)
   water.appendChild(line)
   ui.content.appendChild(water)
-  activeUi = ui
+  waitUi = ui
   function tick() {
-    if (activeUi !== ui) return
+    if (waitUi !== ui) return
     const now = Date.now()
     if (now >= pending.bitesAt && now <= pending.hookUntil) { mark.textContent = '❗'; line.textContent = '上钩了！快点！'; water.setAttribute('data-bite', 'true') }
-    else if (now > pending.hookUntil) { stopLoop(); ui.send('fishHook'); return }
-    frame = raf(tick)
+    else if (now > pending.hookUntil) { stopWait(); ui.send('fishHook'); return }
+    waitFrame = raf(tick)
   }
-  frame = raf(tick)
+  waitFrame = raf(tick)
 }
 
-function qteRules(rawDifficulty) {
-  const difficulty = Math.max(1, Math.min(100, Number(rawDifficulty) || 1))
-  return {
-    zoneDegrees: Math.round(115 - difficulty * .38),
-    perfectDegrees: Math.round(16 - difficulty * .06),
-    rotationsPerSecond: .28 + difficulty * .0018,
-    hitsNeeded: difficulty >= 80 ? 4 : difficulty >= 45 ? 3 : 2,
-  }
-}
-
-function newQteRound(session) {
-  session.zoneStart = 105 + Math.random() * 135
-  session.angle = 0
-  session.completedCircles = 0
-  session.startedAt = 0
-  session.locked = false
-  session.feedback = '看准绿色区域'
-}
-
-function renderGame(ui, fish) {
-  const rules = qteRules(fish.difficulty)
-  if (qteSession?.id !== fish.id) {
-    qteSession = { id: fish.id, hits: 0, misses: 0, ...rules }
-    newQteRound(qteSession)
-  }
-  const session = qteSession
-  const wrap = button('dp-fish-qte', {
-    'data-fish-qte': 'true',
-    'data-qte-difficulty': String(fish.difficulty),
-    'data-qte-needed': String(session.hitsNeeded),
-    'aria-label': '钓鱼技能检定，指针进入绿色区域时点击',
-  }, function (event) {
-    // A pointer press is judged immediately below; its later click must not
-    // award the same hit twice. Keyboard activation still arrives as click.
-    if (event.detail > 0 && event.timeStamp - lastPointerAt < 700) return
-    hit(event)
-  })
-  let lastPointerAt = -Infinity
-  wrap.addEventListener('pointerdown', function (event) {
-    lastPointerAt = event.timeStamp
-    hit(event)
-  })
-  const title = el('div', 'dp-fish-qte-title', fish.emoji + '　咬紧了！')
-  const ring = el('div', 'dp-fish-qte-ring')
-  const needle = el('i', 'dp-fish-qte-needle')
-  const core = el('span', 'dp-fish-qte-core', fish.emoji)
-  const score = el('b', 'dp-fish-qte-score')
-  const feedback = el('span', 'dp-fish-qte-feedback')
-  ring.appendChild(needle); ring.appendChild(core)
-  wrap.appendChild(title); wrap.appendChild(ring); wrap.appendChild(score); wrap.appendChild(feedback)
-  wrap.appendChild(el('div', 'dp-fish-help', '指针进入绿色区域时点击或按空格 · 黄色为完美判定'))
-  wrap.setAttribute('tabindex', '0')
-  ui.content.appendChild(wrap)
-  activeUi = ui
-
-  function paint() {
-    const displayAngle = session.angle % 360
-    const perfectEnd = session.zoneStart + session.perfectDegrees
-    const zoneEnd = session.zoneStart + session.zoneDegrees
-    ring.style.background = `conic-gradient(from 0deg,#dce8e9 0deg ${session.zoneStart}deg,#ffd45d ${session.zoneStart}deg ${perfectEnd}deg,#6bd47b ${perfectEnd}deg ${zoneEnd}deg,#dce8e9 ${zoneEnd}deg 360deg)`
-    needle.style.transform = `translateX(-50%) rotate(${displayAngle}deg)`
-    score.textContent = `技能检定 ${Math.min(session.hits, session.hitsNeeded)} / ${session.hitsNeeded}`
-    feedback.textContent = `${session.feedback} · 机会 ${'♥'.repeat(3 - session.misses)}${'♡'.repeat(session.misses)}`
-    wrap.setAttribute('data-qte-angle', displayAngle.toFixed(1))
-    wrap.setAttribute('data-qte-zone-start', session.zoneStart.toFixed(1))
-    wrap.setAttribute('data-qte-zone-size', String(session.zoneDegrees))
-    wrap.setAttribute('data-qte-misses', String(session.misses))
-    wrap.setAttribute('data-qte-speed', String(session.rotationsPerSecond))
-    wrap.setAttribute('data-qte-feedback', session.feedback)
-  }
-
-  function finish(success) {
-    if (resolving) return
-    resolving = true
-    stopLoop(true)
-    ui.send('fishResolve', { success })
-  }
-
-  function hit(event) {
-    event?.preventDefault?.()
-    if (session.locked || activeUi !== ui) return
-    const offset = session.angle % 360 - session.zoneStart
-    if (offset < 0 || offset > session.zoneDegrees) {
-      session.feedback = offset < 0 ? '还没到时机，再等等' : '已经划过去了，等下一圈'
-      paint()
-      return
-    }
-    const perfect = offset <= session.perfectDegrees
-    session.hits += perfect ? 2 : 1
-    session.misses = 0
-    session.feedback = perfect ? '完美！进度 +2' : '命中！'
-    session.locked = true
-    paint()
-    if (session.hits >= session.hitsNeeded) return setTimeout(() => finish(true), 260)
-    setTimeout(() => {
-      if (qteSession !== session || resolving) return
-      newQteRound(session)
-      paint()
-    }, 380)
-  }
-
-  function tick(now) {
-    if (activeUi !== ui || ui.host.getAttribute('data-open') !== 'true') return finish(false)
-    if (!session.startedAt) session.startedAt = now
-    if (!session.locked) session.angle = (now - session.startedAt) * session.rotationsPerSecond * .36
-    paint()
-    const completedCircles = Math.floor(session.angle / 360)
-    if (!session.locked && completedCircles > session.completedCircles) {
-      session.misses += completedCircles - session.completedCircles
-      session.completedCircles = completedCircles
-      session.feedback = session.misses >= 3 ? '连续空了三圈，鱼跑掉了…' : `空了一圈，还剩 ${3 - session.misses} 圈机会`
-      paint()
-      if (session.misses >= 3) return finish(false)
-    }
-    frame = raf(tick)
-  }
-  paint()
-  frame = raf(tick)
-}
+/** 稀有度 → 星星。 */
+var STARS = { common: 1, uncommon: 2, rare: 3, legend: 4 }
 
 function renderResult(ui, fish) {
   const card = el('div', 'dp-fish-result')
   card.appendChild(el('div', 'dp-fish-result-emoji', fish.emoji))
   card.appendChild(el('b', null, '钓到了 ' + fish.label + '！'))
-  card.appendChild(el('span', null, fish.sizeCm.toFixed(1) + ' cm · 🪙 ' + fish.price))
+  const stars = STARS[fish.rarity] ?? 1
+  card.appendChild(el('span', 'dp-fish-stars', '★'.repeat(stars) + '☆'.repeat(4 - stars)))
+  const record = fish.maxCm > 0 && fish.sizeCm >= fish.maxCm * .85 ? ' · 大个的！' : ''
+  card.appendChild(el('span', null, fish.sizeCm.toFixed(1) + ' cm · 🪙 ' + fish.price + record))
   const keep = button('dp-btn dp-btn-wide', { 'data-fish': 'keep' }, function () { ui.send('fishKeep') })
-  keep.textContent = '🎒 放进背包'
+  keep.textContent = '🎒 放进鱼篓'
   card.appendChild(keep)
   ui.content.appendChild(card)
 }

@@ -120,3 +120,25 @@ test('C5 fish bag exposes feed and sell on each individual catch', async () => {
   await settle()
   assert.deepEqual(JSON.parse(calls.at(-1).body), { action: 'fishFeed', id: caught.id })
 })
+
+test('G hooked fish shows the bar or pull fight the host picked, and holding moves it', async () => {
+  for (const fight of ['bar', 'pull']) {
+    const hooked = { id: 'catch-' + fight, key: 'fish_carp', label: '鲤鱼', emoji: '🐟', phase: 'hooked', difficulty: 18, behavior: 'smooth', fight }
+    const { dom } = await mount({ status: status({ pending: hooked }) })
+    openPanel(dom, 'fishing')
+    const stage = findByAttr(contentOf(dom), 'data-fish-fight', fight)
+    assert.notEqual(stage, undefined, fight)
+    assert.equal(findByAttr(contentOf(dom), 'data-fish-qte', 'true'), undefined, 'not the ring')
+    stage.fire('pointerdown', { pointerType: 'mouse' })
+  }
+})
+
+test('G caught result shows rarity stars; auto fishing explains why it is off', async () => {
+  const caught = { id: 'catch-r', key: 'fish_koi', label: '黄金锦鲤', emoji: '🎏', phase: 'caught', sizeCm: 70.5, price: 220, rarity: 'rare', maxCm: 88 }
+  const result = await mount({ status: status({ pending: caught }) })
+  openPanel(result.dom, 'fishing')
+  assert.match(contentOf(result.dom).allText(), /★★★☆/)
+  const poor = await mount({ status: { ...status({ autoLeft: 0 }) } })
+  openPanel(poor.dom, 'fishing')
+  assert.match(contentOf(poor.dom).allText(), /点不了：今天已经去过 2 次了/)
+})
