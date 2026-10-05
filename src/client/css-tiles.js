@@ -187,4 +187,9 @@ export const CSS_TILES = [
   '.dp-update-top .dp-pick-head{flex:1;min-width:0}',
   '.dp-update-refresh{flex:none}',
   '.dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}',
+  '.dp-ext-shelf-note{font-size:11px;color:var(--ac-text-2);margin:6px 2px 10px}.dp-ext-goods{display:grid;gap:7px}',
+  '.dp-ext-good{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 10px;border-radius:16px;background:var(--ac-bg-input);border:2px solid var(--ac-border-light)}',
+  '.dp-ext-good-emoji{width:42px;height:42px;border-radius:12px;background:#fff3c4;display:grid;place-items:center;font-size:22px}',
+  '.dp-ext-good-copy b{font-size:12px;color:var(--ac-text)}.dp-ext-good-copy small{display:block;font-size:10px;color:var(--ac-text-2)}',
+  '.dp-ext-picks{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px}.dp-ext-good .dp-mini{white-space:nowrap}',
 ].join('')

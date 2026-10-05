@@ -5,6 +5,7 @@ import { offParts } from '../extensions.js'
 import { ART_URL, shelfOf } from '../constants.js'
 import { button, el, sideScroller } from '../dom.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
+import { renderHoloSection } from './dex-holo.js'
 
 const SECTIONS = []
 const ITEM_KINDS = [
@@ -31,6 +32,8 @@ for (const section of [
 export function renderDexTab(ui) {
   const picked = ui.drill.dex
   if (picked === null) return renderSections(ui)
+  const ext = (ui.view.extDex ?? []).find(entry => picked === 'ext:' + entry.extension + ':' + entry.key)
+  if (ext) { renderHoloSection(ui, ext); return }
   const section = SECTIONS.find(entry => entry.key === picked)
   if (section === undefined) return drillTo(ui, 'dex', null)
   const entries = ui.view.dex[section.key] ?? []
@@ -59,6 +62,18 @@ function renderSections(ui) {
     progress.appendChild(fill)
     node.appendChild(progress)
     grid.appendChild(node)
+  }
+  for (const section of ui.view.extDex ?? []) {
+    const entries = section.entries ?? []
+    const got = entries.filter(entry => entry.acquired).length
+    const key = 'ext:' + section.extension + ':' + section.key
+    const node = tile({ emoji: section.emoji, label: section.label, color: section.color || 'orange',
+      note: got + '/' + entries.length, data: { 'data-dex-section': key },
+      onPick: function () { drillTo(ui, 'dex', key) } })
+    const progress = el('span', 'dp-dex-progress')
+    const fill = el('i')
+    fill.style.width = (entries.length === 0 ? 0 : Math.round(got / entries.length * 100)) + '%'
+    progress.appendChild(fill); node.appendChild(progress); grid.appendChild(node)
   }
   ui.content.appendChild(grid)
 }

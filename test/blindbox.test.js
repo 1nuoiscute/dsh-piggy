@@ -1,4 +1,4 @@
-// 盲盒 2.0（照明日方舟寻访）：extensions/blindbox/server.js 的规矩。
+// 盲盒 2.1（照明日方舟寻访）：extensions/blindbox/server.js 的规矩。
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
@@ -128,4 +128,18 @@ test('a ticket pulls once for free; the view has both banners and the whole cata
   assert.equal(view.banners.length, 2)
   assert.equal(view.catalog.length, 36)
   assert.equal(view.banners[0].pityLeft, 49)
+})
+
+test('H2 凭证货架和摆件图鉴来自同一份盲盒数据', () => {
+  const data = blindbox.init()
+  data.certs = 150
+  data.owned.fox = 2
+  const view = blindbox.view(data, fakeApi().api)
+  assert.equal(view.shelf.currency.balance, 150)
+  assert.equal(view.shelf.items.length, 5)
+  assert.equal(view.shelf.items.find(item => item.key === 'pick6').disabled, true)
+  assert.equal(view.shelf.items.find(item => item.key === 'pick5').pick.some(item => item.key === 'fox'), false)
+  assert.equal(view.dex.entries.length, 36)
+  assert.equal(view.dex.entries.find(item => item.key === 'fox').potential, 2)
+  assert.equal(view.dex.entries.find(item => item.key === 'fox').acquired, true)
 })

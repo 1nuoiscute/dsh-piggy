@@ -273,12 +273,18 @@
     return space < 0 ? ["\u{1F6D2}", title] : [title.slice(0, space), title.slice(space + 1)];
   }
   function renderShopTab(ui) {
-    if (ui.view.shop.length === 0) {
+    const extShelves = ui.view.extShelves ?? [];
+    if (ui.view.shop.length === 0 && extShelves.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8D27\u67B6\u3002"));
       return;
     }
     var coins = "\u{1FA99} " + ui.view.pig.coins;
     var shelf = ui.drill.shop;
+    const extShelf = extShelves.find((entry) => "ext:" + entry.extension === shelf);
+    if (extShelf) {
+      renderExtShelf(ui, extShelf);
+      return;
+    }
     if (shelf === null || KIND_ORDER.indexOf(shelf) < 0) {
       renderShelves(ui);
       return;
@@ -322,7 +328,59 @@
         }));
       })(KIND_ORDER[k]);
     }
+    for (const shelf of ui.view.extShelves ?? []) {
+      grid.appendChild(tile({
+        emoji: shelf.emoji,
+        label: shelf.label + "\u8D27\u67B6",
+        color: shelf.color || "orange",
+        note: shelf.currency?.label,
+        data: { "data-shelf": "ext:" + shelf.extension },
+        onPick: function() {
+          drillTo(ui, "shop", "ext:" + shelf.extension);
+        }
+      }));
+    }
     ui.content.appendChild(grid);
+  }
+  function renderExtShelf(ui, shelf) {
+    const currency = shelf.currency ?? { label: "\u8D27\u5E01", emoji: "\u{1FA99}", balance: 0 };
+    drillHeader(ui, "shop", shelf.emoji + " " + shelf.label + "\u8D27\u67B6", currency.emoji + " " + currency.balance);
+    ui.content.appendChild(el("div", "dp-ext-shelf-note", "\u7528" + currency.label + "\u4E70 \xB7 " + currency.emoji + " \u4F59\u989D " + currency.balance));
+    const list = el("div", "dp-ext-goods");
+    for (const item of shelf.items ?? []) {
+      const row = el("div", "dp-ext-good");
+      row.appendChild(el("span", "dp-ext-good-emoji", item.emoji));
+      const copy = el("div", "dp-ext-good-copy");
+      copy.appendChild(el("b", null, item.label));
+      copy.appendChild(el("small", null, item.note));
+      row.appendChild(copy);
+      const hasPick = Array.isArray(item.pick);
+      const buy = button("dp-mini", { "data-ext-buy": item.key }, function() {
+        if (hasPick) {
+          ui.drill.pick = ui.drill.pick === item.key ? null : item.key;
+          ui.renderContent();
+          return;
+        }
+        ui.send("ext", { key: shelf.extension, op: "buy", data: { item: item.key, pick: null } });
+      });
+      buy.textContent = item.price + " " + currency.emoji;
+      buy.disabled = item.disabled === true;
+      row.appendChild(buy);
+      if (hasPick && ui.drill.pick === item.key) {
+        const choices = el("div", "dp-ext-picks");
+        for (const pick of item.pick) {
+          const choose = button("dp-mini dp-mini-plain", { "data-ext-pick": pick.key }, function() {
+            ui.drill.pick = null;
+            ui.send("ext", { key: shelf.extension, op: "buy", data: { item: item.key, pick: pick.key } });
+          });
+          choose.textContent = pick.emoji + " " + pick.label;
+          choices.appendChild(choose);
+        }
+        row.appendChild(choices);
+      }
+      list.appendChild(row);
+    }
+    ui.content.appendChild(list);
   }
   function itemTile(ui, item, color) {
     var owned = num(ui.view.inventory[item.key], 0);
@@ -462,9 +520,9 @@
     }
     for (var i = 0; i < list.length; i += 1) {
       (function(fish2) {
-        var card = el("div", "dp-pick dp-tile-card");
-        card.appendChild(el("div", "dp-pick-head", fish2.emoji + " " + fish2.label));
-        card.appendChild(el("div", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price));
+        var card2 = el("div", "dp-pick dp-tile-card");
+        card2.appendChild(el("div", "dp-pick-head", fish2.emoji + " " + fish2.label));
+        card2.appendChild(el("div", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price));
         var actions = el("div", "dp-dev-row");
         var feed = button("dp-mini", { "data-fish-feed": fish2.id }, function() {
           ui.send("fishFeed", { id: fish2.id });
@@ -476,8 +534,8 @@
         sell.textContent = "\u{1FA99} \u5356";
         actions.appendChild(feed);
         actions.appendChild(sell);
-        card.appendChild(actions);
-        ui.content.appendChild(card);
+        card2.appendChild(actions);
+        ui.content.appendChild(card2);
       })(list[i]);
     }
   }
@@ -2009,7 +2067,7 @@
   function createEffects(deps) {
     var scene3 = deps.scene;
     var pig = deps.pig;
-    var card = deps.card;
+    var card2 = deps.card;
     var bubble = deps.bubble;
     var pomoHint = deps.pomoHint ?? null;
     var isStopped = deps.isStopped;
@@ -2147,7 +2205,7 @@
     }
     function toast(text) {
       var node = el("div", "dp-toast", text);
-      card.insertBefore(node, card.firstChild);
+      card2.insertBefore(node, card2.firstChild);
       window.setTimeout(function() {
         node.remove();
       }, 4800);
@@ -2414,7 +2472,18 @@
     }).filter((entry) => entry.key !== "");
   }
   function normalizeExtensionParts(d) {
-    return { extensions: normalizeExtensions(d.extensions), extViews: obj(d.extViews) };
+    const extensions = normalizeExtensions(d.extensions);
+    const visible2 = (part) => {
+      if (typeof part?.extension !== "string" || typeof part?.key !== "string") return false;
+      const owner = extensions.find((entry) => entry.key === part.extension);
+      return owner !== void 0 && owner.on && owner.installed && !owner.builtin;
+    };
+    return {
+      extensions,
+      extViews: obj(d.extViews),
+      extShelves: arr(d.extShelves).filter(visible2).map((part) => ({ ...part, currency: obj(part.currency), items: arr(part.items) })),
+      extDex: arr(d.extDex).filter(visible2).map((part) => ({ ...part, entries: arr(part.entries) }))
+    };
   }
   function offParts(view) {
     const apps = /* @__PURE__ */ new Set();
@@ -2854,7 +2923,7 @@
       skins: normalizeSkins(d.skins),
       fishing: normalizeFishing(d.fishing),
       ...normalizeExtensionParts(d),
-      // extensions + extViews（v0.30 下载扩展）
+      // 下载扩展的 App、货架和图鉴入口
       daily: {
         canSignIn: obj(d.daily).canSignIn === true,
         signInDay: num(obj(d.daily).signInDay, 1),
@@ -3786,7 +3855,12 @@
     ".dp-update-top{display:flex;align-items:center;gap:8px}",
     ".dp-update-top .dp-pick-head{flex:1;min-width:0}",
     ".dp-update-refresh{flex:none}",
-    ".dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}"
+    ".dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}",
+    ".dp-ext-shelf-note{font-size:11px;color:var(--ac-text-2);margin:6px 2px 10px}.dp-ext-goods{display:grid;gap:7px}",
+    ".dp-ext-good{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 10px;border-radius:16px;background:var(--ac-bg-input);border:2px solid var(--ac-border-light)}",
+    ".dp-ext-good-emoji{width:42px;height:42px;border-radius:12px;background:#fff3c4;display:grid;place-items:center;font-size:22px}",
+    ".dp-ext-good-copy b{font-size:12px;color:var(--ac-text)}.dp-ext-good-copy small{display:block;font-size:10px;color:var(--ac-text-2)}",
+    ".dp-ext-picks{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px}.dp-ext-good .dp-mini{white-space:nowrap}"
   ].join("");
 
   // src/client/css-card.js
@@ -3982,8 +4056,27 @@
 .dp-skin-intro{display:grid;gap:4px;margin:0 0 10px}.dp-skin-intro span{font-size:10.5px;line-height:1.5;color:var(--ac-text-2)}.dp-skin-grid{display:flex;flex-direction:column;gap:7px}.dp-skin-row{min-height:62px;padding:7px 9px}.dp-skin-current{background:var(--ac-active);border-color:#9db0d6}.dp-skin-row[data-locked="true"] .dp-skin-art{filter:grayscale(1);opacity:.48}.dp-skin-art{width:48px;height:48px;flex:none;object-fit:contain}.dp-skin-copy{display:grid;gap:3px}.dp-skin-copy b{font-size:10.5px}.dp-skin-copy small{line-height:1.35}.dp-skin-row>.dp-mini{flex:none;padding-inline:10px}.dp-skin-import{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;margin-top:10px;cursor:pointer}.dp-skin-import .dp-pick-head{margin:0}.dp-skin-import>.dp-dim{font-size:10px;line-height:1.4;color:var(--ac-text-2)}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{grid-column:2;grid-row:1/3;display:inline-flex!important;align-items:center;white-space:nowrap}.dp-skin-howto{display:flex;width:100%;justify-content:center;margin:10px 0 8px}
 `;
 
+  // src/client/css-holo.js
+  var CSS_HOLO = [
+    ".dp-holo{--c:#aeb9c4;box-sizing:border-box;position:relative;display:block;width:100%;min-width:0;aspect-ratio:3/4;padding:4px;border:0;border-radius:14px;background:linear-gradient(145deg,var(--c),color-mix(in srgb,var(--c) 55%,#fff));box-shadow:0 4px 0 color-mix(in srgb,var(--c) 70%,#6b5a40),0 8px 14px rgba(61,52,40,.18);font:inherit;cursor:pointer;transform:perspective(500px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .15s ease-out;transform-style:preserve-3d}",
+    '.dp-holo[data-s="4"]{--c:#b48cf2}.dp-holo[data-s="5"]{--c:#f2b632}.dp-holo[data-s="6"]{--c:#ff7a2f}',
+    ".dp-holo-face{position:relative;box-sizing:border-box;display:grid;grid-template-rows:1fr auto auto;justify-items:center;width:100%;height:100%;padding:6px 3px 5px;overflow:hidden;border-radius:10px;background:radial-gradient(circle at 50% 35%,#fff 0 30%,color-mix(in srgb,var(--c) 25%,#fff8e8) 100%)}",
+    '.dp-holo-face::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 20%,rgba(255,120,200,.28) 35%,rgba(120,220,255,.3) 45%,rgba(255,240,140,.3) 55%,transparent 70%);background-size:250% 250%;mix-blend-mode:screen;opacity:.7;animation:dp-holo-shine 6s linear infinite}',
+    ".dp-holo:hover .dp-holo-face::after{animation:none;background-position:var(--hx,50%) var(--hy,50%)}",
+    ".dp-holo-doll{position:relative;z-index:1;align-self:center;font-size:30px;line-height:1;transform:translateZ(26px);filter:drop-shadow(0 6px 0 rgba(0,0,0,.08)) drop-shadow(0 7px 5px rgba(61,52,40,.28))}",
+    ".dp-holo-name{z-index:1;max-width:100%;font-size:10px;color:var(--ac-text,#794f27);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dp-holo-stars{z-index:1;font-size:8px;letter-spacing:-1px;color:var(--c)}",
+    '.dp-holo[data-missing="true"] .dp-holo-doll{filter:brightness(0) opacity(.14)}.dp-holo[data-missing="true"] .dp-holo-face::after{opacity:0}.dp-holo[data-missing="true"] .dp-holo-name{color:var(--ac-text-2,#9f927d)}',
+    ".dp-holo-large{width:110px;flex:none}.dp-holo-large .dp-holo-doll{font-size:46px}.dp-holo-large .dp-holo-name{font-size:11px}",
+    ".dp-holo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}.dp-holo-tier{font-size:12px;color:var(--ac-text);margin:12px 2px 8px}",
+    ".dp-holo-detail{display:flex;gap:12px;align-items:center;padding:10px;margin:10px 0;border-radius:18px;background:var(--ac-bg-input);border:2px solid var(--ac-border-light)}",
+    ".dp-holo-copy{min-width:0;display:grid;gap:5px;color:var(--ac-text)}.dp-holo-copy b{font-size:14px}.dp-holo-rating{color:#ff7a2f}.dp-holo-copy p{margin:0;font-size:11px;line-height:1.5}",
+    '.dp-holo-potential{display:flex;gap:3px}.dp-holo-potential i{width:13px;height:8px;border-radius:3px;background:#e9dfca}.dp-holo-potential i[data-on="true"]{background:#ff9a58}',
+    "@keyframes dp-holo-shine{from{background-position:150% 50%}to{background-position:-100% 50%}}",
+    "@media (prefers-reduced-motion:reduce){.dp-holo,.dp-holo-face::after{animation:none!important;transition:none!important;transform:none!important}}"
+  ].join("");
+
   // src/client/styles.js
-  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS;
+  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS + CSS_HOLO;
 
   // src/client/tabs/card.js
   var LIMITS = { catchphrase: 6, motto: 24, name: 16, owner: 12 };
@@ -3995,8 +4088,8 @@
       ui.content.appendChild(el("div", "dp-empty", "\u91CD\u542F dsh \u4E4B\u540E\u624D\u6709\u5C45\u6C11\u5361"));
       return;
     }
-    var card = el("div", "dp-vcard");
-    card.setAttribute("data-sex", p.sex !== null ? p.sex.key : "none");
+    var card2 = el("div", "dp-vcard");
+    card2.setAttribute("data-sex", p.sex !== null ? p.sex.key : "none");
     var top = el("div", "dp-vcard-top");
     var avatar = el("div", "dp-vcard-avatar");
     if (p.stage.art !== null) {
@@ -4016,25 +4109,25 @@
     who.appendChild(el("span", "dp-vcard-sub", "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel));
     who.appendChild(el("span", "dp-vcard-sub", p.stage.label));
     top.appendChild(who);
-    card.appendChild(top);
-    card.appendChild(field("\u751F\u65E5", profile.birthday));
-    if (profile.zodiac !== null) card.appendChild(field("\u661F\u5EA7", profile.zodiac.emoji + " " + profile.zodiac.label));
-    if (profile.personality !== null) card.appendChild(field("\u6027\u683C", profile.personality.emoji + " " + profile.personality.label));
+    card2.appendChild(top);
+    card2.appendChild(field("\u751F\u65E5", profile.birthday));
+    if (profile.zodiac !== null) card2.appendChild(field("\u661F\u5EA7", profile.zodiac.emoji + " " + profile.zodiac.label));
+    if (profile.personality !== null) card2.appendChild(field("\u6027\u683C", profile.personality.emoji + " " + profile.personality.label));
     var forms = ui.view.forms;
     var worn = forms === null ? null : forms.forms.find(function(f) {
       return f.current;
     }) || null;
-    if (worn !== null) card.appendChild(field("\u5F62\u6001", worn.emoji + " " + worn.label));
-    card.appendChild(editableField(ui, "owner", "\u53EB\u4F60", ui.view.dialogue.ownerName));
-    card.appendChild(editableField(ui, "catchphrase", "\u53E3\u5934\u7985", profile.catchphrase));
-    card.appendChild(editableField(ui, "motto", "\u7B7E\u540D", profile.motto));
+    if (worn !== null) card2.appendChild(field("\u5F62\u6001", worn.emoji + " " + worn.label));
+    card2.appendChild(editableField(ui, "owner", "\u53EB\u4F60", ui.view.dialogue.ownerName));
+    card2.appendChild(editableField(ui, "catchphrase", "\u53E3\u5934\u7985", profile.catchphrase));
+    card2.appendChild(editableField(ui, "motto", "\u7B7E\u540D", profile.motto));
     var c = profile.counts;
-    card.appendChild(el(
+    card2.appendChild(el(
       "div",
       "dp-vcard-foot",
       "\u517B\u4E86 " + c.days + " \u5929 \xB7 \u8BC1\u4E66 " + c.certificates + " \xB7 \u7EAA\u5FF5\u54C1 " + c.souvenirs + " \xB7 \u6BD5\u4E1A " + c.graduations
     ));
-    ui.content.appendChild(card);
+    ui.content.appendChild(card2);
   }
   function field(label, value) {
     var row = el("div", "dp-vcard-row");
@@ -4102,6 +4195,78 @@
     parent.appendChild(cancel);
   }
 
+  // src/client/tabs/dex-holo.js
+  var stars = (count) => "\u2605".repeat(Math.max(0, Number(count) || 0));
+  function card(entry, large, onPick) {
+    const acquired = entry.acquired === true;
+    const node = button("dp-holo" + (large ? " dp-holo-large" : ""), { "data-s": String(entry.stars), "data-missing": String(!acquired), "data-dex-entry": entry.key }, onPick);
+    const face = el("span", "dp-holo-face");
+    face.appendChild(el("span", "dp-holo-doll", entry.emoji));
+    face.appendChild(el("b", "dp-holo-name", acquired ? entry.label : "\uFF1F\uFF1F\uFF1F"));
+    face.appendChild(el("span", "dp-holo-stars", stars(entry.stars)));
+    node.appendChild(face);
+    if (acquired) tilt(node);
+    return node;
+  }
+  function tilt(node) {
+    node.addEventListener("pointermove", (event) => {
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+      const box = node.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (event.clientX - box.left) / Math.max(1, box.width)));
+      const y = Math.max(0, Math.min(1, (event.clientY - box.top) / Math.max(1, box.height)));
+      node.style.setProperty("--rx", ((0.5 - y) * 10).toFixed(1) + "deg");
+      node.style.setProperty("--ry", ((x - 0.5) * 14).toFixed(1) + "deg");
+      node.style.setProperty("--hx", Math.round(x * 100) + "%");
+      node.style.setProperty("--hy", Math.round(y * 100) + "%");
+    });
+    node.addEventListener("pointerleave", () => {
+      for (const name of ["--rx", "--ry", "--hx", "--hy"]) node.style.removeProperty(name);
+    });
+  }
+  function renderHoloSection(ui, section2) {
+    const entries = section2.entries ?? [];
+    const chosen = entries.find((entry) => entry.key === ui.drill.pick);
+    const title = section2.emoji + " " + section2.label;
+    if (chosen) {
+      drillHeader(ui, "dex", title, chosen.acquired ? "\u5DF2\u6536\u5F55" : "\u672A\u89E3\u9501");
+      const back = button("dp-mini dp-mini-plain", { "data-dex-detail-back": section2.key }, () => {
+        ui.drill.pick = null;
+        ui.renderContent();
+      });
+      back.textContent = "\u2039 \u8FD4\u56DE\u6446\u4EF6\u5899";
+      ui.content.appendChild(back);
+      const detail = el("div", "dp-holo-detail");
+      detail.setAttribute("data-dex-detail", chosen.key);
+      detail.appendChild(card(chosen, true, () => {
+      }));
+      const copy = el("div", "dp-holo-copy");
+      copy.appendChild(el("b", null, chosen.acquired ? chosen.label : "\uFF1F\uFF1F\uFF1F"));
+      copy.appendChild(el("span", "dp-holo-rating", stars(chosen.stars)));
+      const potential = el("div", "dp-holo-potential");
+      for (let i = 1; i <= 6; i += 1) {
+        const cell = el("i");
+        cell.setAttribute("data-on", String(chosen.acquired && i <= chosen.potential));
+        potential.appendChild(cell);
+      }
+      copy.appendChild(potential);
+      copy.appendChild(el("p", null, chosen.acquired ? chosen.blurb : "\u8FD8\u6CA1\u6709\u5BFB\u8BBF\u5230\u3002"));
+      detail.appendChild(copy);
+      ui.content.appendChild(detail);
+    } else drillHeader(ui, "dex", title, entries.filter((entry) => entry.acquired).length + "/" + entries.length);
+    for (const rarity of [6, 5, 4, 3]) {
+      const list = entries.filter((entry) => entry.stars === rarity);
+      if (list.length === 0) continue;
+      ui.content.appendChild(el("h4", "dp-holo-tier", rarity + " \u661F " + stars(rarity)));
+      const grid = el("div", "dp-holo-grid");
+      for (const entry of list) grid.appendChild(card(entry, false, () => {
+        ui.drill.pick = entry.key;
+        ui.renderContent();
+        ui.content.scrollTop = 0;
+      }));
+      ui.content.appendChild(grid);
+    }
+  }
+
   // src/client/tabs/dex.js
   var SECTIONS = [];
   var ITEM_KINDS = [
@@ -4129,6 +4294,11 @@
   function renderDexTab(ui) {
     const picked = ui.drill.dex;
     if (picked === null) return renderSections(ui);
+    const ext = (ui.view.extDex ?? []).find((entry) => picked === "ext:" + entry.extension + ":" + entry.key);
+    if (ext) {
+      renderHoloSection(ui, ext);
+      return;
+    }
     const section2 = SECTIONS.find((entry) => entry.key === picked);
     if (section2 === void 0) return drillTo(ui, "dex", null);
     const entries = ui.view.dex[section2.key] ?? [];
@@ -4161,6 +4331,27 @@
       node.appendChild(progress);
       grid.appendChild(node);
     }
+    for (const section2 of ui.view.extDex ?? []) {
+      const entries = section2.entries ?? [];
+      const got = entries.filter((entry) => entry.acquired).length;
+      const key = "ext:" + section2.extension + ":" + section2.key;
+      const node = tile({
+        emoji: section2.emoji,
+        label: section2.label,
+        color: section2.color || "orange",
+        note: got + "/" + entries.length,
+        data: { "data-dex-section": key },
+        onPick: function() {
+          drillTo(ui, "dex", key);
+        }
+      });
+      const progress = el("span", "dp-dex-progress");
+      const fill = el("i");
+      fill.style.width = (entries.length === 0 ? 0 : Math.round(got / entries.length * 100)) + "%";
+      progress.appendChild(fill);
+      node.appendChild(progress);
+      grid.appendChild(node);
+    }
     ui.content.appendChild(grid);
   }
   function renderEntries(ui, section2, entries) {
@@ -4183,21 +4374,21 @@
     const classes = ["dp-dex-card"];
     if (entry.acquired) classes.push("dp-dex-card-foil");
     else classes.push("dp-dex-card-locked");
-    const card = button(classes.join(" "), { "data-dex-entry": entry.key }, function() {
+    const card2 = button(classes.join(" "), { "data-dex-entry": entry.key }, function() {
       openDetail(ui, entry.key);
     });
     const art = el("span", "dp-dex-artbox");
     appendArt(art, entry, true);
     if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
-    card.appendChild(art);
-    card.appendChild(el("span", "dp-dex-caption", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
-    if (entry.acquired) tilt(card);
-    return card;
+    card2.appendChild(art);
+    card2.appendChild(el("span", "dp-dex-caption", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
+    if (entry.acquired) tilt2(card2);
+    return card2;
   }
   function renderMuseum(ui, section2, entries) {
     const grid = el("div", "dp-dex-museum");
     for (const entry of entries) {
-      const card = button(
+      const card2 = button(
         "dp-dex-museum-item" + (entry.acquired ? "" : " dp-dex-museum-locked"),
         { "data-dex-entry": entry.key },
         function() {
@@ -4207,9 +4398,9 @@
       const art = el("span", "dp-dex-museum-art");
       appendArt(art, entry, false);
       if (!entry.acquired) art.appendChild(el("span", "dp-dex-museum-lock", "\u{1F512}"));
-      card.appendChild(art);
-      card.appendChild(el("span", "dp-dex-museum-name", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
-      grid.appendChild(card);
+      card2.appendChild(art);
+      card2.appendChild(el("span", "dp-dex-museum-name", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
+      grid.appendChild(card2);
     }
     ui.content.appendChild(grid);
   }
@@ -4291,15 +4482,15 @@
     const flash = section2.key === "forms" || section2.key === "skins";
     const wrap = el("div", "dp-dex-detail");
     wrap.setAttribute("data-dex-detail", entry.key);
-    const card = el("div", flash ? "dp-dex-big" + (entry.acquired ? " dp-dex-big-foil" : " dp-dex-big-locked") : "dp-dex-info" + (entry.acquired ? "" : " dp-dex-info-locked"));
+    const card2 = el("div", flash ? "dp-dex-big" + (entry.acquired ? " dp-dex-big-foil" : " dp-dex-big-locked") : "dp-dex-info" + (entry.acquired ? "" : " dp-dex-info-locked"));
     const art = el("div", flash ? "dp-dex-big-art" : "dp-dex-info-art");
     appendArt(art, entry, flash);
     if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
-    card.appendChild(art);
-    card.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + section2.label));
+    card2.appendChild(art);
+    card2.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + section2.label));
     if (entry.acquired) {
-      card.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
-      card.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
+      card2.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
+      card2.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
       if (section2.key === "skins") {
         const current = ui.view.skins.current === entry.key;
         const pick = button("dp-mini", { "data-dex-skin": entry.key }, function() {
@@ -4309,17 +4500,17 @@
         pick.disabled = current;
         const action = el("div", "dp-dex-skin-action");
         action.appendChild(pick);
-        card.appendChild(action);
+        card2.appendChild(action);
       }
     } else {
       const riddle = el("div", "dp-dex-riddle");
       riddle.appendChild(el("b", null, "\u89E3\u9501\u8C1C\u9762"));
       riddle.appendChild(el("span", null, entry.hint || "\u5B83\u85CF\u5728\u4E00\u6B21\u5C1A\u672A\u542F\u7A0B\u7684\u76F8\u9047\u91CC\u3002"));
-      card.appendChild(riddle);
+      card2.appendChild(riddle);
     }
-    wrap.appendChild(card);
+    wrap.appendChild(card2);
     ui.content.appendChild(wrap);
-    if (flash && entry.acquired) tilt(card);
+    if (flash && entry.acquired) tilt2(card2);
   }
   function openDetail(ui, key) {
     ui.drill.pick = key;
@@ -4343,7 +4534,7 @@
     if (typeof value !== "number") return "\u9996\u6B21\u53D1\u73B0\u65F6\u95F4\u672A\u77E5";
     return "\u9996\u6B21\u53D1\u73B0 " + new Date(value).toLocaleDateString("zh-CN");
   }
-  function tilt(node) {
+  function tilt2(node) {
     node.addEventListener("pointermove", function(event) {
       const box = node.getBoundingClientRect();
       const x = ((event.clientX ?? box.left + box.width / 2) - box.left) / Math.max(1, box.width) - 0.5;
@@ -4805,19 +4996,19 @@
   }
   var STARS = { common: 1, uncommon: 2, rare: 3, legend: 4 };
   function renderResult(ui, fish2) {
-    const card = el("div", "dp-fish-result");
-    card.appendChild(el("div", "dp-fish-result-emoji", fish2.emoji));
-    card.appendChild(el("b", null, "\u9493\u5230\u4E86 " + fish2.label + "\uFF01"));
-    const stars = STARS[fish2.rarity] ?? 1;
-    card.appendChild(el("span", "dp-fish-stars", "\u2605".repeat(stars) + "\u2606".repeat(4 - stars)));
+    const card2 = el("div", "dp-fish-result");
+    card2.appendChild(el("div", "dp-fish-result-emoji", fish2.emoji));
+    card2.appendChild(el("b", null, "\u9493\u5230\u4E86 " + fish2.label + "\uFF01"));
+    const stars2 = STARS[fish2.rarity] ?? 1;
+    card2.appendChild(el("span", "dp-fish-stars", "\u2605".repeat(stars2) + "\u2606".repeat(4 - stars2)));
     const record = fish2.maxCm > 0 && fish2.sizeCm >= fish2.maxCm * 0.85 ? " \xB7 \u5927\u4E2A\u7684\uFF01" : "";
-    card.appendChild(el("span", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price + record));
+    card2.appendChild(el("span", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price + record));
     const keep = button("dp-btn dp-btn-wide", { "data-fish": "keep" }, function() {
       ui.send("fishKeep");
     });
     keep.textContent = "\u{1F392} \u653E\u8FDB\u9C7C\u7BD3";
-    card.appendChild(keep);
-    ui.content.appendChild(card);
+    card2.appendChild(keep);
+    ui.content.appendChild(card2);
   }
   function renderAway(ui) {
     ui.content.appendChild(el("div", "dp-fish-away", "\u{1F3A3}"));
@@ -5558,26 +5749,26 @@
     ui.content.appendChild(howto);
   }
   function skinCard(ui, skin) {
-    const card = el("div", "dp-item dp-skin-row" + (skin.current ? " dp-skin-current" : ""));
-    if (!skin.unlocked) card.setAttribute("data-locked", "true");
+    const card2 = el("div", "dp-item dp-skin-row" + (skin.current ? " dp-skin-current" : ""));
+    if (!skin.unlocked) card2.setAttribute("data-locked", "true");
     const img = (
       /** @type {HTMLImageElement} */
       el("img", "dp-skin-art")
     );
     img.src = ART_URL + skin.art + ".svg";
     img.alt = skin.label;
-    card.appendChild(img);
+    card2.appendChild(img);
     const copy = el("span", "dp-grow dp-skin-copy");
     copy.appendChild(el("b", null, (skin.unlocked ? skin.emoji : "\u{1F512}") + " " + (skin.unlockJob ? "\u804C\u4E1A \xB7 " : "") + skin.label));
     copy.appendChild(el("small", "dp-dim", skin.unlocked ? skin.description || "\u4F5C\u8005\uFF1A" + skin.author : "\u5B8C\u6210" + (ui.view.jobs.find((job) => job.key === skin.unlockJob)?.label ?? skin.label.replace(/猪$/, "")) + "\u5DE5\u4F5C\u540E\u89E3\u9501"));
-    card.appendChild(copy);
+    card2.appendChild(copy);
     const pick = button("dp-mini", { "data-skin": skin.key }, function() {
       if (skin.unlocked) ui.send("skin", { skin: skin.key });
     });
     pick.textContent = !skin.unlocked ? "\u672A\u89E3\u9501" : skin.current ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
     pick.disabled = !skin.unlocked || skin.current;
-    card.appendChild(pick);
-    return card;
+    card2.appendChild(pick);
+    return card2;
   }
   function importCard(ui) {
     const wrap = el("label", "dp-pick dp-tile-card dp-skin-import");
@@ -5927,6 +6118,11 @@
         button,
         rerender: function() {
           ui.renderContent();
+        },
+        openDex: function(section2) {
+          ui.select("dex");
+          ui.drill.dex = "ext:" + key + ":" + section2;
+          ui.renderContent();
         }
       });
     } catch (error) {
@@ -5993,16 +6189,16 @@
     renderOnline(ui);
   }
   function localCard(ui, extension) {
-    var card = el("div", "dp-set dp-ext-card");
-    card.setAttribute("data-extension", extension.key);
+    var card2 = el("div", "dp-set dp-ext-card");
+    card2.setAttribute("data-extension", extension.key);
     var head = el("div", "dp-set-head");
     head.appendChild(el("span", "dp-ext-emoji", extension.emoji));
     head.appendChild(el("b", null, extension.label + (extension.builtin ? "" : " " + extension.version)));
     if (extension.description) head.appendChild(el("small", "dp-dim", extension.description));
-    card.appendChild(head);
+    card2.appendChild(head);
     var note = extension.on ? closingNote(ui.view, extension.key) : "";
-    if (note) card.appendChild(el("div", "dp-ext-note", note));
-    if (extension.error) card.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
+    if (note) card2.appendChild(el("div", "dp-ext-note", note));
+    if (extension.error) card2.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
     var newer = online.entries.find(function(entry) {
       return entry.key === extension.key && entry.update === true;
     });
@@ -6044,8 +6240,8 @@
       remove.textContent = "\u5220\u9664";
       row.appendChild(remove);
     }
-    card.appendChild(row);
-    return card;
+    card2.appendChild(row);
+    return card2;
   }
   function renderOnline(ui) {
     if (!online.loaded) {
@@ -6067,8 +6263,8 @@
     }
     for (var k = 0; k < entries.length; k += 1) {
       (function(entry) {
-        var card = el("div", "dp-set dp-ext-card");
-        card.setAttribute("data-online-extension", entry.key);
+        var card2 = el("div", "dp-set dp-ext-card");
+        card2.setAttribute("data-online-extension", entry.key);
         var head = el("div", "dp-set-head");
         head.appendChild(el("span", "dp-ext-emoji", str(entry.emoji, "\u{1F9E9}")));
         head.appendChild(el("b", null, str(entry.label, entry.key) + (entry.builtin ? " \xB7 \u5185\u7F6E" : " " + str(entry.version, ""))));
@@ -6080,10 +6276,10 @@
         get.disabled = entry.blocked !== null && entry.blocked !== void 0;
         head.appendChild(get);
         if (entry.description) head.appendChild(el("small", "dp-dim", str(entry.description, "")));
-        card.appendChild(head);
-        if (entry.blocked === "game-too-old") card.appendChild(el("div", "dp-ext-note", "\u9700\u8981\u6E38\u620F v" + str(entry.minGame, "") + "\uFF0C\u5148\u66F4\u65B0\u6E38\u620F"));
-        else if (entry.builtin) card.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
-        ui.content.appendChild(card);
+        card2.appendChild(head);
+        if (entry.blocked === "game-too-old") card2.appendChild(el("div", "dp-ext-note", "\u9700\u8981\u6E38\u620F v" + str(entry.minGame, "") + "\uFF0C\u5148\u66F4\u65B0\u6E38\u620F"));
+        else if (entry.builtin) card2.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
+        ui.content.appendChild(card2);
       })(entries[k]);
     }
   }
@@ -6414,7 +6610,7 @@
     document.head.appendChild(style);
     var host2 = document.createElement("div");
     host2.setAttribute(MOUNTED, "");
-    var card = el("div", "dp-card");
+    var card2 = el("div", "dp-card");
     var scene3 = el("div", "dp-scene");
     var hud = el("div", "dp-hud");
     var hudName = el("div", null, "\u732A\u732A");
@@ -6467,10 +6663,10 @@
     var content = el("div", "dp-content");
     var footer = el("div", "dp-panel-footer");
     footer.hidden = true;
-    card.appendChild(content);
-    card.appendChild(footer);
-    card.appendChild(bar);
-    host2.appendChild(card);
+    card2.appendChild(content);
+    card2.appendChild(footer);
+    card2.appendChild(bar);
+    host2.appendChild(card2);
     host2.appendChild(scene3);
     if (document.body !== null && document.body !== void 0) {
       document.body.appendChild(host2);
@@ -6482,7 +6678,7 @@
         }
       }, { once: true });
     }
-    return { font, style, host: host2, card, scene: scene3, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
+    return { font, style, host: host2, card: card2, scene: scene3, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
   }
 
   // src/client/drag-heartbeat.js
@@ -6717,13 +6913,13 @@
           }
         }
       }
-      const card = (
+      const card2 = (
         /** @type {any} */
         host2.querySelector(".dp-card")
       );
-      if (reserves && open && card !== null && card.hidden !== true) {
-        const cardBox = layoutBox(card);
-        const maxHeight = Math.min(PANEL_MAX_HEIGHT, parseFloat(card.style.maxHeight) || 0);
+      if (reserves && open && card2 !== null && card2.hidden !== true) {
+        const cardBox = layoutBox(card2);
+        const maxHeight = Math.min(PANEL_MAX_HEIGHT, parseFloat(card2.style.maxHeight) || 0);
         if (maxHeight > cardBox.height && cardBox.width > 0) {
           zone = cardBox.y > pigBox.y ? { x: cardBox.x, y: cardBox.y, r: cardBox.x + cardBox.width, b: cardBox.y + maxHeight } : { x: cardBox.x, y: cardBox.y + cardBox.height - maxHeight, r: cardBox.x + cardBox.width, b: cardBox.y + cardBox.height };
         }
@@ -6731,7 +6927,7 @@
       let outline = rects.concat(zone === null ? [] : [zone], bubbleZone === null ? [] : [bubbleZone]);
       if (reserves && pigNode !== null) {
         const key = openBoxKey(pigBox);
-        if (open && card !== null && card.hidden !== true) {
+        if (open && card2 !== null && card2.hidden !== true) {
           let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
           for (const o of outline) {
             l = Math.min(l, o.x);
@@ -6779,13 +6975,13 @@
       return { content, shape, pig, hostBox, pigBox, contentBox: { left, top, right, bottom } };
     }
     function sides(host2) {
-      const card = (
+      const card2 = (
         /** @type {any} */
         host2.querySelector(".dp-card")
       );
       const pigNode = host2.querySelector(".dp-pig");
-      if (card === null || pigNode === null || card.hidden === true) return { vertical: state2.vertical, horizontal: state2.horizontal };
-      const cardBox = layoutBox(card);
+      if (card2 === null || pigNode === null || card2.hidden === true) return { vertical: state2.vertical, horizontal: state2.horizontal };
+      const cardBox = layoutBox(card2);
       const pigBox = layoutBox(pigNode);
       if (cardBox.width < 1 || cardBox.height < 1) return { vertical: state2.vertical, horizontal: state2.horizontal };
       const vertical = cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? "bottom" : "top";
@@ -7129,7 +7325,7 @@
           font,
           style,
           host: host2,
-          card,
+          card: card2,
           scene: scene3,
           hud,
           hudName,
@@ -7182,7 +7378,7 @@
           scene: scene3,
           pig,
           pigArt,
-          card,
+          card: card2,
           bubble,
           pomoHint,
           isStopped: function() {
@@ -7195,7 +7391,7 @@
         var busy = false;
         var ctx = {
           host: host2,
-          card,
+          card: card2,
           content,
           footer,
           scene: scene3,

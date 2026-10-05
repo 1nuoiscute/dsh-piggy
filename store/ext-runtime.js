@@ -149,6 +149,16 @@ export function createExtRuntime(store, options) {
     return out
   }
 
+  /** 开着的下载扩展给商店和图鉴的入口。 */
+  function parts(state, field) {
+    return Object.entries(views(state)).flatMap(([extension, view]) => {
+      const part = view?.[field]
+      return part !== null && typeof part === 'object' && !Array.isArray(part) ? [{ ...part, extension }] : []
+    })
+  }
+  const shelves = state => parts(state, 'shelf')
+  const dex = state => parts(state, 'dex')
+
   /** 在线目录（带缓存）；`force` 时重新读。 */
   async function online(force = false) {
     if (!force && now() - registry.at < REGISTRY_TTL_MS && registry.error === null && registry.at > 0) return registry
@@ -260,5 +270,5 @@ export function createExtRuntime(store, options) {
     try { return readFileSync(join(root(), key, 'client.js'), 'utf8') } catch { return null }
   }
 
-  return { ready, list, views, onlineView, install, remove, act, clientScript }
+  return { ready, list, views, shelves, dex, onlineView, install, remove, act, clientScript }
 }

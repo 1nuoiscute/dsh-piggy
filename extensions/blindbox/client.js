@@ -1,4 +1,4 @@
-// 盲盒扩展 2.0 · 面板部分（照明日方舟寻访）。三个页签：寻访、展示柜、凭证商店。
+// 盲盒扩展 2.1 · 面板部分：寻访页。
 // 开盒：补给箱落下 → 缝里透出星级颜色的光 → 打开；10 连先排两行小箱子，再一个个翻开，可跳过。
 // 动画时间都写成 CSS 延迟，面板每几秒重画一次也能接着播，不会从头开始。
 ;(function () {
@@ -8,9 +8,6 @@
   var CSS = [
     '.bx{--ink:var(--ac-text,#794f27);--soft:var(--ac-text-2,#9f927d);display:grid;gap:10px}',
     '.bx [data-s="3"],.bx[data-s="3"]{--c:' + STAR[3] + ';--cl:#eef2f5}.bx [data-s="4"],.bx[data-s="4"]{--c:' + STAR[4] + ';--cl:#f3ecff}.bx [data-s="5"],.bx[data-s="5"]{--c:' + STAR[5] + ';--cl:#fff4d6}.bx [data-s="6"],.bx[data-s="6"]{--c:' + STAR[6] + ';--cl:#ffe6d6}',
-    '.bx-tabs{display:flex;gap:4px;padding:3px;border-radius:50px;background:var(--ac-bg-content,#f7f3df);border:2px solid var(--ac-border-light,#e5dcc6)}',
-    '.bx-tab{flex:1;font:inherit;font-size:11.5px;font-weight:800;padding:6px 0;border:0;border-radius:50px;background:transparent;color:var(--soft);cursor:pointer}',
-    '.bx-tab[aria-pressed="true"]{background:var(--ac-primary,#19c8b9);color:#fff;box-shadow:0 2px 0 var(--ac-primary-active,#11a89b)}',
     '.bx-chips{display:flex;flex-wrap:nowrap;gap:5px}.bx-chips .bx-chip{white-space:nowrap}',
     '.bx-chip{padding:4px 10px;border-radius:50px;font-size:11px;font-weight:800;background:var(--ac-bg-input,#fffbe7);border:1.5px solid var(--ac-border-light,#e5dcc6);color:var(--ink)}',
     // 卡池和闪卡照原型，流光、浮动用独立动画。
@@ -20,19 +17,14 @@
     '.bx-btop{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:900}.bx-btop b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bx-days{flex:none;margin-left:auto;font-size:10px;font-weight:800;color:var(--soft);white-space:nowrap}',
     '.bx-ribbon{flex:none;white-space:nowrap;padding:2px 8px;border-radius:50px;background:#8fb9e8;color:#fff;font-size:10px;font-weight:900}.bx-banner[data-b="limited"] .bx-ribbon{background:#f38bab}',
     '.bx-ups{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:6px;align-items:end;margin:10px 0 8px}',
-    '.bx-up{position:relative;aspect-ratio:3/4;min-width:0;padding:4px;border-radius:14px;background:linear-gradient(145deg,var(--c),color-mix(in srgb,var(--c) 55%,#fff));box-shadow:0 4px 0 color-mix(in srgb,var(--c) 70%,#6b5a40),0 8px 14px rgba(61,52,40,.18);animation:bx-float 3s ease-in-out infinite;animation-delay:var(--phase)}',
-    '.bx-up .face{position:relative;box-sizing:border-box;height:100%;border-radius:10px;overflow:hidden;background:radial-gradient(circle at 50% 35%,#fff 0 30%,color-mix(in srgb,var(--c) 25%,#fff8e8) 100%);display:grid;grid-template-rows:1fr auto auto;justify-items:center;padding:6px 2px 5px}',
-    '.bx-up .face::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 20%,rgba(255,120,200,.28) 35%,rgba(120,220,255,.3) 45%,rgba(255,240,140,.3) 55%,transparent 70%);background-size:250% 250%;mix-blend-mode:screen;pointer-events:none;opacity:.7;animation:bx-holo 6s linear infinite}',
-    '.bx-up .em{position:relative;align-self:center;font-size:30px;line-height:1;filter:drop-shadow(0 6px 0 rgba(0,0,0,.08)) drop-shadow(0 7px 5px rgba(61,52,40,.28));z-index:1}',
-    '.bx-up[data-big="true"] .em{font-size:44px}',
-    '.bx-up b{font-size:10px;white-space:nowrap;z-index:1}.bx-up i{font-style:normal;font-size:8px;letter-spacing:-1px;color:var(--c);z-index:1}',
+    '.bx-up{animation:bx-float 3s ease-in-out infinite;animation-delay:var(--phase);cursor:default}.bx-up[data-big="true"] .dp-holo-doll{font-size:44px}',
     '.bx-up .tag{position:absolute;top:7px;left:7px;padding:0 5px;border-radius:50px;background:var(--c);color:#fff;font-size:8.5px;font-weight:900;z-index:2}',
     '.bx-pity{font-size:10.5px;color:var(--soft);margin-bottom:5px}.bx-meter{height:8px;border-radius:50px;background:#efe6cf;overflow:hidden}.bx-meter i{display:block;height:100%;border-radius:50px;background:linear-gradient(90deg,#ffd27a,#ff8f5a)}',
     '.bx-dots{display:flex;justify-content:center;gap:10px}.bx-dot{width:10px;height:10px;padding:0;border-radius:50%;border:1.5px solid var(--ac-primary,#19c8b9);background:transparent;cursor:pointer}.bx-dot[aria-pressed="true"]{background:var(--ac-primary,#19c8b9)}',
     '.bx-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}',
     '.bx-btn{font:inherit;font-size:12px;font-weight:800;padding:8px 4px;border-radius:16px;border:0;cursor:pointer;color:#fff;background:var(--ac-primary,#19c8b9);box-shadow:0 3px 0 var(--ac-primary-active,#11a89b)}.bx-btn small{display:block;font-size:10px;font-weight:700}',
     '.bx-btn.tk{width:100%;background:var(--ac-bg-input,#fffbe7);color:#7a4a00;border:2px solid #dfb949;box-shadow:none}',
-    '.bx-btn:active{transform:translateY(2px)}.bx-btn:disabled{opacity:.45;cursor:not-allowed}',
+    '.bx-btn:active{transform:translateY(2px)}.bx-btn:disabled{opacity:.45;cursor:not-allowed}.bx-note{font-size:10px;color:var(--soft);text-align:center}.bx-note-link{border:0;background:none;color:var(--ac-primary,#19c8b9);font:inherit;font-weight:800;text-decoration:underline;cursor:pointer}',
     // 开盒舞台：夜空底，光一亮就知道几星。
     '.bx-stage{position:relative;overflow:hidden;border-radius:22px;padding:14px 10px 12px;background:radial-gradient(circle at 50% 20%,#3d4a78,#161c33 75%);color:#fff;display:grid;justify-items:center;gap:10px}',
     '.bx-stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}',
@@ -61,26 +53,6 @@
     '.bx-ten .bx-new{right:-6px}',
     '.bx-say{font-size:13px;font-weight:900;text-align:center;opacity:0;animation:bx-fade .3s ease-out both;animation-delay:var(--dend)}',
     '.bx-done{font:inherit;font-size:12px;font-weight:900;padding:7px 22px;border-radius:50px;border:0;background:#fff;color:#22304d;cursor:pointer;opacity:0;animation:bx-fade .3s ease-out both;animation-delay:var(--dend)}',
-    // 展示柜：按星级分区，底座和潜能格子用星级色。
-    '.bx-tier{border-radius:18px;padding:10px 10px 6px;background:linear-gradient(170deg,var(--cl),#fff 75%);border:2px solid color-mix(in srgb,var(--c) 45%,transparent)}',
-    '.bx-tier h4{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12.5px;color:var(--ink)}.bx-tier h4 i{font-style:normal;color:var(--c);letter-spacing:-1px}',
-    '.bx-tier h4 small{margin-left:auto;font-size:10px;color:var(--soft)}',
-    '.bx-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}',
-    '.bx-card{position:relative;display:grid;justify-items:center;gap:1px;padding:6px 2px 4px;border:0;border-radius:12px;background:transparent;font:inherit;color:var(--ink);cursor:pointer}',
-    '.bx-card .em{font-size:28px;line-height:1.1;filter:drop-shadow(0 3px 2px rgba(60,40,20,.2))}',
-    '.bx-card .bx-ped{width:40px;height:9px;margin-top:-4px;box-shadow:none}',
-    '.bx-card b{font-size:10px}',
-    '.bx-pot{display:flex;gap:2px;margin-top:1px}.bx-pot i{width:5px;height:5px;border-radius:2px;background:color-mix(in srgb,var(--c) 22%,#fff)}.bx-pot i[data-on="true"]{background:var(--c)}',
-    '.bx-card[data-missing="true"] .em{filter:brightness(0) opacity(.16)}.bx-card[data-missing="true"] b{color:var(--soft)}',
-    '.bx-card[data-s="6"]:not([data-missing="true"]) .em{filter:drop-shadow(0 0 6px var(--c))}',
-    '.bx-note{margin:4px 2px;font-size:11px;line-height:1.5;color:var(--ink)}',
-    // 凭证商店
-    '.bx-shop{display:grid;gap:6px}',
-    '.bx-item{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:8px;padding:8px 10px;border-radius:14px;background:var(--ac-bg-input,#fffbe7);border:2px solid var(--ac-border-light,#e5dcc6)}',
-    '.bx-item .em{font-size:24px;text-align:center}.bx-item b{font-size:12px;color:var(--ink)}.bx-item small{display:block;font-size:10px;color:var(--soft)}',
-    '.bx-buy{font:inherit;font-size:11px;font-weight:800;padding:5px 10px;border-radius:50px;border:0;background:var(--ac-primary,#19c8b9);color:#fff;cursor:pointer}.bx-buy:disabled{opacity:.4;cursor:not-allowed}',
-    '.bx-pick{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px}',
-    '.bx-pick button{font:inherit;font-size:11px;font-weight:700;padding:3px 9px;border-radius:50px;border:1.5px solid var(--c);background:#fff;color:var(--ink);cursor:pointer}',
     '@keyframes bx-drop{0%{transform:translateY(-90px);opacity:0}100%{transform:translateY(0);opacity:1}}',
     '@keyframes bx-shake{0%,100%{rotate:0deg}25%{rotate:-7deg}50%{rotate:6deg}75%{rotate:-4deg}}',
     '@keyframes bx-leak{0%{opacity:0}100%{opacity:1}}',
@@ -89,13 +61,10 @@
     '@keyframes bx-pop{0%{opacity:0;transform:scale(.3) translateY(16px)}100%{opacity:1;transform:none}}',
     '@keyframes bx-star{0%{opacity:0;transform:scale(1.8)}100%{opacity:1;transform:none}}',
     '@keyframes bx-fade{to{opacity:1}}',
-    '@keyframes bx-holo{from{background-position:150% 50%}to{background-position:-100% 50%}}@keyframes bx-float{50%{transform:translateY(-3px)}}',
+    '@keyframes bx-float{50%{transform:translateY(-3px)}}',
     '@keyframes bx-slide-left{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}@keyframes bx-slide-right{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}',
-    '@media (prefers-reduced-motion:reduce){.bx-stage *,.bx-up,.bx-up .face::after,.bx-banner{animation-duration:.01s!important;animation-delay:0s!important}}',
+    '@media (prefers-reduced-motion:reduce){.bx-stage *,.bx-up,.bx-banner{animation-duration:.01s!important;animation-delay:0s!important}}',
   ].join('\n')
-  var tab = 'pull'
-  var picked = null
-  var pickOpen = null
   var seenId = null
   var startedId = null
   var startedAt = 0
@@ -109,7 +78,7 @@
   function armBannerTimer() {
     clearTimeout(bannerTimer)
     bannerTimer = null
-    if (tab !== 'pull' || bannerHover || !bannerRerender) return
+    if (bannerHover || !bannerRerender) return
     bannerTimer = setTimeout(function () { switchBanner(activeBanner === 'standard' ? 'limited' : 'standard', 'left') }, 6000)
   }
   function switchBanner(key, direction) {
@@ -266,11 +235,11 @@
       var ups = app.el('div', 'bx bx-ups')
       b.up6.concat(b.up5).forEach(function (key, i) {
         var f = byKey(data, key)
-        var up = app.el('div', 'bx-up')
+        var up = app.el('div', 'dp-holo bx-up')
         up.setAttribute('data-s', String(f.stars)); up.setAttribute('data-big', String(i === 0)); up.style.setProperty('--phase', '-' + i + 's')
-        var face = app.el('div', 'face')
-        face.appendChild(app.el('span', 'em', f.emoji)); face.appendChild(app.el('b', null, f.label))
-        face.appendChild(app.el('i', null, starText(f.stars))); up.appendChild(face)
+        var face = app.el('div', 'dp-holo-face')
+        face.appendChild(app.el('span', 'dp-holo-doll', f.emoji)); face.appendChild(app.el('b', 'dp-holo-name', f.label))
+        face.appendChild(app.el('i', 'dp-holo-stars', starText(f.stars))); up.appendChild(face)
         up.appendChild(app.el('span', 'tag', 'UP')); ups.appendChild(up)
       })
       card.appendChild(ups)
@@ -302,75 +271,6 @@
       }
       setTimeout(function () { var card = track.querySelector('[data-active="true"]'); if (card && card.isConnected && !card.matches(':hover') && bannerHover) { bannerHover = false; armBannerTimer() } }, 0)
   }
-  function renderShowcase(app, data) {
-    var owned = data.catalog.filter(function (f) { return f.potential > 0 }).length
-    var chips = app.el('div', 'bx-chips')
-    chips.appendChild(app.el('span', 'bx-chip', '已收集 ' + owned + ' / ' + data.catalog.length))
-    app.content.appendChild(chips)
-    ;[6, 5, 4, 3].forEach(function (stars) {
-      var list = data.catalog.filter(function (f) { return f.stars === stars })
-      var tier = app.el('div', 'bx bx-tier')
-      tier.setAttribute('data-s', String(stars))
-      var h = app.el('h4')
-      h.appendChild(app.el('i', null, starText(stars)))
-      h.appendChild(app.el('span', null, stars + ' 星'))
-      h.appendChild(app.el('small', null, list.filter(function (f) { return f.potential > 0 }).length + ' / ' + list.length))
-      tier.appendChild(h)
-      var grid = app.el('div', 'bx-grid')
-      list.forEach(function (f) {
-        var card = app.button('bx-card', { 'data-bx-fig': f.key, 'data-s': String(stars), 'data-missing': String(f.potential === 0) }, function () { picked = picked === f.key ? null : f.key; app.rerender && app.rerender() })
-        card.appendChild(app.el('span', 'em', f.emoji))
-        card.appendChild(app.el('i', 'bx-ped'))
-        card.appendChild(app.el('b', null, f.potential > 0 ? f.label : '？？？'))
-        if (f.potential > 0) {
-          var pot = app.el('div', 'bx-pot')
-          for (var i = 1; i <= 6; i += 1) { var dot = app.el('i'); dot.setAttribute('data-on', String(i <= f.potential)); pot.appendChild(dot) }
-          card.appendChild(pot)
-        }
-        grid.appendChild(card)
-      })
-      tier.appendChild(grid)
-      var chosen = list.find(function (f) { return f.key === picked })
-      if (chosen) tier.appendChild(app.el('div', 'bx-note', chosen.potential > 0 ? chosen.emoji + ' ' + chosen.label + ' · ' + chosen.potential + ' 潜：' + chosen.blurb : '还没寻访到。'))
-      app.content.appendChild(tier)
-    })
-  }
-  function renderShop(app, data) {
-    var chips = app.el('div', 'bx-chips')
-    chips.appendChild(app.el('span', 'bx-chip', '📜 资质凭证 ' + data.certs))
-    chips.appendChild(app.el('span', 'bx-chip', '重复的摆件给凭证：3★ 1 · 4★ 5 · 5★ 15 · 6★ 40'))
-    app.content.appendChild(chips)
-    var shop = app.el('div', 'bx bx-shop')
-    data.shop.forEach(function (item) {
-      var row = app.el('div', 'bx-item')
-      row.appendChild(app.el('span', 'em', item.emoji))
-      var name = app.el('div')
-      name.appendChild(app.el('b', null, item.label))
-      name.appendChild(app.el('small', null, item.note))
-      row.appendChild(name)
-      var pick = item.key === 'pick5' ? 5 : item.key === 'pick6' ? 6 : 0
-      var missing = pick ? data.catalog.filter(function (f) { return f.stars === pick && f.potential === 0 }) : []
-      var buy = app.button('bx-buy', { 'data-bx-buy': item.key }, function () {
-        if (pick) { pickOpen = pickOpen === item.key ? null : item.key; app.rerender && app.rerender(); return }
-        app.send('buy', { item: item.key })
-      })
-      buy.textContent = item.cost + ' 凭证'
-      buy.disabled = data.certs < item.cost || (pick > 0 && missing.length === 0)
-      row.appendChild(buy)
-      if (pickOpen === item.key) {
-        var list = app.el('div', 'bx-pick')
-        list.setAttribute('data-s', String(pick))
-        missing.forEach(function (f) {
-          var b = app.button('', { 'data-bx-pick': f.key }, function () { pickOpen = null; app.send('buy', { item: item.key, pick: f.key }) })
-          b.textContent = f.emoji + ' ' + f.label
-          list.appendChild(b)
-        })
-        row.appendChild(list)
-      }
-      shop.appendChild(row)
-    })
-    app.content.appendChild(shop)
-  }
   function render(app) {
     ensureStyle()
     var data = app.data
@@ -380,16 +280,10 @@
     var root = app.el('div', 'bx')
     app.content = root
     var fresh = renderReveal(app, data)
-    var tabs = app.el('div', 'bx-tabs')
-    ;[['pull', '🎁 寻访'], ['shelf', '🏛 展示柜'], ['shop', '📜 凭证商店']].forEach(function (pair) {
-      var b = app.button('bx-tab', { 'data-bx-tab': pair[0], 'aria-pressed': String(tab === pair[0]) }, function () { tab = pair[0]; armBannerTimer(); app.rerender && app.rerender() })
-      b.textContent = pair[1]
-      tabs.appendChild(b)
-    })
-    root.appendChild(tabs)
-    if (tab === 'shelf') renderShowcase(app, data)
-    else if (tab === 'shop') renderShop(app, data)
-    else renderBanners(app, data)
+    renderBanners(app, data)
+    var note = app.el('div', 'bx-note', '收集到的摆件在 ')
+    var link = app.button('bx-note-link', { 'data-bx-dex': 'figures' }, function () { if (app.openDex) app.openDex('figures') })
+    link.textContent = '图鉴 → 摆件'; note.appendChild(link); root.appendChild(note)
     app.content = outer
     outer.appendChild(root)
     // 面板重画后会把滚动位置放回去，所以等这一轮画完再滚到最上面看结果。
