@@ -2,7 +2,8 @@
 #   - 构建前切到 gitee 渠道（scripts/set-channel.mjs gitee）：游戏包和桌面外壳里的检查更新、游戏包下载、
 #     在线扩展全部指向 gitee.com，构建后扫描，发现 GitHub 地址就失败（第三方库 node_modules 除外）。
 #   - Gitee 发行版附件单个 ≤100MB、单仓库附件总量 ≤1GB：安装包用 electron-builder.gitee.cjs（最大压缩、
-#     只留中英文语言包）+ tools/slim-emoji-font.py 瘦 emoji 字体；超过 100MB 的不上传；发完删掉旧版本的安装包附件。
+#     只留中英文语言包）+ tools/slim-emoji-font.py 瘦 emoji 字体；mac 的 dmg 再用 hdiutil 转成 lzma（ULMO）；
+#     超过 100MiB 的不上传；发完删掉旧版本的安装包附件。
 #   - 需要仓库密钥 GITEE_TOKEN（Gitee 私人令牌，账号 clicgger）。
 name: release-gitee
 
@@ -21,7 +22,8 @@ permissions:
 env:
   GITEE_REPO: clicgger/dsh-piggy
   TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-  LIMIT: '100000000'
+  # Gitee 的「100MB」实测是 100MiB：104,500,000 字节能传，105,000,000 字节被拒（2026-10-06）。
+  LIMIT: '104857600'
 
 jobs:
   game:
@@ -105,6 +107,17 @@ jobs:
           npm ci
           node scripts/pack-game.mjs
           npx electron-builder ${{ matrix.target }} --publish never --config electron-builder.gitee.cjs
+      - name: mac 的 dmg 转成 lzma 压缩（macOS 10.15+ 原生能开，比 bzip2 小）
+        if: matrix.target == '--mac'
+        shell: bash
+        working-directory: apps/desktop/dist
+        run: |
+          for f in *.dmg; do
+            hdiutil convert "$f" -format ULMO -o "lzma-$f"
+            mv -f "lzma-$f" "$f"
+            rm -f "$f.blockmap"
+            ls -l "$f"
+          done
       - name: 扫描 GitHub 地址、检查大小
         shell: bash
         run: |
@@ -121,7 +134,8 @@ jobs:
         shell: bash
         env: { GITEE_TOKEN: '${{ secrets.GITEE_TOKEN }}' }
         run: |
-          mapfile -t files < upload-list.txt
+          files=()
+          while IFS= read -r line; do [ -n "$line" ] && files+=("$line"); done < upload-list.txt
           test "${#files[@]}" -gt 0
           node scripts/gitee-release.mjs upload "${{ needs.game.outputs.release_id }}" "${files[@]}"
 

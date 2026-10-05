@@ -6,6 +6,7 @@
  *   node scripts/gitee-release.mjs prune <保留的tag>          删掉其它 v* 发行版里的安装包附件（游戏包留着，回退用）
  * 仓库默认 clicgger/dsh-piggy，可用 GITEE_REPO 改。Gitee 附件单个 ≤100MB、单仓库总量 ≤1GB。
  */
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { basename } from 'node:path'
 
@@ -53,11 +54,10 @@ if (cmd === 'ensure') {
   for (const file of files) {
     const name = basename(file)
     for (const old of existing.filter(a => a.name === name)) await call(`/releases/${id}/attach_files/${old.id}`, { method: 'DELETE' })
-    const form = new FormData()
-    form.set('access_token', TOKEN)
-    form.set('file', new Blob([readFileSync(file)]), name)
-    const res = await call(`/releases/${id}/attach_files`, { method: 'POST', body: form })
-    console.log('uploaded', name, res?.size ?? '')
+    // 大文件从海外 CI 传到 Gitee 很慢：用 curl，30 分钟超时、失败重试 3 次（fetch 默认 5 分钟就放弃）。
+    const out = execFileSync('curl', ['-sS', '--fail-with-body', '--max-time', '1800', '--retry', '3', '--retry-all-errors', '--retry-delay', '10',
+      '-F', `access_token=${TOKEN}`, '-F', `file=@${file};filename=${name}`, `${API}/releases/${id}/attach_files`], { encoding: 'utf8', maxBuffer: 1 << 20 })
+    console.log('uploaded', name, JSON.parse(out)?.size ?? '')
   }
 } else if (cmd === 'prune') {
   const [keep] = args
