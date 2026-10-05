@@ -4,7 +4,7 @@
  * 共享库、打好的 client.js 和立绘。安装包里带的就是这一份；热更新下载的游戏包也是
  * 同样的结构（见 scripts/release-game.mjs）。
  */
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -22,6 +22,17 @@ export function packGame(root, out) {
     if (!existsSync(from)) throw new Error(`missing ${entry}`)
     mkdirSync(dirname(join(out, entry)), { recursive: true })
     cpSync(from, join(out, entry), { recursive: true })
+  }
+  // Gitee 渠道：包里的 package.json 主页 / 仓库 / 问题反馈也换成 Gitee，包里不留 GitHub 地址。
+  const channel = readFileSync(join(root, 'channel.js'), 'utf8')
+  const repoPage = channel.match(/repoPage:\s*'([^']+)'/)?.[1]
+  if (/name:\s*'gitee'/.test(channel) && repoPage) {
+    const file = join(out, 'package.json')
+    const pkg = JSON.parse(readFileSync(file, 'utf8'))
+    pkg.homepage = repoPage
+    pkg.repository = { type: 'git', url: 'git+' + repoPage + '.git' }
+    pkg.bugs = { url: repoPage + '/issues' }
+    writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')
   }
 }
 
