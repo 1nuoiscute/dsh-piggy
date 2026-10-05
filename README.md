@@ -71,6 +71,7 @@ v0.27.3 起桌面外壳是 v0.3.0：窗口摆放、可点区域、桌面样式�
 - [桌面版安装、存档与更新](docs/guides/desktop.md)
 - [游戏包与桌面外壳怎样更新](docs/guides/updates.md)
 - [扩展：删除与在线下载](docs/design/extension-download.md) · [盲盒](docs/design/blindbox.md)
+- [维护交接文档（接手维护先读）](docs/HANDOFF.md)
 - [开发与调试](docs/DEVELOPMENT.md)
 - [版本记录](CHANGELOG.md)
 
