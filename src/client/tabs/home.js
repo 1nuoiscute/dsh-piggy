@@ -27,8 +27,9 @@ export function renderHome(ui, apps) {
     (function (app) {
       grid.appendChild(tile({
         emoji: app.emoji, icon: appIcon(app.key, app.emoji, 'dp-tile-e'), label: app.label, color: APP_COLOR[app.key] ?? 'blue',
-        tag: app.key === 'update' ? '' : alertFor(ui, app.key),
-        badge: app.key === 'update' ? alertFor(ui, app.key) : '',
+        // 更新入口收进了设置：有新正式版时设置格子冒红点（G 批次）。
+        tag: app.key === 'update' || app.key === 'settings' ? '' : alertFor(ui, app.key),
+        badge: app.key === 'update' || app.key === 'settings' ? alertFor(ui, 'update') : '',
         data: { 'data-app': app.key },
         onPick: function () { ui.select(app.key) },
       }))

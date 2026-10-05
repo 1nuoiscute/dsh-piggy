@@ -8,6 +8,7 @@
 
 import { readFileSync } from 'node:fs'
 
+import { disabledParts, extensionsView } from './core.js'
 import { ACTIONS, ACTION_ORDER, bodyWeightView, doctorFee, fishingView, profileView, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, dexView, formStageView, formsView, awayBlockedReason, careView, courseView, currentIllness, dailyView, daysToNextStage, diaryView, dressView, formatWeight, pomodoroView, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, skinView, studyView, traitView } from './core.js'
 import { CERTIFICATE_AFTER, DEFAULT_OWNER_NAME, INTERESTS, SIGN_IN_CYCLE, SEXES, jobChecklist, jobRequirement, rarityByKey, traitBonus } from './data.js'
 
@@ -29,7 +30,7 @@ function readPackageVersion() {
   }
 }
 
-const PACKAGE_VERSION = readPackageVersion()
+export const PACKAGE_VERSION = readPackageVersion()
 
 function boxStageView() {
   const box = LIFE_STAGES.find(stage => stage.key === 'box') ?? LIFE_STAGES[0]
@@ -94,6 +95,7 @@ export function snapshot(store, options = {}) {
       stages: stagesFor(null),
       trips: tripsFor(null),
       shop: shopFor(null),
+      extensions: extensionsView(null),
       dress: [],
       dex: { forms: [], skins: [], fish: [], items: [], souvenirs: [] },
       skins: { current: 'default', entries: [] },
@@ -179,7 +181,11 @@ export function snapshot(store, options = {}) {
     // tabs the owner liked; a stage is "open" once any subject has reached it.
     stages: stagesFor(state),
     trips: tripsFor(state),
-    shop: shopFor(state),
+    // 关掉的扩展的商品从商店撤下（背包里已有的照常保留）。
+    shop: shopFor(state).filter(item => !disabledParts(state).shopKinds.has(item.kind)),
+    // 内置扩展 + 下载来的扩展（store.ext 由 routes.js 建，见 store/ext-runtime.js）。
+    extensions: [...extensionsView(state), ...(store.ext?.list(state) ?? [])],
+    extViews: store.ext?.views(state) ?? {},
     dress: dressView(state),
     inventory: inventoryView(state),
     care: careView(state),

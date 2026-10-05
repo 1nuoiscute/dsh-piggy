@@ -114,6 +114,8 @@ export function levelProgress(xp) {
     toNext: maxed ? 0 : Math.max(0, ceiling - value),
     percent: maxed ? 100 : Math.max(0, Math.min(100, Math.round(((value - floor) / span) * 100))),
     title: levelTitle(level),
+    // 下一个称号（满级或已经是最后一个称号时为 null）：等级说明里写「再升到 Lv.N 就是……」。
+    nextTitle: LEVEL_TITLES.find(entry => entry.level > level) ?? null,
   }
 }
 

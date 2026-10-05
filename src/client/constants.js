@@ -53,6 +53,7 @@ export const TABS = [
   { key: 'bag', label: '背包', emoji: '🎒' },
   { key: 'pomodoro', label: '番茄钟', emoji: '🍅' },
   { key: 'fishing', label: '钓鱼', emoji: '🎣' },
+  { key: 'extensions', label: '扩展', emoji: '🧩' },
   { key: 'settings', label: '设置', emoji: '⚙️' },
 ]
 
@@ -73,11 +74,6 @@ export const UPDATE_TAB = { key: 'update', label: '更新', emoji: '🔄' }
 export const QUIT_TAB = { key: 'quit', label: '退出', emoji: '👋' }
 
 /** What the pig says when you pat it. A single line got old immediately. */
-export const PET_LINES = [
-  '好舒服…', '再摸摸～', '嘿嘿', '呼噜呼噜…', '这里这里！',
-  '（眯起眼睛）', '今天心情不错', '唔…好痒', '你在忙什么呀', '再多待一会儿',
-]
-
 export const MODES = ['feed', 'bathe', 'play', 'pet']
 export const CARE_LABEL = { feed: ['喂食', '🍎'], bathe: ['洗澡', '🛁'], play: ['玩耍', '🎾'], pet: ['摸摸', '❤️'] }
 // What the pig says when the shelf it needs is bare. Being told plainly
@@ -95,7 +91,12 @@ export const NO_ITEM_LINE = {
   toy: '没有玩具了，去商店看看 🪀',
 }
 export const KIND_TITLE = { food: '🍎 食物', bath: '🧼 洗浴', toy: '🪀 玩具', bait: '🎣 鱼饵', dress: '👕 装扮', medicine: '💊 药品', revive: '✨ 复活', promotion: '✨ 晋升' }
-export const KIND_ORDER = ['food', 'bath', 'toy', 'bait', 'medicine', 'revive', 'promotion']
+export const KIND_ORDER = ['food', 'bath', 'toy', 'bait', 'medicine', 'promotion']
+
+/** 物品放在哪个货架：还魂丹算药品（商店、背包、图鉴都一样）。 */
+export function shelfOf(kind) {
+  return kind === 'revive' ? 'medicine' : kind
+}
 export const STAGES = [
   { key: 'preschool', label: '幼儿园' },
   { key: 'extracurricular', label: '课外' },

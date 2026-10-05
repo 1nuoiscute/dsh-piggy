@@ -89,7 +89,9 @@ export function bodyWeightView(state, nowMs) {
   const fatAtG = Math.round(ideal * WEIGHT_RULES.fatRatio)
   return {
     class: bodyClass,
-    label: bodyClass === 'fat' ? '大肥猪' : (bodyClass === 'round' ? '胖胖猪' : '正常'),
+    // 体型叫法统一成 正常 / 圆润 / 胖胖（以前一处写圆润/胖胖、一处写胖胖猪/大肥猪）。
+    label: bodyClass === 'fat' ? '胖胖' : (bodyClass === 'round' ? '圆润' : '正常'),
+    weightG: Number.isFinite(state.weightG) ? Math.round(state.weightG) : ideal,
     visible: bodyClass !== 'normal' && state.form == null && hasDefaultSkin,
     idealG: ideal,
     roundAtG,

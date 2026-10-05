@@ -287,10 +287,10 @@ test('放弃按钮发 pomodoroAbandon', async () => {
   assert.deepEqual(post, { action: 'pomodoroAbandon' })
 })
 
-test('状态页显示今天完成了几个', async () => {
+test('状态页不显示番茄钟（G 批次反馈：状态页保持简洁）', async () => {
   const { dom } = await mount({ status: { ...SNAPSHOT, pomodoro: { ...POMO_OFF, todayDone: 3 } } })
   openPanel(dom, 'status')
-  assert.ok(contentOf(dom).allText().includes('今天 3 个'), contentOf(dom).allText())
+  assert.equal(contentOf(dom).allText().includes('番茄钟'), false, contentOf(dom).allText())
 })
 
 test('完成时：有通知权限就发浏览器通知，没有就退回猪的气泡', async () => {
@@ -433,14 +433,17 @@ test('角标的 CSS：贴右上角、离猪头不过 20px、层级高于装扮�
 
 test('猪说话的时候角标让位（气泡和角标挨着，宁可角标先消失）', async () => {
   const active = { ...POMO_OFF, active: true, minutes: 45, secondsLeft: 2700 }
-  const { dom } = await openPomodoro({ ...SNAPSHOT, pomodoro: active })
+  // G 批次起摸猪的那句话由核心说：动作返回的快照里带一条台词消息。
+  const said = { ...SNAPSHOT, pomodoro: active, pending: [{ id: 9001, at: Date.now(), kind: 'line', text: '呼噜呼噜……', scene: 'pet', replies: [] }] }
+  const { dom } = await openPomodoro({ ...SNAPSHOT, pomodoro: active }, { actResult: said })
   const scene = sceneOf(dom)
   const pill = findByAttr(scene, 'data-pomo-pill', 'true')
-  const bubble = findByAttr(scene, 'data-bubble-shown', 'true')
 
-  // 左键摸一下 → 猪说一句 → 角标让位。整段是同步的，不受挂具里 stub 掉的定时器影响。
+  // 左键摸一下 → 核心回一句 → 猪说出来 → 角标让位。
   scene.fire('pointerdown', { button: 0, clientX: 0, clientY: 0 })
   scene.fire('pointerup', {})
+  await settle()
+  const bubble = findByAttr(scene, 'data-bubble-shown', 'true')
   assert.equal(bubble.hidden, false, '气泡应该出来了')
   assert.equal(pill.hidden, true, '气泡在场时角标不显示')
   // 气泡收起后由下一次重绘放回来，这里只确认面板记着「专注中」这个事实

@@ -9,6 +9,7 @@ import { MODES } from './constants.js'
 import { arr, isObj, num, obj, str } from './values.js'
 import { normalizeFishing } from './normalize-fishing.js'
 import { normalizeSkins } from './normalize-skins.js'
+import { normalizeExtensionParts } from './extensions.js'
 export function normalize(raw) {
   var d = obj(raw)
   var pig = isObj(d.pig) ? d.pig : null
@@ -16,8 +17,7 @@ export function normalize(raw) {
   return {
     legacy: legacy,
     version: str(d.version, ''),
-    // Trust the flag when the host sends one. Older hosts did not, and for
-    // those "a pig exists" is still the right answer.
+    // Trust the flag when the host sends one; for older hosts "a pig exists" is the answer.
     hatched: d.hatched === true || (d.hatched === undefined && pig !== null),
     dead: d.dead === true || (pig !== null && num(pig.health, 5) <= 0),
     pig: pig === null ? null : {
@@ -55,11 +55,10 @@ export function normalize(raw) {
       weight: str(pig.weight, '—'),
       bodyWeight: isObj(pig.bodyWeight) ? {
         class: str(obj(pig.bodyWeight).class, 'normal'), label: str(obj(pig.bodyWeight).label, '正常'), visible: obj(pig.bodyWeight).visible === true,
-        idealG: Math.round(num(obj(pig.bodyWeight).idealG, 1360)), roundAtG: Math.round(num(obj(pig.bodyWeight).roundAtG, 1768)), fatAtG: Math.round(num(obj(pig.bodyWeight).fatAtG, 2176)),
+        weightG: Math.round(num(obj(pig.bodyWeight).weightG, 0)), idealG: Math.round(num(obj(pig.bodyWeight).idealG, 1360)), roundAtG: Math.round(num(obj(pig.bodyWeight).roundAtG, 1768)), fatAtG: Math.round(num(obj(pig.bodyWeight).fatAtG, 2176)),
         ideal: str(obj(pig.bodyWeight).ideal, '—'), roundAt: str(obj(pig.bodyWeight).roundAt, '—'), fatAt: str(obj(pig.bodyWeight).fatAt, '—'), playsLeft: Math.round(num(obj(pig.bodyWeight).playsLeft, 0)),
       } : null,
       xp: num(pig.xp, 0),
-      // Level is driven by growth and decides the body (B2).
       level: (function (info) {
         var i = obj(info)
         var t = obj(i.title)
@@ -70,6 +69,7 @@ export function normalize(raw) {
           maxed: i.maxed === true,
           titleLabel: str(t.label, '新来的'),
           titleEmoji: str(t.emoji, '🌱'),
+          next: isObj(i.nextTitle) ? { level: num(i.nextTitle.level, 0), label: str(i.nextTitle.label, ''), emoji: str(i.nextTitle.emoji, '') } : null,
         }
       })(pig.levelInfo),
       stageLine: str(pig.stageLine, ''),
@@ -246,6 +246,7 @@ export function normalize(raw) {
     dex: normalizeDex(d.dex),
     skins: normalizeSkins(d.skins),
     fishing: normalizeFishing(d.fishing),
+    ...normalizeExtensionParts(d), // extensions + extViews（v0.30 下载扩展）
     daily: {
       canSignIn: obj(d.daily).canSignIn === true,
       signInDay: num(obj(d.daily).signInDay, 1),
@@ -299,7 +300,7 @@ export function normalize(raw) {
       key: str(d.activity.key, ''),
       label: str(d.activity.label, '外面'),
       emoji: str(d.activity.emoji, '💼'),
-      secondsLeft: num(d.activity.secondsLeft, 0),
+      secondsLeft: num(d.activity.secondsLeft, 0), cost: num(d.activity.cost, 0),
       progress: num(d.activity.progress, 0),
     } : null,
     canGoOut: d.canGoOut === true,

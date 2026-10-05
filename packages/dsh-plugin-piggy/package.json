@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-piggy",
-  "version": "0.27.3",
+  "version": "0.30.0",
   "description": "DSH plugin alias for dsh-piggy, the pet that grows with your real work",
   "license": "MIT",
   "type": "module",
@@ -16,7 +16,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "dsh-piggy": "0.27.3"
+    "dsh-piggy": "0.30.0"
   },
   "dsh": {
     "bundle": {

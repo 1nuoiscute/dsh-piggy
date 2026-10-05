@@ -55,6 +55,10 @@ npm run dist:mac
 - **改窗口行为先改游戏包**。只有需要新的基础动作时才动桌面程序，并给 `desktop.version` 加一、游戏包里做好兼容判断。
 - 内置 emoji 字体（10MB）留在桌面程序里，避免每次热更新都多下 10MB；用它的样式规则在游戏包里。
 
+## 扩展
+
+番茄钟、钓鱼这类可整体开关的玩法是**扩展**。注册表在 `packages/pet-core/src/data/extensions.js`，每条声明自己占的 App、路由动作、图鉴分区和商品种类；开关在存档 `state.extensions` 里，核心用 `extensionOn(state, key)` 判断。路由层统一拦截关闭扩展的动作，快照里撤下相关商品，客户端（`src/client/extensions.js`）隐藏 App、图鉴分区和角标。新加扩展的步骤见 `docs/design/extension-center.md` 第 8 节。
+
 ## 发布
 
 游戏版本来自根 `package.json`，桌面外壳版本来自 `apps/desktop/package.json`。npm 目前由维护者在本机手动发布，不由标签工作流执行：

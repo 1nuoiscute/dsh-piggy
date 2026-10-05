@@ -6,7 +6,7 @@
  * @module dsh-piggy/core/state
  */
 
-import { DEFAULT_TIME_SCALE, MAX, MAX_LEVEL, REVIVE_ITEM, formByKey, itemByKey, skinByKey, xpForLevel } from '../data.js'
+import { DEFAULT_TIME_SCALE, LINES, MAX, MAX_LEVEL, REVIVE_ITEM, SIGN_IN_CYCLE, formByKey, itemByKey, skinByKey, xpForLevel } from '../data.js'
 import { dayKeyFor, lifeStageFor } from './clock.js'
 import { MEMORY_LIMIT } from './constants.js'
 import { announce, clamp, remember } from './effects.js'
@@ -16,6 +16,7 @@ import { say } from './lines.js'
 import { sanitizeIllness, sanitizeInventory, sanitizeTraits } from './migrate.js'
 import { decay, die } from './settlement.js'
 import { ensureDex, recordDex } from './dex.js'
+import { ensureDaily } from './daily.js'
 import { setBodyWeightClass } from './weight.js'
 
 /**
@@ -213,6 +214,15 @@ export function applyDevPatch(state, patch, nowMs) {
 
   if (patch.activity === null) state.activity = null
   if (patch.outingStreak === 0) state.outingStreak = 0
+
+  // G 批次调试页：设签到到第几天（今天还没签）、礼包攒几个、让猪说某个场景的一句话。
+  if (Number.isInteger(patch.signInDay) && patch.signInDay >= 1 && patch.signInDay <= SIGN_IN_CYCLE) {
+    const daily = ensureDaily(state)
+    daily.signIn.index = patch.signInDay - 1
+    daily.signIn.lastDay = null
+  }
+  if (Number.isInteger(patch.gifts) && patch.gifts >= 0) ensureDaily(state).online.unclaimed = Math.min(patch.gifts, 3)
+  if (typeof patch.say === 'string' && Object.hasOwn(LINES, patch.say)) say(state, patch.say, nowMs)
 
   state.stage = lifeStageFor(state, nowMs).key
   state.lastSeenAt = nowMs

@@ -15,6 +15,10 @@ import { test } from 'node:test'
 import { hatchEgg, startWork, STATE_VERSION } from '../core.js'
 import { createStore, moveLegacySaveDir } from '../store.js'
 import { writeDiaryIfNewDay } from '../packages/pet-core/src/core/diary.js'
+import { DIARY_BOOK } from '../data.js'
+
+/** 某一组日记，主人称呼按默认的「主人」。 */
+const pages = group => DIARY_BOOK[group].map(text => text.split('[主人]').join('主人'))
 
 const makeDir = () => mkdtempSync(join(tmpdir(), 'dsh-piggy-store-'))
 
@@ -31,8 +35,7 @@ test('offline work is recorded on the day it ended before the diary turns over',
     const store = createStore(path, { now: () => reopen, setTimer: () => 0, clearTimer: () => {} })
     store.freshen()
     const oldDay = store.state.diary.entries.find(entry => entry.day === '2026-10-02')
-    assert.match(oldDay?.text ?? '', /打工 1 趟/)
-    assert.doesNotMatch(oldDay.text, /睡了一整天/)
+    assert.ok(pages('work').includes(oldDay?.text ?? ''), oldDay?.text)
     assert.equal(store.state.diary.today.day, '2026-10-03')
     assert.equal(store.state.diary.today.counts.work, undefined)
     store.dispose()
@@ -53,8 +56,8 @@ test('offline work ending after the 06:00 diary boundary goes to the new day', (
     writeFileSync(path, JSON.stringify(pig))
     const store = createStore(path, { now: () => reopen, setTimer: () => 0, clearTimer: () => {} })
     store.freshen()
-    assert.equal(store.state.diary.entries.find(entry => entry.day === '2026-10-02')?.text,
-      '今天主人没来，我睡了一整天。')
+    const quiet = store.state.diary.entries.find(entry => entry.day === '2026-10-02')?.text ?? ''
+    assert.ok(pages('lonely').includes(quiet), quiet)
     assert.equal(store.state.diary.today.day, '2026-10-03')
     assert.equal(store.state.diary.today.counts.work, 1)
     store.dispose()

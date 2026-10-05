@@ -8,10 +8,10 @@
  *
  * @module dsh-piggy/core/daily
  */
-import { GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS, SHOP, itemByKey } from '../data.js'
+import { BOX_TICKET, BOX_TICKET_CHANCE, GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS, SHOP, itemByKey } from '../data.js'
 import { dayKeyFor } from './clock.js'
 import { rollerFor } from './random.js'
-import { announce } from './effects.js'
+import { announce, remember } from './effects.js'
 import { say } from './lines.js'
 import { recordDex } from './dex.js'
 
@@ -20,7 +20,7 @@ export { dayKeyFor }
 /** 一份全新的日常状态：今天没签、没在线、没礼包。 */
 export function emptyDaily() {
   return {
-    signIn: { lastDay: null, index: 0, total: 0 },
+    signIn: { lastDay: null, index: 0, total: 0, cycle7: true },
     online: { day: null, onlineMs: 0, given: 0, unclaimed: 0 },
   }
 }
@@ -38,12 +38,17 @@ export function ensureDaily(state) {
   }
   const signIn = raw.signIn !== null && typeof raw.signIn === 'object' && !Array.isArray(raw.signIn) ? raw.signIn : {}
   const online = raw.online !== null && typeof raw.online === 'object' && !Array.isArray(raw.online) ? raw.online : {}
-  const index = Number.isInteger(signIn.index) && signIn.index >= 0 ? signIn.index % SIGN_IN_CYCLE : 0
+  let index = Number.isInteger(signIn.index) && signIn.index >= 0 ? signIn.index : 0
+  // G1（用户 2026-10-05 确认）：签到从 12 天改成 7 天。老存档正在第 8～12 天的，回到第 1 天，
+  // 并补发一份第 7 天礼包，不让人吃亏；第 1～7 天的原样接着领。只换算一次（cycle7 标记）。
+  let compensated = false
+  if (signIn.cycle7 !== true && index >= SIGN_IN_CYCLE) { index = 0; compensated = true }
   state.daily = {
     signIn: {
       lastDay: typeof signIn.lastDay === 'string' && signIn.lastDay !== '' ? signIn.lastDay : null,
-      index,
+      index: index % SIGN_IN_CYCLE,
       total: Number.isInteger(signIn.total) && signIn.total >= 0 ? signIn.total : 0,
+      cycle7: true,
     },
     online: {
       day: typeof online.day === 'string' && online.day !== '' ? online.day : null,
@@ -51,6 +56,10 @@ export function ensureDaily(state) {
       given: Number.isInteger(online.given) && online.given >= 0 ? online.given : 0,
       unclaimed: Number.isInteger(online.unclaimed) && online.unclaimed >= 0 ? online.unclaimed : 0,
     },
+  }
+  if (compensated) {
+    const text = grantReward(state, SIGN_IN_REWARDS[SIGN_IN_CYCLE - 1])
+    remember(state, `📅 签到改成 7 天一轮，补发第 7 天礼包：${text}`, 0)
   }
   return state.daily
 }
@@ -78,6 +87,17 @@ export function grantReward(state, reward, nowMs = 0) {
   return parts.join(' + ')
 }
 
+/**
+ * 装了盲盒的猪，签到 / 礼包偶尔多给一张盲盒券。返回追加的文字（没给就是空串）。
+ * @param {any} state @param {number} chanceOf @param {() => number} next
+ */
+function maybeTicket(state, chanceOf, next) {
+  const installed = state.extData?.[BOX_TICKET.extension] !== undefined && state.extensions?.[BOX_TICKET.extension] !== false
+  if (!installed || next() >= chanceOf) return ''
+  state.inventory = { ...(state.inventory ?? {}), [BOX_TICKET.key]: (state.inventory?.[BOX_TICKET.key] ?? 0) + 1 }
+  return ` + ${BOX_TICKET.emoji} ${BOX_TICKET.label} ×1`
+}
+
 /** 今天这一签领了没。 */
 export function canSignIn(state, nowMs) {
   return ensureDaily(state).signIn.lastDay !== dayKeyFor(nowMs)
@@ -94,7 +114,7 @@ export function signIn(state, nowMs) {
   const today = dayKeyFor(nowMs)
   if (daily.signIn.lastDay === today) return { ok: false, reason: 'signed' }
   const index = daily.signIn.index % SIGN_IN_CYCLE
-  const text = grantReward(state, SIGN_IN_REWARDS[index], nowMs)
+  const text = grantReward(state, SIGN_IN_REWARDS[index], nowMs) + maybeTicket(state, BOX_TICKET_CHANCE.signIn, rollerFor(state))
   daily.signIn.lastDay = today
   daily.signIn.index = (index + 1) % SIGN_IN_CYCLE
   daily.signIn.total += 1
@@ -186,7 +206,8 @@ export function openGift(state, nowMs) {
   const daily = ensureDaily(state)
   if (daily.online.unclaimed <= 0) return { ok: false, reason: 'empty' }
   daily.online.unclaimed -= 1
-  const text = grantReward(state, pickGift(state, rollerFor(state)), nowMs)
+  const next = rollerFor(state)
+  const text = grantReward(state, pickGift(state, next), nowMs) + maybeTicket(state, BOX_TICKET_CHANCE.gift, next)
   announce(state, 'gift', `在线礼包：${text}`, nowMs)
   say(state, 'gift', nowMs)
   return { ok: true, reward: text }

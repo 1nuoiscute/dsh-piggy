@@ -71,7 +71,12 @@ export function validateSkinFiles(files) {
 }
 
 export function installSkinPack(savePath, zip) {
-  const files = parseSkinZip(zip)
+  let files
+  try { files = parseSkinZip(zip) } catch (error) {
+    // 读到一半越界之类的底层错误，换成玩家看得懂的话（以前会直接显示英文的 offset out of range）。
+    if (error instanceof RangeError) throw new Error('ZIP 文件损坏，请重新压缩后再导入')
+    throw error
+  }
   const checked = validateSkinFiles(files)
   if (!checked.ok || checked.metadata === undefined) return checked
   const metadata = checked.metadata

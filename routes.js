@@ -7,8 +7,10 @@
  */
 import { readFileSync } from 'node:fs'
 
-import { snapshot } from './snapshot.js'
+import { PACKAGE_VERSION, snapshot } from './snapshot.js'
+import { extensionForAction } from './core.js'
 import { customSkinArt, installSkinPack } from './store/skin-pack.js'
+import { createExtRuntime } from './store/ext-runtime.js'
 
 const STATE_ROUTE = '/dsh-piggy/state'
 const ACT_ROUTE = '/dsh-piggy/act'
@@ -65,7 +67,7 @@ const OPERATIONS = {
   feed: (store, body) => store.act('feed', str(body.item)),
   bathe: (store, body) => store.act('bathe', str(body.item)),
   play: (store, body) => store.act('play', str(body.item)),
-  pet: store => store.act('pet'),
+  pet: (store, body) => store.act('pet', str(body.part)),
   // Answer the pig's latest line: `line` is the message id, `index` the button.
   reply: (store, body) => store.reply(Number(body.line), Number(body.index)),
   // 日常：签到（在线礼包在 B5 的第二步接上）。
@@ -74,6 +76,12 @@ const OPERATIONS = {
   pomodoro: (store, body) => store.startPomodoro(Number(body.minutes)),
   pomodoroAbandon: store => store.abandonPomodoro(),
   openGift: store => store.openGift(),
+  // 扩展中心：打开 / 关闭一个扩展。
+  // v0.30：删除 / 安装扩展、下载扩展自己的动作（见 docs/design/extension-download.md）。
+  removeExtension: (store, body) => store.ext.remove(str(body.key)),
+  installExtension: (store, body) => store.ext.install(str(body.key)),
+  ext: (store, body) => store.ext.act(str(body.key), str(body.op), body.data !== null && typeof body.data === 'object' ? body.data : {}),
+  setExtension: (store, body) => store.setExtension(str(body.key), body.on === true),
   // The panel's timers ask the pig to speak up; the pig decides whether to.
   chat: (store, body) => store.chat(str(body.reason)),
   quiet: (store, body) => store.setQuiet(body.on === true),
@@ -164,8 +172,12 @@ function registerSkinRoute(webServer, store) {
     kind: 'exact', path: SKIN_ROUTE,
     handler: async (req, res) => {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed; use POST' }, { allow: 'POST' })
-      const zip = await readBuffer(req, SKIN_LIMIT_BYTES)
-      if (zip === null) return sendJson(res, 413, { ok: false, reason: 'too-large', errors: ['ZIP 不能超过 2 MB'] })
+      // 收原始 ZIP（老客户端、DSH 网页）或 base64 文本（新客户端；桌面版的本地协议会把二进制当文本读坏）。
+      const raw = await readBuffer(req, Math.ceil(SKIN_LIMIT_BYTES * 1.4))
+      if (raw === null) return sendJson(res, 413, { ok: false, reason: 'too-large', errors: ['ZIP 不能超过 2 MB'] })
+      const zip = raw[0] === 0x50 && raw[1] === 0x4b ? raw : Buffer.from(raw.toString('ascii').trim(), 'base64')
+      if (zip.length > SKIN_LIMIT_BYTES) return sendJson(res, 413, { ok: false, reason: 'too-large', errors: ['ZIP 不能超过 2 MB'] })
+      if (zip[0] !== 0x50 || zip[1] !== 0x4b) return sendJson(res, 400, { ok: false, reason: 'invalid-pack', errors: ['这不是 ZIP 文件'] })
       try {
         const result = installSkinPack(store.filePath, zip)
         if (!result.ok || result.metadata === undefined) return sendJson(res, 400, { ok: false, reason: 'invalid-pack', errors: result.errors })
@@ -194,14 +206,18 @@ function registerActRoute(webServer, store) {
       const body = await readJsonBody(req)
       if (body === null) return sendJson(res, 413, { error: 'body too large or not JSON' })
       const operation = typeof body.action === 'string' ? body.action : ''
-      const run = Object.hasOwn(OPERATIONS, operation) ? OPERATIONS[operation] : null
+      const found = Object.hasOwn(OPERATIONS, operation) ? OPERATIONS[operation] : null
+      // 关掉的扩展的动作一律拒绝（扩展中心，见 docs/design/extension-center.md）。
+      const owner = extensionForAction(operation)
+      const run = found !== null && owner !== null && typeof store.extensionOn === 'function' && !store.extensionOn(owner.key)
+        ? () => ({ ok: false, reason: 'extension-off' }) : found
       if (run === null) {
         return sendJson(res, 400, { error: `unknown action "${operation}"`, allowed: Object.keys(OPERATIONS) })
       }
       // A throwing operation must answer, not take the route down with it: an
       // unhandled error here would leave the panel polling a dead handler.
       try {
-        const result = run(store, body)
+        const result = await run(store, body)
         sendJson(res, 200, {
           ...snapshot(store),
           ok: result.ok !== false,
@@ -213,6 +229,7 @@ function registerActRoute(webServer, store) {
           sold: result.sold,
           need: result.need,
           have: result.have,
+          message: result.message,
         }, { 'cache-control': 'no-store' })
       } catch (error) {
         console.warn(`[dsh-piggy] action failed: action="${operation}" reason="${error instanceof Error ? error.message : String(error)}"`)
@@ -220,6 +237,36 @@ function registerActRoute(webServer, store) {
       }
     },
   })
+}
+
+/**
+ * 扩展的两个 GET：在线目录（?force=1 重新读）和下载扩展的面板脚本。
+ *   GET /dsh-piggy/extensions/online
+ *   GET /dsh-piggy/ext/<key>/client.js
+ */
+function registerExtRoutes(webServer, store) {
+  const offOnline = webServer.register({
+    kind: 'exact', path: '/dsh-piggy/extensions/online',
+    handler: async (req, res) => {
+      try {
+        const force = String(req.url ?? '').includes('force=1')
+        sendJson(res, 200, await store.ext.onlineView(force), { 'cache-control': 'no-store' })
+      } catch (error) {
+        sendJson(res, 200, { error: error instanceof Error ? error.message : String(error), entries: [] })
+      }
+    },
+  })
+  const offScript = webServer.register({
+    kind: 'prefix', path: '/dsh-piggy/ext',
+    handler: async (req, res) => {
+      const match = /^\/dsh-piggy\/ext\/([a-z0-9-]+)\/client\.js$/.exec(String(req.url ?? '').split('?')[0])
+      const script = match === null ? null : store.ext.clientScript(match[1])
+      if (script === null) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }
+      res.writeHead(200, { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(script)
+    },
+  })
+  return () => { offOnline(); offScript() }
 }
 
 /**
@@ -234,6 +281,7 @@ function registerActRoute(webServer, store) {
  * actually been waited for.
  */
 export function registerRoutes(ctx, store) {
+  if (store.ext === undefined) store.ext = createExtRuntime(store, { gameVersion: PACKAGE_VERSION })
   ctx.inject(['webServer'], (webCtx) => {
     const webServer = webCtx.webServer
     if (webServer === undefined) return () => {}
@@ -243,6 +291,7 @@ export function registerRoutes(ctx, store) {
       disposers.push(registerArtRoute(webServer, store))
       disposers.push(registerSkinRoute(webServer, store))
       disposers.push(registerActRoute(webServer, store))
+      disposers.push(registerExtRoutes(webServer, store))
     } catch (error) {
       // A route already taken: the pig stays command-only rather than breaking
       // activation, but this is a real failure and should be visible.

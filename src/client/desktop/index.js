@@ -153,6 +153,8 @@ export function install(shell) {
     dragHeartbeat: function () { if (typeof shell.dragHeartbeat === 'function') shell.dragHeartbeat() },
     endDrag: function () { shell.endDrag() },
     syncGeometry: function () { tick() },
+    // 桌面散步（G 批次）：用外壳本来就有的 moveBy 挪窗口，新位置由主进程推回来的几何记住。
+    moveBy: typeof shell.moveBy === 'function' ? function (dx, dy) { shell.moveBy(dx, dy) } : undefined,
   }
   // 系统原生的 title 小提示在 Windows 透明置顶窗口上会画坏：鼠标移上去时改成 aria-label。
   document.addEventListener('mouseover', function (event) {

@@ -2,10 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  STATE_VERSION, applyDevPatch, callOffActivity, castFishing, feedFish, finishActivity, grantFish, hatchEgg,
+  STATE_VERSION, applyDevPatch, callOffActivity, castFishing, ensureFishing, feedFish, finishActivity, grantFish, hatchEgg,
   hookFishing, keepFish, migrate, resolveFishing, sellFish, startAutoFishing,
 } from '../packages/pet-core/src/core.js'
-import { FISH, SHOP } from '../packages/pet-core/src/data.js'
+import { FISH, FISH_FIGHTS, SHOP } from '../packages/pet-core/src/data.js'
 
 const NOW = new Date(2026, 9, 2, 19, 0).getTime()
 const fresh = () => { const state = hatchEgg(NOW); state.inventory.bait_worm = 40; return state }
@@ -129,7 +129,7 @@ test('caught fish can be fed or sold and dex keeps the largest size', () => {
   assert.equal(state.coins, coins + FISH[0].price)
 })
 
-test('auto fishing occupies the pig, keeps catches, and caps at two per day', () => {
+test('auto fishing occupies the pig and keeps catches; no daily cap, only bait', () => {
   const state = fresh()
   const first = startAutoFishing(state, 30, NOW, 'bait_worm')
   assert.equal(first.ok, true)
@@ -141,7 +141,11 @@ test('auto fishing occupies the pig, keeps catches, and caps at two per day', ()
   assert.equal(state.stats.fishingAuto, 1)
   assert.equal(startAutoFishing(state, 60, NOW + 31 * 60_000, 'bait_worm').ok, true)
   finishActivity(state, state.activity.endsAt, () => 0)
-  assert.equal(startAutoFishing(state, 30, NOW + 92 * 60_000, 'bait_worm').reason, 'daily-limit')
+  // rc.1 反馈：不限次数，鱼饵够就能去。
+  state.inventory.bait_worm = 10
+  assert.equal(startAutoFishing(state, 30, NOW + 92 * 60_000, 'bait_worm').ok, true)
+  finishActivity(state, state.activity.endsAt, () => 0)
+  assert.equal(startAutoFishing(state, 30, NOW + 123 * 60_000, 'bait_worm').reason, 'no-bait')
 })
 
 test('old saves gain sanitized fishing fields without a save-version bump', () => {
@@ -159,4 +163,21 @@ test('developer fast-forward settles an automatic fishing activity', () => {
   applyDevPatch(state, { __advanceMs: 30 * 60_000 }, NOW)
   assert.equal(state.activity, null)
   assert.equal(state.stats.fishingAuto, 1)
+})
+
+test('a hooked fish gets one of the three fights, kept in the save', () => {
+  const seen = new Set()
+  for (let i = 0; i < 30; i += 1) {
+    const state = fresh()
+    state.seed = 1000 + i * 7919
+    castFishing(state, 0.5, NOW, () => 0, 'bait_worm')
+    const bite = state.fishing.pending.bitesAt
+    assert.equal(hookFishing(state, bite).ok, true)
+    assert.ok(FISH_FIGHTS.includes(state.fishing.pending.fight), state.fishing.pending.fight)
+    seen.add(state.fishing.pending.fight)
+    // 存档清洗时保留玩法。
+    ensureFishing(state)
+    assert.ok(FISH_FIGHTS.includes(state.fishing.pending.fight))
+  }
+  assert.equal(seen.size, 3, 'all three fights come up')
 })

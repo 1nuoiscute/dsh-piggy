@@ -1,15 +1,15 @@
 // @ts-check
 /** C5 manual and automatic fishing; all core randomness comes through random.js. */
-import { FISH, fishByKey, itemByKey } from '../data.js'
+import { FISH, FISH_FIGHTS, fishByKey, itemByKey } from '../data.js'
 import { begin, awayBlockedReason } from './activity.js'
 import { dayKeyFor } from './clock.js'
 import { clamp100, remember } from './effects.js'
 import { ensureDex } from './dex.js'
-import { chance, rollerFor } from './random.js'
+import { chance, pickOne, rollerFor } from './random.js'
 import { reduceFishingWeight } from './weight.js'
+import { say } from './lines.js'
 
 const WEIGHT = { common: 60, uncommon: 24, rare: 8, legend: 1 }
-const AUTO_LIMIT = 2
 export const emptyFishing = () => ({ pending: null, bag: [], seq: 0, autoDay: '', autoTrips: 0 })
 
 function cleanCatch(value) {
@@ -22,7 +22,8 @@ function cleanPending(value) {
   const caught = cleanCatch(value)
   if (caught === null || !['waiting', 'hooked', 'caught'].includes(value.phase)) return null
   if (![value.castPower, value.bitesAt, value.hookUntil, value.expiresAt].every(Number.isFinite)) return null
-  return { ...caught, phase: value.phase, castPower: Math.max(0, Math.min(1, value.castPower)), bitesAt: value.bitesAt, hookUntil: value.hookUntil, expiresAt: value.expiresAt }
+  const fight = FISH_FIGHTS.includes(value.fight) ? { fight: value.fight } : {}
+  return { ...caught, phase: value.phase, castPower: Math.max(0, Math.min(1, value.castPower)), bitesAt: value.bitesAt, hookUntil: value.hookUntil, expiresAt: value.expiresAt, ...fight }
 }
 
 export function ensureFishing(state) {
@@ -32,7 +33,7 @@ export function ensureFishing(state) {
     bag: Array.isArray(raw.bag) ? raw.bag.map(cleanCatch).filter(Boolean) : [],
     seq: Number.isInteger(raw.seq) && raw.seq >= 0 ? raw.seq : 0,
     autoDay: typeof raw.autoDay === 'string' ? raw.autoDay : '',
-    autoTrips: Number.isFinite(raw.autoTrips) ? Math.max(0, Math.min(AUTO_LIMIT, Math.floor(raw.autoTrips))) : 0,
+    autoTrips: Number.isFinite(raw.autoTrips) ? Math.max(0, Math.floor(raw.autoTrips)) : 0,
   }
   Object.assign(raw, clean)
   state.fishing = raw
@@ -89,6 +90,9 @@ export function hookFishing(state, nowMs) {
   if (nowMs < pending.bitesAt) return { ok: false, reason: 'early' }
   if (nowMs > pending.hookUntil) { fishing.pending = null; return { ok: false, reason: 'escaped' } }
   pending.phase = 'hooked'
+  // 三种搏斗玩法随机一种；竖条和拉力要拉一会儿，给足一分钟。
+  pending.fight = pickOne(rollerFor(state), FISH_FIGHTS) ?? 'ring'
+  pending.expiresAt = Math.max(pending.expiresAt, nowMs + 60_000)
   return { ok: true, fish: fishByKey(pending.key), pending }
 }
 
@@ -96,8 +100,10 @@ export function resolveFishing(state, success, nowMs) {
   const fishing = ensureFishing(state)
   const pending = fishing.pending
   if (pending === null || pending.phase !== 'hooked' || nowMs > pending.expiresAt) { fishing.pending = null; return { ok: false, reason: 'none' } }
-  if (success !== true) { fishing.pending = null; return { ok: true, caught: false } }
+  if (success !== true) { fishing.pending = null; say(state, 'fishEscape', nowMs); return { ok: true, caught: false } }
   pending.phase = 'caught'
+  const rarity = fishByKey(pending.key)?.rarity
+  say(state, rarity === 'rare' || rarity === 'legend' ? 'fishRare' : 'fishCatch', nowMs)
   return { ok: true, caught: true, pending }
 }
 
@@ -168,7 +174,7 @@ export function startAutoFishing(state, minutes, nowMs, baitKey) {
   const fishing = ensureFishing(state)
   resetAutoDay(fishing, nowMs)
   if (![30, 60].includes(minutes)) return { ok: false, reason: 'minutes' }
-  if (fishing.autoTrips >= AUTO_LIMIT) return { ok: false, reason: 'daily-limit' }
+  // rc.1 反馈：自动钓鱼不限每天次数，只看鱼饵够不够（autoTrips 仍记今天去了几次）。
   const bait = itemByKey(baitKey)
   const attempts = minutes / 3
   if (bait?.kind !== 'bait' || (state.inventory?.[baitKey] ?? 0) < attempts) return { ok: false, reason: 'no-bait', need: attempts }
@@ -206,7 +212,7 @@ export function fishingView(state, nowMs) {
   resetAutoDay(fishing, nowMs)
   if (fishing.pending !== null && nowMs > fishing.pending.expiresAt) fishing.pending = null
   const enrich = caught => ({ ...caught, ...fishByKey(caught.key) })
-  return { pending: fishing.pending === null ? null : enrich(fishing.pending), bag: fishing.bag.map(enrich), period: fishingPeriod(nowMs), autoTrips: fishing.autoTrips, autoLeft: Math.max(0, AUTO_LIMIT - fishing.autoTrips) }
+  return { pending: fishing.pending === null ? null : enrich(fishing.pending), bag: fishing.bag.map(enrich), period: fishingPeriod(nowMs), autoTrips: fishing.autoTrips, autoLeft: null }
 }
 
 export function skipFishingWait(state, nowMs) {

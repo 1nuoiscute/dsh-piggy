@@ -1,14 +1,15 @@
 // @ts-check
 /** C4 图鉴。形态/皮肤用小闪卡，其余收藏按动森博物馆与目录呈现。 */
 
-import { ART_URL } from '../constants.js'
-import { button, el } from '../dom.js'
+import { offParts } from '../extensions.js'
+import { ART_URL, shelfOf } from '../constants.js'
+import { button, el, sideScroller } from '../dom.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
 
 const SECTIONS = []
 const ITEM_KINDS = [
   ['all', '全部'], ['food', '食物'], ['bath', '洗浴'], ['toy', '玩具'], ['medicine', '药品'],
-  ['revive', '复活'], ['promotion', '晋升'], ['dress', '装扮'],
+  ['promotion', '晋升'], ['dress', '装扮'],
 ]
 
 /** Register or replace one collection category. */
@@ -41,7 +42,9 @@ export function renderDexTab(ui) {
 function renderSections(ui) {
   const grid = tileGrid()
   grid.className += ' dp-dex-sections'
+  const off = offParts(ui.view).dexSections
   for (const section of SECTIONS) {
+    if (off.has(section.key)) continue // 扩展关掉了（比如钓鱼）：这一页先不出现，收集记录保留
     const entries = ui.view.dex[section.key] ?? []
     const got = entries.filter(entry => entry.acquired).length
     const node = tile({
@@ -117,7 +120,7 @@ function renderCatalogue(ui, entries) {
   controls.appendChild(search)
   const filters = el('div', 'dp-dex-filters')
   const active = ui.drill.dexFilter ?? 'all'
-  const available = new Set(entries.map(entry => entry.kind))
+  const available = new Set(entries.map(entry => shelfOf(entry.kind)))
   for (const [key, label] of ITEM_KINDS) {
     if (key !== 'all' && !available.has(key)) continue
     const filter = button('dp-dex-filter', { 'data-dex-filter': key }, function () {
@@ -131,11 +134,12 @@ function renderCatalogue(ui, entries) {
   }
   controls.appendChild(filters)
   ui.content.appendChild(controls)
+  sideScroller(filters, filters.querySelector ? filters.querySelector('[data-active="true"]') : null)
 
   const query = String(ui.drill.dexQuery ?? '').trim().toLowerCase()
   const list = el('div', 'dp-dex-catalog')
   for (const entry of entries) {
-    if (active !== 'all' && entry.kind !== active) continue
+    if (active !== 'all' && shelfOf(entry.kind) !== active) continue
     const searchable = entry.acquired ? entry.label.toLowerCase() : ('未知' + entry.kindLabel).toLowerCase()
     if (query !== '' && !searchable.includes(query)) continue
     list.appendChild(catalogueRow(ui, entry))

@@ -6,7 +6,8 @@
  * @module dsh-piggy/core/migrate
  */
 
-import { ILLNESS_CHAINS, INTERESTS, formByKey, MAX, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, interestByKey, itemByKey, jobByKey, schoolStageByKey, subjectByKey, tripByKey } from '../data.js'
+import { ensureExtensions } from './extensions.js'
+import { BOX_TICKET, ILLNESS_CHAINS, INTERESTS, formByKey, MAX, SHOP, SOUVENIR_RARITY, TRAIT_ORDER, interestByKey, itemByKey, jobByKey, schoolStageByKey, subjectByKey, tripByKey } from '../data.js'
 import { MEMORY_LIMIT, STATE_VERSION } from './constants.js'
 import { clamp, clamp100 } from './effects.js'
 import { layEgg, pickSex } from './egg.js'
@@ -91,6 +92,7 @@ export function migrate(input, nowMs) {
   ensureBodyWeight(state)
   ensureFishing(state)
   ensureSkins(state)
+  ensureExtensions(state)
   return state
 }
 
@@ -105,7 +107,8 @@ export function sanitizeInventory(raw) {
   for (const [key, count] of Object.entries(source)) {
     if (!Number.isFinite(count)) continue
     const n = Math.floor(count)
-    if (n > 0 && SHOP.some(item => item.key === key)) out[key] = n
+    // 盲盒券不在商店里卖，但要留着（签到 / 礼包送的）。
+    if (n > 0 && (SHOP.some(item => item.key === key) || key === BOX_TICKET.key)) out[key] = n
   }
   return out
 }

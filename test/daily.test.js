@@ -12,10 +12,10 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { hatchEgg, layEgg } from '../core.js'
-import { GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS } from '../data.js'
+import { DIARY_BOOK, GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS } from '../data.js'
 import { canSignIn, dayKeyFor, ensureDaily, giftBucketIndex, openGift, recordOnline, signIn } from '../packages/pet-core/src/core/daily.js'
 import { rollerFor } from '../packages/pet-core/src/core/random.js'
-import { composeDiary, diaryView, ensureDiary, noteToday, writeDiaryIfNewDay } from '../packages/pet-core/src/core/diary.js'
+import { composeDiary, diaryGroupFor, diaryView, ensureDiary, noteToday, writeDiaryIfNewDay } from '../packages/pet-core/src/core/diary.js'
 import { migrate } from '../packages/pet-core/src/core/migrate.js'
 
 const MIN = 60_000
@@ -62,30 +62,41 @@ test('a missed day does not reset the ladder', () => {
   assert.equal(result.day, 2, 'the next reward, not back to the start')
 })
 
-test('the ladder pays what the confirmed table says', () => {
-  // Day 1: 3 apples. Day 8: a 还魂丹. Day 12: the big one.
+test('the ladder pays what the confirmed G1 table says (7 days)', () => {
+  // G1（用户 2026-10-05 确认）：第 1 天苹果和香皂，第 7 天还魂丹 + 豪华大餐 ×2，然后回到第 1 天。
   const pig = hatchEgg(at(2026, 10, 1, 9))
   let clock = at(2026, 10, 1, 9)
-
   const first = signIn(pig, clock)
   assert.equal(pig.inventory.apple, 3)
+  assert.equal(pig.inventory.soap, 2)
   assert.ok(first.reward.includes('苹果'), first.reward)
   clock += DAY
-
-  for (let day = 2; day <= 7; day += 1) { signIn(pig, clock); clock += DAY }
+  for (let day = 2; day <= 6; day += 1) { signIn(pig, clock); clock += DAY }
+  assert.equal(pig.inventory.baicaodan, 1, 'day 6 is the 百草丹')
   const coinsBefore = pig.coins
-  const eighth = signIn(pig, clock)
-  assert.equal(pig.inventory.soul, 1, 'day 8 is the 还魂丹')
-  assert.ok(eighth.reward.includes('还魂丹'), eighth.reward)
-  assert.equal(pig.coins, coinsBefore, 'day 8 pays no coins, only the 还魂丹')
-  clock += DAY
-
-  for (let day = 9; day <= 11; day += 1) { signIn(pig, clock); clock += DAY }
-  const beforeTwelve = pig.coins
-  signIn(pig, clock)
+  const seventh = signIn(pig, clock)
+  assert.equal(pig.inventory.soul, 1, 'day 7 is the 还魂丹')
   assert.equal(pig.inventory.feast, 2)
-  assert.equal(pig.inventory.carousel, 1)
-  assert.equal(pig.coins, beforeTwelve + 500, 'day 12 pays 500 on top of its items')
+  assert.ok(seventh.reward.includes('还魂丹'), seventh.reward)
+  assert.equal(pig.coins, coinsBefore)
+  clock += DAY
+  assert.equal(signIn(pig, clock).day, 1, 'after day 7 comes day 1 again')
+})
+
+test('G1：老存档在第 8～12 天的回到第 1 天并补发第 7 天礼包；第 1～7 天原样接着领；只换算一次', () => {
+  const late = hatchEgg(at(2026, 10, 1, 9))
+  late.daily = { signIn: { lastDay: '2026-09-30', index: 9, total: 9 }, online: {} }
+  ensureDaily(late)
+  assert.equal(late.daily.signIn.index, 0)
+  assert.equal(late.inventory.soul, 1)
+  assert.equal(late.inventory.feast, 2)
+  ensureDaily(late)
+  assert.equal(late.inventory.soul, 1, '只补一次')
+  const early = hatchEgg(at(2026, 10, 1, 9))
+  early.daily = { signIn: { lastDay: '2026-09-30', index: 4, total: 4 }, online: {} }
+  ensureDaily(early)
+  assert.equal(early.daily.signIn.index, 4)
+  assert.equal(early.inventory.soul, undefined)
 })
 
 test('a dead pig and an unopened box can still sign in', () => {
@@ -122,7 +133,7 @@ test('daily survives a restart, and an old save without it gets sane defaults', 
   delete old.daily
   const upgraded = migrate(JSON.parse(JSON.stringify(old)), at(2026, 10, 1, 10))
   assert.deepEqual(upgraded.daily, {
-    signIn: { lastDay: null, index: 0, total: 0 },
+    signIn: { lastDay: null, index: 0, total: 0, cycle7: true },
     online: { day: null, onlineMs: 0, given: 0, unclaimed: 0 },
   })
 })
@@ -137,9 +148,9 @@ test('a corrupted daily block is repaired instead of crashing the load', () => {
   assert.equal(daily.online.given, 0)
 })
 
-test('the confirmed ladder is still 12 entries and every key is a real item', () => {
-  assert.equal(SIGN_IN_CYCLE, 12)
-  assert.deepEqual(SIGN_IN_REWARDS.map(entry => entry.items.length >= 1 || entry.coins > 0), Array(12).fill(true))
+test('the confirmed ladder is 7 entries and every key is a real item', () => {
+  assert.equal(SIGN_IN_CYCLE, 7)
+  assert.deepEqual(SIGN_IN_REWARDS.map(entry => entry.items.length >= 1 || entry.coins > 0), Array(7).fill(true))
 })
 
 // ===========================================================================
@@ -275,8 +286,8 @@ test('the first read after 06:00 writes yesterday into a diary entry', () => {
   assert.equal(pig.diary.entries.length, 1)
   const entry = pig.diary.entries[0]
   assert.equal(entry.day, '2026-10-01')
-  assert.ok(entry.text.includes('2 顿'), entry.text)
-  assert.ok(entry.text.includes('43 轮'), entry.text)
+  // G 批次：从日记本里挑一篇。喂了 2 顿、主人敲了 43 轮：最要紧的是「陪主人干活」。
+  assert.ok(DIARY_BOOK.busy.map(text => text.split('[主人]').join('主人')).includes(entry.text), entry.text)
   assert.equal(pig.diary.today.counts.feed, undefined, '今天的计数清零了')
   assert.equal(pig.diary.today.day, '2026-10-02')
 })
@@ -286,25 +297,38 @@ test('a day where nothing happened still gets a line', () => {
   writeDiaryIfNewDay(pig, at(2026, 10, 1, 9))
   writeDiaryIfNewDay(pig, at(2026, 10, 2, 7, 0))
   assert.equal(pig.diary.entries.length, 1)
-  assert.ok(pig.diary.entries[0].text.includes('睡了一整天'), pig.diary.entries[0].text)
+  const lonely = DIARY_BOOK.lonely.map(text => text.split('[主人]').join('主人'))
+  assert.ok(lonely.includes(pig.diary.entries[0].text), pig.diary.entries[0].text)
 })
 
-test('a diary entry is at most five sentences, whatever the day held', () => {
-  const counts = { feed: 1, bathe: 1, pet: 1, work: 1, study: 1, trip: 1, levelUp: 1, turn: 1 }
-  const text = composeDiary(counts, '主人')
-  assert.ok(text.length > 0)
-  // 每句以「。」结尾；模板都是单个句号收尾。
-  assert.ok(text.split('。').filter(part => part !== '').length <= 5, text)
+test('the diary picks the group of the day\'s biggest event', () => {
+  assert.equal(diaryGroupFor({}), 'lonely')
+  assert.equal(diaryGroupFor({ feed: 1 }), 'daily')
+  assert.equal(diaryGroupFor({ feed: 6 }), 'glutton')
+  assert.equal(diaryGroupFor({ feed: 6, work: 1 }), 'work')
+  assert.equal(diaryGroupFor({ illness: 1, cure: 1 }), 'cure')
+  assert.equal(diaryGroupFor({ illness: 1, wrongMedicine: 1 }), 'wrongMedicine')
+  assert.equal(diaryGroupFor({ turn: 12 }), 'busy')
+  // 每组都有日记，全书几百篇，每篇都不长。
+  let total = 0
+  for (const [group, pool] of Object.entries(DIARY_BOOK)) {
+    assert.ok(pool.length >= 10, group)
+    for (const text of pool) assert.ok(text.length <= 60, text)
+    total += pool.length
+  }
+  assert.ok(total >= 300, String(total))
+})
+
+test('the diary does not repeat a recent page while the group has fresh ones', () => {
+  const recent = DIARY_BOOK.bathe.slice(1).map(text => text.split('[主人]').join('主人'))
+  const text = composeDiary({ bathe: 1 }, '主人', () => 0.99, recent)
+  assert.equal(text, DIARY_BOOK.bathe[0].split('[主人]').join('主人'))
 })
 
 test('the owner name replaces the placeholder in the diary', () => {
-  const pig = hatchEgg(at(2026, 10, 1, 9))
-  pig.dialogue = { ownerName: '老板' }
-  noteToday(pig, 'turn', 7)
-  writeDiaryIfNewDay(pig, at(2026, 10, 1, 9))
-  writeDiaryIfNewDay(pig, at(2026, 10, 2, 7, 0))
-  assert.ok(pig.diary.entries[0].text.includes('老板'), pig.diary.entries[0].text)
-  assert.ok(!pig.diary.entries[0].text.includes('[主人]'), '占位符必须换掉')
+  const text = composeDiary({ cure: 1 }, '老板', () => 0.1)
+  assert.ok(text.includes('老板'), text)
+  assert.ok(!text.includes('[主人]'), '占位符必须换掉')
 })
 
 test('only the newest 60 entries are kept', () => {
@@ -337,4 +361,15 @@ test('the panel gets the diary newest-first, and old saves get an empty one', ()
   const repaired = ensureDiary(broken)
   assert.deepEqual(repaired.entries, [{ day: '2026-10-01', text: '好' }])
   assert.deepEqual(repaired.today.counts, { turn: 3 })
+})
+
+test('调试补丁：设签到第几天（今天还没签）、礼包攒几个、让猪说某个场景', async () => {
+  const { applyDevPatch } = await import('../packages/pet-core/src/core.js')
+  const pig = hatchEgg(at(2026, 10, 1, 9))
+  signIn(pig, at(2026, 10, 1, 9))
+  applyDevPatch(pig, { signInDay: 7, gifts: 5, say: 'full' }, at(2026, 10, 1, 10))
+  assert.equal(pig.daily.signIn.index, 6)
+  assert.equal(pig.daily.signIn.lastDay, null)
+  assert.equal(pig.daily.online.unclaimed, 3, '最多攒 3 个')
+  assert.equal(signIn(pig, at(2026, 10, 1, 11)).day, 7)
 })

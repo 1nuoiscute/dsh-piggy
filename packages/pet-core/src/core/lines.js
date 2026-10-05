@@ -6,17 +6,18 @@
  * @module dsh-piggy/core/lines
  */
 
-import { CATCHPHRASE_CHANCE, DEFAULT_OWNER_NAME, LINES, SERIOUS_SCENES, OWNER_NAME_MAX, OWNER_TOKEN, REPLY_HAPPINESS, THRESHOLDS, WELCOME_BACK_AFTER_MINUTES } from '../data.js'
+import { CATCHPHRASE_CHANCE, DEFAULT_OWNER_NAME, LINE_MEMORY, LINES, SERIOUS_SCENES, OWNER_NAME_MAX, OWNER_TOKEN, REPLY_HAPPINESS, THRESHOLDS, WELCOME_BACK_AFTER_MINUTES } from '../data.js'
 import { announce, clamp100 } from './effects.js'
 import { chance, rollerFor } from './random.js'
+import { cleanPetTimes, cleanTalk, emptyTalk, timeTalkScene } from './talk.js'
 
 /** The dialogue record every pig carries; older saves get it filled in. */
 export function emptyDialogue() {
-  return { ownerName: DEFAULT_OWNER_NAME, lastByScene: {}, open: null, quiet: false, greetedAt: 0 }
+  return { ownerName: DEFAULT_OWNER_NAME, lastByScene: {}, open: null, quiet: false, greetedAt: 0, talk: emptyTalk(), petTimes: [], petAnnoyed: false }
 }
 
 /**
- * Pick a line for `scene`, never the same one twice in a row.
+ * Pick a line for `scene`, never one of the last few said in it (LINE_MEMORY).
  * @param {object} state - `dialogue.lastByScene` is updated in place.
  * @param {string} scene
  * @param {import('./random.js').Roll} [next]
@@ -26,10 +27,12 @@ export function pickLine(state, scene, next = rollerFor(state)) {
   const pool = LINES[scene]
   if (pool === undefined || pool.length === 0) return null
   const dialogue = ensureDialogue(state)
-  const last = dialogue.lastByScene[scene]
+  // 老存档里记的是一个数字（上一句），G 批次起记最近几句。
+  const raw = dialogue.lastByScene[scene]
+  const recent = (Array.isArray(raw) ? raw : Number.isInteger(raw) ? [raw] : []).slice(-Math.min(LINE_MEMORY, pool.length - 1))
   let index = Math.min(pool.length - 1, Math.floor(next() * pool.length))
-  if (pool.length > 1 && index === last) index = (index + 1) % pool.length
-  dialogue.lastByScene = { ...dialogue.lastByScene, [scene]: index }
+  for (let step = 0; step < pool.length && recent.includes(index); step += 1) index = (index + 1) % pool.length
+  dialogue.lastByScene = { ...dialogue.lastByScene, [scene]: [...recent, index].slice(-LINE_MEMORY) }
   const line = pool[index]
   return {
     scene,
@@ -45,7 +48,7 @@ export function pickLine(state, scene, next = rollerFor(state)) {
  */
 function withCatchphrase(state, scene, text, next) {
   const phrase = typeof state.catchphrase === 'string' ? state.catchphrase.trim() : ''
-  if (phrase === '' || SERIOUS_SCENES.includes(scene) || text.startsWith('（') || text.includes(phrase)) return text
+  if (phrase === '' || SERIOUS_SCENES.includes(scene) || text.startsWith('（') || text.endsWith('）') || text.includes(phrase)) return text
   if (!chance(next, CATCHPHRASE_CHANCE)) return text
   const match = /^(.*?)([。！？!?～~…]*)$/.exec(text)
   const body = match === null ? text : match[1]
@@ -66,6 +69,22 @@ export function say(state, scene, nowMs, next) {
   const dialogue = ensureDialogue(state)
   dialogue.open = line.replies.length > 0 ? { id: message.id, replies: line.replies } : null
   return true
+}
+
+/**
+ * 一个动作做完让猪说一句（G 批次）：成功说 `okScene`，钱不够说「穷」。原样返回结果。
+ * @template {{ok: boolean, reason?: string}} R
+ * @param {object} state
+ * @param {R} result
+ * @param {string|null} okScene
+ * @param {number} nowMs
+ * @returns {R}
+ */
+export function sayAfter(state, result, okScene, nowMs) {
+  if (state === null || state.hatched !== true || state.dead === true) return result
+  if (result.ok && okScene !== null) say(state, okScene, nowMs)
+  else if (!result.ok && result.reason === 'poor') say(state, 'poor', nowMs)
+  return result
 }
 
 /**
@@ -93,7 +112,8 @@ export function replyToLine(state, lineId, replyIndex) {
  * says what the pig needs first — hungry, dirty, lonely — and only chats when
  * it needs nothing. Never while away, ill, dead, a box, or on 免打扰.
  * @param {object} state
- * @param {'enter'|'idle'} reason
+ * `time`（G 批次）：按时间说的话——时段问候、喝水和休息提醒、节日；没有要说的就不说。
+ * @param {'enter'|'idle'|'time'} reason
  * @param {number} nowMs
  */
 export function chat(state, reason, nowMs) {
@@ -106,6 +126,12 @@ export function chat(state, reason, nowMs) {
     dialogue.greetedAt = nowMs
     say(state, 'enter', nowMs)
     return { ok: true, scene: 'enter' }
+  }
+  if (reason === 'time') {
+    const timed = timeTalkScene(state, dialogue, nowMs)
+    if (timed === null) return { ok: false, reason: 'silent' }
+    say(state, timed, nowMs)
+    return { ok: true, scene: timed }
   }
   const scene = state.satiety < THRESHOLDS.hungry ? 'hungry'
     : state.cleanliness < THRESHOLDS.dirty ? 'dirty'
@@ -144,7 +170,10 @@ export function ensureDialogue(state) {
   const open = sanitizeOpenLine(raw.open)
   const quiet = raw.quiet === true
   const greetedAt = Number.isFinite(raw.greetedAt) ? raw.greetedAt : 0
-  state.dialogue = { ownerName, lastByScene, open, quiet, greetedAt }
+  state.dialogue = {
+    ownerName, lastByScene, open, quiet, greetedAt,
+    talk: cleanTalk(raw.talk), petTimes: cleanPetTimes(raw.petTimes), petAnnoyed: raw.petAnnoyed === true,
+  }
   return state.dialogue
 }
 

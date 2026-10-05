@@ -104,7 +104,8 @@ export function rollForIllness(state, span, next) {
 
 /** Feeding a pig that is already stuffed can upset its stomach. */
 export function rollForOverfeeding(state, satietyBefore, nowMs) {
-  if (satietyBefore < ILLNESS_ONSET.overfullAt || state.illness !== null) return
+  // 按面板上显示的整数比：喂之前结算会让满格的 100 变成 99.99。
+  if (Math.round(satietyBefore) < ILLNESS_ONSET.overfullAt || state.illness !== null) return
   if (chance(rollerFor(state), ILLNESS_ONSET.overfeedChance)) catchIllness(state, CHAIN_INDEX.stomach, nowMs)
 }
 

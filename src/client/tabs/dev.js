@@ -1,15 +1,31 @@
 // @ts-check
 /**
- * 调试页签。
+ * 调试页签（仅开发者模式可见）。
  *
- * 仅开发者模式可见：改数值、改时间、一键拿齐。
+ * G 批次：按模块分页（状态 / 成长与生病 / 形态与皮肤 / 番茄钟 / 钓鱼 / 签到与礼包 / 更新与扩展 /
+ * 台词 / 时间与面板 / 数值），顶上一排页签 + 左右箭头，也能左右滑；每个按钮下面一行小字写清
+ * 「点了会发生什么」。所有页都画出来、只显示当前这页，按钮的 data-dev 键和以前一样。
  * @module dsh-piggy/client/tabs/dev
  */
 
-import { button, el } from '../dom.js'
+import { button, el, sideScroller } from '../dom.js'
+import { desktopShell } from '../desktop-shell.js'
 import { num } from '../values.js'
 import { FISH } from '../../../packages/pet-core/src/data/fish.js'
 import { SKINS } from '../../../packages/pet-core/src/data/skins.js'
+import { LINES } from '../../../packages/pet-core/src/data/lines.js'
+
+/** 台词场景的中文名（调试页按钮上用）。 */
+var SCENE_NAMES = {
+  eat: '吃饭', full: '吃饱', overfull: '撑着', bathe: '洗澡', play: '玩耍', pet: '摸摸', hungry: '饿了',
+  dirty: '脏了', lonely: '孤单', idle: '闲聊', workDone: '打工回来', tired: '累了', study: '上学', graduate: '毕业',
+  tripBack: '旅行回来', sick: '生病', wrongMedicine: '吃错药', cured: '治好', levelup: '升级', growUp: '长大',
+  coronation: '加冕', contract: '签约', enter: '进门', death: '去世', revive: '复活', signIn: '签到', gift: '礼包',
+  pomodoroStart: '番茄开始', pomodoroDone: '番茄完成', pomodoroAbandon: '番茄放弃',
+}
+
+/** 当前在哪一页（只在内存里，刷新回到第一页）。 */
+var currentPage = 'status'
 
 export function renderDevTab(ui) {
   // 关掉调试模式就靠这个按钮（C1：没有快捷键，也不写 localStorage）。
@@ -21,42 +37,47 @@ export function renderDevTab(ui) {
   ui.content.appendChild(el('div', 'dp-dev-note', '🔧 开发者模式 · 构建 v' + (ui.view.version === '' ? '未知' : ui.view.version)))
   if (ui.view.pig !== null && ui.view.pig.ageForced) {
     ui.content.appendChild(el('div', 'dp-dev-note',
-      '⚠️ 年龄是调试改的（HUD 上有 🔧）—— 按「⏪ 年龄归零」才会重新按真实时间算'))
-  }
-
-  /** A row of small buttons under a caption. `off` greys one out, `note` explains why. */
-  function group(title, entries, note) {
-    var head = el('div', 'dp-title')
-    head.appendChild(el('b', null, title))
-    ui.content.appendChild(head)
-    if (note !== undefined && note !== '') ui.content.appendChild(el('div', 'dp-dev-note', note))
-    var wrap = el('div', 'dp-dev-row')
-    for (var i = 0; i < entries.length; i += 1) {
-      (function (entry) {
-        var btn = button('dp-mini dp-dev-btn', { 'data-dev': entry.key }, function () { entry.run() })
-        btn.textContent = entry.label
-        if (entry.off === true) btn.disabled = true
-        wrap.appendChild(btn)
-      })(entries[i])
-    }
-    ui.content.appendChild(wrap)
+      '⚠️ 年龄是调试改的（HUD 上有 🔧）—— 按「⏪ 天数归零」才会重新按真实时间算'))
   }
 
   var patch = function (body) { ui.send('dev', { patch: body }) }
+  var pages = []
+  /** 新开一页，返回往这页里加分组的函数。 */
+  function page(key, label) {
+    var body = el('div', 'dp-dev-page')
+    body.setAttribute('data-dev-page-body', key)
+    pages.push({ key: key, label: label, body: body })
+    return function group(title, entries, note) {
+      var head = el('div', 'dp-title')
+      head.appendChild(el('b', null, title))
+      body.appendChild(head)
+      if (note !== undefined && note !== '') body.appendChild(el('div', 'dp-dev-note', note))
+      var wrap = el('div', 'dp-dev-list')
+      for (var i = 0; i < entries.length; i += 1) {
+        (function (entry) {
+          var item = el('div', 'dp-dev-item')
+          var btn = button('dp-mini dp-dev-btn', { 'data-dev': entry.key }, function () { entry.run() })
+          btn.textContent = entry.label
+          if (entry.off === true) btn.disabled = true
+          item.appendChild(btn)
+          if (entry.desc) item.appendChild(el('small', 'dp-dev-desc', entry.desc))
+          wrap.appendChild(item)
+        })(entries[i])
+      }
+      body.appendChild(wrap)
+    }
+  }
 
-  // 形态（C1）：一键变成每一种形态，不看条件。等级不够就**同一次补丁里**把等级顶到
-  // 这一形态所在阶段的起始等级 —— 不然换了形态立绘也不动（formStageView 只在该阶段画）。
-  // 起始等级由宿主从 data/life.js 发下来，这里不写死数字。
-  // 这一组放在「还没有猪」之前：纸盒也要看得到，才知道该先做什么。
+  // ---- 形态与皮肤（先构建：纸盒也要看得到形态这一排，置灰 + 原因） ----
   var boxed = ui.view.hatched !== true || ui.view.pig === null
   var dead = ui.view.dead === true
   var why = boxed ? '先孵化' : (dead ? '先复活' : '')
   var forms = ui.view.forms === null ? [] : ui.view.forms.forms
+  var looks = page('looks', '形态皮肤')
   var formEntries = forms.map(function (form) {
     return {
-      key: 'form:' + form.key,
-      label: form.emoji + ' ' + form.label,
-      off: boxed || dead,
+      key: 'form:' + form.key, label: form.emoji + ' ' + form.label, off: boxed || dead,
+      desc: '直接变成' + form.label + '，不看条件；等级不够会顺手补到这一阶段',
       run: function () {
         var body = { form: form.key }
         var level = ui.view.pig === null ? 0 : ui.view.pig.level.level
@@ -65,110 +86,210 @@ export function renderDevTab(ui) {
       },
     }
   })
-  formEntries.push({ key: 'form:none', label: '🐖 恢复普通', run: function () { patch({ form: null }) } })
-  group('形态', formEntries, why)
+  formEntries.push({ key: 'form:none', label: '🐖 恢复普通', desc: '去掉形态，回到普通小猪', run: function () { patch({ form: null }) } })
+  looks('形态', formEntries, why)
 
-  // 形态组之后才管「有没有猪」：纸盒也要看到上面那排（置灰 + 原因）。
   var p = ui.view.pig
   if (p === null) {
+    currentPage = 'looks'
+    renderPages(ui, pages)
     ui.content.appendChild(el('div', 'dp-empty', '还没有猪。先「拆开纸盒」再调。'))
     return
   }
 
   var skinRows = ui.view.skins?.entries?.length > 0 ? ui.view.skins.entries : SKINS
-  group('皮肤', skinRows.map(function (skin) {
-    return { key: 'skin:' + skin.key, label: skin.emoji + ' ' + skin.label, run: function () {
-      if (skin.unlockJob) patch({ skin: skin.key })
-      else ui.send('skin', { skin: skin.key })
-    } }
-  }), '形态显示优先于皮肤；恢复普通形态即可看到皮肤。')
-
-  group('道具', forms.filter(function (form) { return form.item !== '' }).map(function (form) {
-    return {
-      key: 'item:' + form.item,
-      label: form.emoji + ' 给' + form.label + '道具',
+  looks('皮肤', skinRows.map(function (skin) {
+    return { key: 'skin:' + skin.key, label: skin.emoji + ' ' + skin.label, desc: skin.unlockJob ? '职业皮肤：不用打工直接试穿' : '换上这款皮肤',
       run: function () {
-        var count = num(ui.view.inventory[form.item], 0)
-        patch({ inventory: { [form.item]: count + 1 } })
-      },
+        if (skin.unlockJob) patch({ skin: skin.key })
+        else ui.send('skin', { skin: skin.key })
+      } }
+  }), '形态显示优先于皮肤；恢复普通形态即可看到皮肤。')
+  looks('道具', forms.filter(function (form) { return form.item !== '' }).map(function (form) {
+    return {
+      key: 'item:' + form.item, label: form.emoji + ' 给' + form.label + '道具', desc: '背包里加一个晋升道具，用来测正常的晋升流程',
+      run: function () { patch({ inventory: { [form.item]: num(ui.view.inventory[form.item], 0) + 1 } }) },
     }
   }))
 
-  group('体重', [
-    { key: 'weight:normal', label: '⚖️ 正常', run: function () { patch({ weightClass: 'normal' }) } },
-    { key: 'weight:round', label: '🐷 胖胖猪', run: function () { patch({ weightClass: 'round' }) } },
-    { key: 'weight:fat', label: '🐖 大肥猪', run: function () { patch({ weightClass: 'fat' }) } },
-  ], '圆润使用原胖猪立绘；大肥猪使用更胖的新动作立绘。')
-
-  group('状态', [
-    { key: 'full', label: '😊 满状态', run: function () { patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 }) } },
-    { key: 'hungry', label: '🍎 饿', run: function () { patch({ satiety: 10 }) } },
-    { key: 'dirty', label: '🫧 脏', run: function () { patch({ cleanliness: 10 }) } },
-    { key: 'lonely', label: '🥺 孤单', run: function () { patch({ happiness: 10 }) } },
-    { key: 'sleepy', label: '💤 困', run: function () { patch({ satiety: 90, happiness: 90, cleanliness: 90 }) } },
+  // ---- 状态 ----
+  var status = page('status', '状态')
+  status('状态', [
+    { key: 'full', label: '😊 满状态', desc: '饱食、心情、清洁 100，健康满格', run: function () { patch({ satiety: 100, happiness: 100, cleanliness: 100, health: 5 }) } },
+    { key: 'hungry', label: '🍎 饿', desc: '饱食 10：看饿了的台词和生病风险', run: function () { patch({ satiety: 10 }) } },
+    { key: 'dirty', label: '🫧 脏', desc: '清洁 10', run: function () { patch({ cleanliness: 10 }) } },
+    { key: 'lonely', label: '🥺 孤单', desc: '心情 10', run: function () { patch({ happiness: 10 }) } },
+    { key: 'sleepy', label: '💤 困', desc: '三项都 90，测试困了的闲聊', run: function () { patch({ satiety: 90, happiness: 90, cleanliness: 90 }) } },
+  ])
+  status('资源', [
+    { key: 'coin100', label: '🪙 +100', desc: '金币加 100', run: function () { patch({ coins: p.coins + 100 }) } },
+    { key: 'coin999', label: '🪙 9999', desc: '金币设成 9999', run: function () { patch({ coins: 9999 }) } },
+    { key: 'traits', label: '🧠+5 ✨+5 💪+5', desc: '智力、魅力、武力各 +5', run: function () { patch({ traits: { intel: 5, charm: 5, strong: 5 } }) } },
+    { key: 'all', label: '🎁 一键拿齐', desc: '商店里每样东西都给几个', run: function () { ui.send('giveAll') } },
+  ])
+  status('生死', [
+    { key: 'kill', label: '💀 弄死', desc: '直接去世（变墓碑），测复活和领养', run: function () { patch({ dead: true }) } },
+    { key: 'revive', label: '✨ 复活', desc: '不用还魂丹直接复活', run: function () { patch({ dead: false, health: 5 }) } },
+    { key: 'adopt', label: '📦 领养', desc: '领养一只新猪（旧猪的故事留在记忆里）', run: function () { ui.send('adopt') } },
+    { key: 'reset', label: '🔄 重置', desc: '清空存档，从纸盒重新开始', run: function () { ui.send('reset') } },
   ])
 
-  // Five chains since B3: stage 1 of each, the last stage of one, and a cure.
-  group('生病', [
-    { key: 'cold1', label: '🤧 感冒', run: function () { patch({ illness: { chain: 0, stage: 1 }, health: 4 }) } },
-    { key: 'cough1', label: '😷 咳嗽', run: function () { patch({ illness: { chain: 1, stage: 1 }, health: 4 }) } },
-    { key: 'belly1', label: '🤢 肚子胀', run: function () { patch({ illness: { chain: 2, stage: 1 }, health: 4 }) } },
-    { key: 'dizzy1', label: '😵 头晕', run: function () { patch({ illness: { chain: 3, stage: 1 }, health: 4 }) } },
-    { key: 'skin1', label: '🩹 瘙痒', run: function () { patch({ illness: { chain: 4, stage: 1 }, health: 4 }) } },
-    { key: 'cold4', label: '☠️ 肺炎', run: function () { patch({ illness: { chain: 0, stage: 4 }, health: 1 }) } },
-    { key: 'cure', label: '💚 治好', run: function () { patch({ illness: null, health: 5 }) } },
+  // ---- 成长与生病 ----
+  var growth = page('growth', '成长生病')
+  growth('等级', [
+    { key: 'box', label: '📦 纸盒', desc: '回到没拆的纸盒', run: function () { patch({ hatched: false }) } },
+    { key: 'lv1', label: '幼年 Lv1', desc: '拆盒并设成 1 级', run: function () { patch({ hatched: true, level: 1 }) } },
+    { key: 'lv10', label: '青年 Lv10', desc: '设成 10 级（青年体型）', run: function () { patch({ level: 10 }) } },
+    { key: 'lv40', label: '成年 Lv40', desc: '设成 40 级（成年体型）', run: function () { patch({ level: 40 }) } },
+    { key: 'lv60', label: '满级 Lv60', desc: '设成满级', run: function () { patch({ level: 60 }) } },
+    { key: 'real', label: '⏪ 天数归零', desc: '取消调试改过的年龄，按真实时间重新算', run: function () { ui.send('ageFromNow') } },
+  ])
+  growth('体重', [
+    { key: 'weight:normal', label: '⚖️ 正常', desc: '体重设到理想体重', run: function () { patch({ weightClass: 'normal' }) } },
+    { key: 'weight:round', label: '🐷 圆润', desc: '体重设到圆润档（换圆润立绘）', run: function () { patch({ weightClass: 'round' }) } },
+    { key: 'weight:fat', label: '🐖 胖胖', desc: '体重设到胖胖档（换胖胖动作立绘）', run: function () { patch({ weightClass: 'fat' }) } },
+  ])
+  growth('生病', [
+    { key: 'cold1', label: '🤧 感冒', desc: '感冒第 1 期，健康 4', run: function () { patch({ illness: { chain: 0, stage: 1 }, health: 4 }) } },
+    { key: 'cough1', label: '😷 咳嗽', desc: '咳嗽第 1 期', run: function () { patch({ illness: { chain: 1, stage: 1 }, health: 4 }) } },
+    { key: 'belly1', label: '🤢 肚子胀', desc: '肠胃第 1 期（胃胀气那条）', run: function () { patch({ illness: { chain: 2, stage: 1 }, health: 4 }) } },
+    { key: 'dizzy1', label: '😵 头晕', desc: '头晕第 1 期（连续出门太多那条）', run: function () { patch({ illness: { chain: 3, stage: 1 }, health: 4 }) } },
+    { key: 'skin1', label: '🩹 瘙痒', desc: '皮肤第 1 期（太脏那条）', run: function () { patch({ illness: { chain: 4, stage: 1 }, health: 4 }) } },
+    { key: 'cold4', label: '☠️ 肺炎', desc: '感冒最后一期，健康 1：再拖就会死', run: function () { patch({ illness: { chain: 0, stage: 4 }, health: 1 }) } },
+    { key: 'cure', label: '💚 治好', desc: '直接病好，健康满格', run: function () { patch({ illness: null, health: 5 }) } },
   ])
 
-  // The body follows the level since B2: these jump straight to each stage.
-  group('等级', [
-    { key: 'box', label: '📦 纸盒', run: function () { patch({ hatched: false }) } },
-    { key: 'lv1', label: '幼年 Lv1', run: function () { patch({ hatched: true, level: 1 }) } },
-    { key: 'lv10', label: '青年 Lv10', run: function () { patch({ level: 10 }) } },
-    { key: 'lv40', label: '成年 Lv40', run: function () { patch({ level: 40 }) } },
-    { key: 'lv60', label: '满级 Lv60', run: function () { patch({ level: 60 }) } },
-    { key: 'real', label: '⏪ 天数归零', run: function () { ui.send('ageFromNow') } },
+  // ---- 番茄钟 ----
+  page('pomodoro', '番茄钟')('番茄钟', [
+    { key: 'pomoDone', label: '🍅 完成当前', desc: '正在专注的这一个立刻到点，照常发奖', run: function () { patch({ pomodoro: { finish: true } }) } },
+    { key: 'pomoCap', label: '🔢 今天=8', desc: '今天完成数设成 8，测「每天前 8 个有奖励」的上限', run: function () { patch({ pomodoro: { todayDone: 8 } }) } },
   ])
 
-  // 番茄钟（C2）：一键完成当前这个（照常结算发奖）／把今天的完成数设成 8 测上限。
-  group('番茄钟', [
-    { key: 'pomoDone', label: '🍅 完成当前', run: function () { patch({ pomodoro: { finish: true } }) } },
-    { key: 'pomoCap', label: '🔢 今天=8', run: function () { patch({ pomodoro: { todayDone: 8 } }) } },
-  ])
-
+  // ---- 钓鱼 ----
   var fishEntries = FISH.map(function (fish) {
-    return { key: 'fish:' + fish.key, label: fish.emoji + ' ' + fish.label, run: function () { ui.send('fishGive', { fish: fish.key }) } }
+    return { key: 'fish:' + fish.key, label: fish.emoji + ' ' + fish.label, desc: '鱼篓里直接放一条', run: function () { ui.send('fishGive', { fish: fish.key }) } }
   })
-  fishEntries.push({ key: 'fish:skip', label: '❗ 跳过等待', run: function () { ui.send('fishSkip') } })
-  group('钓鱼', fishEntries)
+  fishEntries.push({ key: 'fish:skip', label: '❗ 跳过等待', desc: '抛竿后不用等，马上咬钩', run: function () { ui.send('fishSkip') } })
+  page('fishing', '钓鱼')('钓鱼', fishEntries)
 
-  group('资源', [
-    { key: 'coin100', label: '🪙 +100', run: function () { patch({ coins: p.coins + 100 }) } },
-    { key: 'coin999', label: '🪙 9999', run: function () { patch({ coins: 9999 }) } },
-    { key: 'traits', label: '🧠+5 ✨+5 💪+5', run: function () { patch({ traits: { intel: 5, charm: 5, strong: 5 } }) } },
-    { key: 'all', label: '🎁 一键拿齐', run: function () { ui.send('giveAll') } },
+  // ---- 签到与礼包 ----
+  // 简化的测试视图可能没有 daily / extensions：按默认值画，不报错。
+  var dailyView = ui.view.daily ?? { cycle: 7, signInDay: 1, canSignIn: true, signInTotal: 0, unclaimed: 0 }
+  var extensions = ui.view.extensions ?? []
+  var daily = page('daily', '签到礼包')
+  var days = []
+  for (var d = 1; d <= dailyView.cycle; d += 1) {
+    (function (day) {
+      days.push({ key: 'signin:' + day, label: '📅 第 ' + day + ' 天', desc: '下一次签到领第 ' + day + ' 天，今天可以再签', run: function () { patch({ signInDay: day }) } })
+    })(d)
+  }
+  daily('签到', days, '现在：第 ' + dailyView.signInDay + '/' + dailyView.cycle + ' 天' + (dailyView.canSignIn ? ' · 今天还没签' : ' · 今天已签'))
+  daily('在线礼包', [
+    { key: 'gifts:1', label: '🎁 攒 1 个', desc: '猪头上出现礼包按钮', run: function () { patch({ gifts: 1 }) } },
+    { key: 'gifts:3', label: '🎁 攒满 3 个', desc: '礼包上限是 3 个', run: function () { patch({ gifts: 3 }) } },
+    { key: 'gifts:0', label: '🚫 清空', desc: '没有待领的礼包', run: function () { patch({ gifts: 0 }) } },
   ])
 
-  group('时间', [
-    { key: 'real', label: '×1 真实', run: function () { ui.send('timeScale', { scale: 1 }) } },
-    { key: 'fast12', label: '×12', run: function () { ui.send('timeScale', { scale: 12 }) } },
-    { key: 'fast30', label: '×30', run: function () { ui.send('timeScale', { scale: 30 }) } },
-    { key: 'fast60', label: '×60', run: function () { ui.send('timeScale', { scale: 60 }) } },
+  // ---- 更新与扩展 ----
+  var system = page('system', '更新扩展')
+  var notice = ui.updateNotice
+  system('更新', [
+    { key: 'update:fake', label: '🔴 假装有新版', desc: '让设置图标和设置页冒红点（不会真的下载）', off: !notice || typeof notice.simulate !== 'function',
+      run: function () { notice.simulate('9.9.9'); ui.renderContent() } },
+    { key: 'update:read', label: '✅ 标为已读', desc: '红点消失（和打开更新页一样）', off: !notice,
+      run: function () { notice.markRead(); ui.renderContent() } },
+  ])
+  system('扩展', extensions.map(function (extension) {
+    return { key: 'ext:' + extension.key, label: extension.emoji + ' ' + (extension.on ? '关掉' : '打开') + extension.label,
+      desc: extension.on ? '和扩展 App 里关掉一样（进行中的会收尾）' : '重新打开，数据原样回来',
+      run: function () { ui.send('setExtension', { key: extension.key, on: !extension.on }) } }
+  }))
+
+  // ---- 台词 ----
+  page('lines', '台词')('让猪说一句', Object.keys(LINES).map(function (scene) {
+    return { key: 'say:' + scene, label: '💬 ' + (SCENE_NAMES[scene] ?? scene), desc: '随机说「' + scene + '」场景里的一句（免打扰时不说）',
+      run: function () { patch({ say: scene }) } }
+  }))
+
+  // ---- 时间与面板 ----
+  var time = page('time', '时间面板')
+  time('时间', [
+    { key: 'real', label: '×1 真实', desc: '时间按真实速度走', run: function () { ui.send('timeScale', { scale: 1 }) } },
+    { key: 'fast12', label: '×12', desc: '1 分钟 = 猪的 12 分钟', run: function () { ui.send('timeScale', { scale: 12 }) } },
+    { key: 'fast30', label: '×30', desc: '1 分钟 = 猪的半小时', run: function () { ui.send('timeScale', { scale: 30 }) } },
+    { key: 'fast60', label: '×60', desc: '1 分钟 = 猪的 1 小时', run: function () { ui.send('timeScale', { scale: 60 }) } },
+  ])
+  time('面板', [
+    { key: 'open', label: '展开/收起', desc: '切换面板开关（测开关动画）', run: function () { ui.setOpen(ui.host.getAttribute('data-open') !== 'true') } },
+    { key: 'away1', label: '⏩ +1 小时', desc: '时间直接过去 1 小时（结算数值、成长、打工）', run: function () { patch({ __advanceMs: 3600000 }) } },
+    { key: 'away24', label: '⏩ +1 天', desc: '时间直接过去 1 天（换天、签到、日记）', run: function () { patch({ __advanceMs: 86400000 }) } },
+  ])
+  time('猪自己找事做', [
+    { key: 'idle', label: '🐷 小动作', desc: '马上做一个小动作（打滚、打盹、追蝴蝶……）', off: !ui.life, run: function () { ui.setOpen(false); ui.life.idleNow() } },
+    { key: 'walk', label: '🚶 散步一次', desc: '马上沿屏幕底边走一趟（只有桌面版）', off: !ui.life || typeof desktopShell()?.moveBy !== 'function', run: function () { ui.setOpen(false); ui.life.walkNow() } },
+    { key: 'timeTalk', label: '🕐 按时间说', desc: '问一次「现在有没有按时间该说的话」（一天一次的已经说过就不说）', run: function () { ui.send('chat', { reason: 'time' }) } },
   ])
 
-  group('生死', [
-    { key: 'kill', label: '💀 弄死', run: function () { patch({ dead: true }) } },
-    { key: 'revive', label: '✨ 复活', run: function () { patch({ dead: false, health: 5 }) } },
-    { key: 'adopt', label: '📦 领养', run: function () { ui.send('adopt') } },
-    { key: 'reset', label: '🔄 重置', run: function () { ui.send('reset') } },
-  ])
+  // ---- 数值（只看不改） ----
+  var values = el('div', 'dp-dev-page')
+  values.setAttribute('data-dev-page-body', 'values')
+  pages.push({ key: 'values', label: '数值', body: values })
+  var rows = [
+    ['阶段', p.stage?.label ?? '—'], ['等级', p.level ? 'Lv.' + p.level.level + '（还差 ' + Math.ceil(p.level.toNext) + '）' : '—'],
+    ['饱食', p.satiety], ['心情', p.happiness], ['清洁', p.cleanliness], ['健康', p.health + '/' + (ui.view.maxHealth ?? 5)],
+    ['体重', p.weight + (p.bodyWeight ? '（' + p.bodyWeight.weightG + ' g · ' + p.bodyWeight.label + '）' : '')],
+    ['金币', p.coins], ['智力 / 魅力 / 武力', p.traits ? p.traits.intel + ' / ' + p.traits.charm + ' / ' + p.traits.strong : '—'],
+    ['生病', p.illness ? p.illness.name : '—'], ['在外面', ui.view.activity ? ui.view.activity.label : '—'],
+    ['签到', '第 ' + dailyView.signInDay + ' 天 · 累计 ' + dailyView.signInTotal + ' 次'], ['待领礼包', dailyView.unclaimed],
+    ['扩展', extensions.map(function (e) { return e.label + (e.on ? '开' : '关') }).join(' · ')],
+    ['免打扰', ui.view.dialogue?.quiet ? '开' : '关'], ['时间倍率', '×' + (ui.view.timeScale ?? 1)],
+  ]
+  for (var r = 0; r < rows.length; r += 1) {
+    var row = el('div', 'dp-row')
+    row.appendChild(el('span', null, rows[r][0]))
+    row.appendChild(el('b', null, String(rows[r][1])))
+    values.appendChild(row)
+  }
 
-  group('面板', [
-    { key: 'open', label: '展开/收起', run: function () { ui.setOpen(ui.host.getAttribute('data-open') !== 'true') } },
-    { key: 'away1', label: '⏩ +1 小时', run: function () { patch({ __advanceMs: 3600000 }) } },
-    { key: 'away24', label: '⏩ +1 天', run: function () { patch({ __advanceMs: 86400000 }) } },
-  ])
+  renderPages(ui, pages)
+}
 
-  ui.content.appendChild(el('div', 'dp-dev-note',
-    '当前：' + p.stage.label + ' · 健康 ' + p.health + ' · 🪙 ' + p.coins
-    + (p.illness === null ? '' : ' · ' + p.illness.name)))
+/** 页签 + 左右箭头 + 左右滑，只显示当前这一页。 */
+function renderPages(ui, pages) {
+  if (!pages.some(function (entry) { return entry.key === currentPage })) currentPage = pages[0].key
+  var index = pages.findIndex(function (entry) { return entry.key === currentPage })
+  var go = function (to) { currentPage = pages[(to + pages.length) % pages.length].key; ui.renderContent() }
+  var nav = el('div', 'dp-dev-nav')
+  var prev = button('dp-mini dp-mini-plain', { 'data-dev-prev': 'true' }, function () { go(index - 1) })
+  prev.textContent = '‹'
+  nav.appendChild(prev)
+  var tabs = el('div', 'dp-dev-tabs')
+  for (var i = 0; i < pages.length; i += 1) {
+    (function (entry, at) {
+      var tab = button('dp-dev-tab', { 'data-dev-page': entry.key, 'aria-pressed': String(at === index) }, function () { go(at) })
+      tab.textContent = entry.label
+      tabs.appendChild(tab)
+    })(pages[i], i)
+  }
+  nav.appendChild(tabs)
+  var next = button('dp-mini dp-mini-plain', { 'data-dev-next': 'true' }, function () { go(index + 1) })
+  next.textContent = '›'
+  nav.appendChild(next)
+  ui.content.appendChild(nav)
+  sideScroller(tabs, tabs.children ? tabs.children[index] : null)
+  var start = null
+  for (var k = 0; k < pages.length; k += 1) {
+    var body = pages[k].body
+    body.hidden = k !== index
+    if (typeof body.addEventListener === 'function') {
+      body.addEventListener('pointerdown', function (event) { start = event.clientX })
+      body.addEventListener('pointerup', function (event) {
+        if (start === null || typeof event.clientX !== 'number') return
+        var dx = event.clientX - start
+        start = null
+        if (Math.abs(dx) > 50) go(dx < 0 ? index + 1 : index - 1)
+      })
+    }
+    ui.content.appendChild(body)
+  }
 }

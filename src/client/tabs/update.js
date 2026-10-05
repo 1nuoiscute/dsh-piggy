@@ -8,14 +8,13 @@
  */
 
 import { button, el } from '../dom.js'
-import { tile, tileGrid } from '../widgets.js'
 import { compareVersions } from '../update-notice.js'
 
 /** One panel per page, so the update state can live here. */
 /** @type {any} */
 var state = {
   current: null, list: null, error: null, loading: false,
-  pick: null, busy: null, fraction: 0, message: null, listening: false,
+  pick: null, previews: null, busy: null, fraction: 0, message: null, listening: false,
   shellStatus: null, shellBusy: false, shellReady: null, shellFraction: 0, shellMessage: null, shellListening: false,
 }
 
@@ -136,9 +135,8 @@ export function renderUpdateTab(ui) {
   again.textContent = state.loading ? '正在刷新…' : '🔄 刷新'
   again.disabled = state.loading || state.busy !== null || state.shellBusy
   top.appendChild(again)
-  // 正在用预览版时，预览版也算「最新」的候选；否则只看正式版。
-  var onPreview = cur !== null && String(cur.version).indexOf('-') >= 0
-  var eligible = function (r) { return !r.prerelease || onPreview }
+  // 只推荐正式版（G 批次）：「更新到最新」、外壳提示、红点都只看正式版；测试版只能在下面的列表里自己点开安装。
+  var eligible = function (r) { return !r.prerelease }
   // 外壳要不要更新由页面自己比：0.1.x 的旧外壳不会在列表里给 shellUpdate，
   // 以前它们就一直看不到「桌面外壳太旧」的提示（用户 2026-10-04 实测：外壳 v0.1.2）。
   var shellOf = function (r) { return r.latestShell || (r.manifest && r.manifest.shellVersion) || null }
@@ -194,8 +192,7 @@ export function renderUpdateTab(ui) {
     again.textContent = '再试一次'
     ui.content.appendChild(again)
   }
-  // 版本列表只给普通玩家看正式版；正在用预览版的人才看得到预览版。
-  if (state.list !== null) renderList(ui, state.list.filter(eligible))
+  if (state.list !== null) renderList(ui, state.list)
 
   if (cur !== null && cur.previous !== null) {
     var back = button('dp-btn dp-btn-wide dp-update-back', { 'data-update-rollback': '' }, function () { rollback(ui) })
@@ -242,29 +239,87 @@ function renderDshUpdate(ui) {
   ui.content.appendChild(box)
 }
 
-/** Every version as a tile; the picked one opens its notes and button below. */
+/** 测试版归到它对应的正式版下面：0.28.0-rc.2 → 0.28.0。 */
+function baseOf(version) {
+  return String(version).split('-')[0]
+}
+
+/**
+ * 按正式版分组的版本列表（G 批次）：每个正式版一行，点开看说明和按钮；
+ * 它的测试版收在组里默认折叠，标「测试版 · 手动安装」。还没发正式版的测试版自成一组。
+ */
 function renderList(ui, list) {
   if (list.length === 0) {
     ui.content.appendChild(el('div', 'dp-empty', 'GitHub 上还没有能热更新的版本'))
     return
   }
-  var grid = tileGrid()
-  var picked = null
+  var groups = []
+  var byBase = {}
   for (var i = 0; i < list.length; i += 1) {
-    (function (release, first) {
-      var active = state.pick === release.version
-      if (active) picked = release
-      grid.appendChild(tile({
-        emoji: release.current ? '🐖' : '📦', label: 'v' + release.version, color: 'lime', soft: true, active: active,
-        note: release.date, badge: first && release.blocked === null ? '新' : '',
-        tag: release.current ? '在用' : release.blocked !== null ? '🔒' : '', dim: release.blocked !== null,
-        data: { 'data-release': release.version },
-        onPick: function () { state.pick = active ? null : release.version; ui.renderContent() },
-      }))
-    })(list[i], i === 0)
+    var release = list[i]
+    var base = baseOf(release.version)
+    if (byBase[base] === undefined) { byBase[base] = { base: base, stable: null, previews: [] }; groups.push(byBase[base]) }
+    if (release.prerelease) byBase[base].previews.push(release)
+    else byBase[base].stable = release
   }
-  ui.content.appendChild(grid)
-  if (picked !== null) ui.content.appendChild(details(ui, picked))
+  groups.sort(function (a, b) { return compareVersions(b.base, a.base) })
+  var newestStable = list.find(function (r) { return !r.prerelease && r.blocked === null }) || null
+  for (var g = 0; g < groups.length; g += 1) renderGroup(ui, groups[g], newestStable)
+}
+
+function renderGroup(ui, group, newestStable) {
+  var key = group.base
+  var head = group.stable ?? group.previews[0]
+  var open = state.pick === key
+  var box = el('div', 'dp-rel')
+  box.setAttribute('data-release-group', key)
+  var row = button('dp-rel-head', { 'data-release': head.version }, function () { state.pick = open ? null : key; ui.renderContent() })
+  row.appendChild(el('b', null, 'v' + key))
+  row.appendChild(el('small', null, group.stable !== null ? group.stable.date : '还没发正式版'))
+  var tags = el('span', 'dp-rel-tags')
+  var current = (group.stable !== null && group.stable.current) || group.previews.some(function (r) { return r.current })
+  if (current) tags.appendChild(tag('current', '在用'))
+  if (group.stable !== null && newestStable !== null && group.stable.version === newestStable.version) tags.appendChild(tag('latest', '最新'))
+  if (group.stable !== null && group.stable.blocked !== null) tags.appendChild(tag('blocked', '🔒'))
+  row.appendChild(tags)
+  box.appendChild(row)
+  if (open) {
+    var body = el('div', 'dp-rel-body')
+    if (group.stable !== null) body.appendChild(details(ui, group.stable))
+    if (group.previews.length > 0) {
+      var pre = el('div', 'dp-rel-pre')
+      var showing = state.previews === key
+      var toggle = button('dp-mini dp-mini-plain', { 'data-previews': key }, function () { state.previews = showing ? null : key; ui.renderContent() })
+      toggle.textContent = (showing ? '▾ ' : '▸ ') + '测试版 ' + group.previews.length + ' 个 · 手动安装'
+      pre.appendChild(toggle)
+      if (showing) {
+        for (var p = 0; p < group.previews.length; p += 1) pre.appendChild(previewRow(ui, group.previews[p]))
+      }
+      body.appendChild(pre)
+    }
+    box.appendChild(body)
+  }
+  ui.content.appendChild(box)
+}
+
+function tag(kind, text) {
+  var node = el('span', 'dp-rel-tag', text)
+  node.setAttribute('data-tag', kind)
+  return node
+}
+
+/** 一个测试版：版本、日期、手动安装按钮（不推荐，所以只是一个小按钮）。 */
+function previewRow(ui, release) {
+  var row = el('div', 'dp-rel-pre-row')
+  row.appendChild(el('span', null, 'v' + release.version + (release.date ? ' · ' + release.date : '')))
+  var go = button('dp-mini', { 'data-update-install': release.version }, function () {
+    if (release.blocked === 'shell') updatesBridge().openPage(release.page)
+    else install(ui, release.version)
+  })
+  go.textContent = release.current ? '正在用' : release.blocked === 'shell' ? '需要新外壳' : release.blocked === 'save' ? '换不了' : '安装测试版'
+  go.disabled = release.current || release.blocked === 'save' || state.busy !== null
+  row.appendChild(go)
+  return row
 }
 
 function details(ui, release) {

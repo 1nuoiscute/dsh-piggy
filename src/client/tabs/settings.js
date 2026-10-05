@@ -9,6 +9,7 @@ import { autoCollapseEnabled, setAutoCollapse } from '../auto-collapse.js'
 import { desktopShell } from '../desktop-shell.js'
 import { emojiStyle, hasBundledEmoji, setEmojiStyle, applyEmojiStyle } from '../emoji-style.js'
 import { PIG_SIZES, displayedPigSize, pigSize, setPigSize } from '../pig-size.js'
+import { setWalk, walkEnabled } from '../life.js'
 
 /** 一项设置：标题、说明，下面放控件。 */
 function section(ui, title, note) {
@@ -34,6 +35,15 @@ function segmented({ box }, attr, options, current, onPick) {
 }
 
 export function renderSettingsTab(ui) {
+  // 更新：从主菜单收进设置（G 批次）。有新正式版时带红点，点进去还是原来的更新面板。
+  const notice = ui.updateNotice
+  const fresh = notice?.unread === true && notice.latest !== null
+  const update = section(ui, '更新', fresh ? '有新版本 v' + notice.latest.version : '查看版本、更新或换回旧版本')
+  const go = button('dp-mini dp-update-entry', { 'data-open-update': 'true' }, function () { ui.select('update') })
+  go.textContent = '🔄 更新'
+  if (fresh) go.appendChild(el('b', 'dp-tile-badge dp-update-dot', '!'))
+  update.head.appendChild(go)
+
   const size = section(ui, '小猪大小', '只改这台设备上的显示大小，不改存档')
   const sizeLabels = { small: '小', standard: '标准', large: '大', extra: '特大' }
   segmented(size, 'data-pig-size', PIG_SIZES.map(key => ({ key, label: sizeLabels[key] })), pigSize(), function (key) {
@@ -57,6 +67,16 @@ export function renderSettingsTab(ui) {
     })
   }
 
+  // 免打扰跟着存档（猪自己的状态），从状态页挪到设置（G 批次）。
+  const quiet = section(ui, '免打扰', '开着时猪不主动说话、不报日常消息；生病和意外照常提醒')
+  const quietOn = ui.view.dialogue.quiet === true
+  const quietToggle = button('dp-switch', { 'data-quiet': quietOn ? 'on' : 'off', 'aria-pressed': String(quietOn) }, function () {
+    ui.send('quiet', { on: !quietOn })
+  })
+  quietToggle.appendChild(el('span', 'dp-switch-knob'))
+  quietToggle.appendChild(el('span', 'dp-switch-text', quietOn ? '开' : '关'))
+  quiet.head.appendChild(quietToggle)
+
   const close = section(ui, '点击别处时收起面板', '网页版点面板外、桌面版切到其他窗口时收起')
   const on = autoCollapseEnabled()
   const toggle = button('dp-switch', { 'data-auto-collapse': String(!on), 'aria-pressed': String(on) }, function () {
@@ -66,4 +86,17 @@ export function renderSettingsTab(ui) {
   toggle.appendChild(el('span', 'dp-switch-knob'))
   toggle.appendChild(el('span', 'dp-switch-text', on ? '开' : '关'))
   close.head.appendChild(toggle)
+
+  // 桌面散步只有桌面版有（G 批次，默认关）。
+  if (desktopShell() !== null) {
+    const walk = section(ui, '桌面散步', '每 10–20 分钟沿屏幕底边走一段再走回来；拖它、开着面板、免打扰时不走')
+    const walking = walkEnabled()
+    const walkToggle = button('dp-switch', { 'data-walk': String(!walking), 'aria-pressed': String(walking) }, function () {
+      setWalk(!walkEnabled())
+      ui.renderContent()
+    })
+    walkToggle.appendChild(el('span', 'dp-switch-knob'))
+    walkToggle.appendChild(el('span', 'dp-switch-text', walking ? '开' : '关'))
+    walk.head.appendChild(walkToggle)
+  }
 }

@@ -24,7 +24,7 @@ export function createIo(ctx) {
         // action is stale by the time it lands and must be dropped.
         actionSeq += 1
         ctx.busy = true
-        ctx.flash(action)
+        ctx.flash(action, extra)
         try {
           var body = { action: action }
           if (extra) for (var k in extra) body[k] = extra[k]
@@ -86,6 +86,17 @@ export function createIo(ctx) {
               'not-consumable': '这个是穿的，不是用的',
               'wrong-stage': '这个学段没有这门课',
               underqualified: '它还没这个本事，先去上课',
+              // v0.30 扩展下载 / 删除
+              'download-failed': '扩展没装上' + (next.message ? '：' + str(next.message, '') : ''),
+              'game-too-old': '要先把游戏更新到 v' + str(next.need, ''),
+              'broken-extension': '这个扩展坏了，装不上',
+              'not-installed': '这个扩展还没装',
+              'extension-off': '这个扩展关着',
+              'extension-error': '这个扩展出错了',
+              'unknown-extension': '没有这个扩展',
+              'no-ticket': '没有盲盒券了',
+              'no-shards': '碎片还不够',
+              'no-certs': '资质凭证不够',
             }
             ctx.showBubble(reasons[next.reason] ?? '这个操作没成', 2400)
           }

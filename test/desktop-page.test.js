@@ -49,11 +49,13 @@ test('启动时按存下的猪位置摆（不按窗口），记住的位置跟�
   assert.deepEqual(JSON.parse(memory.get('dsh-piggy:desktop-pig')), { x: 1700, y: 900 })
 })
 
-test('游戏包导出桌面模块；更新页只给普通玩家看正式版，可选的外壳更新不再红字', () => {
+test('游戏包导出桌面模块；更新页只推荐正式版、测试版折叠，可选的外壳更新不再红字', () => {
   const index = readFileSync(new URL('../src/client/index.js', import.meta.url), 'utf8')
   assert.match(index, /exports\.desktop = desktop/)
   const update = readFileSync(new URL('../src/client/tabs/update.js', import.meta.url), 'utf8')
-  assert.match(update, /renderList\(ui, state\.list\.filter\(eligible\)\)/)
+  // G 批次：测试版收进对应正式版下面、默认折叠；只推荐正式版。
+  assert.match(update, /var eligible = function \(r\) \{ return !r\.prerelease \}/)
+  assert.match(update, /测试版 ' \+ group\.previews\.length \+ ' 个 · 手动安装/)
   assert.match(update, /required \? 'dp-req' : 'dp-dim'/)
 })
 

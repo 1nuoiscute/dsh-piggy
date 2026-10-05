@@ -14,6 +14,7 @@ import { medicate } from './illness.js'
 import { decay } from './settlement.js'
 import { revive } from './state.js'
 import { recordDex } from './dex.js'
+import { act } from './care.js'
 
 /** Inventory counts, always including zeroes so the UI can render a grid. */
 export function inventoryView(state) {
@@ -153,6 +154,9 @@ export const canAfford = (state, itemKey) => {
   return item !== null && state.coins >= item.price
 }
 
+/** 背包里哪些货架的东西其实是一次照料。 */
+const CARE_FOR_KIND = Object.freeze({ food: 'feed', bath: 'bathe', toy: 'play' })
+
 export function useItem(state, itemKey, nowMs) {
   const item = itemByKey(itemKey)
   if (item === null) return { ok: false, reason: 'unknown' }
@@ -160,8 +164,15 @@ export function useItem(state, itemKey, nowMs) {
   if (item.kind === 'dress') return { ok: false, reason: 'not-consumable' }
   // Promotion owns its condition check and consumption as one transaction.
   if (item.kind === 'promotion') return useFormItem(state, itemKey, nowMs)
+  // 食物、洗浴、玩具在背包里用，和状态页的喂食 / 洗澡 / 玩耍是同一件事：长体重、可能胀气、
+  // 猪会说话、玩耍会减重（G 批次：状态页的照料按钮改成跳到背包）。免费的小皮球也走这里。
+  const careAction = CARE_FOR_KIND[item.kind]
   const have = state.inventory?.[itemKey] ?? 0
-  if (have <= 0) return { ok: false, reason: 'empty' }
+  if (have <= 0 && item.default !== true) return { ok: false, reason: 'empty' }
+  if (careAction !== undefined) {
+    const result = act(state, careAction, nowMs, itemKey)
+    return result.ok ? { ...result, ok: true, item } : result
+  }
   decay(state, nowMs)
 
   if (item.key === REVIVE_ITEM.key) {

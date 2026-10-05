@@ -78,7 +78,7 @@ test('feeding a stuffed pig can upset its stomach', () => {
   let upset = 0
   for (let i = 0; i < 200; i += 1) {
     const pig = hatchEgg(T0 + i * 104_729)
-    pig.satiety = 97
+    pig.satiety = 100
     pig.inventory = { apple: 1 }
     act(pig, 'feed', T0 + i * 104_729 + 1)
     if (pig.illness !== null) {
@@ -86,7 +86,13 @@ test('feeding a stuffed pig can upset its stomach', () => {
       upset += 1
     }
   }
-  assert.ok(upset > 25 && upset < 80, `about a quarter: ${upset}/200`)
+  // G2（用户 2026-10-05 确认）：已经 100% 还硬喂才可能胀气，概率 15%。
+  assert.ok(upset > 12 && upset < 50, `about 15%: ${upset}/200`)
+  const nearlyFull = hatchEgg(T0)
+  nearlyFull.satiety = 97
+  nearlyFull.inventory = { apple: 1 }
+  act(nearlyFull, 'feed', T0 + 1)
+  assert.equal(nearlyFull.illness, null, '95～99 正常吃，不会胀气')
   const hungry = hatchEgg(T0)
   hungry.satiety = 50
   hungry.inventory = { apple: 1 }

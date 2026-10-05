@@ -2,14 +2,15 @@
 /**
  * 宠物日记：把「今天发生了什么」攒起来，跨天（06:00）写成一篇。
  *
- * 零 token：模板拼句，不调模型（data/daily.js 的 DIARY_LINES）。事件点只是在
- * 原有逻辑旁边加一句 `noteToday(state, 'feed')`，判断和写入都在这里。
+ * 零 token：从写好的日记本（data/diary-book.js）里挑一篇——按当天最要紧的事选组，
+ * 组里挑最近没用过的。事件点只是在原有逻辑旁边加一句 `noteToday(state, 'feed')`。
  *
  * @module dsh-piggy/core/diary
  */
-import { DIARY_EMPTY_LINE, DIARY_LINES, DIARY_MAX, DIARY_MAX_SENTENCES, OWNER_TOKEN } from '../data.js'
+import { DIARY_BOOK, DIARY_GROUP_ORDER, DIARY_MAX, OWNER_TOKEN } from '../data.js'
 import { dayKeyFor } from './clock.js'
 import { ensureDialogue } from './lines.js'
+import { rollerFor } from './random.js'
 
 /** 一本空日记：没有历史，今天还没开始记。 */
 export function emptyDiary() {
@@ -54,7 +55,7 @@ export function ensureDiary(state) {
  * 归属哪一天由结算器在事件发生时调用 `writeDiaryIfNewDay()` 决定；
  * 在线动作则由宿主读取状态时先翻页。
  * @param {object} state
- * @param {string} kind - DIARY_LINES 里的 key；额外计数（coinsEarned 等）也走这里
+ * @param {string} kind - 事件名（feed、work、illness……见 data/diary-book.js 的分组规则）
  * @param {number} [amount]
  */
 export function noteToday(state, kind, amount = 1) {
@@ -64,19 +65,31 @@ export function noteToday(state, kind, amount = 1) {
 }
 
 /**
- * 把一天的数字拼成一篇日记，最多 5 句。什么都没发生也有话说。
+ * 这一天该从哪组里挑：最要紧的那件事；有点动静但不特别算「日常」，什么都没有算「没人来」。
+ * @param {Record<string, number>} counts
+ * @returns {string}
+ */
+export function diaryGroupFor(counts) {
+  for (const rule of DIARY_GROUP_ORDER) {
+    if (rule.when(counts)) return rule.group
+  }
+  return Object.values(counts).some(value => value > 0) ? 'daily' : 'lonely'
+}
+
+/**
+ * 写一篇：从当天那组里挑一篇最近没写过的（组里都写过了就随便挑）。
  * @param {Record<string, number>} counts
  * @param {string} ownerName
+ * @param {() => number} [next] 随机数，默认取第一篇（测试用）
+ * @param {ReadonlyArray<string>} [recent] 最近写过的日记全文
  */
-export function composeDiary(counts, ownerName) {
-  const sentences = []
-  for (const entry of DIARY_LINES) {
-    if ((counts[entry.key] ?? 0) <= 0) continue
-    sentences.push(entry.said(counts).split(OWNER_TOKEN).join(ownerName))
-    if (sentences.length >= DIARY_MAX_SENTENCES) break
-  }
-  if (sentences.length === 0) return DIARY_EMPTY_LINE.split(OWNER_TOKEN).join(ownerName)
-  return sentences.join('')
+export function composeDiary(counts, ownerName, next = () => 0, recent = []) {
+  const book = /** @type {Record<string, ReadonlyArray<string>>} */ (DIARY_BOOK)
+  const pool = book[diaryGroupFor(counts)] ?? book.daily
+  const said = text => text.split(OWNER_TOKEN).join(ownerName)
+  const fresh = pool.filter(text => !recent.includes(said(text)))
+  const from = fresh.length > 0 ? fresh : pool
+  return said(from[Math.min(from.length - 1, Math.floor(next() * from.length))])
 }
 
 /**
@@ -95,7 +108,8 @@ export function writeDiaryIfNewDay(state, nowMs) {
   if (diary.today.day === today) return false
 
   const owner = ensureDialogue(state).ownerName
-  diary.entries.push({ day: diary.today.day, text: composeDiary(diary.today.counts, owner) })
+  const recent = diary.entries.map(entry => entry.text)
+  diary.entries.push({ day: diary.today.day, text: composeDiary(diary.today.counts, owner, rollerFor(state), recent) })
   if (diary.entries.length > DIARY_MAX) diary.entries.splice(0, diary.entries.length - DIARY_MAX)
   diary.today = { day: today, counts: {} }
   return true

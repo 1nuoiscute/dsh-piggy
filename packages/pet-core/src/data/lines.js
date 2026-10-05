@@ -9,6 +9,8 @@
  * @module dsh-piggy/data/lines
  */
 
+import { MORE_LINES } from './lines-more.js'
+
 /** 台词里代表主人称呼的占位符。 */
 export const OWNER_TOKEN = '[主人]'
 
@@ -51,8 +53,8 @@ const line = (text, reply) => Object.freeze(reply === undefined
 
 const scene = (...lines) => Object.freeze(lines)
 
-/** @type {Readonly<Record<string, ReadonlyArray<Line>>>} */
-export const LINES = Object.freeze({
+/** B6 的原稿；G 批次加的句子和新场景在 lines-more.js，下面合并。 */
+const BASE_LINES = Object.freeze({
   // --- 照顾 -----------------------------------------------------------------
   eat: scene(
     line('好吃！还有吗？', '真乖'),
@@ -61,6 +63,11 @@ export const LINES = Object.freeze({
     line('这个味道我记住了'),
     line('吃饱饱才有力气陪你加班'),
     line('嗝——（不好意思）'),
+  ),
+  full: scene(
+    line('吃饱啦，肚子圆滚滚的'),
+    line('好饱好饱，再吃就要撑着了'),
+    line('嗝——谢谢[主人]，饱饱的'),
   ),
   overfull: scene(
     line('撑……撑住了……'),
@@ -221,6 +228,15 @@ export const LINES = Object.freeze({
     line('我先把番茄收起来啦'),
   ),
 })
+
+/**
+ * 每个场景的全部台词：原稿在前，G 批次加的在后。
+ * @type {Readonly<Record<string, ReadonlyArray<Line>>>}
+ */
+export const LINES = Object.freeze(Object.fromEntries(
+  [...new Set([...Object.keys(BASE_LINES), ...Object.keys(MORE_LINES)])]
+    .map(key => [key, Object.freeze([...(BASE_LINES[key] ?? []), ...(MORE_LINES[key] ?? [])])]),
+))
 
 /** Every scene a line can be asked for. */
 export const LINE_SCENES = Object.freeze(Object.keys(LINES))

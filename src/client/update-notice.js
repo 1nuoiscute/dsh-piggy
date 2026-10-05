@@ -140,6 +140,13 @@ export function createUpdateNotice(options) {
     }
   }
 
+  /** 调试页用：假装有一个新正式版，看红点和设置里的提示长什么样。 */
+  function simulate(version) {
+    latest = { version: String(version), kind: 'game', prerelease: false }
+    unread = true
+    options.changed()
+  }
+
   function markRead() {
     if (latest === null) return
     options.write(READ_KEY, signalId(latest))
@@ -160,7 +167,7 @@ export function createUpdateNotice(options) {
   }
 
   return {
-    check, markRead, maybeBubble, start, stop,
+    check, markRead, maybeBubble, simulate, start, stop,
     get latest() { return latest },
     get remote() { return remote },
     get unread() { return unread },
