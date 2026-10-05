@@ -6634,6 +6634,19 @@
   var SHAPE_SLACK = 6;
   var OPEN_BOX_KEY = "dsh-piggy:desktop-open-box";
   var SIDES_KEY = "dsh-piggy:desktop-sides";
+  function reservedOutline(outline, saved, pigBox, compact) {
+    if (compact || saved === void 0) return outline;
+    return outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }]);
+  }
+  function chooseCollapsedVertical(openBoxes, horizontal, width, pigTop, area, current) {
+    if (area === null || area === void 0) return current;
+    const suffix = "|" + horizontal + "|" + Math.round(width);
+    const above = openBoxes["bottom" + suffix];
+    const below = openBoxes["top" + suffix];
+    if (above !== void 0 && pigTop + above.t - PAD >= area.y) return "bottom";
+    if (below !== void 0 && pigTop + below.b + PAD <= area.y + area.height) return "top";
+    return current;
+  }
   function layoutBox(node) {
     let x = 0;
     let y = 0;
@@ -6656,7 +6669,7 @@
     } catch {
       openBoxes = {};
     }
-    const state2 = { vertical: "bottom", horizontal: "right", pinned: "" };
+    const state2 = { vertical: "bottom", horizontal: "right", pinned: "", compact: false };
     try {
       const sides2 = JSON.parse(localStorage.getItem(SIDES_KEY) || "null");
       if (sides2 && (sides2.vertical === "top" || sides2.vertical === "bottom")) state2.vertical = sides2.vertical;
@@ -6748,9 +6761,8 @@
             } catch {
             }
           }
-        } else if (openBoxes[key] !== void 0) {
-          const saved = openBoxes[key];
-          outline = outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }]);
+        } else if (!open) {
+          outline = reservedOutline(outline, openBoxes[key], pigBox, state2.compact);
         }
       }
       let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
@@ -6800,6 +6812,17 @@
       state2.horizontal = horizontal;
       return { vertical: state2.vertical, horizontal: state2.horizontal };
     }
+    function collapsedSide(pigBox, info) {
+      if (info === null || info.window === void 0 || info.workArea === void 0) return;
+      const pigTop = info.window.y + pigBox.y;
+      const vertical = chooseCollapsedVertical(openBoxes, state2.horizontal, pigBox.width, pigTop, info.workArea, state2.vertical);
+      if (vertical === state2.vertical) return;
+      state2.vertical = vertical;
+      try {
+        localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical, horizontal: state2.horizontal }));
+      } catch {
+      }
+    }
     function pin(host2, side, hostBox, contentBox) {
       const want = { left: "auto", right: "auto", top: "auto", bottom: "auto" };
       if (side.horizontal === "left") want.left = Math.round(hostBox.x - contentBox.left + PAD) + "px";
@@ -6827,7 +6850,7 @@
       for (const s of next.shape) tail.push(s.x, s.y, s.width, s.height);
       return head.concat(tail.map((n) => Math.floor(n / STEP))).join(",");
     }
-    return { boxes, sides, pin, keyOf, state: state2 };
+    return { boxes, sides, collapsedSide, pin, keyOf, state: state2 };
   }
 
   // src/client/desktop/place.js
@@ -7050,6 +7073,17 @@
       },
       beginDrag: function() {
         placement.dragStarted();
+        const h = host();
+        if (h !== null && h.getAttribute("data-open") === "false") {
+          measure.state.compact = true;
+          tick();
+          const pigNode = h.querySelector(".dp-pig");
+          if (pigNode !== null) {
+            const pigBox = layoutBox(pigNode);
+            shell.beginDrag({ x: pigBox.x, y: pigBox.y, width: pigBox.width, height: pigBox.height });
+            return;
+          }
+        }
         const pig = placement.pigWindow();
         const size = placement.pigSize();
         shell.beginDrag(pig === null ? null : { x: pig.x, y: pig.y, width: size.width, height: size.height });
@@ -7059,6 +7093,13 @@
       },
       endDrag: function() {
         shell.endDrag();
+        if (!measure.state.compact) return;
+        measure.state.compact = false;
+        const h = host();
+        const pigNode = h?.querySelector(".dp-pig");
+        const info = shell.place({});
+        if (pigNode !== null && pigNode !== void 0) measure.collapsedSide(layoutBox(pigNode), info);
+        tick();
       },
       syncGeometry: function() {
         tick();
