@@ -38,7 +38,7 @@
     '.bx-skip{position:absolute;top:8px;right:10px;font:inherit;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:50px;border:1.5px solid rgba(255,255,255,.5);background:transparent;color:#fff;cursor:pointer;z-index:3}',
     '.bx-slot{position:relative;display:grid;justify-items:center;align-content:end;width:100%;min-height:120px}',
     '.bx-crate{position:absolute;left:50%;bottom:30px;width:64px;height:54px;margin-left:-32px;border-radius:9px;background:linear-gradient(#c9935a,#9c6a3a);box-shadow:inset 0 0 0 3px #7c5230,inset 0 -8px 0 rgba(0,0,0,.12);animation:bx-drop .5s cubic-bezier(.3,1.4,.5,1) both,bx-shake .5s ease-in-out both,bx-gone .25s ease-in both;animation-delay:var(--d0),var(--d1),var(--d3)}',
-    '.bx-crate::before{content:"";position:absolute;left:-4px;right:-4px;top:12px;height:5px;background:var(--c);box-shadow:0 0 14px 4px var(--c);opacity:0;animation:bx-leak .6s ease-out both;animation-delay:var(--d2)}',
+    '.bx-crate::before{content:"";position:absolute;left:3px;right:3px;top:12px;height:4px;border-radius:2px;background:var(--c);box-shadow:0 0 10px 2px var(--c);opacity:0;animation:bx-leak .6s ease-out both;animation-delay:var(--d2)}',
     '.bx-crate::after{content:"?";position:absolute;inset:0;display:grid;place-items:center;font-weight:900;font-size:20px;color:rgba(255,255,255,.85)}',
     '.bx-beam{position:absolute;left:50%;bottom:40px;width:46px;height:160px;margin-left:-23px;background:linear-gradient(transparent,var(--c));filter:blur(6px);opacity:0;animation:bx-beam .9s ease-out both;animation-delay:var(--d3)}',
     '.bx-fig{position:relative;display:grid;justify-items:center;opacity:0;animation:bx-pop .45s cubic-bezier(.2,1.6,.4,1) both;animation-delay:var(--d3)}',
@@ -52,6 +52,8 @@
     '.bx-ten .bx-slot{min-height:84px}',
     '.bx-ten .bx-crate{width:42px;height:36px;margin-left:-21px;bottom:26px;border-radius:7px}',
     '.bx-ten .bx-crate::after{font-size:13px}',
+    '.bx-ten .bx-crate::before{top:9px;height:3px;box-shadow:0 0 6px 1px var(--c)}',
+    '.bx-sum{font-size:11px;font-weight:800;color:#ffd7a8;text-align:center;opacity:0;animation:bx-fade .3s ease-out both;animation-delay:var(--dend)}',
     '.bx-ten .bx-beam{width:30px;height:90px;margin-left:-15px}',
     '.bx-ten .bx-fig .em{font-size:28px}.bx-ten .bx-ped{width:40px;height:9px;margin-top:-4px}',
     '.bx-ten .bx-fig b{font-size:9.5px}.bx-ten .bx-stars{font-size:7.5px}.bx-ten .bx-tag{font-size:8px;text-align:center}',
@@ -163,7 +165,7 @@
     }
     figure.appendChild(stars)
     if (got.isNew) figure.appendChild(app.el('span', 'bx-new', 'NEW'))
-    else figure.appendChild(app.el('span', 'bx-tag', '潜能 ' + got.potential + (got.certs > 0 ? ' · 凭证 +' + got.certs : '')))
+    else figure.appendChild(app.el('span', 'bx-tag', '潜能 ' + got.potential + (!t.ten && got.certs > 0 ? ' · 凭证 +' + got.certs : '')))
     box.appendChild(figure)
     return box
   }
@@ -177,9 +179,13 @@
     var elapsed = skipped[last.id] ? 99 : (Date.now() - startedAt) / 1000
     var ten = last.items.length > 1
     var stage = app.el('div', 'bx bx-stage')
-    if (ten && !skipped[last.id]) {
+    // 十连还没翻完才有「跳过」；翻完了它自己消失。
+    var lastOpen = 1.2 + (last.items.length - 1) * 0.25
+    if (ten && !skipped[last.id] && elapsed < lastOpen) {
       var skip = app.button('bx-skip', { 'data-bx-skip': '1' }, function () { skipped[last.id] = true; app.rerender && app.rerender() })
       skip.textContent = '跳过 ›'
+      skip.style.animation = 'bx-gone .2s ease-in both'
+      skip.style.animationDelay = (lastOpen - elapsed).toFixed(2) + 's'
       stage.appendChild(skip)
     }
     var holder = ten ? app.el('div', 'bx-ten') : stage
@@ -189,6 +195,7 @@
       var open = ten ? 1.2 + i * 0.25 : 1.4
       var t = { drop: ten ? i * 0.03 : 0, shake: ten ? 0.45 : 0.5, leak: ten ? 0.7 : 0.8, open: open }
       for (var k in t) t[k] -= elapsed
+      t.ten = ten
       holder.appendChild(slot(app, data, got, t))
       end = Math.max(end, open + 0.4 + got.stars * 0.1)
       if (got.stars === 6 && !confettiDone[last.id + ':' + i] && !skipped[last.id]) {
@@ -200,6 +207,11 @@
     stage.style.setProperty('--dend', (end - elapsed).toFixed(2) + 's')
     var six = last.items.some(function (got) { return got.stars === 6 })
     stage.appendChild(app.el('div', 'bx-say', six ? '✨ 六星！✨' : (ten ? '寻访完成' : '')))
+    if (ten) {
+      var fresh = last.items.filter(function (got) { return got.isNew }).length
+      var certs = last.items.reduce(function (sum, got) { return sum + got.certs }, 0)
+      stage.appendChild(app.el('div', 'bx-sum', '新的 ' + fresh + ' 个' + (certs > 0 ? ' · 资质凭证 +' + certs : '')))
+    }
     var done = app.button('bx-done', { 'data-bx-done': '1' }, function () { seenId = last.id; app.rerender && app.rerender() })
     done.textContent = '收下'
     stage.appendChild(done)
