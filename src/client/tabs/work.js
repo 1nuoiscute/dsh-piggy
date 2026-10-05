@@ -9,6 +9,7 @@
 
 import { button, el } from '../dom.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
+import { canStart, renderSwitchAsk, startOrSwitch } from '../switch-activity.js'
 
 /** The three skills, in the order QQ Pet lists its traits, each with its colour. */
 var SKILLS = [
@@ -18,6 +19,7 @@ var SKILLS = [
 ]
 
 export function renderWorkTab(ui) {
+  renderSwitchAsk(ui)
   if (ui.view.jobs.length === 0) {
     ui.content.appendChild(el('div', 'dp-empty', '宿主还没提供工作列表。'))
     return
@@ -101,9 +103,9 @@ function jobDetails(ui, job) {
     + job.traitEmoji + job.traitLabel + ' ' + job.traitPoints
     + (job.payPercent > 0 ? '（+' + job.payPercent + '%）' : '')
     + ' · 饱食 ' + job.satiety + ' · 清洁 ' + job.cleanliness))
-  var go = button('dp-btn dp-btn-wide dp-job-go', { 'data-job': job.key }, function () { ui.send('work', { job: job.key }) })
+  var go = button('dp-btn dp-btn-wide dp-job-go', { 'data-job': job.key }, function () { startOrSwitch(ui, '打工（' + job.label + '）', 'work', { job: job.key }) })
   go.textContent = '💼 出发'
-  go.disabled = !ui.view.canGoOut || job.qualified === false
+  go.disabled = !canStart(ui) || job.qualified === false
   box.appendChild(go)
   return box
 }

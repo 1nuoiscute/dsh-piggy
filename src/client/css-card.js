@@ -25,9 +25,11 @@ export const CSS_CARD = [
   '.dp-vcard-name{font-size:15px;font-weight:800;color:var(--ac-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
   // 名字旁边的蜡笔：平时藏着，鼠标移到名字这行才出来；没有鼠标的设备一直淡淡显示。
   '.dp-vcard-nameline{display:flex;align-items:center;gap:6px;min-width:0}',
-  '.dp-vcard-name-edit{width:22px;height:22px;font-size:11px;opacity:0;transition:opacity .15s}',
-  '.dp-vcard-nameline:hover .dp-vcard-name-edit,.dp-vcard-name-edit:focus-visible{opacity:1}',
-  '@media (hover:none){.dp-vcard-name-edit{opacity:.6}}',
+  '.dp-vcard-name-edit{width:22px;height:22px;font-size:11px}',
+  // 名字、叫你、口头禅、签名：笔平时藏着，鼠标移到那一行才出来（rc.1 反馈）。
+  '.dp-vcard-nameline .dp-vcard-edit,.dp-vcard-row .dp-vcard-edit{opacity:0;transition:opacity .15s}',
+  '.dp-vcard-nameline:hover .dp-vcard-edit,.dp-vcard-row:hover .dp-vcard-edit,.dp-vcard-edit:focus-visible{opacity:1}',
+  '@media (hover:none){.dp-vcard-nameline .dp-vcard-edit,.dp-vcard-row .dp-vcard-edit{opacity:.6}}',
   '.dp-vcard-sub{font-size:10.5px;font-weight:600;color:var(--ac-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
 
   // 「标签：值」 rows.

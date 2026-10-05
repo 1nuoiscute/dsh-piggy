@@ -10,7 +10,6 @@ import { reduceFishingWeight } from './weight.js'
 import { say } from './lines.js'
 
 const WEIGHT = { common: 60, uncommon: 24, rare: 8, legend: 1 }
-const AUTO_LIMIT = 2
 export const emptyFishing = () => ({ pending: null, bag: [], seq: 0, autoDay: '', autoTrips: 0 })
 
 function cleanCatch(value) {
@@ -34,7 +33,7 @@ export function ensureFishing(state) {
     bag: Array.isArray(raw.bag) ? raw.bag.map(cleanCatch).filter(Boolean) : [],
     seq: Number.isInteger(raw.seq) && raw.seq >= 0 ? raw.seq : 0,
     autoDay: typeof raw.autoDay === 'string' ? raw.autoDay : '',
-    autoTrips: Number.isFinite(raw.autoTrips) ? Math.max(0, Math.min(AUTO_LIMIT, Math.floor(raw.autoTrips))) : 0,
+    autoTrips: Number.isFinite(raw.autoTrips) ? Math.max(0, Math.floor(raw.autoTrips)) : 0,
   }
   Object.assign(raw, clean)
   state.fishing = raw
@@ -175,7 +174,7 @@ export function startAutoFishing(state, minutes, nowMs, baitKey) {
   const fishing = ensureFishing(state)
   resetAutoDay(fishing, nowMs)
   if (![30, 60].includes(minutes)) return { ok: false, reason: 'minutes' }
-  if (fishing.autoTrips >= AUTO_LIMIT) return { ok: false, reason: 'daily-limit' }
+  // rc.1 反馈：自动钓鱼不限每天次数，只看鱼饵够不够（autoTrips 仍记今天去了几次）。
   const bait = itemByKey(baitKey)
   const attempts = minutes / 3
   if (bait?.kind !== 'bait' || (state.inventory?.[baitKey] ?? 0) < attempts) return { ok: false, reason: 'no-bait', need: attempts }
@@ -213,7 +212,7 @@ export function fishingView(state, nowMs) {
   resetAutoDay(fishing, nowMs)
   if (fishing.pending !== null && nowMs > fishing.pending.expiresAt) fishing.pending = null
   const enrich = caught => ({ ...caught, ...fishByKey(caught.key) })
-  return { pending: fishing.pending === null ? null : enrich(fishing.pending), bag: fishing.bag.map(enrich), period: fishingPeriod(nowMs), autoTrips: fishing.autoTrips, autoLeft: Math.max(0, AUTO_LIMIT - fishing.autoTrips) }
+  return { pending: fishing.pending === null ? null : enrich(fishing.pending), bag: fishing.bag.map(enrich), period: fishingPeriod(nowMs), autoTrips: fishing.autoTrips, autoLeft: null }
 }
 
 export function skipFishingWait(state, nowMs) {

@@ -65,19 +65,20 @@ function localCard(ui, extension) {
   var head = el('div', 'dp-set-head')
   head.appendChild(el('span', 'dp-ext-emoji', extension.emoji))
   head.appendChild(el('b', null, extension.label + (extension.builtin ? '' : ' ' + extension.version)))
-  var toggle = button('dp-switch', { 'data-extension-toggle': extension.key, 'aria-pressed': String(extension.on) }, function () {
-    ui.send('setExtension', { key: extension.key, on: !extension.on })
-  })
-  toggle.appendChild(el('span', 'dp-switch-knob'))
-  toggle.appendChild(el('span', 'dp-switch-text', extension.on ? '开' : '关'))
-  head.appendChild(toggle)
   if (extension.description) head.appendChild(el('small', 'dp-dim', extension.description))
   card.appendChild(head)
   var note = extension.on ? closingNote(ui.view, extension.key) : ''
   if (note) card.appendChild(el('div', 'dp-ext-note', note))
   if (extension.error) card.appendChild(el('div', 'dp-ext-note', '加载出错：' + extension.error))
 
+  // 开关和删除并排放在卡片左下（rc.1 反馈）。
   var row = el('div', 'dp-ext-actions')
+  var toggle = button('dp-switch', { 'data-extension-toggle': extension.key, 'aria-pressed': String(extension.on) }, function () {
+    ui.send('setExtension', { key: extension.key, on: !extension.on })
+  })
+  toggle.appendChild(el('span', 'dp-switch-knob'))
+  toggle.appendChild(el('span', 'dp-switch-text', extension.on ? '开' : '关'))
+  row.appendChild(toggle)
   if (confirming === extension.key) {
     row.appendChild(el('span', 'dp-ext-warn', '删掉会清空' + (CLEARS[extension.key] ?? '它的数据') + '，确定吗？'))
     var yes = button('dp-mini dp-ext-danger', { 'data-ext-remove-yes': extension.key }, function () {
@@ -91,7 +92,7 @@ function localCard(ui, extension) {
     row.appendChild(yes)
     row.appendChild(no)
   } else {
-    var remove = button('dp-ext-remove-link', { 'data-ext-remove': extension.key }, function () { confirming = extension.key; ui.renderContent() })
+    var remove = button('dp-mini dp-mini-plain dp-ext-remove', { 'data-ext-remove': extension.key }, function () { confirming = extension.key; ui.renderContent() })
     remove.textContent = '删除'
     row.appendChild(remove)
   }

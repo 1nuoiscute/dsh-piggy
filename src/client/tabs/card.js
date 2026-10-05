@@ -82,7 +82,7 @@ function editableField(ui, key, label, value) {
     return row
   }
   // 称呼只给改的按钮、不把它印在面板上（用户 2026-10-01：「叫你『大爹』」那行删了）。
-  if (key === 'owner') row.appendChild(el('span', 'dp-vcard-value dp-dim', '点铅笔修改'))
+  if (key === 'owner') row.appendChild(el('span', 'dp-vcard-value dp-dim', '（悄悄记着，不写出来）'))
   else row.appendChild(el('span', key === 'motto' ? 'dp-vcard-value dp-vcard-motto' : 'dp-vcard-value', key === 'motto' ? '「' + value + '」' : value))
   row.appendChild(pencil(ui, key, label, value, 'dp-vcard-edit'))
   return row

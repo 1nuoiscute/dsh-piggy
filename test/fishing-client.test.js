@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 import { SNAPSHOT, contentOf, findByAttr, findByClass, mount, openPanel, settle } from './helpers/bundle.js'
 
-const fishing = { pending: null, bag: [], period: 'evening', autoTrips: 0, autoLeft: 2 }
+const fishing = { pending: null, bag: [], period: 'evening', autoTrips: 0 }
 const bait = { key: 'bait_worm', kind: 'bait', label: '蚯蚓鱼饵', emoji: '🪱', price: 5 }
 const status = extra => ({ ...SNAPSHOT, fishing: { ...fishing, ...extra }, canGoOut: true,
   shop: [...SNAPSHOT.shop, bait], inventory: { ...SNAPSHOT.inventory, bait_worm: 20 } })
@@ -138,7 +138,7 @@ test('G caught result shows rarity stars; auto fishing explains why it is off', 
   const result = await mount({ status: status({ pending: caught }) })
   openPanel(result.dom, 'fishing')
   assert.match(contentOf(result.dom).allText(), /★★★☆/)
-  const poor = await mount({ status: { ...status({ autoLeft: 0 }) } })
+  const poor = await mount({ status: { ...status(), inventory: { ...SNAPSHOT.inventory, bait_worm: 4 } } })
   openPanel(poor.dom, 'fishing')
-  assert.match(contentOf(poor.dom).allText(), /点不了：今天已经去过 2 次了/)
+  assert.match(contentOf(poor.dom).allText(), /点不了：鱼饵只剩 4 个，不够 10 个/)
 })

@@ -18,6 +18,6 @@ export function normalizeFishing(raw) {
   return {
     pending: isObj(source.pending) ? fish(source.pending) : null,
     bag: arr(source.bag).map(fish).filter(entry => entry.id !== ''),
-    period: str(source.period, ''), autoTrips: num(source.autoTrips, 0), autoLeft: num(source.autoLeft, 2),
+    period: str(source.period, ''), autoTrips: num(source.autoTrips, 0),
   }
 }

@@ -1635,6 +1635,56 @@
     }
   }
 
+  // src/client/switch-activity.js
+  function canStart(ui) {
+    return ui.view.canGoOut === true || ui.view.awayBlocked === "away" && ui.view.activity !== null;
+  }
+  function startOrSwitch(ui, label, action, payload) {
+    if (ui.view.activity === null) {
+      ui.send(action, payload);
+      return;
+    }
+    ui.switchAsk = { label, action, payload };
+    ui.renderContent();
+    if (ui.content) ui.content.scrollTop = 0;
+  }
+  function lossOf(activity) {
+    if (activity.kind === "work") return "\u6253\u5DE5\u5230\u4E00\u534A\u53EB\u56DE\u6765\uFF0C\u8FD9\u4E00\u73ED\u7684\u5DE5\u94B1\u5C31\u6CA1\u4E86";
+    if (activity.kind === "fishing") return "\u9C7C\u9975\u4F1A\u9000\u56DE\u6765";
+    return activity.cost > 0 ? "\u82B1\u7684\u94B1\u4F1A\u9000\u56DE\u6765" : "";
+  }
+  function renderSwitchAsk(ui) {
+    var ask = ui.switchAsk;
+    var activity = ui.view.activity;
+    if (!ask) return;
+    if (activity === null) {
+      ui.switchAsk = null;
+      return;
+    }
+    var box = el("div", "dp-alert dp-switch-ask");
+    var left = Math.max(1, Math.ceil(activity.secondsLeft / 60));
+    box.appendChild(el("b", null, "\u732A\u6B63\u5728" + activity.label.replace(/^兴趣·/, "\u5B66") + "\uFF08\u8FD8\u6709 " + left + " \u5206\u949F\uFF09"));
+    var loss = lossOf(activity);
+    box.appendChild(el("div", null, "\u8981\u7ED3\u675F\u5B83\uFF0C\u6539\u53BB" + ask.label + "\u5417\uFF1F" + (loss ? loss + "\u3002" : "")));
+    var row = el("div", "dp-switch-ask-row");
+    var go = button("dp-mini", { "data-switch-go": ask.action }, function() {
+      ui.switchAsk = null;
+      Promise.resolve(ui.send("calloff")).then(function() {
+        return ui.send(ask.action, ask.payload);
+      });
+    });
+    go.textContent = "\u6539\u53BB" + ask.label;
+    var no = button("dp-mini dp-mini-plain", { "data-switch-cancel": "true" }, function() {
+      ui.switchAsk = null;
+      ui.renderContent();
+    });
+    no.textContent = "\u7B97\u4E86";
+    row.appendChild(go);
+    row.appendChild(no);
+    box.appendChild(row);
+    ui.content.appendChild(box);
+  }
+
   // src/client/tabs/study.js
   var INTEREST_TAB = "interest";
   var STAGE_COLOR = { primary: "yellow", middle: "teal", college: "blue", graduate: "purple", beyond: "pink" };
@@ -1647,6 +1697,7 @@
     return "ahead";
   }
   function renderStudyTab(ui) {
+    renderSwitchAsk(ui);
     if (ui.view.activity?.kind === "interest") {
       var active = ui.view.activity;
       var left = Math.max(1, Math.ceil(active.secondsLeft / 60));
@@ -1732,11 +1783,11 @@
           color,
           soft: true,
           note,
-          disabled: where !== "current" || !ui.view.canGoOut,
+          disabled: where !== "current" || !canStart(ui),
           dim: where === "current" && !sub.affordable,
           data: { "data-subject": sub.key },
           onPick: function() {
-            ui.send("study", { subject: sub.key });
+            startOrSwitch(ui, "\u4E0A" + sub.label + "\u8BFE", "study", { subject: sub.key });
           }
         }));
       })(ui.view.subjects[i]);
@@ -1758,11 +1809,11 @@
           soft: true,
           note,
           badge,
-          disabled: !ui.view.canGoOut,
+          disabled: !canStart(ui),
           dim: !entry.affordable,
           data: { "data-interest": entry.key },
           onPick: function() {
-            ui.send("interest", { interest: entry.key });
+            startOrSwitch(ui, "\u5B66" + entry.label, "interest", { interest: entry.key });
           }
         }));
       })(ui.view.interests[n]);
@@ -1780,6 +1831,7 @@
 
   // src/client/tabs/travel.js
   function renderTravelTab(ui) {
+    renderSwitchAsk(ui);
     if (ui.view.trips.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u76EE\u7684\u5730\u3002"));
       return;
@@ -1794,10 +1846,10 @@
         grow.appendChild(el("div", "dp-dim", formatMinutes(trip.minutes) + " \xB7 " + trip.cost + " \u{1FA99}" + (trip.bestRarity ? " \xB7 \u53EF\u5E26\u56DE " + trip.bestRarityEmoji + trip.bestRarity : "")));
         row.appendChild(grow);
         var go = button("dp-mini", { "data-trip": trip.key }, function() {
-          ui.send("trip", { trip: trip.key });
+          startOrSwitch(ui, "\u65C5\u884C\uFF08" + trip.label + "\uFF09", "trip", { trip: trip.key });
         });
         go.textContent = "\u51FA\u53D1";
-        go.disabled = !ui.view.canGoOut || !trip.affordable;
+        go.disabled = !canStart(ui) || !trip.affordable;
         row.appendChild(go);
         list.appendChild(row);
       })(ui.view.trips[i]);
@@ -1812,6 +1864,7 @@
     { key: "intel", emoji: "\u{1F9E0}", label: "\u667A\u529B", color: "blue" }
   ];
   function renderWorkTab(ui) {
+    renderSwitchAsk(ui);
     if (ui.view.jobs.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u5DE5\u4F5C\u5217\u8868\u3002"));
       return;
@@ -1899,10 +1952,10 @@
     if (job.requirements.length === 0 && job.lockText) box.appendChild(el("div", "dp-req", "\u2717 " + job.lockText));
     box.appendChild(el("div", "dp-dim", job.minutes + " \u5206\u949F \xB7 " + job.coins + " \u{1FA99} \xB7 " + job.traitEmoji + job.traitLabel + " " + job.traitPoints + (job.payPercent > 0 ? "\uFF08+" + job.payPercent + "%\uFF09" : "") + " \xB7 \u9971\u98DF " + job.satiety + " \xB7 \u6E05\u6D01 " + job.cleanliness));
     var go = button("dp-btn dp-btn-wide dp-job-go", { "data-job": job.key }, function() {
-      ui.send("work", { job: job.key });
+      startOrSwitch(ui, "\u6253\u5DE5\uFF08" + job.label + "\uFF09", "work", { job: job.key });
     });
     go.textContent = "\u{1F4BC} \u51FA\u53D1";
-    go.disabled = !ui.view.canGoOut || job.qualified === false;
+    go.disabled = !canStart(ui) || job.qualified === false;
     box.appendChild(go);
     return box;
   }
@@ -2522,8 +2575,7 @@
       pending: isObj(source.pending) ? fish(source.pending) : null,
       bag: arr(source.bag).map(fish).filter((entry) => entry.id !== ""),
       period: str(source.period, ""),
-      autoTrips: num(source.autoTrips, 0),
-      autoLeft: num(source.autoLeft, 2)
+      autoTrips: num(source.autoTrips, 0)
     };
   }
 
@@ -2854,6 +2906,7 @@
         label: str(d.activity.label, "\u5916\u9762"),
         emoji: str(d.activity.emoji, "\u{1F4BC}"),
         secondsLeft: num(d.activity.secondsLeft, 0),
+        cost: num(d.activity.cost, 0),
         progress: num(d.activity.progress, 0)
       } : null,
       canGoOut: d.canGoOut === true,
@@ -3620,6 +3673,9 @@
     ".dp-guide-need{font-size:9.5px;font-weight:800;color:#c7781a}.dp-guide-optional .dp-guide-need{color:var(--ac-text-2)}",
     ".dp-guide-cell small{font-size:9.5px;line-height:1.35;color:var(--ac-text-2)}",
     ".dp-guide-rule{font-size:10.5px;line-height:1.6}",
+    ".dp-switch-ask{display:grid;gap:6px;margin-bottom:10px}.dp-switch-ask-row{display:flex;gap:8px}",
+    ".dp-guide-links{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 10px}",
+    ".dp-guide-links .dp-btn{justify-content:center;font-size:12px}",
     ".dp-guide-code{margin:4px 0;padding:6px 8px;border-radius:8px;background:var(--ac-bg-content);font-size:10px;line-height:1.5;white-space:pre-wrap}",
     // 背包顶上的状态条：两列四格 + 一行体重。
     ".dp-statstrip{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 10px;padding:8px 10px;",
@@ -3634,12 +3690,12 @@
     ".dp-ext-note{margin-top:6px;font-size:10px;font-weight:700;color:#c7781a}",
     ".dp-ext-later{margin-top:12px;text-align:center;font-size:10px;color:var(--ac-text-2)}",
     ".dp-ext-section{display:flex;align-items:center;justify-content:space-between;margin:12px 2px 6px;font-size:11px;font-weight:800;color:var(--ac-text-2);letter-spacing:.04em}",
-    ".dp-ext-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:8px;flex-wrap:wrap}",
-    ".dp-ext-warn{flex:1;min-width:0;font-size:10px;font-weight:700;color:#c0503f}",
+    ".dp-ext-actions{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-top:8px;flex-wrap:wrap}",
+    ".dp-ext-actions .dp-switch{margin:0}",
+    ".dp-ext-warn{flex-basis:100%;order:-1;font-size:10px;font-weight:700;color:#c0503f}",
     ".dp-mini.dp-ext-danger{background:#e05a5a;box-shadow:none}",
-    ".dp-ext-remove-link{font:inherit;font-size:10px;font-weight:700;color:var(--ac-text-2);background:none;border:0;padding:2px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}",
-    ".dp-ext-remove-link:hover{color:#c0503f}",
-    ".dp-ext-card .dp-ext-actions{margin-top:2px}",
+    ".dp-mini.dp-ext-remove{padding:4px 12px}",
+    ".dp-mini.dp-ext-remove:hover:not(:disabled){color:#c0503f;border-color:#e3a79c}",
     ".dp-ext-card [data-ext-install]{margin-left:auto;flex:none}",
     ".dp-set:first-child{padding-top:2px}.dp-set:last-child{border-bottom:0}",
     ".dp-set-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}",
@@ -3749,9 +3805,11 @@
     ".dp-vcard-name{font-size:15px;font-weight:800;color:var(--ac-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
     // 名字旁边的蜡笔：平时藏着，鼠标移到名字这行才出来；没有鼠标的设备一直淡淡显示。
     ".dp-vcard-nameline{display:flex;align-items:center;gap:6px;min-width:0}",
-    ".dp-vcard-name-edit{width:22px;height:22px;font-size:11px;opacity:0;transition:opacity .15s}",
-    ".dp-vcard-nameline:hover .dp-vcard-name-edit,.dp-vcard-name-edit:focus-visible{opacity:1}",
-    "@media (hover:none){.dp-vcard-name-edit{opacity:.6}}",
+    ".dp-vcard-name-edit{width:22px;height:22px;font-size:11px}",
+    // 名字、叫你、口头禅、签名：笔平时藏着，鼠标移到那一行才出来（rc.1 反馈）。
+    ".dp-vcard-nameline .dp-vcard-edit,.dp-vcard-row .dp-vcard-edit{opacity:0;transition:opacity .15s}",
+    ".dp-vcard-nameline:hover .dp-vcard-edit,.dp-vcard-row:hover .dp-vcard-edit,.dp-vcard-edit:focus-visible{opacity:1}",
+    "@media (hover:none){.dp-vcard-nameline .dp-vcard-edit,.dp-vcard-row .dp-vcard-edit{opacity:.6}}",
     ".dp-vcard-sub{font-size:10.5px;font-weight:600;color:var(--ac-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
     // 「标签：值」 rows.
     ".dp-vcard-row{display:flex;align-items:center;gap:6px;margin-top:7px;min-width:0}",
@@ -3986,7 +4044,7 @@
       appendEditor(ui, row, key);
       return row;
     }
-    if (key === "owner") row.appendChild(el("span", "dp-vcard-value dp-dim", "\u70B9\u94C5\u7B14\u4FEE\u6539"));
+    if (key === "owner") row.appendChild(el("span", "dp-vcard-value dp-dim", "\uFF08\u6084\u6084\u8BB0\u7740\uFF0C\u4E0D\u5199\u51FA\u6765\uFF09"));
     else row.appendChild(el("span", key === "motto" ? "dp-vcard-value dp-vcard-motto" : "dp-vcard-value", key === "motto" ? "\u300C" + value + "\u300D" : value));
     row.appendChild(pencil(ui, key, label, value, "dp-vcard-edit"));
     return row;
@@ -4606,6 +4664,7 @@
 
   // src/client/tabs/fishing.js
   var selectedBait = null;
+  var autoOpen = false;
   var waitFrame = 0;
   var waitUi = null;
   var raf2 = (fn) => typeof requestAnimationFrame === "function" ? requestAnimationFrame(fn) : 0;
@@ -4632,6 +4691,7 @@
       stopFight(true);
       return renderAway(ui);
     }
+    renderSwitchAsk(ui);
     if (pending?.phase === "waiting") {
       stopFight(true);
       return renderWaiting(ui, pending);
@@ -4681,7 +4741,11 @@
   }
   function renderAuto(ui) {
     const auto = el("details", "dp-fish-auto");
-    auto.appendChild(el("summary", null, "\u{1F437} \u8BA9\u732A\u81EA\u5DF1\u53BB\u9493\uFF08\u4ECA\u5929\u8FD8\u80FD\u53BB " + ui.view.fishing.autoLeft + " \u6B21\uFF09"));
+    if (autoOpen) auto.setAttribute("open", "");
+    auto.addEventListener("toggle", function() {
+      autoOpen = auto.open === true;
+    });
+    auto.appendChild(el("summary", null, "\u{1F437} \u8BA9\u732A\u81EA\u5DF1\u53BB\u9493"));
     auto.appendChild(el("span", null, "\u732A\u51FA\u95E8 30 / 60 \u5206\u949F\uFF0C\u6BCF 3 \u5206\u949F\u7528 1 \u4E2A\u9009\u4E2D\u7684\u9C7C\u9975\uFF0C\u9493\u5230\u7684\u653E\u8FDB\u9C7C\u7BD3\u3002"));
     const row = el("div", "dp-fish-auto-row");
     const reasons = [];
@@ -4689,13 +4753,12 @@
       const need = minutes / 3;
       const have = ui.view.inventory[selectedBait] ?? 0;
       const go = button("dp-mini", { "data-fish-auto": String(minutes) }, function() {
-        ui.send("fishAuto", { minutes, bait: selectedBait });
+        startOrSwitch(ui, "\u81EA\u52A8\u9493\u9C7C " + minutes + " \u5206\u949F", "fishAuto", { minutes, bait: selectedBait });
       });
       go.textContent = `${minutes} \u5206\u949F\uFF08\u9C7C\u9975 ${need} \u4E2A\uFF09`;
-      go.disabled = ui.view.fishing.autoLeft <= 0 || ui.view.canGoOut !== true || have < need;
+      go.disabled = !canStart(ui) || have < need;
       if (go.disabled && minutes === 30) {
-        if (ui.view.fishing.autoLeft <= 0) reasons.push("\u4ECA\u5929\u5DF2\u7ECF\u53BB\u8FC7 2 \u6B21\u4E86");
-        else if (ui.view.canGoOut !== true) reasons.push("\u732A\u73B0\u5728\u4E0D\u80FD\u51FA\u95E8");
+        if (!canStart(ui)) reasons.push("\u732A\u73B0\u5728\u4E0D\u80FD\u51FA\u95E8");
         else reasons.push("\u9C7C\u9975\u53EA\u5269 " + have + " \u4E2A\uFF0C\u4E0D\u591F " + need + " \u4E2A");
       }
       row.appendChild(go);
@@ -5454,7 +5517,7 @@
     json.appendChild(el("pre", "dp-guide-code", '{\n  "key": "my-blue-pig",\n  "label": "\u84DD\u8393\u732A",\n  "author": "\u4F60\u7684\u540D\u5B57",\n  "description": "\u4E00\u53E5\u8BDD\u4ECB\u7ECD",\n  "emoji": "\u{1FAD0}"\n}'));
     json.appendChild(el("small", "dp-dim", "key \u53EA\u80FD\u7528\u5C0F\u5199\u5B57\u6BCD\u3001\u6570\u5B57\u3001\u77ED\u6A2A\u7EBF\uFF1B\u4EE5\u540E\u66F4\u65B0\u76AE\u80A4\u4FDD\u6301\u540C\u4E00\u4E2A key\uFF0C\u518D\u5BFC\u5165\u5C31\u4F1A\u8986\u76D6"));
     ui.content.appendChild(json);
-    const links = el("div", "dp-dev-row");
+    const links = el("div", "dp-guide-links");
     const guide = button("dp-btn", { "data-skin-guide-open": "true" }, function() {
       openLink(GUIDE_URL);
     });
@@ -5921,18 +5984,18 @@
     var head = el("div", "dp-set-head");
     head.appendChild(el("span", "dp-ext-emoji", extension.emoji));
     head.appendChild(el("b", null, extension.label + (extension.builtin ? "" : " " + extension.version)));
-    var toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
-      ui.send("setExtension", { key: extension.key, on: !extension.on });
-    });
-    toggle.appendChild(el("span", "dp-switch-knob"));
-    toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
-    head.appendChild(toggle);
     if (extension.description) head.appendChild(el("small", "dp-dim", extension.description));
     card.appendChild(head);
     var note = extension.on ? closingNote(ui.view, extension.key) : "";
     if (note) card.appendChild(el("div", "dp-ext-note", note));
     if (extension.error) card.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
     var row = el("div", "dp-ext-actions");
+    var toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
+      ui.send("setExtension", { key: extension.key, on: !extension.on });
+    });
+    toggle.appendChild(el("span", "dp-switch-knob"));
+    toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
+    row.appendChild(toggle);
     if (confirming === extension.key) {
       row.appendChild(el("span", "dp-ext-warn", "\u5220\u6389\u4F1A\u6E05\u7A7A" + (CLEARS[extension.key] ?? "\u5B83\u7684\u6570\u636E") + "\uFF0C\u786E\u5B9A\u5417\uFF1F"));
       var yes = button("dp-mini dp-ext-danger", { "data-ext-remove-yes": extension.key }, function() {
@@ -5949,7 +6012,7 @@
       row.appendChild(yes);
       row.appendChild(no);
     } else {
-      var remove = button("dp-ext-remove-link", { "data-ext-remove": extension.key }, function() {
+      var remove = button("dp-mini dp-mini-plain dp-ext-remove", { "data-ext-remove": extension.key }, function() {
         confirming = extension.key;
         ui.renderContent();
       });
@@ -7271,8 +7334,10 @@
         ctx.fitPanel = fitPanel;
         ctx.flash = flash;
         var updateNotice = attachUpdateNotice(ctx, updatesBridge);
-        dailyHint.addEventListener("pointerdown", function(event) {
-          event.stopPropagation();
+        ["pointerdown", "pointerup"].forEach(function(type) {
+          dailyHint.addEventListener(type, function(event) {
+            event.stopPropagation();
+          });
         });
         dailyHint.addEventListener("click", function(event) {
           event.stopPropagation();

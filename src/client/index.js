@@ -220,7 +220,7 @@ import { partAt } from './pet-parts.js'
 
       // 日常气泡（签到/礼包）的点击只在这里绑一次；它压在猪上面，事件不能冒泡给
       // 拖动和摸摸。
-      dailyHint.addEventListener('pointerdown', function (event) { event.stopPropagation() })
+      ;['pointerdown', 'pointerup'].forEach(function (type) { dailyHint.addEventListener(type, function (event) { event.stopPropagation() }) }) // 松开也不能冒泡：会被当成摸猪（rc.1 的 bug）
       dailyHint.addEventListener('click', function (event) {
         event.stopPropagation()
         var action = dailyHint.getAttribute('data-action')

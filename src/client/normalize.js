@@ -300,7 +300,7 @@ export function normalize(raw) {
       key: str(d.activity.key, ''),
       label: str(d.activity.label, '外面'),
       emoji: str(d.activity.emoji, '💼'),
-      secondsLeft: num(d.activity.secondsLeft, 0),
+      secondsLeft: num(d.activity.secondsLeft, 0), cost: num(d.activity.cost, 0),
       progress: num(d.activity.progress, 0),
     } : null,
     canGoOut: d.canGoOut === true,

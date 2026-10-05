@@ -5,8 +5,11 @@
  */
 import { button, el } from '../dom.js'
 import { fightActive, renderFight, resetFightResolve, stopFight } from './fishing-fight.js'
+import { canStart, renderSwitchAsk, startOrSwitch } from '../switch-activity.js'
 
 let selectedBait = null
+/** 自动钓鱼那一栏展开着没有。 */
+let autoOpen = false
 let waitFrame = 0
 let waitUi = null
 const raf = fn => typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : 0
@@ -32,6 +35,7 @@ export function renderFishingTab(ui) {
   const pending = ui.view.fishing.pending
   if (pending?.phase !== 'hooked') resetFightResolve()
   if (ui.view.activity?.kind === 'fishing') { stopFight(true); return renderAway(ui) }
+  renderSwitchAsk(ui)
   if (pending?.phase === 'waiting') { stopFight(true); return renderWaiting(ui, pending) }
   if (pending?.phase === 'hooked') return renderFight(ui, pending)
   stopFight(true)
@@ -76,19 +80,21 @@ function renderReady(ui) {
 /** 自动钓鱼收在下面：点不了的时候写清楚为什么。 */
 function renderAuto(ui) {
   const auto = el('details', 'dp-fish-auto')
-  auto.appendChild(el('summary', null, '🐷 让猪自己去钓（今天还能去 ' + ui.view.fishing.autoLeft + ' 次）'))
+  // 面板每几秒重画一次：记住展开过，不然一刷新就自己缩回去（rc.1 反馈）。
+  if (autoOpen) auto.setAttribute('open', '')
+  auto.addEventListener('toggle', function () { autoOpen = auto.open === true })
+  auto.appendChild(el('summary', null, '🐷 让猪自己去钓'))
   auto.appendChild(el('span', null, '猪出门 30 / 60 分钟，每 3 分钟用 1 个选中的鱼饵，钓到的放进鱼篓。'))
   const row = el('div', 'dp-fish-auto-row')
   const reasons = []
   for (const minutes of [30, 60]) {
     const need = minutes / 3
     const have = ui.view.inventory[selectedBait] ?? 0
-    const go = button('dp-mini', { 'data-fish-auto': String(minutes) }, function () { ui.send('fishAuto', { minutes, bait: selectedBait }) })
+    const go = button('dp-mini', { 'data-fish-auto': String(minutes) }, function () { startOrSwitch(ui, '自动钓鱼 ' + minutes + ' 分钟', 'fishAuto', { minutes, bait: selectedBait }) })
     go.textContent = `${minutes} 分钟（鱼饵 ${need} 个）`
-    go.disabled = ui.view.fishing.autoLeft <= 0 || ui.view.canGoOut !== true || have < need
+    go.disabled = !canStart(ui) || have < need
     if (go.disabled && minutes === 30) {
-      if (ui.view.fishing.autoLeft <= 0) reasons.push('今天已经去过 2 次了')
-      else if (ui.view.canGoOut !== true) reasons.push('猪现在不能出门')
+      if (!canStart(ui)) reasons.push('猪现在不能出门')
       else reasons.push('鱼饵只剩 ' + have + ' 个，不够 ' + need + ' 个')
     }
     row.appendChild(go)

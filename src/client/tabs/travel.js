@@ -8,8 +8,10 @@
 
 import { button, el } from '../dom.js'
 import { formatMinutes } from '../format.js'
+import { canStart, renderSwitchAsk, startOrSwitch } from '../switch-activity.js'
 
 export function renderTravelTab(ui) {
+  renderSwitchAsk(ui)
   if (ui.view.trips.length === 0) {
     ui.content.appendChild(el('div', 'dp-empty', '宿主还没提供目的地。'))
     return
@@ -24,9 +26,9 @@ export function renderTravelTab(ui) {
       grow.appendChild(el('div', 'dp-dim', formatMinutes(trip.minutes) + ' · ' + trip.cost + ' 🪙'
         + (trip.bestRarity ? ' · 可带回 ' + trip.bestRarityEmoji + trip.bestRarity : '')))
       row.appendChild(grow)
-      var go = button('dp-mini', { 'data-trip': trip.key }, function () { ui.send('trip', { trip: trip.key }) })
+      var go = button('dp-mini', { 'data-trip': trip.key }, function () { startOrSwitch(ui, '旅行（' + trip.label + '）', 'trip', { trip: trip.key }) })
       go.textContent = '出发'
-      go.disabled = !ui.view.canGoOut || !trip.affordable
+      go.disabled = !canStart(ui) || !trip.affordable
       row.appendChild(go)
       list.appendChild(row)
     })(ui.view.trips[i])

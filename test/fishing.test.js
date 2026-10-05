@@ -129,7 +129,7 @@ test('caught fish can be fed or sold and dex keeps the largest size', () => {
   assert.equal(state.coins, coins + FISH[0].price)
 })
 
-test('auto fishing occupies the pig, keeps catches, and caps at two per day', () => {
+test('auto fishing occupies the pig and keeps catches; no daily cap, only bait', () => {
   const state = fresh()
   const first = startAutoFishing(state, 30, NOW, 'bait_worm')
   assert.equal(first.ok, true)
@@ -141,7 +141,11 @@ test('auto fishing occupies the pig, keeps catches, and caps at two per day', ()
   assert.equal(state.stats.fishingAuto, 1)
   assert.equal(startAutoFishing(state, 60, NOW + 31 * 60_000, 'bait_worm').ok, true)
   finishActivity(state, state.activity.endsAt, () => 0)
-  assert.equal(startAutoFishing(state, 30, NOW + 92 * 60_000, 'bait_worm').reason, 'daily-limit')
+  // rc.1 反馈：不限次数，鱼饵够就能去。
+  state.inventory.bait_worm = 10
+  assert.equal(startAutoFishing(state, 30, NOW + 92 * 60_000, 'bait_worm').ok, true)
+  finishActivity(state, state.activity.endsAt, () => 0)
+  assert.equal(startAutoFishing(state, 30, NOW + 123 * 60_000, 'bait_worm').reason, 'no-bait')
 })
 
 test('old saves gain sanitized fishing fields without a save-version bump', () => {

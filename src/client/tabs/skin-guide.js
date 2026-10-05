@@ -67,7 +67,7 @@ export function renderSkinGuide(ui) {
   json.appendChild(el('small', 'dp-dim', 'key 只能用小写字母、数字、短横线；以后更新皮肤保持同一个 key，再导入就会覆盖'))
   ui.content.appendChild(json)
 
-  const links = el('div', 'dp-dev-row')
+  const links = el('div', 'dp-guide-links')
   const guide = button('dp-btn', { 'data-skin-guide-open': 'true' }, function () { openLink(GUIDE_URL) })
   guide.textContent = '📖 完整图文教程'
   const example = button('dp-btn', { 'data-skin-example': 'true' }, function () { openLink(EXAMPLE_URL) })

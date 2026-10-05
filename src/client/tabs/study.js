@@ -11,6 +11,7 @@
 import { STAGES } from '../constants.js'
 import { el } from '../dom.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
+import { canStart, renderSwitchAsk, startOrSwitch } from '../switch-activity.js'
 
 /** The drill key that opens the interest courses instead of a stage. */
 export const INTEREST_TAB = 'interest'
@@ -30,6 +31,7 @@ function standing(sub, stage) {
 }
 
 export function renderStudyTab(ui) {
+  renderSwitchAsk(ui)
   if (ui.view.activity?.kind === 'interest') {
     var active = ui.view.activity
     var left = Math.max(1, Math.ceil(active.secondsLeft / 60))
@@ -101,10 +103,10 @@ function renderSubjects(ui, stage) {
       else note = sub.lessons + ' 节'
       grid.appendChild(tile({
         emoji: sub.emoji, label: sub.label, color: color, soft: true, note: note,
-        disabled: where !== 'current' || !ui.view.canGoOut,
+        disabled: where !== 'current' || !canStart(ui),
         dim: where === 'current' && !sub.affordable,
         data: { 'data-subject': sub.key },
-        onPick: function () { ui.send('study', { subject: sub.key }) },
+        onPick: function () { startOrSwitch(ui, '上' + sub.label + '课', 'study', { subject: sub.key }) },
       }))
     })(ui.view.subjects[i])
   }
@@ -122,10 +124,10 @@ function renderInterests(ui) {
       var badge = entry.certificate === '' ? '' : (entry.certified ? '📜' : entry.times + '/' + entry.certificateAfter)
       grid.appendChild(tile({
         emoji: entry.emoji, label: entry.label, color: INTEREST_COLOR, soft: true, note: note, badge: badge,
-        disabled: !ui.view.canGoOut,
+        disabled: !canStart(ui),
         dim: !entry.affordable,
         data: { 'data-interest': entry.key },
-        onPick: function () { ui.send('interest', { interest: entry.key }) },
+        onPick: function () { startOrSwitch(ui, '学' + entry.label, 'interest', { interest: entry.key }) },
       }))
     })(ui.view.interests[n])
   }
