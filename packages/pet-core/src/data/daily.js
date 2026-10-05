@@ -68,33 +68,3 @@ export const GIFT_TABLE = Object.freeze([
 
 /** 日记最多留几篇，更早的删掉。 */
 export const DIARY_MAX = 60
-
-/** 一天里最多数几句话（模板拼出来的日记不会比它长）。 */
-export const DIARY_MAX_SENTENCES = 5
-
-/**
- * 日记模板：按当天记下的东西挑句子拼，最多 `DIARY_MAX_SENTENCES` 句。
- *
- * `[主人]` 会换成主人称呼（和 data/lines.js 用同一个占位符）。顺序就是优先级：
- * 先说吃，最后说陪主人干活。句子里的数字来自当天的计数（见 DIARY_COUNT_LABELS）。
- * @type {ReadonlyArray<{ key: string, said: (counts: Record<string, number>) => string }>}
- */
-export const DIARY_LINES = Object.freeze([
-  Object.freeze({ key: 'feed', said: c => `今天吃了 ${c.feed} 顿，[主人]喂的，好饱。` }),
-  Object.freeze({ key: 'bathe', said: c => `洗了 ${c.bathe} 次澡，身上香香的。` }),
-  Object.freeze({ key: 'pet', said: c => `[主人]摸了我 ${c.pet} 次，我呼噜呼噜了一下午。` }),
-  Object.freeze({ key: 'work', said: c => `出门打工 ${c.work} 趟${c.coinsEarned > 0 ? `，赚了 ${c.coinsEarned} 金币！` : '，累是累了点。'}` }),
-  Object.freeze({ key: 'study', said: c => `上了 ${c.study} 节课，脑袋里又装进去一点东西。` }),
-  Object.freeze({ key: 'graduate', said: c => `今天毕业啦，一共念完 ${c.graduate} 个学段！` }),
-  Object.freeze({ key: 'trip', said: c => `出去旅行 ${c.trip} 次，带回来 ${c.souvenirs ?? 0} 件纪念品。` }),
-  Object.freeze({ key: 'illness', said: () => '生病了，难受得不想动……' }),
-  Object.freeze({ key: 'cure', said: c => `吃了 ${c.cure} 次药，终于好了。` }),
-  Object.freeze({ key: 'wrongMedicine', said: () => '吃错药了，肚子更难受了。' }),
-  Object.freeze({ key: 'levelUp', said: c => `升级 ${c.levelUp} 次，[主人]看见了吗？` }),
-  Object.freeze({ key: 'stage', said: () => '今天长大了，样子变了一点点。' }),
-  Object.freeze({ key: 'turn', said: c => `[主人]今天敲了 ${c.turn} 轮代码，我在旁边看着。` }),
-  Object.freeze({ key: 'tool', said: c => `${c.tool} 个工具跑完了，我也跟着长了点。` }),
-])
-
-/** 什么都没发生的那一天。 */
-export const DIARY_EMPTY_LINE = '今天[主人]没来，我睡了一整天。'

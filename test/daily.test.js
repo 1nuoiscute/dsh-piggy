@@ -12,10 +12,10 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { hatchEgg, layEgg } from '../core.js'
-import { GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS } from '../data.js'
+import { DIARY_BOOK, GIFT_TABLE, ONLINE_GIFT, SIGN_IN_CYCLE, SIGN_IN_REWARDS } from '../data.js'
 import { canSignIn, dayKeyFor, ensureDaily, giftBucketIndex, openGift, recordOnline, signIn } from '../packages/pet-core/src/core/daily.js'
 import { rollerFor } from '../packages/pet-core/src/core/random.js'
-import { composeDiary, diaryView, ensureDiary, noteToday, writeDiaryIfNewDay } from '../packages/pet-core/src/core/diary.js'
+import { composeDiary, diaryGroupFor, diaryView, ensureDiary, noteToday, writeDiaryIfNewDay } from '../packages/pet-core/src/core/diary.js'
 import { migrate } from '../packages/pet-core/src/core/migrate.js'
 
 const MIN = 60_000
@@ -286,8 +286,8 @@ test('the first read after 06:00 writes yesterday into a diary entry', () => {
   assert.equal(pig.diary.entries.length, 1)
   const entry = pig.diary.entries[0]
   assert.equal(entry.day, '2026-10-01')
-  assert.ok(entry.text.includes('2 顿'), entry.text)
-  assert.ok(entry.text.includes('43 轮'), entry.text)
+  // G 批次：从日记本里挑一篇。喂了 2 顿、主人敲了 43 轮：最要紧的是「陪主人干活」。
+  assert.ok(DIARY_BOOK.busy.map(text => text.split('[主人]').join('主人')).includes(entry.text), entry.text)
   assert.equal(pig.diary.today.counts.feed, undefined, '今天的计数清零了')
   assert.equal(pig.diary.today.day, '2026-10-02')
 })
@@ -297,25 +297,38 @@ test('a day where nothing happened still gets a line', () => {
   writeDiaryIfNewDay(pig, at(2026, 10, 1, 9))
   writeDiaryIfNewDay(pig, at(2026, 10, 2, 7, 0))
   assert.equal(pig.diary.entries.length, 1)
-  assert.ok(pig.diary.entries[0].text.includes('睡了一整天'), pig.diary.entries[0].text)
+  const lonely = DIARY_BOOK.lonely.map(text => text.split('[主人]').join('主人'))
+  assert.ok(lonely.includes(pig.diary.entries[0].text), pig.diary.entries[0].text)
 })
 
-test('a diary entry is at most five sentences, whatever the day held', () => {
-  const counts = { feed: 1, bathe: 1, pet: 1, work: 1, study: 1, trip: 1, levelUp: 1, turn: 1 }
-  const text = composeDiary(counts, '主人')
-  assert.ok(text.length > 0)
-  // 每句以「。」结尾；模板都是单个句号收尾。
-  assert.ok(text.split('。').filter(part => part !== '').length <= 5, text)
+test('the diary picks the group of the day\'s biggest event', () => {
+  assert.equal(diaryGroupFor({}), 'lonely')
+  assert.equal(diaryGroupFor({ feed: 1 }), 'daily')
+  assert.equal(diaryGroupFor({ feed: 6 }), 'glutton')
+  assert.equal(diaryGroupFor({ feed: 6, work: 1 }), 'work')
+  assert.equal(diaryGroupFor({ illness: 1, cure: 1 }), 'cure')
+  assert.equal(diaryGroupFor({ illness: 1, wrongMedicine: 1 }), 'wrongMedicine')
+  assert.equal(diaryGroupFor({ turn: 12 }), 'busy')
+  // 每组都有日记，全书几百篇，每篇都不长。
+  let total = 0
+  for (const [group, pool] of Object.entries(DIARY_BOOK)) {
+    assert.ok(pool.length >= 10, group)
+    for (const text of pool) assert.ok(text.length <= 60, text)
+    total += pool.length
+  }
+  assert.ok(total >= 300, String(total))
+})
+
+test('the diary does not repeat a recent page while the group has fresh ones', () => {
+  const recent = DIARY_BOOK.bathe.slice(1).map(text => text.split('[主人]').join('主人'))
+  const text = composeDiary({ bathe: 1 }, '主人', () => 0.99, recent)
+  assert.equal(text, DIARY_BOOK.bathe[0].split('[主人]').join('主人'))
 })
 
 test('the owner name replaces the placeholder in the diary', () => {
-  const pig = hatchEgg(at(2026, 10, 1, 9))
-  pig.dialogue = { ownerName: '老板' }
-  noteToday(pig, 'turn', 7)
-  writeDiaryIfNewDay(pig, at(2026, 10, 1, 9))
-  writeDiaryIfNewDay(pig, at(2026, 10, 2, 7, 0))
-  assert.ok(pig.diary.entries[0].text.includes('老板'), pig.diary.entries[0].text)
-  assert.ok(!pig.diary.entries[0].text.includes('[主人]'), '占位符必须换掉')
+  const text = composeDiary({ cure: 1 }, '老板', () => 0.1)
+  assert.ok(text.includes('老板'), text)
+  assert.ok(!text.includes('[主人]'), '占位符必须换掉')
 })
 
 test('only the newest 60 entries are kept', () => {
