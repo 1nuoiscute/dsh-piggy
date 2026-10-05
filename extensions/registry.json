@@ -16,6 +16,28 @@
       "version": "1.0.0",
       "builtin": true,
       "description": "抛竿、看准时机提竿，钓到的鱼进鱼篓，可以喂猪或卖钱；也能让猪自己出门钓。"
+    },
+    {
+      "key": "blindbox",
+      "label": "盲盒",
+      "emoji": "🎁",
+      "version": "1.0.0",
+      "minGame": "0.30.0",
+      "description": "买盲盒、摇一摇拆开，收集一整排小摆件。每个系列都有隐藏款，抽多了一定会出。",
+      "files": {
+        "manifest.json": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-1.0.0/manifest.json",
+          "sha256": "011df1681b1a17cc353027788dbf14d9c47662a5c2a1540a1ffa64ba47587f1a"
+        },
+        "server.js": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-1.0.0/server.js",
+          "sha256": "bb543387ef1b1acf400245bd699499f1315140faaf62a1a4d36f8fbf7c480290"
+        },
+        "client.js": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-1.0.0/client.js",
+          "sha256": "b8a80ec65a4ffcd1ac39ce45e3f8d551bf027fff928910573caff1c3a4e0925b"
+        }
+      }
     }
   ]
 }
