@@ -5936,7 +5936,12 @@
   var online = { loading: false, loaded: false, error: "", entries: (
     /** @type {any[]} */
     []
-  ) };
+  ), stamp: "" };
+  function stampOf(view) {
+    return view.extensions.map(function(extension) {
+      return extension.key + "@" + extension.version + ":" + extension.installed;
+    }).join(",");
+  }
   function closingNote(view, key) {
     if (key === "pomodoro" && view.pomodoro !== null && view.pomodoro.active) return "\u6B63\u5728\u4E13\u6CE8\uFF1A\u5173\u6389\u4F1A\u653E\u5F03\u8FD9\u4E00\u4E2A\uFF0C\u4E0D\u7ED9\u5956\u52B1";
     if (key === "fishing" && view.activity?.kind === "fishing") return "\u732A\u6B63\u5728\u5916\u9762\u9493\u9C7C\uFF1A\u5173\u6389\u4F1A\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u9C7C\u9975\u9000\u56DE";
@@ -5952,9 +5957,9 @@
       var body = obj(data);
       online = { loading: false, loaded: true, error: str(body.error, ""), entries: arr(body.entries).filter(function(entry) {
         return typeof obj(entry).key === "string";
-      }) };
+      }), stamp: stampOf(ui.view) };
     }).catch(function() {
-      online = { loading: false, loaded: true, error: "\u8FDE\u4E0D\u4E0A", entries: online.entries };
+      online = { loading: false, loaded: true, error: "\u8FDE\u4E0D\u4E0A", entries: online.entries, stamp: stampOf(ui.view) };
     }).then(function() {
       if (ui.tab === "extensions") ui.renderContent();
     });
@@ -5964,7 +5969,7 @@
       renderDownloadedApp(ui, String(ui.tab).slice(4));
       return;
     }
-    if (!online.loaded) loadOnline(ui, false);
+    if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false);
     ui.content.appendChild(el("div", "dp-ext-intro", "\u7528\u4E0D\u4E0A\u7684\u73A9\u6CD5\u53EF\u4EE5\u5173\u6389\uFF0C\u6570\u636E\u7559\u7740\u968F\u65F6\u6062\u590D\uFF1B\u5220\u9664\u4F1A\u8FDE\u6570\u636E\u4E00\u8D77\u6E05\u6389\uFF0C\u4EE5\u540E\u53EF\u4EE5\u5728\u4E0B\u9762\u91CD\u65B0\u88C5\u3002"));
     ui.content.appendChild(el("div", "dp-ext-section", "\u672C\u5730\u6269\u5C55"));
     var local = ui.view.extensions.filter(function(extension) {

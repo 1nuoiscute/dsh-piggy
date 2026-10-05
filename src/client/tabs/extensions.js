@@ -14,7 +14,12 @@ import { arr, obj, str } from '../values.js'
 /** 正在确认删除哪个扩展。 */
 var confirming = null
 /** 在线目录：loading / 读到的 / 出错。 */
-var online = { loading: false, loaded: false, error: '', entries: /** @type {any[]} */ ([]) }
+var online = { loading: false, loaded: false, error: '', entries: /** @type {any[]} */ ([]), stamp: '' }
+
+/** 本地装了哪些、什么版本：一变（装上、删掉、更新完）就重新读在线目录。 */
+function stampOf(view) {
+  return view.extensions.map(function (extension) { return extension.key + '@' + extension.version + ':' + extension.installed }).join(',')
+}
 
 /** 关掉时会顺带收尾的事，提前写在卡片上。 @param {any} view @param {string} key */
 function closingNote(view, key) {
@@ -33,15 +38,15 @@ function loadOnline(ui, force) {
     .then(function (response) { return response.json() })
     .then(function (data) {
       var body = obj(data)
-      online = { loading: false, loaded: true, error: str(body.error, ''), entries: arr(body.entries).filter(function (entry) { return typeof obj(entry).key === 'string' }) }
+      online = { loading: false, loaded: true, error: str(body.error, ''), entries: arr(body.entries).filter(function (entry) { return typeof obj(entry).key === 'string' }), stamp: stampOf(ui.view) }
     })
-    .catch(function () { online = { loading: false, loaded: true, error: '连不上', entries: online.entries } })
+    .catch(function () { online = { loading: false, loaded: true, error: '连不上', entries: online.entries, stamp: stampOf(ui.view) } })
     .then(function () { if (ui.tab === 'extensions') ui.renderContent() })
 }
 
 export function renderExtensionsTab(ui) {
   if (String(ui.tab).startsWith('ext:')) { renderDownloadedApp(ui, String(ui.tab).slice(4)); return }
-  if (!online.loaded) loadOnline(ui, false)
+  if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false)
   ui.content.appendChild(el('div', 'dp-ext-intro', '用不上的玩法可以关掉，数据留着随时恢复；删除会连数据一起清掉，以后可以在下面重新装。'))
 
   ui.content.appendChild(el('div', 'dp-ext-section', '本地扩展'))
