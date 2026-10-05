@@ -1,7 +1,9 @@
 // 矿洞扩展：地图和时间计算只依赖传入参数，存档只保留已挖进度。
 const WIDTH = 6
 const SIZE = 48
-const TEN_MINUTES = 600_000
+const MAX_ENERGY = 100
+const RECOVERY_MS = 3 * 60_000
+const DRINK_ENERGY = 30
 const ORES = [
   { key: 'coal', emoji: '⚫', label: '煤', unlock: 1, price: 8 },
   { key: 'copper', emoji: '🟠', label: '铜', unlock: 1, price: 15 },
@@ -20,7 +22,7 @@ const FOSSILS = [
 const SHOP = [
   { key: 'iron', emoji: '⛏️', label: '铁镐', note: '石头、矿和化石少挖 1 下', price: 1500 },
   { key: 'diamond', emoji: '💠', label: '钻石镐', note: '再少挖 1 下，硬岩也少挖 1 下', price: 6000 },
-  { key: 'drink', emoji: '🥤', label: '体力饮料', note: '恢复 10 体力，每天最多 5 瓶', price: 80 },
+  { key: 'drink', emoji: '🥤', label: '体力饮料', note: '恢复 30 体力，每天最多 5 瓶', price: 80 },
 ]
 
 /** 和游戏一样按本地时间每天早上六点换天。 */
@@ -76,9 +78,9 @@ export function hitsNeeded(kind, pickaxe) {
 }
 
 export function recover(energy, energyAt, now) {
-  const gained = Math.floor(Math.max(0, now - energyAt) / TEN_MINUTES)
-  const next = Math.min(30, energy + gained)
-  return { energy: next, energyAt: next === 30 ? now : energyAt + gained * TEN_MINUTES }
+  const gained = Math.floor(Math.max(0, now - energyAt) / RECOVERY_MS)
+  const next = Math.min(MAX_ENERGY, energy + gained)
+  return { energy: next, energyAt: next === MAX_ENERGY ? now : energyAt + gained * RECOVERY_MS }
 }
 
 /** 补齐旧存档或部分写入的矿洞数据，保留已有进度。 */
@@ -88,8 +90,8 @@ export function normalize(data) {
   if (!data.bag || typeof data.bag !== 'object' || Array.isArray(data.bag)) data.bag = {}
   if (!data.found || typeof data.found !== 'object' || Array.isArray(data.found)) data.found = {}
   if (![1, 2, 3].includes(data.pickaxe)) data.pickaxe = 1
-  if (!Number.isFinite(data.energy)) data.energy = 30
-  data.energy = Math.max(0, Math.min(30, Math.floor(data.energy)))
+  if (!Number.isFinite(data.energy)) data.energy = MAX_ENERGY
+  data.energy = Math.max(0, Math.min(MAX_ENERGY, Math.floor(data.energy)))
   if (!Number.isFinite(data.energyAt)) data.energyAt = 0
   if (!Number.isInteger(data.drinks) || data.drinks < 0) data.drinks = 0
   if (typeof data.day !== 'string') data.day = null
@@ -105,7 +107,7 @@ export function normalize(data) {
 export function dayState(data, now) {
   const day = dayKey(now)
   if (data.day !== day) {
-    return { ...data, day, layer: 1, maps: {}, surface: false, energy: 30, energyAt: now, drinks: 0 }
+    return { ...data, day, layer: 1, maps: {}, surface: false, energy: MAX_ENERGY, energyAt: now, drinks: 0 }
   }
   return { ...data, ...recover(data.energy, data.energyAt, now) }
 }
@@ -138,7 +140,7 @@ function reveal(data, cell, index, api) {
 }
 
 export default {
-  init() { return { day: null, layer: 1, maps: {}, surface: false, energy: 30, energyAt: 0, drinks: 0, pickaxe: 1, bag: {}, found: {}, last: null } },
+  init() { return { day: null, layer: 1, maps: {}, surface: false, energy: MAX_ENERGY, energyAt: 0, drinks: 0, pickaxe: 1, bag: {}, found: {}, last: null } },
   actions: {
     dig(data, payload, api) {
       refresh(data, api.now)
@@ -150,7 +152,7 @@ export default {
       if (!adjacent(index, p.open)) return { ok: false, reason: 'not-adjacent' }
       if (data.energy < 1) return { ok: false, reason: 'tired' }
       const cell = generateMap(data.layer, data.day)[index]
-      const wasFull = data.energy === 30
+      const wasFull = data.energy === MAX_ENERGY
       data.energy -= 1
       if (wasFull) data.energyAt = api.now
       p.hits[index] = (p.hits[index] ?? 0) + 1
@@ -186,7 +188,7 @@ export default {
       if (!api.spend(item.price)) return { ok: false, reason: 'poor' }
       if (item.key === 'iron') data.pickaxe = 2
       if (item.key === 'diamond') data.pickaxe = 3
-      if (item.key === 'drink') { data.energy = Math.min(30, data.energy + 10); if (data.energy === 30) data.energyAt = api.now; data.drinks += 1 }
+      if (item.key === 'drink') { data.energy = Math.min(MAX_ENERGY, data.energy + DRINK_ENERGY); if (data.energy === MAX_ENERGY) data.energyAt = api.now; data.drinks += 1 }
       return { ok: true }
     },
   },
@@ -196,7 +198,7 @@ export default {
     const map = generateMap(d.layer, d.day)
     return {
       day: d.day, layer: d.layer, surface: d.surface, energy: d.energy, energyAt: d.energyAt,
-      nextEnergyMinutes: d.energy < 30 ? Math.max(1, Math.ceil((d.energyAt + TEN_MINUTES - api.now) / 60_000)) : null,
+      nextEnergyMinutes: d.energy < MAX_ENERGY ? Math.max(1, Math.ceil((d.energyAt + RECOVERY_MS - api.now) / 60_000)) : null,
       pickaxe: d.pickaxe, drinks: d.drinks, bag: d.bag, last: d.last,
       cells: map.map((cell, index) => ({ index, open: p.open.includes(index), hits: p.hits[index] ?? 0, remaining: p.hits[index] > 0 ? Math.max(1, hitsNeeded(cell.kind, d.pickaxe) - p.hits[index]) : undefined, adjacent: adjacent(index, p.open), ...(p.open.includes(index) ? cell : {}) })),
       canDescend: d.layer < 10 && p.open.includes(map.findIndex(cell => cell.kind === 'ladder')),

@@ -10,16 +10,17 @@ const fake = (now = at(5, 12), coins = 10_000) => {
   return { api, said, coins: () => coins }
 }
 
-test('06:00 换天，恢复体力保留不足十分钟的时间', () => {
+test('06:00 换天回满 100，离线每三分钟恢复一点并保留余数', () => {
   assert.equal(dayKey(at(6, 5, 59)), '2026-10-05')
   assert.equal(dayKey(at(6, 6)), '2026-10-06')
-  assert.deepEqual(recover(0, at(5, 12), at(5, 12, 29)), { energy: 2, energyAt: at(5, 12, 20) })
+  assert.deepEqual(recover(0, at(5, 12), at(5, 12, 8)), { energy: 2, energyAt: at(5, 12, 6) })
+  assert.deepEqual(recover(0, at(5, 12), at(5, 17)), { energy: 100, energyAt: at(5, 17) })
   const state = mine.init()
   refresh(state, at(5, 12)); state.energy = 1; state.layer = 6; state.maps[6] = { open: [0], hits: {} }
   refresh(state, at(6, 5, 59)); assert.equal(state.layer, 6)
   const fresh = dayState(state, at(6, 6))
   assert.equal(state.layer, 6); assert.equal(fresh.layer, 1)
-  refresh(state, at(6, 6)); assert.equal(state.layer, 1); assert.equal(state.energy, 30); assert.deepEqual(state.maps, {})
+  refresh(state, at(6, 6)); assert.equal(state.layer, 1); assert.equal(state.energy, 100); assert.deepEqual(state.maps, {})
 })
 
 test('地图按日期和层数确定，入口、梯子、化石和矿物边界正确', () => {
@@ -46,7 +47,7 @@ test('镐子减少敲击次数，体力不足不挖，只有相邻格可以挖',
   const t = fake(); const data = mine.init(); refresh(data, t.api.now)
   assert.equal(mine.actions.dig(data, { cell: 47 }, t.api).reason, 'not-adjacent')
   const first = mine.actions.dig(data, { cell: 6 }, t.api)
-  assert.equal(first.ok, true); assert.equal(data.energy, 29)
+  assert.equal(first.ok, true); assert.equal(data.energy, 99)
   data.energy = 0
   assert.equal(mine.actions.dig(data, { cell: 7 }, t.api).reason, 'tired')
 })
@@ -76,13 +77,13 @@ test('未挖的格子不泄露内容，敲击进度留下，挖开后不重复�
   assert.equal(hidden.key, undefined)
   assert.equal(hidden.remaining, undefined)
   assert.equal(mine.actions.dig(data, { cell: target }, t.api).ok, true)
-  assert.equal(data.energy, 29)
+  assert.equal(data.energy, 99)
   assert.equal(mine.view(data, t.api).cells[target].hits, 1)
   assert.equal(mine.view(data, t.api).cells[target].remaining, 1)
   assert.equal(mine.actions.dig(data, { cell: target }, t.api).ok, true)
   assert.equal(mine.view(data, t.api).cells[target].open, true)
   assert.equal(mine.actions.dig(data, { cell: target }, t.api).reason, 'already-open')
-  assert.equal(data.energy, 28)
+  assert.equal(data.energy, 98)
 })
 
 test('体力饮料每天限五瓶，价格准确；换天保留矿袋和装备', () => {
@@ -91,7 +92,7 @@ test('体力饮料每天限五瓶，价格准确；换天保留矿袋和装备',
   for (let i = 0; i < 5; i++) {
     data.energy = 0
     assert.equal(mine.actions.buy(data, { item: 'drink' }, t.api).ok, true)
-    assert.equal(data.energy, 10)
+    assert.equal(data.energy, 30)
   }
   assert.equal(data.drinks, 5)
   assert.equal(mine.actions.buy(data, { item: 'drink' }, t.api).reason, 'limit')
@@ -142,7 +143,7 @@ test('缺字段的存档在 view 和全部动作中自动补齐，不丢已有�
   const empty = {}
   const first = mine.view(empty, t.api)
   assert.equal(first.cells.length, 48)
-  assert.equal(first.energy, 30)
+  assert.equal(first.energy, 100)
   assert.equal(first.pickaxe, 1)
   assert.equal(first.shelf.items.length, 3)
   assert.deepEqual(empty, {}, 'view 不改原始存档')
@@ -165,8 +166,23 @@ test('下一点体力按剩余整分钟显示，满体力时不显示', () => {
   const data = mine.init()
   refresh(data, t.api.now)
   assert.equal(mine.view(data, t.api).nextEnergyMinutes, null)
-  data.energy = 29
-  assert.equal(mine.view(data, t.api).nextEnergyMinutes, 10)
-  assert.equal(mine.view(data, { ...t.api, now: t.api.now + 9 * 60_000 + 1 }).nextEnergyMinutes, 1)
-  assert.equal(mine.view(data, { ...t.api, now: t.api.now + 10 * 60_000 }).nextEnergyMinutes, null)
+  data.energy = 99
+  assert.equal(mine.view(data, t.api).nextEnergyMinutes, 3)
+  assert.equal(mine.view(data, { ...t.api, now: t.api.now + 2 * 60_000 + 1 }).nextEnergyMinutes, 1)
+  assert.equal(mine.view(data, { ...t.api, now: t.api.now + 3 * 60_000 }).nextEnergyMinutes, null)
+})
+
+test('饮料恢复 30 且不超过 100，旧存档体力可继续离线恢复', () => {
+  const t = fake()
+  const data = mine.init()
+  refresh(data, t.api.now)
+  data.energy = 80
+  assert.equal(mine.actions.buy(data, { item: 'drink' }, t.api).ok, true)
+  assert.equal(data.energy, 100)
+  assert.equal(mine.view(data, t.api).shelf.items.find(item => item.key === 'drink').note, '恢复 30 体力，每天最多 5 瓶')
+  const old = { day: dayKey(t.api.now), energy: 30, energyAt: t.api.now }
+  normalize(old)
+  assert.equal(old.energy, 30)
+  refresh(old, t.api.now + 3 * 60_000)
+  assert.equal(old.energy, 31)
 })
