@@ -4296,13 +4296,31 @@
     const picked = ui.drill.dex;
     if (picked === null) return renderSections(ui);
     const ext = (ui.view.extDex ?? []).find((entry) => picked === "ext:" + entry.extension + ":" + entry.key);
-    if (ext) {
+    if (ext && ext.style === "holo") {
       renderHoloSection(ui, ext);
+      return;
+    }
+    if (ext) {
+      renderExtPlain(ui, ext);
       return;
     }
     const section2 = SECTIONS.find((entry) => entry.key === picked);
     if (section2 === void 0) return drillTo(ui, "dex", null);
     const entries = ui.view.dex[section2.key] ?? [];
+    const detail = entries.find((entry) => entry.key === ui.drill.pick);
+    if (detail !== void 0) return renderDetail(ui, section2, detail);
+    renderEntries(ui, section2, entries);
+  }
+  function renderExtPlain(ui, ext) {
+    const section2 = { key: "ext:" + ext.extension + ":" + ext.key, label: ext.label, emoji: ext.emoji };
+    const entries = (ext.entries ?? []).map((entry) => ({
+      key: entry.key,
+      emoji: entry.emoji,
+      label: entry.label,
+      acquired: entry.acquired === true,
+      description: entry.blurb,
+      foot: ""
+    }));
     const detail = entries.find((entry) => entry.key === ui.drill.pick);
     if (detail !== void 0) return renderDetail(ui, section2, detail);
     renderEntries(ui, section2, entries);
@@ -4491,7 +4509,9 @@
     card2.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + section2.label));
     if (entry.acquired) {
       card2.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
-      card2.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
+      if (typeof entry.foot === "string") {
+        if (entry.foot) card2.appendChild(el("div", "dp-dex-foot", entry.foot));
+      } else card2.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
       if (section2.key === "skins") {
         const current = ui.view.skins.current === entry.key;
         const pick = button("dp-mini", { "data-dex-skin": entry.key }, function() {
