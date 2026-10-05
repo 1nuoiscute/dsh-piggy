@@ -1,0 +1,313 @@
+<title>猪猪盲盒新样子</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Noto+Sans+SC:wght@500;700;900&display=swap">
+<style>
+/* 布局：左边说明，右边一台和游戏里一样大小的猪猪面板（动森风：奶油底、圆角、青绿按钮）。摆件是闪卡 + 立体小娃娃。 */
+:root{
+  --page:#ede6d3; --bg:#f8f8f0; --card:#fffbe7; --content:#f7f3df; --line:#e5dcc6; --line2:#c4b89e;
+  --text:#794f27; --body:#725d42; --muted:#9f927d;
+  --primary:#19c8b9; --primary-2:#11a89b; --primary-bg:#e6f9f6;
+  --s3:#a9b6c2; --s4:#a77ff0; --s5:#f0b02a; --s6:#ff7a3a;
+  --font:Nunito,"Noto Sans SC",-apple-system,"PingFang SC",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#1e1b16;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#1e1b16;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);font-family:var(--font);color:var(--body);padding-inline:16px;padding-block:22px 40px}
+.wrap{max-width:900px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start}
+@media (max-width:760px){.wrap{grid-template-columns:1fr}}
+.notes{background:var(--bg);border:3px solid var(--line);border-radius:22px;padding:16px 18px;color:var(--body)}
+.notes h1{margin:0 0 6px;font-size:20px;font-weight:900;color:var(--text)}
+.notes p,.notes li{font-size:13px;line-height:1.65}
+.notes ul{padding-left:18px;margin:6px 0}
+.notes b{color:var(--text)}
+/* 面板 */
+.panel{background:var(--bg);border:3px solid var(--line);border-radius:26px;box-shadow:0 6px 18px rgba(61,52,40,.14);overflow:hidden}
+.ph{display:flex;align-items:center;gap:8px;padding:12px 14px 6px}
+.back{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);background:var(--card);display:grid;place-items:center;font-weight:900;color:var(--text);cursor:pointer}
+.ph b{font-size:15px;color:var(--text);font-weight:900}
+.ph span{margin-left:auto;font-size:11px;font-weight:800;color:var(--muted)}
+.body{padding:6px 14px 16px;display:grid;gap:10px;max-height:640px;overflow:auto}
+.switch{display:flex;gap:4px;padding:3px;border-radius:50px;background:var(--content);border:2px solid var(--line)}
+.switch button{flex:1;font:inherit;font-size:11.5px;font-weight:800;padding:6px 0;border:0;border-radius:50px;background:transparent;color:var(--muted);cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--primary);color:#fff;box-shadow:0 2px 0 var(--primary-2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:4px 10px;border-radius:50px;background:var(--card);border:2px solid var(--line);font-size:11px;font-weight:800;color:var(--text)}
+.btn{font:inherit;font-weight:800;font-size:12px;border:0;border-radius:50px;padding:8px 14px;background:var(--primary);color:#fff;cursor:pointer;box-shadow:0 3px 0 var(--primary-2)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--primary-2)}
+.btn.plain{background:var(--card);color:var(--text);border:2px solid var(--line);box-shadow:none}
+.btn.gold{background:#ffcf55;color:#7a4a00;box-shadow:0 3px 0 #d39b22}
+.btn:focus-visible,.switch button:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.btn:disabled{opacity:.45}
+/* 卡池卡片：奶油底，左上一个小标签，UP 闪卡排一行，下面保底进度条 */
+.pool{position:relative;border-radius:20px;padding:12px;background:var(--card);border:2px solid var(--line);box-shadow:0 3px 0 var(--line)}
+.pool[data-b="limited"]{background:linear-gradient(170deg,#fff0f4,#fffbe7 60%);border-color:#f3c8d4;box-shadow:0 3px 0 #f3c8d4}
+.pool-top{display:flex;align-items:center;gap:6px}
+.pool-top b{font-size:14px;font-weight:900;color:var(--text)}
+.ribbon{padding:2px 8px;border-radius:50px;font-size:10px;font-weight:900;color:#fff;background:#8fb9e8}
+.pool[data-b="limited"] .ribbon{background:#f38bab}
+.days{margin-left:auto;font-size:10.5px;font-weight:800;color:var(--muted)}
+.ups{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:8px;align-items:end;margin:10px 0}
+.pity{display:grid;gap:4px;font-size:10.5px;font-weight:700;color:var(--muted)}
+.meter{height:8px;border-radius:50px;background:#efe6cf;overflow:hidden}
+.meter i{display:block;height:100%;border-radius:50px;background:linear-gradient(90deg,#ffd27a,#ff8f5a)}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+/* 闪卡：星级色外框、会流动的彩虹光、摆件凸出卡面 */
+.holo{--c:var(--s3);position:relative;aspect-ratio:3/4;border-radius:14px;padding:4px;background:linear-gradient(145deg,var(--c),color-mix(in srgb,var(--c) 55%,#fff));box-shadow:0 4px 0 color-mix(in srgb,var(--c) 70%,#6b5a40),0 8px 14px rgba(61,52,40,.18);transform:perspective(500px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .15s ease-out;transform-style:preserve-3d;cursor:pointer;border:0;font:inherit;width:100%}
+.holo[data-s="4"]{--c:var(--s4)}.holo[data-s="5"]{--c:var(--s5)}.holo[data-s="6"]{--c:var(--s6)}
+.holo .face{position:relative;height:100%;border-radius:10px;overflow:hidden;background:radial-gradient(circle at 50% 35%,#fff 0 30%,color-mix(in srgb,var(--c) 25%,#fff8e8) 100%);display:grid;grid-template-rows:1fr auto auto;justify-items:center;padding:6px 4px 5px}
+.holo .face::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 20%,rgba(255,120,200,.28) 35%,rgba(120,220,255,.3) 45%,rgba(255,240,140,.3) 55%,transparent 70%);background-size:250% 250%;background-position:var(--hx,30%) var(--hy,30%);mix-blend-mode:screen;pointer-events:none;opacity:var(--holo,.55)}
+.holo[data-s="3"] .face::after{opacity:.18}
+.doll{position:relative;align-self:center;font-size:40px;line-height:1;transform:translateZ(26px);filter:drop-shadow(0 6px 0 rgba(0,0,0,.08)) drop-shadow(0 7px 5px rgba(61,52,40,.28))}
+.doll::after{content:"";position:absolute;left:50%;bottom:-6px;width:70%;height:7px;margin-left:-35%;border-radius:50%;background:radial-gradient(ellipse,rgba(61,52,40,.28),transparent 70%);z-index:-1}
+.holo .nm{font-size:11px;font-weight:900;color:var(--text);transform:translateZ(12px)}
+.holo .st{font-size:8.5px;letter-spacing:-1px;color:var(--c);transform:translateZ(12px)}
+.holo .up{position:absolute;top:6px;left:6px;padding:0 5px;border-radius:50px;background:var(--c);color:#fff;font-size:8.5px;font-weight:900;transform:translateZ(18px)}
+.holo .pot{position:absolute;top:6px;right:6px;font-size:8.5px;font-weight:900;color:var(--c);background:#fff;border-radius:50px;padding:0 5px;transform:translateZ(18px)}
+.holo[data-missing="true"] .doll{filter:brightness(0) opacity(.14)}
+.holo[data-missing="true"] .face::after{opacity:0}
+.holo[data-missing="true"] .nm{color:var(--muted)}
+.ups .holo .doll{font-size:30px}.ups .holo:first-child .doll{font-size:44px}
+/* 开盒：奶油舞台，礼物盒摇、透出星级色的光、打开后闪卡翻过来 */
+.stage{position:relative;overflow:hidden;border-radius:22px;padding:14px 10px 12px;background:radial-gradient(circle at 50% 30%,#fffdf3,#f5ebcf 80%);border:2px solid var(--line);display:grid;justify-items:center;gap:10px}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.gift{position:relative;width:86px;height:86px}
+.gift i{position:absolute;display:block}
+.gift .lid{left:2px;right:2px;top:16px;height:20px;border-radius:7px;background:#f6c75a;box-shadow:inset 0 -4px 0 rgba(0,0,0,.08)}
+.gift .bd{left:8px;right:8px;top:33px;bottom:4px;border-radius:0 0 10px 10px;background:#f9d77e}
+.gift .rb{left:50%;top:16px;bottom:4px;width:12px;margin-left:-6px;background:#ef7d58}
+.gift .bow{left:50%;top:0;width:38px;height:20px;margin-left:-19px;background:radial-gradient(circle at 25% 60%,#ef7d58 0 8px,transparent 9px),radial-gradient(circle at 75% 60%,#ef7d58 0 8px,transparent 9px)}
+.gift .glow{left:4px;right:4px;top:31px;height:5px;border-radius:3px;background:var(--c);box-shadow:0 0 14px 4px var(--c);opacity:0}
+.gift.shake{animation:shake .5s ease-in-out 2}
+.gift.leak .glow{opacity:1;transition:opacity .3s}
+.gift.leak .lid{transform:translateY(-3px);transition:transform .3s}
+.gift.gone{animation:pop-out .25s ease-in forwards}
+.beam{position:absolute;top:0;left:50%;width:60px;height:100%;margin-left:-30px;background:linear-gradient(transparent,color-mix(in srgb,var(--c) 55%,transparent),transparent);filter:blur(8px);opacity:0;pointer-events:none}
+.beam.on{animation:beam 1s ease-out}
+.flip{animation:flip .55s cubic-bezier(.2,1.4,.4,1) both}
+.stage > .flip{width:132px}
+.ten .holo .pot{display:none}
+.ten{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}
+.ten .holo .doll{font-size:24px}.ten .holo .nm{font-size:8.5px}.ten .holo .st{font-size:6.5px}
+.ten .mini{position:relative;aspect-ratio:3/4;border-radius:10px;background:#f6c75a;box-shadow:0 3px 0 #d8a43a;display:grid;place-items:center;font-weight:900;color:#fff}
+.ten .mini::before{content:"";position:absolute;left:3px;right:3px;top:38%;height:3px;border-radius:2px;background:var(--c);box-shadow:0 0 8px 2px var(--c)}
+.ten .mini::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:6px;margin-left:-3px;background:#ef7d58}
+.new{position:absolute;top:-6px;right:-6px;z-index:2;padding:0 5px;border-radius:50px;background:#ff6b7d;color:#fff;font-size:8.5px;font-weight:900}
+.say{font-size:13px;font-weight:900;color:var(--text);text-align:center;min-height:18px}
+.skip{position:absolute;top:8px;right:10px;font:inherit;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:50px;border:2px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;z-index:3}
+/* 图鉴分区（游戏图鉴里的「摆件」）和商店货架 */
+.tier h4{display:flex;align-items:center;gap:6px;margin:4px 2px 6px;font-size:12px;color:var(--text)}
+.tier h4 i{font-style:normal;letter-spacing:-1px}
+.tier h4 small{margin-left:auto;color:var(--muted);font-size:10px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.detail{display:grid;grid-template-columns:110px 1fr;gap:12px;align-items:center;padding:10px;border-radius:18px;background:var(--card);border:2px solid var(--line)}
+.detail b{font-size:14px;color:var(--text)}.detail p{margin:4px 0 0;font-size:11.5px;line-height:1.55}
+.potbar{display:flex;gap:3px;margin-top:6px}.potbar i{width:14px;height:6px;border-radius:3px;background:#efe6cf}.potbar i.on{background:var(--c)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{display:grid;justify-items:center;gap:4px;padding:10px 4px;border-radius:18px;background:var(--card);border:2px solid var(--line);box-shadow:0 3px 0 var(--line);font-size:11px;font-weight:800;color:var(--text);cursor:pointer;font-family:inherit}
+.tile .ico{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:24px}
+.tile[data-c="pink"] .ico{background:#f8a6b2}.tile[data-c="orange"] .ico{background:#e59266}.tile[data-c="yellow"] .ico{background:#f7cd67}.tile[data-c="purple"] .ico{background:#b77dee}.tile[data-c="blue"] .ico{background:#889df0}.tile[data-c="teal"] .ico{background:#82d5bb}
+.tile[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-bg)}
+.goods{display:grid;gap:7px}
+.good{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:8px;padding:8px 10px;border-radius:16px;background:var(--card);border:2px solid var(--line)}
+.good .e{width:42px;height:42px;border-radius:12px;background:#fff3c4;display:grid;place-items:center;font-size:22px}
+.good b{font-size:12px;color:var(--text)}.good small{display:block;font-size:10px;color:var(--muted)}
+.price{font:inherit;font-size:11px;font-weight:900;padding:6px 10px;border-radius:50px;border:0;background:var(--primary);color:#fff;box-shadow:0 2px 0 var(--primary-2);cursor:pointer;white-space:nowrap}
+@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}50%{transform:rotate(7deg)}75%{transform:rotate(-4deg)}}
+@keyframes pop-out{to{transform:scale(1.3);opacity:0}}
+@keyframes beam{0%{opacity:0}40%{opacity:1}100%{opacity:0}}
+@keyframes flip{0%{transform:perspective(500px) rotateY(180deg) scale(.6);opacity:0}100%{transform:perspective(500px) rotateY(0) scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <section class="notes">
+    <h1>盲盒新样子（原型）</h1>
+    <p>按你说的改了四处，右边是和游戏里一样大小的面板，能点：</p>
+    <ul>
+      <li><b>风格跟猪猪面板统一</b>：奶油底、圆角卡片、青绿按钮，不再用深色。</li>
+      <li><b>摆件做成闪卡 + 立体小娃娃</b>：卡框是星级颜色（灰 3★、紫 4★、金 5★、橙 6★），卡面有彩虹闪光，鼠标移上去卡片会跟着倾斜、闪光流动，娃娃从卡面里凸出来带阴影。</li>
+      <li><b>开盒</b>：礼物盒摇两下 → 盒缝透出星级颜色的光（5★、6★ 多一道光柱）→ 闪卡翻过来；十连两行小盒子逐个翻成闪卡，可跳过；6★ 撒彩纸。</li>
+      <li><b>展示柜挪进「图鉴」</b>：图鉴里多一个「摆件」分区，点进去是闪卡墙，点一张看大图、潜能和介绍。盲盒自己只剩「寻访」一页。</li>
+      <li><b>凭证商店并进「商店」</b>：商店里多一排「盲盒」货架，用资质凭证买，不再单独做一个商店。</li>
+    </ul>
+    <p>顶上三个按钮切换看：盲盒（寻访）、图鉴·摆件、商店·盲盒货架。抽卡是假的随机，只为看样子。</p>
+  </section>
+
+  <section class="panel" aria-label="猪猪面板">
+    <div class="ph"><span class="back">‹</span><b id="title">🎁 盲盒</b><span id="sub"></span></div>
+    <div class="body">
+      <div class="switch" id="views">
+        <button type="button" data-v="pull" aria-pressed="true">🎁 盲盒</button>
+        <button type="button" data-v="dex" aria-pressed="false">📖 图鉴·摆件</button>
+        <button type="button" data-v="shop" aria-pressed="false">🛒 商店·货架</button>
+      </div>
+      <div id="screen" style="display:grid;gap:10px"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+var FIGS = [
+  ['goldpig','🐷','金猪',6,'农场里唯一一只没人敢吃的猪'],['whale','🐳','大鲸鱼',6,'它打个喷嚏，整片海都下了一场雨'],['lantern','🏮','灯笼小摊',6,'只在你最饿的那天晚上出现'],['unicorn','🦄','独角兽',6,'头上的角其实是一根没吃完的甜筒'],['dragon','🐉','小龙',6,'会喷火，主要用来烤红薯'],['moon','🌕','月亮',6,'晚上替你看着猪，白天去睡觉'],
+  ['dolphin','🐬','海豚',5,'据说会笑，其实是天生长这样'],['fox','🦊','狐狸',5,'看起来很聪明，其实只是眼睛细'],['panda','🐼','熊猫',5,'黑眼圈不是熬夜，是天生的'],['flamingo','🦩','火烈鸟',5,'单脚站一整天，从来不喊累'],['peacock','🦚','孔雀',5,'开屏只给喜欢的人看'],['koala','🐨','考拉',5,'一天睡二十个小时'],
+  ['cow','🐄','奶牛',4,'慢慢嚼，慢慢想，什么都不急'],['dog','🐕','小狗',4,'看家第一名，看饭盆也是第一名'],['octopus','🐙','章鱼',4,'八只手，一次能拿八个零食'],['turtle','🐢','海龟',4,'游了一百年，还是不着急'],['ramen','🍜','拉面',4,'深夜十二点的热气是有魔法的'],['owl','🦉','猫头鹰',4,'晚上不睡觉，白天装深沉'],
+  ['chick','🐥','小鸡',3,'每天叫得比闹钟准'],['duck','🦆','鸭子',3,'走路一摇一摆，自信是天生的'],['rabbit','🐇','兔子',3,'耳朵比胆子大'],['crab','🦀','螃蟹',3,'横着走也能走得很远'],['tea','🍵','热茶',3,'喝一口，今天就算结束了'],['cactus','🌵','仙人掌',3,'不用浇水，也不用抱']
+].map(function (a) { return { key: a[0], emoji: a[1], label: a[2], stars: a[3], blurb: a[4] } })
+var owned = { goldpig: 1, fox: 2, panda: 1, cow: 3, dog: 6, ramen: 1, chick: 4, duck: 1, tea: 2, crab: 1 }
+var view = 'pull', reveal = null, pickedFig = 'goldpig', certs = 128
+var COLORS = { 3: 'var(--s3)', 4: 'var(--s4)', 5: 'var(--s5)', 6: 'var(--s6)' }
+var byKey = function (k) { return FIGS.find(function (f) { return f.key === k }) }
+var stars = function (n) { return new Array(n + 1).join('★') }
+function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n }
+
+function holo(f, opts) {
+  opts = opts || {}
+  var card = el('button', 'holo'); card.type = 'button'
+  card.setAttribute('data-s', String(f.stars))
+  var missing = opts.missing === true
+  card.setAttribute('data-missing', String(missing))
+  var face = el('div', 'face')
+  face.appendChild(el('span', 'doll', f.emoji))
+  face.appendChild(el('span', 'nm', missing ? '？？？' : f.label))
+  face.appendChild(el('span', 'st', stars(f.stars)))
+  if (opts.up) face.appendChild(el('span', 'up', 'UP'))
+  if (opts.pot) face.appendChild(el('span', 'pot', opts.pot + ' 潜'))
+  card.appendChild(face)
+  card.addEventListener('pointermove', function (e) {
+    var r = card.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height
+    card.style.setProperty('--ry', ((x - .5) * 22).toFixed(1) + 'deg'); card.style.setProperty('--rx', ((.5 - y) * 22).toFixed(1) + 'deg')
+    card.style.setProperty('--hx', (x * 100).toFixed(0) + '%'); card.style.setProperty('--hy', (y * 100).toFixed(0) + '%'); card.style.setProperty('--holo', '.85')
+  })
+  card.addEventListener('pointerleave', function () { ['--rx', '--ry', '--hx', '--hy', '--holo'].forEach(function (p) { card.style.removeProperty(p) }) })
+  if (opts.onClick) card.addEventListener('click', opts.onClick)
+  return card
+}
+
+function roll() {
+  var r = Math.random(), s = r < .02 ? 6 : r < .10 ? 5 : r < .60 ? 4 : 3
+  var pool = FIGS.filter(function (f) { return f.stars === s })
+  var f = pool[Math.floor(Math.random() * pool.length)]
+  var isNew = !owned[f.key]; owned[f.key] = Math.min(6, (owned[f.key] || 0) + 1)
+  return { f: f, isNew: isNew }
+}
+
+function poolCard(key, label, ribbon, days, up, pity) {
+  var card = el('div', 'pool'); card.setAttribute('data-b', key)
+  var top = el('div', 'pool-top'); top.appendChild(el('span', 'ribbon', ribbon)); top.appendChild(el('b', null, label)); top.appendChild(el('span', 'days', '还剩 ' + days + ' 天'))
+  card.appendChild(top)
+  var ups = el('div', 'ups')
+  up.forEach(function (k) { ups.appendChild(holo(byKey(k), { up: true })) })
+  card.appendChild(ups)
+  var p = el('div', 'pity'); p.appendChild(el('span', null, '六星 2% · 再抽 ' + (50 - pity) + ' 次后每抽 +2%，第 99 抽必出'))
+  var m = el('div', 'meter'); var f = el('i'); f.style.width = (pity / 99 * 100) + '%'; m.appendChild(f); p.appendChild(m)
+  card.appendChild(p)
+  var row = el('div', 'row')
+  var t = el('button', 'btn gold', '🎟 用券寻访'); t.type = 'button'; t.onclick = function () { start(1) }
+  var one = el('button', 'btn', '寻访 1 次 · 300 🪙'); one.type = 'button'; one.onclick = function () { start(1) }
+  var ten = el('button', 'btn plain', '寻访 10 次 · 2700 🪙'); ten.type = 'button'; ten.onclick = function () { start(10) }
+  row.appendChild(t); row.appendChild(one); row.appendChild(ten); card.appendChild(row)
+  return card
+}
+
+function start(n) { var items = []; for (var i = 0; i < n; i++) items.push(roll()); reveal = { items: items, t: Date.now(), skip: false }; draw() }
+
+function confetti(stage) {
+  var c = document.createElement('canvas'); stage.appendChild(c)
+  var w = c.width = stage.clientWidth, h = c.height = stage.clientHeight, ctx = c.getContext('2d'), bits = []
+  var colors = ['#ff7a3a', '#ffd54a', '#ff9ad5', '#19c8b9', '#889df0']
+  for (var i = 0; i < 90; i++) bits.push({ x: w / 2, y: h * .4, vx: (Math.random() - .5) * 10, vy: -Math.random() * 9 - 3, r: Math.random() * 6, s: 4 + Math.random() * 4, c: colors[i % 5] })
+  var t0 = performance.now()
+  ;(function f(t) { var e = t - t0; ctx.clearRect(0, 0, w, h); bits.forEach(function (b) { b.vy += .28; b.x += b.vx; b.y += b.vy; b.r += .2; ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r); ctx.globalAlpha = Math.max(0, 1 - e / 1800); ctx.fillStyle = b.c; ctx.fillRect(-b.s / 2, -b.s / 4, b.s, b.s / 2); ctx.restore() }); if (e < 1800) requestAnimationFrame(f); else c.remove() })(t0)
+}
+
+function drawReveal(screen) {
+  var stage = el('div', 'stage'); screen.appendChild(stage)
+  var best = reveal.items.reduce(function (a, b) { return b.f.stars > a.f.stars ? b : a })
+  stage.style.setProperty('--c', COLORS[best.f.stars])
+  var beam = el('i', 'beam'); stage.appendChild(beam)
+  var say = el('div', 'say')
+  if (reveal.items.length === 1) {
+    var gift = el('div', 'gift'); ['lid', 'bd', 'rb', 'bow', 'glow'].forEach(function (p) { gift.appendChild(el('i', p)) })
+    stage.appendChild(gift); stage.appendChild(say)
+    gift.classList.add('shake')
+    setTimeout(function () { gift.classList.add('leak') }, 700)
+    setTimeout(function () {
+      if (best.f.stars >= 5) beam.classList.add('on')
+      gift.classList.add('gone')
+      setTimeout(function () {
+        gift.remove()
+        var card = holo(best.f, { pot: best.isNew ? null : owned[best.f.key] }); card.classList.add('flip')
+        if (best.isNew) card.appendChild(el('span', 'new', 'NEW'))
+        stage.insertBefore(card, say)
+        say.textContent = best.f.stars === 6 ? '✨ 六星！✨' : best.isNew ? '新朋友：' + best.f.label : best.f.label + ' 潜能 +1'
+        if (best.f.stars === 6) confetti(stage)
+        done()
+      }, 250)
+    }, 1300)
+  } else {
+    var skip = el('button', 'skip', '跳过 ›'); skip.type = 'button'; stage.appendChild(skip)
+    var grid = el('div', 'ten'); stage.appendChild(grid); stage.appendChild(say)
+    var slots = reveal.items.map(function (it) { var m = el('div', 'mini'); m.style.setProperty('--c', COLORS[it.f.stars]); grid.appendChild(m); return m })
+    var timers = []
+    var open = function (i) {
+      var it = reveal.items[i]; var card = holo(it.f, { pot: it.isNew ? null : owned[it.f.key] }); card.classList.add('flip')
+      if (it.isNew) card.appendChild(el('span', 'new', 'NEW'))
+      grid.replaceChild(card, slots[i]); slots[i] = card
+      if (it.f.stars === 6) confetti(stage)
+    }
+    reveal.items.forEach(function (_, i) { timers.push(setTimeout(function () { open(i); if (i === 9) finish() }, 900 + i * 260)) })
+    skip.onclick = function () { timers.forEach(clearTimeout); reveal.items.forEach(function (_, i) { if (slots[i].className === 'mini') open(i) }); finish() }
+    function finish() { skip.remove(); say.textContent = '新的 ' + reveal.items.filter(function (x) { return x.isNew }).length + ' 个 · 资质凭证 +' + reveal.items.filter(function (x) { return !x.isNew }).length * 5; done() }
+  }
+  function done() { var b = el('button', 'btn', '收下'); b.type = 'button'; b.onclick = function () { reveal = null; draw() }; stage.appendChild(b) }
+}
+
+function draw() {
+  var screen = document.getElementById('screen'); screen.textContent = ''
+  document.querySelectorAll('#views button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.v === view)) })
+  var title = document.getElementById('title'), sub = document.getElementById('sub')
+  if (view === 'pull') {
+    title.textContent = '🎁 盲盒'; sub.textContent = ''
+    if (reveal) return drawReveal(screen)
+    var chips = el('div', 'chips'); ['🪙 94299', '🎟 盲盒券 ×2', '📜 资质凭证 ' + certs].forEach(function (t) { chips.appendChild(el('span', 'chip', t)) }); screen.appendChild(chips)
+    screen.appendChild(poolCard('standard', '常驻寻访', '常驻', 14, ['whale', 'dolphin', 'fox'], 12))
+    screen.appendChild(poolCard('limited', '农场好朋友', '限时', 9, ['goldpig', 'fox', 'peacock'], 31))
+    var hint = el('div', 'chip', '📖 收集到的摆件在「图鉴 → 摆件」里看'); screen.appendChild(hint)
+  } else if (view === 'dex') {
+    title.textContent = '📖 图鉴 › 摆件'; sub.textContent = Object.keys(owned).length + ' / ' + FIGS.length
+    var f = byKey(pickedFig)
+    var d = el('div', 'detail'); d.style.setProperty('--c', COLORS[f.stars])
+    d.appendChild(holo(f, { pot: owned[f.key] || null, missing: !owned[f.key] }))
+    var info = el('div'); info.appendChild(el('b', null, (owned[f.key] ? f.label : '？？？') + ' ' + stars(f.stars)))
+    info.appendChild(el('p', null, owned[f.key] ? f.blurb : '还没寻访到'))
+    var pb = el('div', 'potbar'); for (var i = 1; i <= 6; i++) { var dot = el('i', i <= (owned[f.key] || 0) ? 'on' : ''); pb.appendChild(dot) }
+    info.appendChild(pb); d.appendChild(info); screen.appendChild(d)
+    ;[6, 5, 4, 3].forEach(function (s) {
+      var list = FIGS.filter(function (x) { return x.stars === s })
+      var tier = el('div', 'tier'); var h = el('h4'); var st = el('i', null, stars(s)); st.style.color = COLORS[s]; h.appendChild(st); h.appendChild(el('span', null, s + ' 星'))
+      h.appendChild(el('small', null, list.filter(function (x) { return owned[x.key] }).length + ' / ' + list.length)); tier.appendChild(h)
+      var g = el('div', 'grid')
+      list.forEach(function (x) { g.appendChild(holo(x, { missing: !owned[x.key], pot: owned[x.key] ? owned[x.key] : null, onClick: function () { pickedFig = x.key; draw() } })) })
+      tier.appendChild(g); screen.appendChild(tier)
+    })
+  } else {
+    title.textContent = '🛒 商店'; sub.textContent = '🪙 94299'
+    var tiles = el('div', 'tiles')
+    ;[['🍎', '食物', 'pink'], ['🧼', '洗浴', 'teal'], ['🪀', '玩具', 'yellow'], ['💊', '药品', 'blue'], ['✨', '晋升', 'purple'], ['🎁', '盲盒', 'orange']].forEach(function (t) {
+      var b = el('button', 'tile'); b.type = 'button'; b.setAttribute('data-c', t[2]); b.setAttribute('aria-pressed', String(t[1] === '盲盒'))
+      var ico = el('span', 'ico', t[0]); b.appendChild(ico); b.appendChild(el('span', null, t[1])); tiles.appendChild(b)
+    })
+    screen.appendChild(tiles)
+    var head = el('div', 'chips'); head.appendChild(el('span', 'chip', '🎁 盲盒货架 · 用资质凭证买')); head.appendChild(el('span', 'chip', '📜 ' + certs)); screen.appendChild(head)
+    var goods = el('div', 'goods')
+    ;[['🎟', '盲盒券', '免费寻访 1 次', 20], ['⭐', '指定一个五星', '从还没有的五星里挑', 120], ['🌟', '指定一个六星', '从还没有的六星里挑', 300], ['🍱', '豪华大餐', '放进背包', 8], ['💊', '百草丹', '什么病都能治', 30]].forEach(function (g) {
+      var row = el('div', 'good'); row.appendChild(el('span', 'e', g[0])); var t = el('div'); t.appendChild(el('b', null, g[1])); t.appendChild(el('small', null, g[2])); row.appendChild(t)
+      var p = el('button', 'price', g[3] + ' 📜'); p.type = 'button'; p.disabled = certs < g[3]; row.appendChild(p); goods.appendChild(row)
+    })
+    screen.appendChild(goods)
+  }
+}
+document.getElementById('views').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; view = b.dataset.v; reveal = null; draw() })
+draw()
+</script>
