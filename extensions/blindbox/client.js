@@ -30,26 +30,26 @@
     '.bx-stage canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}',
     '.bx-skip{position:absolute;top:8px;right:10px;font:inherit;font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:50px;border:1.5px solid rgba(255,255,255,.5);background:transparent;color:#fff;cursor:pointer;z-index:3}',
     '.bx-slot{position:relative;display:grid;justify-items:center;align-content:end;width:100%;min-height:120px}',
-    '.bx-crate{position:absolute;left:50%;bottom:30px;width:64px;height:54px;margin-left:-32px;border-radius:9px;background:linear-gradient(#c9935a,#9c6a3a);box-shadow:inset 0 0 0 3px #7c5230,inset 0 -8px 0 rgba(0,0,0,.12);animation:bx-drop .5s cubic-bezier(.3,1.4,.5,1) both,bx-shake .5s ease-in-out both,bx-gone .25s ease-in both;animation-delay:var(--d0),var(--d1),var(--d3)}',
-    '.bx-crate::before{content:"";position:absolute;left:3px;right:3px;top:12px;height:4px;border-radius:2px;background:var(--c);box-shadow:0 0 10px 2px var(--c);opacity:0;animation:bx-leak .6s ease-out both;animation-delay:var(--d2)}',
-    '.bx-crate::after{content:"?";position:absolute;inset:0;display:grid;place-items:center;font-weight:900;font-size:20px;color:rgba(255,255,255,.85)}',
+    '.bx-slot{perspective:600px}.bx-crate{position:absolute;left:50%;bottom:26px;width:72px;height:98px;margin-left:-36px;border-radius:12px;background:radial-gradient(circle at 50% 46%,#ffd9de 0 13px,transparent 14px),repeating-linear-gradient(45deg,rgba(255,255,255,.18) 0 6px,transparent 6px 12px),linear-gradient(160deg,#f7a7b4,#e9798d);border:3px solid #fff6ea;box-shadow:0 6px 14px rgba(0,0,0,.35);transform-origin:50% 50%;animation:bx-drop .5s cubic-bezier(.3,1.4,.5,1) both,bx-shake .5s ease-in-out both,bx-flipout .22s ease-in both;animation-delay:var(--d0),var(--d1),var(--d3)}',
+    '.bx-crate::before{content:"";position:absolute;inset:-4px;border-radius:14px;box-shadow:0 0 0 2px var(--c),0 0 18px 6px var(--c);opacity:0;animation:bx-leak .6s ease-out both;animation-delay:var(--d2)}',
+    '.bx-crate::after{content:"🐽";position:absolute;inset:0;display:grid;place-items:center;font-size:22px;filter:saturate(.8)}',
     '.bx-beam{position:absolute;left:50%;bottom:40px;width:46px;height:160px;margin-left:-23px;background:linear-gradient(transparent,var(--c));filter:blur(6px);opacity:0;animation:bx-beam .9s ease-out both;animation-delay:var(--d3)}',
-    '.bx-fig{position:relative;display:grid;justify-items:center;opacity:0;animation:bx-pop .45s cubic-bezier(.2,1.6,.4,1) both;animation-delay:var(--d3)}',
-    '.bx-fig .em{font-size:52px;line-height:1.1;filter:drop-shadow(0 0 10px var(--c))}',
-    '.bx-ped{width:72px;height:13px;margin-top:-6px;border-radius:50%;background:radial-gradient(ellipse,var(--cl),var(--c));box-shadow:0 0 12px var(--c)}',
-    '.bx-fig b{margin-top:4px;font-size:12.5px;font-weight:900}',
+    '.bx-fig{position:relative;display:grid;justify-items:center;opacity:0;animation:bx-flipin .38s cubic-bezier(.2,1.3,.4,1) both;animation-delay:var(--d3)}.bx-card{position:relative;display:grid;justify-items:center;align-content:center;width:84px;height:112px;padding:6px 4px;border-radius:13px;background:linear-gradient(145deg,var(--c),var(--cl));box-shadow:0 0 16px var(--c)}.bx-card-in{position:absolute;inset:4px;border-radius:10px;background:radial-gradient(circle at 50% 38%,#fff 0 34%,var(--cl) 100%);overflow:hidden}.bx-card-in::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 25%,rgba(255,140,210,.3) 40%,rgba(130,220,255,.32) 50%,rgba(255,240,150,.32) 60%,transparent 75%);background-size:260% 260%;animation:bx-sheen 2.4s linear infinite}',
+    '.bx-fig .em{position:relative;font-size:46px;line-height:1.1;filter:drop-shadow(0 4px 3px rgba(80,60,40,.25))}',
+    '.bx-ped{position:relative;width:48px;height:8px;margin-top:-4px;border-radius:50%;background:rgba(120,90,60,.18)}.bx-card b{position:relative;margin-top:3px;font-size:11.5px;font-weight:900;color:#6b4a2a}',
+    '.bx-fig>b{display:none}',
     '.bx-stars{display:flex;gap:1px;font-size:12px;color:var(--c)}.bx-stars span{opacity:0;animation:bx-star .2s ease-out both}',
     '.bx-tag{margin-top:2px;font-size:9.5px;font-weight:800;color:#ffd7a8}',
     '.bx-new{position:absolute;top:-4px;right:-10px;padding:0 5px;border-radius:50px;background:#ff5d6c;color:#fff;font-size:8.5px;font-weight:900}',
-    '.bx-ten{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;width:100%;margin-top:18px}',
+    '.bx-ten{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;width:100%;margin-top:18px}',
     '.bx-ten .bx-slot{min-height:84px}',
-    '.bx-ten .bx-crate{width:42px;height:36px;margin-left:-21px;bottom:26px;border-radius:7px}',
-    '.bx-ten .bx-crate::after{font-size:13px}',
-    '.bx-ten .bx-crate::before{top:9px;height:3px;box-shadow:0 0 6px 1px var(--c)}',
+    '.bx-ten .bx-crate{width:40px;height:56px;margin-left:-20px;bottom:30px;border-radius:8px;border-width:2px;background:radial-gradient(circle at 50% 46%,#ffd9de 0 8px,transparent 9px),repeating-linear-gradient(45deg,rgba(255,255,255,.18) 0 4px,transparent 4px 8px),linear-gradient(160deg,#f7a7b4,#e9798d)}',
+    '.bx-ten .bx-crate::after{font-size:13px}.bx-ten .bx-card{width:100%;max-width:46px;height:62px;padding:3px 2px;border-radius:9px}.bx-ten .bx-card-in{inset:3px;border-radius:7px}',
+    '.bx-ten .bx-crate::before{border-radius:10px;box-shadow:0 0 0 2px var(--c),0 0 10px 3px var(--c)}',
     '.bx-sum{font-size:11px;font-weight:800;color:#ffd7a8;text-align:center;opacity:0;animation:bx-fade .3s ease-out both;animation-delay:var(--dend)}',
     '.bx-ten .bx-beam{width:30px;height:90px;margin-left:-15px}',
-    '.bx-ten .bx-fig .em{font-size:28px}.bx-ten .bx-ped{width:40px;height:9px;margin-top:-4px}',
-    '.bx-ten .bx-fig b{font-size:9.5px}.bx-ten .bx-stars{font-size:7.5px}.bx-ten .bx-tag{font-size:8px;text-align:center}',
+    '.bx-ten .bx-fig{width:100%;min-width:0}.bx-ten .bx-slot{min-width:0}.bx-ten .bx-fig .em{font-size:22px}.bx-ten .bx-ped{width:28px;height:5px;margin-top:-3px}',
+    '.bx-ten .bx-card b{font-size:8.5px;max-width:42px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bx-ten .bx-stars{font-size:7.5px}.bx-ten .bx-tag{font-size:8px;text-align:center}',
     '.bx-ten .bx-new{right:-6px}',
     '.bx-say{font-size:13px;font-weight:900;text-align:center;opacity:0;animation:bx-fade .3s ease-out both;animation-delay:var(--dend)}',
     '.bx-done{font:inherit;font-size:12px;font-weight:900;padding:7px 22px;border-radius:50px;border:0;background:#fff;color:#22304d;cursor:pointer;opacity:0;animation:bx-fade .3s ease-out both;animation-delay:var(--dend)}',
@@ -58,6 +58,7 @@
     '@keyframes bx-leak{0%{opacity:0}100%{opacity:1}}',
     '@keyframes bx-gone{to{opacity:0;transform:scale(1.25)}}',
     '@keyframes bx-beam{0%{opacity:0}35%{opacity:.95}100%{opacity:0}}',
+    '@keyframes bx-flipout{0%{transform:rotateY(0)}100%{transform:rotateY(90deg);opacity:0}}@keyframes bx-flipin{0%{opacity:0;transform:rotateY(-90deg) scale(.9)}100%{opacity:1;transform:none}}@keyframes bx-sheen{0%{background-position:100% 100%}100%{background-position:0 0}}',
     '@keyframes bx-pop{0%{opacity:0;transform:scale(.3) translateY(16px)}100%{opacity:1;transform:none}}',
     '@keyframes bx-star{0%{opacity:0;transform:scale(1.8)}100%{opacity:1;transform:none}}',
     '@keyframes bx-fade{to{opacity:1}}',
@@ -140,9 +141,13 @@
     }
     var figure = app.el('div', 'bx-fig')
     set(figure, '--d3', t.open + 0.05)
-    figure.appendChild(app.el('span', 'em', f.emoji))
-    figure.appendChild(app.el('i', 'bx-ped'))
-    figure.appendChild(app.el('b', null, f.label))
+    // 卡背翻过来就是一张闪卡：星级色边框、彩虹闪光，娃娃站在卡面上。
+    var card = app.el('div', 'bx-card')
+    card.appendChild(app.el('i', 'bx-card-in'))
+    card.appendChild(app.el('span', 'em', f.emoji))
+    card.appendChild(app.el('i', 'bx-ped'))
+    card.appendChild(app.el('b', null, f.label))
+    figure.appendChild(card)
     var stars = app.el('div', 'bx-stars')
     for (var i = 0; i < got.stars; i += 1) {
       var s = app.el('span', null, '★')
@@ -150,7 +155,8 @@
       stars.appendChild(s)
     }
     figure.appendChild(stars)
-    if (got.isNew) figure.appendChild(app.el('span', 'bx-new', 'NEW'))
+    // NEW 的也留一行字，十连里各格子才对得齐。
+    if (got.isNew) { figure.appendChild(app.el('span', 'bx-new', 'NEW')); figure.appendChild(app.el('span', 'bx-tag', '首次获得')) }
     else figure.appendChild(app.el('span', 'bx-tag', '潜能 ' + got.potential + (!t.ten && got.certs > 0 ? ' · 凭证 +' + got.certs : '')))
     box.appendChild(figure)
     return box
