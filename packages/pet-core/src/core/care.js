@@ -6,15 +6,16 @@
  * @module dsh-piggy/core/care
  */
 
-import { CARE_KIND, ILLNESS_ONSET, careItems } from '../data.js'
+import { CARE_KIND, ILLNESS_ONSET, PET_PARTS, careItems } from '../data.js'
 import { ACTIONS, DIET } from './constants.js'
 import { applyEffects, remember } from './effects.js'
 import { growFromRealWork } from './growth.js'
 import { rollForOverfeeding } from './illness.js'
-import { say } from './lines.js'
+import { ensureDialogue, say } from './lines.js'
+import { notePet } from './talk.js'
 import { decay } from './settlement.js'
 import { noteToday } from './diary.js'
-import { reducePlayWeight } from './weight.js'
+import { bodyWeightClass, reducePlayWeight } from './weight.js'
 
 /** Which line scene each care action makes the pig speak from. */
 const CARE_SCENE = Object.freeze({ feed: 'eat', bathe: 'bathe', play: 'play', pet: 'pet' })
@@ -61,6 +62,9 @@ export function actionCooldownSeconds(state, action, nowMs) {
 
 export const actionReady = (state, action, nowMs) => actionCooldownSeconds(state, action, nowMs) === 0
 
+/**
+ * 照料一次。`itemKey` 是要用的物品；摸摸时它是摸的部位（head、belly……，见 PET_PARTS）。
+ */
 export function act(state, action, nowMs, itemKey) {
   const spec = ACTIONS[action]
   if (spec === undefined) return { ok: false, reason: 'unknown' }
@@ -96,16 +100,23 @@ export function act(state, action, nowMs, itemKey) {
   else if (action === 'pet') state.stats.pets += 1
 
   const satietyBefore = state.satiety
-  applyEffects(state, careEffects(item, spec), nowMs)
+  const bodyBefore = bodyWeightClass(state)
+  // 摸太多会不耐烦：这一下不加心情（G 批次）。
+  const annoyed = action === 'pet' && notePet(ensureDialogue(state), nowMs)
+  if (!annoyed) applyEffects(state, careEffects(item, spec), nowMs)
   if (action === 'play') reducePlayWeight(state, nowMs)
   remember(state, item === null ? spec.verb : `${item.emoji} ${spec.label}用了「${item.label}」`, nowMs)
   if (action === 'feed') rollForOverfeeding(state, satietyBefore, nowMs)
   // Feeding a pig that was already stuffed gets a different complaint; this bite
   // filling it up to 100 gets a contented 「吃饱啦」 (G2, 用户 2026-10-05).
-  const scene = action !== 'feed' ? CARE_SCENE[action]
+  const scene = action === 'pet' ? (annoyed ? 'petTooMuch' : PET_PARTS[itemKey] ?? 'pet')
+    : action !== 'feed' ? CARE_SCENE[action]
     : Math.round(satietyBefore) >= ILLNESS_ONSET.overfullAt ? 'overfull'
       : state.satiety >= 100 ? 'full' : CARE_SCENE[action]
-  say(state, scene, nowMs)
+  // 吃胖了一档（正常 → 圆润 → 胖胖）就说体型，不说「好吃」。
+  const RANK = { normal: 0, round: 1, fat: 2 }
+  const grew = action === 'feed' && RANK[bodyWeightClass(state)] > RANK[bodyBefore]
+  say(state, grew ? 'bodyChange' : scene, nowMs)
   noteToday(state, action)
   return { ok: true, item: item === null ? null : item.key, spent: item !== null && item.default !== true }
 }

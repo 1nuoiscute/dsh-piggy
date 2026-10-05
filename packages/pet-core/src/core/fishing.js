@@ -7,6 +7,7 @@ import { clamp100, remember } from './effects.js'
 import { ensureDex } from './dex.js'
 import { chance, pickOne, rollerFor } from './random.js'
 import { reduceFishingWeight } from './weight.js'
+import { say } from './lines.js'
 
 const WEIGHT = { common: 60, uncommon: 24, rare: 8, legend: 1 }
 const AUTO_LIMIT = 2
@@ -100,8 +101,10 @@ export function resolveFishing(state, success, nowMs) {
   const fishing = ensureFishing(state)
   const pending = fishing.pending
   if (pending === null || pending.phase !== 'hooked' || nowMs > pending.expiresAt) { fishing.pending = null; return { ok: false, reason: 'none' } }
-  if (success !== true) { fishing.pending = null; return { ok: true, caught: false } }
+  if (success !== true) { fishing.pending = null; say(state, 'fishEscape', nowMs); return { ok: true, caught: false } }
   pending.phase = 'caught'
+  const rarity = fishByKey(pending.key)?.rarity
+  say(state, rarity === 'rare' || rarity === 'legend' ? 'fishRare' : 'fishCatch', nowMs)
   return { ok: true, caught: true, pending }
 }
 

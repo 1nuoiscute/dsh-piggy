@@ -636,7 +636,7 @@
   // packages/pet-core/src/data/skins.js
   var SKIN_SCENES = Object.freeze(["idle", "eat", "bathe", "play", "pet", "relaxed", "work", "study", "trip", "fish"]);
   var REQUIRED_SKIN_SCENES = Object.freeze(SKIN_SCENES.slice(0, 5));
-  var CHARACTER_SCENES = Object.freeze(SKIN_SCENES.filter((scene2) => scene2 !== "fish"));
+  var CHARACTER_SCENES = Object.freeze(SKIN_SCENES.filter((scene3) => scene3 !== "fish"));
   var SKINS = Object.freeze([
     Object.freeze({
       key: "mint",
@@ -714,184 +714,355 @@
     })
   ]);
 
-  // packages/pet-core/src/data/lines.js
-  var IDLE_CHAT_MINUTES2 = Object.freeze({ min: 20, max: 40 });
+  // packages/pet-core/src/data/lines-more.js
   var line = (text, reply) => Object.freeze(reply === void 0 ? { text } : { text, replies: Object.freeze([Object.freeze({ label: reply })]) });
   var scene = (...lines) => Object.freeze(lines);
-  var LINES = Object.freeze({
-    // --- 照顾 -----------------------------------------------------------------
+  var MORE_LINES = Object.freeze({
+    // ---- 原有场景翻倍 -----------------------------------------------------------
     eat: scene(
-      line("\u597D\u5403\uFF01\u8FD8\u6709\u5417\uFF1F", "\u771F\u4E56"),
-      line("\u5427\u5527\u5427\u5527\u2026\u2026"),
-      line("[\u4E3B\u4EBA]\u6700\u597D\u4E86\uFF5E"),
-      line("\u8FD9\u4E2A\u5473\u9053\u6211\u8BB0\u4F4F\u4E86"),
-      line("\u5403\u9971\u9971\u624D\u6709\u529B\u6C14\u966A\u4F60\u52A0\u73ED"),
-      line("\u55DD\u2014\u2014\uFF08\u4E0D\u597D\u610F\u601D\uFF09")
+      line("\u4ECA\u5929\u7684\u996D\u6709[\u4E3B\u4EBA]\u7684\u5473\u9053\uFF08\u662F\u5938\u4F60\uFF09"),
+      line("\u6162\u70B9\u6162\u70B9\uFF0C\u6211\u8FD8\u6CA1\u56BC\u5B8C"),
+      line("\u5403\u4E00\u53E3\uFF0C\u957F\u4E00\u4E24\uFF0C\u6CA1\u5173\u7CFB\uFF0C\u6211\u4E0D\u6015"),
+      line("\u8FD9\u4E2A\u597D\u5403\uFF0C\u4E0B\u6B21\u8FD8\u8981\u8FD9\u4E2A", "\u8BB0\u4F4F\u4E86"),
+      line("\u6211\u5BA3\u5E03\uFF1A\u8FD9\u662F\u4ECA\u5929\u6700\u597D\u7684\u4E00\u987F"),
+      line("\u5403\u996D\u7684\u65F6\u5019\u522B\u770B\u6211\uFF0C\u6211\u4F1A\u5BB3\u7F9E")
     ),
-    full: scene(
-      line("\u5403\u9971\u5566\uFF0C\u809A\u5B50\u5706\u6EDA\u6EDA\u7684"),
-      line("\u597D\u9971\u597D\u9971\uFF0C\u518D\u5403\u5C31\u8981\u6491\u7740\u4E86"),
-      line("\u55DD\u2014\u2014\u8C22\u8C22[\u4E3B\u4EBA]\uFF0C\u9971\u9971\u7684")
-    ),
-    overfull: scene(
-      line("\u6491\u2026\u2026\u6491\u4F4F\u4E86\u2026\u2026"),
-      line("\u771F\u7684\u5403\u4E0D\u4E0B\u4E86\uFF0C\u4F60\u770B\u6211\u809A\u5B50"),
-      line("\u518D\u5582\u6211\u5C31\u8981\u53D8\u6210\u7403\u4E86", "\u6700\u540E\u4E00\u53E3")
-    ),
+    full: scene(line("\u9971\u4E86\uFF0C\u53EF\u4EE5\u5F00\u59CB\u53D1\u5446\u4E86"), line("\u809A\u5B50\u91CC\u88C5\u6EE1\u4E86\uFF0C\u5FC3\u91CC\u4E5F\u662F"), line("\u9971\u9971\u7684\uFF0C\u4ECA\u5929\u4E0D\u4F1A\u60F3\u522B\u7684\u4E8B\u4E86")),
+    overfull: scene(line("\u518D\u5403\u6211\u5C31\u8981\u88AB\u79F0\u91CD\u4E86\u2026\u2026"), line("\u4F60\u662F\u4E0D\u662F\u5728\u7ED9\u6211\u517B\u8198\uFF1F", "\u6CA1\u6709\u6CA1\u6709"), line("\u6211\u7684\u809A\u5B50\u5728\u6297\u8BAE\uFF0C\u542C\u89C1\u4E86\u5417")),
     bathe: scene(
-      line("\u9999\u55B7\u55B7\u7684\uFF01"),
-      line("\u6C34\u6709\u70B9\u51C9\u2026\u2026", "\u9A6C\u4E0A\u64E6\u5E72"),
-      line("\u6413\u6413\u80CC\uFF0C\u8212\u670D\uFF5E"),
-      line("\u6CE1\u6CE1\uFF01\u662F\u6CE1\u6CE1\uFF01"),
-      line("\u6D17\u5E72\u51C0\u4E86\uFF0C\u53EF\u4EE5\u62B1\u4E86")
+      line("\u6C34\u6E29\u521A\u597D\uFF0C\u4E0D\u662F\u5728\u712F\u6C34\u5427\uFF1F", "\u653E\u5FC3"),
+      line("\u6211\u73B0\u5728\u662F\u4E00\u53EA\u4F53\u9762\u7684\u732A\u4E86"),
+      line("\u6CE5\u5DF4\u518D\u89C1\uFF0C\u6CE5\u5DF4\u6211\u4F1A\u60F3\u4F60\u7684"),
+      line("\u522B\u6D17\u8033\u6735\u540E\u9762\uFF0C\u90A3\u91CC\u6709\u6211\u7684\u79D8\u5BC6"),
+      line("\u6D17\u5B8C\u522B\u95FB\u6211\u8BF4\u300C\u597D\u9999\u300D\uFF0C\u6709\u70B9\u5413\u4EBA")
     ),
     play: scene(
-      line("\u518D\u6765\u4E00\u6B21\uFF01"),
-      line("\u63A5\u4F4F\u5566\uFF01", "\u771F\u68D2"),
-      line("\u54C8\u54C8\u54C8\u597D\u597D\u73A9"),
-      line("\u6211\u8DD1\u5F97\u6BD4\u7403\u5FEB"),
-      line("\u73A9\u7D2F\u4E86\u2026\u2026\u518D\u73A9\u4E94\u5206\u949F")
+      line("\u4F60\u6254\uFF0C\u6211\u6361\uFF0C\u6211\u4EEC\u914D\u5408\u5F97\u5929\u8863\u65E0\u7F1D"),
+      line("\u54C7\uFF01\u5DEE\u70B9\u63A5\u5230\uFF01"),
+      line("\u518D\u6765\u518D\u6765\uFF0C\u6211\u521A\u70ED\u5B8C\u8EAB", "\u6765\uFF01"),
+      line("\u73A9\u800D\u4F7F\u6211\u5FEB\u4E50\uFF0C\u4E5F\u4F7F\u6211\u53D8\u7626"),
+      line("\u4F60\u4E5F\u52A8\u52A8\u5427\uFF0C\u5750\u592A\u4E45\u4E86")
     ),
     pet: scene(
-      line("\u597D\u8212\u670D\u2026\u2026"),
-      line("\u518D\u6478\u6478\uFF5E", "\u597D"),
-      line("\u547C\u565C\u547C\u565C\u2026\u2026"),
-      line("\uFF08\u772F\u8D77\u773C\u775B\uFF09"),
-      line("\u8FD9\u91CC\u8FD9\u91CC\uFF01\u5DE6\u8FB9\u4E00\u70B9\uFF01"),
-      line("\u5514\u2026\u2026\u597D\u75D2"),
-      line("[\u4E3B\u4EBA]\u7684\u624B\u6696\u6696\u7684")
+      line("\u624B\u611F\u662F\u4E0D\u662F\u5F88\u597D\uFF1F\u4E0D\u8BB8\u8BF4\u300C\u50CF\u4E94\u82B1\u8089\u300D"),
+      line("\u518D\u6478\u6211\u5C31\u8981\u7761\u7740\u4E86"),
+      line("\u55EF\u2026\u2026\u8FD9\u6837\u5F88\u597D"),
+      line("\u4F60\u4ECA\u5929\u6478\u5F97\u7279\u522B\u8BA4\u771F"),
+      line("[\u4E3B\u4EBA]\uFF0C\u6211\u4EEC\u7B97\u4E0D\u7B97\u597D\u670B\u53CB\uFF1F", "\u5F53\u7136\u7B97"),
+      line("\u8FD9\u662F\u6211\u4E00\u5929\u91CC\u6700\u559C\u6B22\u7684\u65F6\u523B"),
+      line("\u6478\u732A\u53EF\u4EE5\u964D\u8840\u538B\uFF0C\u8FD9\u662F\u79D1\u5B66\uFF08\u6211\u7F16\u7684\uFF09")
+    ),
+    hungry: scene(line("\u6211\u997F\u5F97\u80FD\u770B\u89C1\u5E7B\u89C9\u4E86\uFF0C\u4F60\u5934\u4E0A\u6709\u4E2A\u5305\u5B50"), line("\u518D\u4E0D\u5403\u996D\uFF0C\u6211\u5C31\u8981\u5F00\u59CB\u5403\u81EA\u5DF1\u7684\u5F71\u5B50\u4E86"), line("\u996D\u996D\u2026\u2026\u996D\u996D\u2026\u2026", "\u9A6C\u4E0A\u6765")),
+    dirty: scene(line("\u6211\u8EAB\u4E0A\u7684\u6CE5\u5DF4\u5DF2\u7ECF\u53EF\u4EE5\u79CD\u82B1\u4E86"), line("\u82CD\u8747\u7ED5\u7740\u6211\u98DE\uFF0C\u5B83\u4EEC\u5728\u5F00\u4F1A\u8BA8\u8BBA\u6211"), line("\u6211\u9700\u8981\u4E00\u4E2A\u6FA1\uFF0C\u4E00\u4E2A\u70ED\u7684\uFF08\u4E0D\u8981\u592A\u70ED\uFF09", "\u597D")),
+    lonely: scene(line("\u6211\u521A\u624D\u8DDF\u5899\u804A\u4E86\u4E00\u4F1A\u513F\uFF0C\u5899\u4E0D\u592A\u4F1A\u804A\u5929"), line("\u4F60\u8FD8\u8BB0\u5F97\u4F60\u517B\u4E86\u4E00\u53EA\u732A\u5417", "\u8BB0\u5F97"), line("\u6CA1\u4E8B\uFF0C\u6211\u5C31\u662F\u60F3\u770B\u770B\u4F60\u8FD8\u5728\u4E0D\u5728")),
+    idle: scene(
+      line("\u6211\u6570\u4E86\u4E00\u4E0B\uFF0C\u5C4F\u5E55\u4E0A\u6709\u5F88\u591A\u5B57\uFF0C\u6211\u4E00\u4E2A\u90FD\u6CA1\u5199"),
+      line("\u4F60\u5199\u7684\u4E1C\u897F\u597D\u957F\uFF0C\u6211\u80FD\u7761\u4E00\u89C9\u5417"),
+      line("\u6211\u521A\u624D\u68A6\u89C1\u81EA\u5DF1\u4F1A\u98DE\uFF0C\u9192\u4E86\u53D1\u73B0\u4F1A\u7684\u53EA\u6709\u5403"),
+      line("\u5916\u9762\u6709\u4EBA\u5728\u7092\u83DC\uFF0C\u6211\u7D27\u5F20\u4E86\u4E00\u4E0B"),
+      line("\u5750\u76F4\uFF0C[\u4E3B\u4EBA]\uFF0C\u4F60\u7684\u80CC\u5728\u54ED"),
+      line("\u8981\u4E0D\u8981\u559D\u53E3\u6C34\uFF1F\u6211\u66FF\u4F60\u8BB0\u7740", "\u597D"),
+      line("\u4F60\u7684\u5C4F\u5E55\u597D\u4EAE\uFF0C\u6211\u772F\u4E00\u4F1A\u513F"),
+      line("\u521A\u624D\u90A3\u4E2A\u529F\u80FD\u6211\u89C9\u5F97\u5199\u5F97\u4E0D\u9519\uFF08\u6211\u770B\u4E0D\u61C2\uFF0C\u4F46\u6211\u652F\u6301\u4F60\uFF09")
+    ),
+    workDone: scene(line("\u8001\u677F\u95EE\u6211\u80FD\u4E0D\u80FD\u957F\u671F\u5E72\uFF0C\u6211\u8BF4\u8981\u95EE[\u4E3B\u4EBA]"), line("\u8D5A\u7684\u94B1\u7ED9\u4F60\uFF0C\u8BF7\u6211\u5403\u987F\u597D\u7684\u5C31\u884C", "\u6210\u4EA4"), line("\u6253\u5DE5\u597D\u7D2F\uFF0C\u4EBA\u7C7B\u6BCF\u5929\u90FD\u8FD9\u6837\u5417")),
+    tired: scene(line("\u6211\u9700\u8981\u8EBA\u5E73\uFF0C\u73B0\u5728\uFF0C\u7ACB\u523B"), line("\u6211\u7684\u56DB\u6761\u817F\u5DF2\u7ECF\u5404\u81EA\u4E0B\u73ED\u4E86"), line("\u7D2F\u5F97\u8FDE\u996D\u90FD\u2026\u2026\u4E0D\uFF0C\u996D\u8FD8\u662F\u8981\u5403\u7684")),
+    study: scene(line("\u4ECA\u5929\u5B66\u4E86\u4E00\u4E2A\u65B0\u8BCD\uFF0C\u5FD8\u4E86"), line("\u8001\u5E08\u8BF4\u6211\u5F88\u6709\u6F5C\u529B\uFF0C\u6F5C\u5728\u54EA\u6211\u4E5F\u4E0D\u77E5\u9053"), line("\u5B66\u4E60\u4F7F\u6211\u8FDB\u6B65\uFF0C\u4E5F\u4F7F\u6211\u997F", "\u53BB\u5403\u5427")),
+    graduate: scene(line("\u8BC1\u4E66\u6302\u5899\u4E0A\uFF0C\u522B\u6302\u83DC\u5200\u65C1\u8FB9"), line("\u6211\u662F\u5168\u73ED\u6700\u5BBD\u7684\u6BD5\u4E1A\u751F"), line("\u6709\u6587\u5316\u7684\u732A\uFF0C\u4E0D\u5BB9\u6613\u88AB\u9A97\u8FDB\u53A8\u623F")),
+    tripBack: scene(line("\u5916\u9762\u5230\u5904\u90FD\u662F\u996D\u9986\uFF0C\u6211\u4E00\u8DEF\u4F4E\u7740\u5934\u8D70\u7684"), line("\u6211\u770B\u89C1\u6D77\u4E86\uFF01\u6D77\u91CC\u6CA1\u6709\u732A"), line("\u62CD\u4E86\u597D\u591A\u7167\u7247\uFF0C\u6BCF\u5F20\u90FD\u5728\u7B11\uFF08\u5176\u5B9E\u5F88\u997F\uFF09")),
+    sick: scene(line("\u6211\u89C9\u5F97\u6211\u9700\u8981\u4E00\u4E2A\u62B1\u62B1\uFF0C\u548C\u4E00\u9897\u836F", "\u90FD\u7ED9\u4F60"), line("\u8EAB\u4F53\u91CC\u6709\u4E2A\u5C0F\u574F\u86CB\u5728\u641E\u88C5\u4FEE"), line("\u6211\u751F\u75C5\u4E86\uFF0C\u75C5\u732A\u8089\u4E0D\u80FD\u5403\u2014\u2014\u8FD9\u662F\u597D\u6D88\u606F")),
+    wrongMedicine: scene(line("\u8FD9\u4E2A\u836F\u2026\u2026\u597D\u50CF\u662F\u7ED9\u72D7\u5403\u7684"), line("\u6211\u539F\u8C05\u4F60\uFF0C\u4F60\u770B\u8D77\u6765\u6BD4\u6211\u8FD8\u96BE\u53D7"), line("\u4E0B\u6B21\u770B\u6E05\u695A\u8BF4\u660E\u4E66\u597D\u4E0D\u597D", "\u597D")),
+    cured: scene(line("\u6211\u6D3B\u8FC7\u6765\u4E86\uFF01\u7B2C\u4E00\u4EF6\u4E8B\uFF1A\u5403\u996D"), line("\u960E\u738B\u7237\u770B\u4E86\u770B\u6211\u7684\u4F53\u91CD\uFF0C\u8BF4\u300C\u518D\u517B\u517B\u300D"), line("\u5065\u5EB7\u771F\u597D\uFF0C\u6211\u73B0\u5728\u53EF\u4EE5\u91CD\u65B0\u62C5\u5FC3\u522B\u7684\u4E8B\u4E86")),
+    levelup: scene(line("\u5347\u7EA7\u4E86\uFF0C\u5956\u52B1\u662F\u66F4\u5927\u7684\u996D\u91CF"), line("\u6211\u53D8\u5F3A\u4E86\uFF0C\u81F3\u5C11\u6570\u5B57\u4E0A\u662F\u8FD9\u6837"), line("\u4F60\u770B\u89C1\u4E86\u5417\uFF1F\u6211\u5347\u7EA7\u4E86\uFF01", "\u770B\u89C1\u4E86")),
+    growUp: scene(line("\u957F\u5927\u7684\u611F\u89C9\uFF0C\u5C31\u662F\u9505\u53D8\u591A\u4E86"), line("\u6211\u957F\u5F00\u4E86\u2026\u2026\u4F60\u522B\u7528\u8FD9\u4E2A\u8BCD"), line("[\u4E3B\u4EBA]\uFF0C\u4F60\u4E5F\u8981\u4E00\u8D77\u957F\u5927\u54E6")),
+    coronation: scene(line("\u672C\u738B\u4ECA\u65E5\u5F00\u6069\uFF0C\u514D\u4F60\u4E00\u987F\u4E0D\u5582\u4E4B\u7F6A"), line("\u738B\u51A0\u597D\u91CD\uFF0C\u8116\u5B50\u8981\u53D8\u957F\u4E86"), line("\u81E3\u6C11\u4EEC\uFF0C\u5F00\u996D\uFF01"), line("[\u4E3B\u4EBA]\u662F\u672C\u738B\u7684\u9996\u5E2D\u5582\u996D\u5B98", "\u9075\u547D")),
+    contract: scene(line("\u6211\u73B0\u5728\u662F\u6076\u9B54\u4E86\uFF0C\u4F46\u8FD8\u662F\u6015\u70ED\u6C34"), line("\u89D2\u662F\u65B0\u7684\uFF0C\u6492\u5A07\u662F\u65E7\u7684"), line("\u6076\u9B54\u4E5F\u9700\u8981\u88AB\u6478\u6478"), line("\u7B7E\u4E86\u5951\u7EA6\uFF0C\u4EE5\u540E\u8C01\u4E5F\u4E0D\u80FD\u628A\u6211\u505A\u6210\u83DC", "\u90A3\u5F53\u7136")),
+    enter: scene(line("\u4F60\u7EC8\u4E8E\u56DE\u6765\u4E86\uFF0C\u6211\u6570\u4E86\u597D\u4E45\u7684\u50CF\u7D20"), line("\u6B22\u8FCE\u56DE\u6765\uFF0C\u4ECA\u5929\u4E5F\u62DC\u6258\u591A\u5582\u6211\u4E00\u70B9"), line("\u6211\u521A\u521A\u4E00\u76F4\u5728\u8FD9\u91CC\uFF0C\u4E00\u52A8\u4E0D\u52A8\uFF0C\u5F88\u4E56", "\u771F\u4E56")),
+    death: scene(line("\u8BB0\u5F97\u7ED9\u6211\u70E7\u70B9\u9972\u6599\u2026\u2026"), line("[\u4E3B\u4EBA]\uFF0C\u522B\u96BE\u8FC7\uFF0C\u6211\u53EA\u662F\u53BB\u4E0B\u4E00\u4E2A\u732A\u5708\u4E86")),
+    revive: scene(line("\u90A3\u8FB9\u7684\u732A\u90FD\u5F88\u7626\uFF0C\u6211\u8FD8\u662F\u56DE\u6765\u5427"), line("\u6211\u56DE\u6765\u4E86\uFF0C\u996D\u8FD8\u5728\u5417"), line("\u5DEE\u4E00\u70B9\u5C31\u89C1\u5230\u732A\u516B\u6212\u4E86")),
+    signIn: scene(line("\u53C8\u662F\u65B0\u7684\u4E00\u5929\uFF0C\u6211\u8FD8\u5728\uFF0C\u4F60\u4E5F\u5728"), line("\u7B2C 7 \u5929\u6709\u5927\u793C\uFF0C\u575A\u6301\u4F4F")),
+    gift: scene(line("\u6253\u5F00\u770B\u770B\uFF1F\u6211\u4E5F\u4E0D\u77E5\u9053\u662F\u4EC0\u4E48"), line("\u6211\u66FF\u4F60\u5B88\u7740\u5B83\u597D\u4E45\u4E86")),
+    pomodoroStart: scene(line("\u6211\u95ED\u5634\u4E86\uFF0C\u4ECE\u73B0\u5728\u5F00\u59CB"), line("\u4E13\u5FC3\uFF01\u6211\u5E2E\u4F60\u77AA\u7740\u5C4F\u5E55"), line("\u6211\u5F53\u4E00\u5757\u5B89\u9759\u7684\u4E94\u82B1\u8089")),
+    pomodoroDone: scene(line("\u505A\u5B8C\u4E86\uFF01\u5956\u52B1\u81EA\u5DF1\u6478\u4E00\u4E0B\u732A"), line("\u4F60\u597D\u5389\u5BB3\uFF0C\u6211\u90FD\u770B\u7761\u7740\u4E86"), line("\u8D77\u6765\u8D70\u8D70\uFF0C\u987A\u4FBF\u770B\u770B\u6211")),
+    pomodoroAbandon: scene(line("\u6CA1\u5173\u7CFB\uFF0C\u756A\u8304\u4E5F\u4F1A\u7D2F"), line("\u90A3\u6211\u4EEC\u5148\u5403\u70B9\u4E1C\u897F\uFF1F"), line("\u4E0B\u6B21\u518D\u4E00\u8D77\u52AA\u529B")),
+    // ---- 新场景 ----------------------------------------------------------------
+    workStart: scene(line("\u51FA\u95E8\u642C\u7816\u53BB\u4E86"), line("\u6211\u53BB\u7ED9\u5BB6\u91CC\u6323\u9972\u6599\u94B1"), line("\u8001\u677F\uFF0C\u6211\u6765\u4E86\uFF01")),
+    studyStart: scene(line("\u4E0A\u5B66\u53BB\uFF01\u4E66\u5305\u91CC\u88C5\u7684\u662F\u96F6\u98DF"), line("\u4ECA\u5929\u4E5F\u8981\u542C\u61C2\u4E00\u53E5"), line("\u8001\u5E08\u522B\u70B9\u6211\u540D")),
+    tripStart: scene(line("\u51FA\u53D1\u5566\uFF01"), line("\u6211\u4F1A\u7ED9\u4F60\u5E26\u7279\u4EA7\u7684\uFF08\u4E0D\u662F\u814A\u8089\uFF09"), line("\u8DEF\u4E0A\u522B\u60F3\u6211")),
+    buy: scene(line("\u4E70\u5230\u4E86\uFF01"), line("\u8FD9\u4E2A\u94B1\u82B1\u5F97\u503C"), line("\u8C22\u8C22\u8001\u677F\uFF08\u6211\u8BF4\u7684\u662F\u4F60\uFF09")),
+    poor: scene(line("\u94B1\u5305\u7A7A\u7A7A\uFF0C\u8DDF\u6211\u7684\u996D\u76C6\u4E00\u6837"), line("\u6211\u4EEC\u597D\u50CF\u6709\u70B9\u7A77"), line("\u8981\u4E0D\u2026\u2026\u6211\u53BB\u6253\u5DE5\uFF1F")),
+    fishCatch: scene(line("\u9493\u5230\u5566\uFF01"), line("\u665A\u996D\u6709\u7740\u843D\u4E86"), line("\u8FD9\u6761\u9C7C\u770B\u6211\u7684\u773C\u795E\u4E0D\u592A\u53CB\u597D")),
+    fishRare: scene(line("\u662F\u5927\u7684\uFF01\u662F\u5927\u7684\uFF01"), line("\u8FD9\u6761\u9C7C\u503C\u5F97\u5199\u8FDB\u65E5\u8BB0"), line("\u5FEB\u62CD\u7167\uFF01")),
+    fishEscape: scene(line("\u5B83\u8DD1\u4E86\u2026\u2026"), line("\u4E0B\u4E00\u6761\u4E00\u5B9A\u662F\u6211\u7684"), line("\u9C7C\u4E5F\u662F\u8981\u9762\u5B50\u7684")),
+    skin: scene(line("\u597D\u770B\u5417\uFF1F"), line("\u65B0\u8863\u670D\uFF01\u8F6C\u4E2A\u5708\u7ED9\u4F60\u770B"), line("\u6211\u89C9\u5F97\u6211\u53D8\u5E05\u4E86")),
+    bodyChange: scene(line("\u6211\u597D\u50CF\u2026\u2026\u5706\u4E86\u4E00\u70B9"), line("\u8FD9\u4E0D\u662F\u80D6\uFF0C\u662F\u53EF\u7231\u7684\u5BC6\u5EA6\u53D8\u5927\u4E86"), line("\u79E4\u8BF4\u7684\u8BDD\u4E0D\u80FD\u5168\u4FE1")),
+    // ---- 按时间说话（core/talk.js 决定什么时候说）---------------------------------
+    morning: scene(line("\u65E9\u4E0A\u597D\uFF01\u4ECA\u5929\u4E5F\u8981\u597D\u597D\u5403\u996D"), line("\u8D77\u8FD9\u4E48\u65E9\uFF0C\u4F60\u662F\u8981\u53BB\u5F53\u65E9\u9910\u5417\uFF08\u6211\u5F00\u73A9\u7B11\u7684\uFF09"), line("\u65E9\u5B89\uFF0C[\u4E3B\u4EBA]\uFF0C\u6211\u6628\u665A\u68A6\u89C1\u4F60\u4E86")),
+    noon: scene(line("\u4E2D\u5348\u4E86\uFF0C\u5403\u996D\u5403\u996D\uFF01"), line("\u4F60\u5403\u4E86\u5417\uFF1F\u6211\u997F\u4E86\uFF0C\u4F60\u80AF\u5B9A\u4E5F\u997F\u4E86"), line("\u5348\u996D\u522B\u5403\u732A\u8089\u597D\u4E0D\u597D", "\u597D")),
+    afternoon: scene(line("\u4E0B\u5348\u597D\u56F0\u2026\u2026\u6211\u5148\u7761\u4E3A\u656C"), line("\u559D\u676F\u8336\u5427\uFF0C\u6211\u966A\u4F60\u53D1\u4F1A\u513F\u5446"), line("\u4E0B\u5348\u6700\u9002\u5408\u6253\u76F9\uFF0C\u79D1\u5B66\u7814\u7A76\uFF08\u6211\u7F16\u7684\uFF09")),
+    evening: scene(line("\u5929\u9ED1\u4E86\uFF0C\u4ECA\u5929\u8F9B\u82E6\u5566"), line("\u665A\u996D\u5403\u4EC0\u4E48\uFF1F\u6211\u6295\u7968\u7ED9\u82F9\u679C"), line("\u4E0B\u73ED\u4E86\u5417\uFF1F\u8FD8\u6CA1\uFF1F\u6211\u7B49\u4F60")),
+    lateNight: scene(line("\u8FD9\u4E48\u665A\u4E86\u8FD8\u4E0D\u7761\uFF1F", "\u9A6C\u4E0A\u7761"), line("\u71AC\u591C\u7684\u4EBA\u4F1A\u53D8\u6210\u718A\u732B\uFF0C\u71AC\u591C\u7684\u732A\u4F1A\u53D8\u6210\u814A\u8089"), line("\u6211\u5148\u7761\u4E86\uFF0C\u4F60\u4E5F\u65E9\u70B9")),
+    deepNight: scene(line("[\u4E3B\u4EBA]\u2026\u2026\u73B0\u5728\u662F\u51CC\u6668\uFF0C\u4F60\u662F\u8BA4\u771F\u7684\u5417"), line("\u6211\u5DF2\u7ECF\u7761\u9192\u4E00\u89C9\u4E86\uFF0C\u4F60\u8FD8\u5728"), line("\u5929\u5FEB\u4EAE\u4E86\uFF0C\u6C42\u4F60\u7761\u4E00\u4F1A\u513F")),
+    water: scene(line("\u559D\u53E3\u6C34\u5427\uFF0C\u6211\u66FF\u4F60\u559D\u4E0D\u4E86"), line("\u5634\u5507\u5E72\u4E86\u5427\uFF1F\u53BB\u5012\u676F\u6C34"), line("\u559D\u6C34\u65F6\u95F4\u5230\uFF01\u5495\u561F\u5495\u561F")),
+    eyes: scene(line("\u770B\u770B\u8FDC\u5904\uFF0C\u4E09\u5341\u79D2\u5C31\u597D"), line("\u773C\u775B\u7D2F\u4E86\uFF0C\u95ED\u4E00\u4F1A\u513F\uFF0C\u6211\u5E2E\u4F60\u770B\u7740"), line("\u7AD9\u8D77\u6765\u4F38\u4E2A\u61D2\u8170\uFF0C\u6211\u4E5F\u4F38\u4E00\u4E2A")),
+    weekend: scene(line("\u5468\u672B\u4E86\u8FD8\u6765\u770B\u6211\uFF0C\u4F60\u771F\u597D"), line("\u4ECA\u5929\u4E0D\u4E0A\u73ED\u5427\uFF1F\u90A3\u5C31\u591A\u966A\u6211\u4E00\u4F1A\u513F")),
+    newYear: scene(line("\u65B0\u5E74\u5FEB\u4E50\uFF01\u4ECA\u5E74\u4E5F\u8BF7\u591A\u591A\u5582\u6211")),
+    valentine: scene(line("\u4ECA\u5929\u7684\u6211\u662F\u9650\u91CF\u7248\u7684\uFF0C\u9001\u7ED9\u4F60")),
+    springFestival: scene(line("\u8FC7\u5E74\u597D\uFF01\u2026\u2026\u4ECA\u5E74\u8BF7\u4E00\u5B9A\u4E0D\u8981\u5403\u732A\u8089", "\u4E0D\u5403")),
+    lantern: scene(line("\u5403\u6C64\u5706\u5417\uFF1F\u6C64\u5706\u6CA1\u6709\u732A\uFF0C\u6211\u653E\u5FC3\u4E86")),
+    qingming: scene(line("\u60F3\u5FF5\u4E00\u4E0B\u4EE5\u524D\u7684\u732A\u2026\u2026\u6211\u662F\u8BF4\u670B\u53CB\u4EEC")),
+    labour: scene(line("\u52B3\u52A8\u8282\uFF01\u6211\u51B3\u5B9A\u4ECA\u5929\u4E0D\u52B3\u52A8")),
+    children: scene(line("\u6211\u4E5F\u662F\u5C0F\u670B\u53CB\uFF0C\u793C\u7269\u5728\u54EA\uFF1F")),
+    dragonBoat: scene(line("\u7CBD\u5B50\u91CC\u6709\u8089\uFF0C\u6211\u9009\u62E9\u770B\u4E0D\u89C1")),
+    qixi: scene(line("\u4ECA\u5929\u8981\u548C\u6700\u91CD\u8981\u7684\u4EBA\u5728\u4E00\u8D77\uFF0C\u6240\u4EE5\u6211\u5728\u8FD9\u91CC")),
+    midAutumn: scene(line("\u6708\u4EAE\u597D\u5706\uFF0C\u50CF\u6211\u7684\u809A\u5B50")),
+    national: scene(line("\u56FD\u5E86\u5FEB\u4E50\uFF01\u653E\u5047\u8BB0\u5F97\u966A\u966A\u6211")),
+    christmas: scene(line("\u5723\u8BDE\u5FEB\u4E50\uFF01\u5723\u8BDE\u8001\u4EBA\u4F1A\u7ED9\u732A\u9001\u793C\u7269\u5417")),
+    pigBirthday: scene(line("\u4ECA\u5929\u662F\u6211\u7684\u751F\u65E5\uFF01[\u4E3B\u4EBA]\u8BB0\u5F97\u5417\uFF1F", "\u751F\u65E5\u5FEB\u4E50")),
+    // ---- 摸不同部位（客户端按点的位置告诉核心是哪儿）----------------------------
+    petHead: scene(line("\u6478\u5934\u4F1A\u957F\u4E0D\u9AD8\u7684\u2026\u2026\u7B97\u4E86\uFF0C\u957F\u4E0D\u9AD8\u4E5F\u597D"), line("\u518D\u6478\u6478\u5934\uFF5E"), line("\u6211\u7684\u5934\u5F88\u5706\uFF0C\u662F\u4E0D\u662F\u5F88\u597D\u6478")),
+    petEars: scene(line("\u8033\u6735\u597D\u75D2\uFF01"), line("\u522B\u63EA\uFF0C\u4F1A\u53D8\u6210\u732A\u8033\u6735\u2026\u2026\u6211\u672C\u6765\u5C31\u662F"), line("\u5618\uFF0C\u8033\u6735\u5728\u542C\u4F60\u8BF4\u8BDD")),
+    petNose: scene(line("\u963F\u2014\u2014\u568F\uFF01"), line("\u9F3B\u5B50\u662F\u7528\u6765\u95FB\u996D\u7684\uFF0C\u4E0D\u662F\u7528\u6765\u6309\u7684"), line("\u54FC\u54FC\uFF01\uFF08\u8FD9\u662F\u6297\u8BAE\uFF09")),
+    petBelly: scene(line("\u54C8\u54C8\u54C8\u597D\u75D2\uFF01"), line("\u522B\u6309\u809A\u5B50\uFF0C\u521A\u5403\u9971"), line("\u8F6F\u5427\uFF1F\u4E0D\u8BB8\u8BF4\u300C\u4E94\u82B1\u300D")),
+    petBack: scene(line("\u80CC\u4E0A\u90A3\u5757\uFF0C\u5BF9\uFF0C\u5C31\u662F\u90A3\u91CC"), line("\u6309\u6469\u670D\u52A1\uFF0C\u4E94\u661F\u597D\u8BC4"), line("\u4F60\u7684\u624B\u6CD5\u5F88\u4E13\u4E1A")),
+    petTail: scene(line("\u522B\u78B0\u5C3E\u5DF4\uFF01\u2026\u2026\u597D\u5427\u53EF\u4EE5\u78B0\u4E00\u4E0B"), line("\u6211\u7684\u5C3E\u5DF4\u4F1A\u81EA\u5DF1\u8F6C\uFF0C\u4F60\u770B"), line("\u5C3E\u5DF4\u662F\u732A\u7684\u79D8\u5BC6\u6B66\u5668")),
+    petFeet: scene(line("\u811A\u4E0D\u80FD\u6478\uFF0C\u4F1A\u75D2"), line("\u6211\u7684\u8E44\u5B50\u521A\u8D70\u8FC7\u6CE5\u5DF4\u54E6"), line("\u5E72\u561B\uFF0C\u60F3\u8DDF\u6211\u63E1\u624B\uFF1F", "\u63E1\u624B")),
+    petTooMuch: scene(line("\u591F\u4E86\u591F\u4E86\uFF0C\u6BDB\u8981\u6389\u4E86"), line("\u4F60\u662F\u4E0D\u662F\u5728\u627E\u54EA\u5757\u6700\u5AE9\uFF1F"), line("\u6211\u8981\u6536\u8D39\u4E86\uFF0C\u4E00\u4E0B\u4E00\u4E2A\u82F9\u679C"), line("\u518D\u6478\u6211\u5C31\u751F\u6C14\u4E86\uFF01\uFF08\u5176\u5B9E\u6CA1\u6709\uFF09"), line("\u8BA9\u6211\u4F11\u606F\u4E00\u4E0B\u2026\u2026"))
+  });
+  var TALK_SLOTS = Object.freeze([
+    Object.freeze({ scene: "morning", from: 6, to: 9 }),
+    Object.freeze({ scene: "noon", from: 11, to: 13 }),
+    Object.freeze({ scene: "afternoon", from: 14, to: 16 }),
+    Object.freeze({ scene: "evening", from: 18, to: 20 }),
+    Object.freeze({ scene: "lateNight", from: 23, to: 2 }),
+    Object.freeze({ scene: "deepNight", from: 2, to: 5 })
+  ]);
+  var SOLAR_HOLIDAYS = Object.freeze({
+    "01-01": "newYear",
+    "02-14": "valentine",
+    "05-01": "labour",
+    "06-01": "children",
+    "10-01": "national",
+    "12-25": "christmas"
+  });
+  var DATED_HOLIDAYS = Object.freeze({
+    "2026-02-17": "springFestival",
+    "2026-03-03": "lantern",
+    "2026-04-05": "qingming",
+    "2026-06-19": "dragonBoat",
+    "2026-08-19": "qixi",
+    "2026-09-25": "midAutumn",
+    "2027-02-06": "springFestival",
+    "2027-02-20": "lantern",
+    "2027-04-05": "qingming",
+    "2027-06-09": "dragonBoat",
+    "2027-08-08": "qixi",
+    "2027-09-15": "midAutumn",
+    "2028-01-26": "springFestival",
+    "2028-02-09": "lantern",
+    "2028-04-04": "qingming",
+    "2028-05-28": "dragonBoat",
+    "2028-08-26": "qixi",
+    "2028-10-03": "midAutumn",
+    "2029-02-13": "springFestival",
+    "2029-02-27": "lantern",
+    "2029-04-04": "qingming",
+    "2029-06-16": "dragonBoat",
+    "2029-08-16": "qixi",
+    "2029-09-22": "midAutumn"
+  });
+  var PET_PARTS = Object.freeze({
+    head: "petHead",
+    ears: "petEars",
+    nose: "petNose",
+    belly: "petBelly",
+    back: "petBack",
+    tail: "petTail",
+    feet: "petFeet"
+  });
+  var PET_ANNOYED = Object.freeze({ windowMs: 3e4, after: 8, calmMs: 6e4 });
+
+  // packages/pet-core/src/data/lines.js
+  var IDLE_CHAT_MINUTES2 = Object.freeze({ min: 20, max: 40 });
+  var line2 = (text, reply) => Object.freeze(reply === void 0 ? { text } : { text, replies: Object.freeze([Object.freeze({ label: reply })]) });
+  var scene2 = (...lines) => Object.freeze(lines);
+  var BASE_LINES = Object.freeze({
+    // --- 照顾 -----------------------------------------------------------------
+    eat: scene2(
+      line2("\u597D\u5403\uFF01\u8FD8\u6709\u5417\uFF1F", "\u771F\u4E56"),
+      line2("\u5427\u5527\u5427\u5527\u2026\u2026"),
+      line2("[\u4E3B\u4EBA]\u6700\u597D\u4E86\uFF5E"),
+      line2("\u8FD9\u4E2A\u5473\u9053\u6211\u8BB0\u4F4F\u4E86"),
+      line2("\u5403\u9971\u9971\u624D\u6709\u529B\u6C14\u966A\u4F60\u52A0\u73ED"),
+      line2("\u55DD\u2014\u2014\uFF08\u4E0D\u597D\u610F\u601D\uFF09")
+    ),
+    full: scene2(
+      line2("\u5403\u9971\u5566\uFF0C\u809A\u5B50\u5706\u6EDA\u6EDA\u7684"),
+      line2("\u597D\u9971\u597D\u9971\uFF0C\u518D\u5403\u5C31\u8981\u6491\u7740\u4E86"),
+      line2("\u55DD\u2014\u2014\u8C22\u8C22[\u4E3B\u4EBA]\uFF0C\u9971\u9971\u7684")
+    ),
+    overfull: scene2(
+      line2("\u6491\u2026\u2026\u6491\u4F4F\u4E86\u2026\u2026"),
+      line2("\u771F\u7684\u5403\u4E0D\u4E0B\u4E86\uFF0C\u4F60\u770B\u6211\u809A\u5B50"),
+      line2("\u518D\u5582\u6211\u5C31\u8981\u53D8\u6210\u7403\u4E86", "\u6700\u540E\u4E00\u53E3")
+    ),
+    bathe: scene2(
+      line2("\u9999\u55B7\u55B7\u7684\uFF01"),
+      line2("\u6C34\u6709\u70B9\u51C9\u2026\u2026", "\u9A6C\u4E0A\u64E6\u5E72"),
+      line2("\u6413\u6413\u80CC\uFF0C\u8212\u670D\uFF5E"),
+      line2("\u6CE1\u6CE1\uFF01\u662F\u6CE1\u6CE1\uFF01"),
+      line2("\u6D17\u5E72\u51C0\u4E86\uFF0C\u53EF\u4EE5\u62B1\u4E86")
+    ),
+    play: scene2(
+      line2("\u518D\u6765\u4E00\u6B21\uFF01"),
+      line2("\u63A5\u4F4F\u5566\uFF01", "\u771F\u68D2"),
+      line2("\u54C8\u54C8\u54C8\u597D\u597D\u73A9"),
+      line2("\u6211\u8DD1\u5F97\u6BD4\u7403\u5FEB"),
+      line2("\u73A9\u7D2F\u4E86\u2026\u2026\u518D\u73A9\u4E94\u5206\u949F")
+    ),
+    pet: scene2(
+      line2("\u597D\u8212\u670D\u2026\u2026"),
+      line2("\u518D\u6478\u6478\uFF5E", "\u597D"),
+      line2("\u547C\u565C\u547C\u565C\u2026\u2026"),
+      line2("\uFF08\u772F\u8D77\u773C\u775B\uFF09"),
+      line2("\u8FD9\u91CC\u8FD9\u91CC\uFF01\u5DE6\u8FB9\u4E00\u70B9\uFF01"),
+      line2("\u5514\u2026\u2026\u597D\u75D2"),
+      line2("[\u4E3B\u4EBA]\u7684\u624B\u6696\u6696\u7684")
     ),
     // --- 状态提醒（闲着时优先说这些）-------------------------------------------
-    hungry: scene(
-      line("\u809A\u5B50\u5495\u5495\u53EB\u4E86\u2026\u2026"),
-      line("[\u4E3B\u4EBA]\uFF0C\u996D\u996D\uFF01", "\u9A6C\u4E0A\u6765"),
-      line("\u6211\u53EF\u4EE5\u5403\u4E00\u6574\u4E2A\u82F9\u679C\u6811")
+    hungry: scene2(
+      line2("\u809A\u5B50\u5495\u5495\u53EB\u4E86\u2026\u2026"),
+      line2("[\u4E3B\u4EBA]\uFF0C\u996D\u996D\uFF01", "\u9A6C\u4E0A\u6765"),
+      line2("\u6211\u53EF\u4EE5\u5403\u4E00\u6574\u4E2A\u82F9\u679C\u6811")
     ),
-    dirty: scene(
-      line("\u8EAB\u4E0A\u6709\u70B9\u75D2\u75D2\u7684"),
-      line("\u6211\u662F\u4E0D\u662F\u6709\u70B9\u5473\u9053\u4E86\u2026\u2026"),
-      line("\u60F3\u6D17\u6CE1\u6CE1\u6D74", "\u597D\uFF0C\u8FD9\u5C31\u6D17")
+    dirty: scene2(
+      line2("\u8EAB\u4E0A\u6709\u70B9\u75D2\u75D2\u7684"),
+      line2("\u6211\u662F\u4E0D\u662F\u6709\u70B9\u5473\u9053\u4E86\u2026\u2026"),
+      line2("\u60F3\u6D17\u6CE1\u6CE1\u6D74", "\u597D\uFF0C\u8FD9\u5C31\u6D17")
     ),
-    lonely: scene(
-      line("[\u4E3B\u4EBA]\u5728\u5FD9\u4EC0\u4E48\u5440\uFF1F"),
-      line("\u4F60\u597D\u4E45\u6CA1\u7406\u6211\u4E86\u2026\u2026", "\u966A\u4F60\u4E00\u4F1A\u513F"),
-      line("\u6211\u4E00\u4E2A\u4EBA\u5728\u8FD9\u513F\u6570\u50CF\u7D20")
+    lonely: scene2(
+      line2("[\u4E3B\u4EBA]\u5728\u5FD9\u4EC0\u4E48\u5440\uFF1F"),
+      line2("\u4F60\u597D\u4E45\u6CA1\u7406\u6211\u4E86\u2026\u2026", "\u966A\u4F60\u4E00\u4F1A\u513F"),
+      line2("\u6211\u4E00\u4E2A\u4EBA\u5728\u8FD9\u513F\u6570\u50CF\u7D20")
     ),
-    idle: scene(
-      line("\uFF08\u6253\u4E86\u4E2A\u54C8\u6B20\uFF09"),
-      line("\u4ECA\u5929\u5929\u6C14\u597D\u50CF\u4E0D\u9519"),
-      line("\u4F60\u5199\u7684\u4EE3\u7801\u6211\u770B\u61C2\u4E86\u4E00\u884C\uFF01"),
-      line("\u8981\u4E0D\u8981\u4F11\u606F\u4E00\u4E0B\u773C\u775B\uFF1F", "\u597D"),
-      line("\u6211\u5728\u60F3\u665A\u996D\u5403\u4EC0\u4E48"),
-      line("\uFF08\u5728\u89D2\u843D\u91CC\u6EDA\u4E86\u4E00\u5708\uFF09"),
-      line("[\u4E3B\u4EBA]\u52A0\u6CB9\uFF0C\u6211\u5728\u65C1\u8FB9\u770B\u7740"),
-      line("\u521A\u624D\u90A3\u4E2A\u62A5\u9519\u6211\u4E5F\u770B\u89C1\u4E86\u2026\u2026")
+    idle: scene2(
+      line2("\uFF08\u6253\u4E86\u4E2A\u54C8\u6B20\uFF09"),
+      line2("\u4ECA\u5929\u5929\u6C14\u597D\u50CF\u4E0D\u9519"),
+      line2("\u4F60\u5199\u7684\u4EE3\u7801\u6211\u770B\u61C2\u4E86\u4E00\u884C\uFF01"),
+      line2("\u8981\u4E0D\u8981\u4F11\u606F\u4E00\u4E0B\u773C\u775B\uFF1F", "\u597D"),
+      line2("\u6211\u5728\u60F3\u665A\u996D\u5403\u4EC0\u4E48"),
+      line2("\uFF08\u5728\u89D2\u843D\u91CC\u6EDA\u4E86\u4E00\u5708\uFF09"),
+      line2("[\u4E3B\u4EBA]\u52A0\u6CB9\uFF0C\u6211\u5728\u65C1\u8FB9\u770B\u7740"),
+      line2("\u521A\u624D\u90A3\u4E2A\u62A5\u9519\u6211\u4E5F\u770B\u89C1\u4E86\u2026\u2026")
     ),
     // --- 出门 -----------------------------------------------------------------
-    workDone: scene(
-      line("\u6211\u56DE\u6765\u5566\uFF01\u8D5A\u5230\u94B1\u4E86\uFF01", "\u8F9B\u82E6\u4E86"),
-      line("\u4ECA\u5929\u8001\u677F\u5938\u6211\u4E86"),
-      line("\u7D2F\u662F\u7D2F\u4E86\u70B9\uFF0C\u4F46\u662F\u6709\u94B1\u4E86")
+    workDone: scene2(
+      line2("\u6211\u56DE\u6765\u5566\uFF01\u8D5A\u5230\u94B1\u4E86\uFF01", "\u8F9B\u82E6\u4E86"),
+      line2("\u4ECA\u5929\u8001\u677F\u5938\u6211\u4E86"),
+      line2("\u7D2F\u662F\u7D2F\u4E86\u70B9\uFF0C\u4F46\u662F\u6709\u94B1\u4E86")
     ),
-    tired: scene(
-      line("\u597D\u7D2F\u554A\u2026\u2026", "\u6B47\u4F1A\u513F\u5427"),
-      line("\u80FD\u4E0D\u80FD\u5148\u8BA9\u6211\u8EBA\u4E00\u4E0B"),
-      line("\u518D\u5E72\u4E0B\u53BB\u6211\u8981\u5934\u6655\u4E86")
+    tired: scene2(
+      line2("\u597D\u7D2F\u554A\u2026\u2026", "\u6B47\u4F1A\u513F\u5427"),
+      line2("\u80FD\u4E0D\u80FD\u5148\u8BA9\u6211\u8EBA\u4E00\u4E0B"),
+      line2("\u518D\u5E72\u4E0B\u53BB\u6211\u8981\u5934\u6655\u4E86")
     ),
-    study: scene(
-      line("\u4ECA\u5929\u5B66\u5230\u597D\u591A\uFF01", "\u771F\u4E56"),
-      line("\u8001\u5E08\u8BB2\u7684\u6211\u90FD\u542C\u61C2\u4E86\uFF08\u5927\u6982\uFF09"),
-      line("\u4F5C\u4E1A\u2026\u2026\u660E\u5929\u518D\u8BF4")
+    study: scene2(
+      line2("\u4ECA\u5929\u5B66\u5230\u597D\u591A\uFF01", "\u771F\u4E56"),
+      line2("\u8001\u5E08\u8BB2\u7684\u6211\u90FD\u542C\u61C2\u4E86\uFF08\u5927\u6982\uFF09"),
+      line2("\u4F5C\u4E1A\u2026\u2026\u660E\u5929\u518D\u8BF4")
     ),
-    graduate: scene(
-      line("\u6211\u6BD5\u4E1A\u5566\uFF01\u6211\u6CA1\u6709\u7559\u7EA7\uFF01", "\u771F\u68D2"),
-      line("\u770B\uFF0C\u6211\u7684\u6BD5\u4E1A\u7167\uFF01"),
-      line("\u4E0B\u4E00\u6BB5\u6211\u4E5F\u80FD\u5FF5\u5B8C")
+    graduate: scene2(
+      line2("\u6211\u6BD5\u4E1A\u5566\uFF01\u6211\u6CA1\u6709\u7559\u7EA7\uFF01", "\u771F\u68D2"),
+      line2("\u770B\uFF0C\u6211\u7684\u6BD5\u4E1A\u7167\uFF01"),
+      line2("\u4E0B\u4E00\u6BB5\u6211\u4E5F\u80FD\u5FF5\u5B8C")
     ),
-    tripBack: scene(
-      line("\u6211\u7ED9\u4F60\u5E26\u4E86\u4E1C\u897F\uFF01", "\u662F\u4EC0\u4E48\uFF1F"),
-      line("\u5916\u9762\u597D\u5927\u554A"),
-      line("\u4E0B\u6B21\u5E26\u4F60\u4E00\u8D77\u53BB")
+    tripBack: scene2(
+      line2("\u6211\u7ED9\u4F60\u5E26\u4E86\u4E1C\u897F\uFF01", "\u662F\u4EC0\u4E48\uFF1F"),
+      line2("\u5916\u9762\u597D\u5927\u554A"),
+      line2("\u4E0B\u6B21\u5E26\u4F60\u4E00\u8D77\u53BB")
     ),
     // --- 生病 -----------------------------------------------------------------
-    sick: scene(
-      line("\u963F\u2014\u2014\u568F\uFF01[\u4E3B\u4EBA]\uFF0C\u6211\u597D\u50CF\u75C5\u4E86\u2026\u2026", "\u4E56\uFF0C\u5403\u836F"),
-      line("\u5934\u6709\u70B9\u6655\u6655\u7684"),
-      line("\u6211\u4E0D\u60F3\u52A8\u2026\u2026")
+    sick: scene2(
+      line2("\u963F\u2014\u2014\u568F\uFF01[\u4E3B\u4EBA]\uFF0C\u6211\u597D\u50CF\u75C5\u4E86\u2026\u2026", "\u4E56\uFF0C\u5403\u836F"),
+      line2("\u5934\u6709\u70B9\u6655\u6655\u7684"),
+      line2("\u6211\u4E0D\u60F3\u52A8\u2026\u2026")
     ),
-    wrongMedicine: scene(
-      line("\u8FD9\u836F\u597D\u82E6\u2026\u2026\u597D\u50CF\u4E0D\u662F\u8FD9\u4E2A", "\u5BF9\u4E0D\u8D77"),
-      line("\u545C\uFF0C\u66F4\u96BE\u53D7\u4E86"),
-      line("[\u4E3B\u4EBA]\u4F60\u662F\u4E0D\u662F\u770B\u9519\u8BF4\u660E\u4E66\u4E86")
+    wrongMedicine: scene2(
+      line2("\u8FD9\u836F\u597D\u82E6\u2026\u2026\u597D\u50CF\u4E0D\u662F\u8FD9\u4E2A", "\u5BF9\u4E0D\u8D77"),
+      line2("\u545C\uFF0C\u66F4\u96BE\u53D7\u4E86"),
+      line2("[\u4E3B\u4EBA]\u4F60\u662F\u4E0D\u662F\u770B\u9519\u8BF4\u660E\u4E66\u4E86")
     ),
-    cured: scene(
-      line("\u6211\u597D\u5566\uFF01\u8C22\u8C22[\u4E3B\u4EBA]\uFF5E", "\u771F\u4E56"),
-      line("\u53C8\u80FD\u8DD1\u80FD\u8DF3\u4E86\uFF01"),
-      line("\u4EE5\u540E\u6211\u4F1A\u4E56\u4E56\u5403\u996D\u7684")
+    cured: scene2(
+      line2("\u6211\u597D\u5566\uFF01\u8C22\u8C22[\u4E3B\u4EBA]\uFF5E", "\u771F\u4E56"),
+      line2("\u53C8\u80FD\u8DD1\u80FD\u8DF3\u4E86\uFF01"),
+      line2("\u4EE5\u540E\u6211\u4F1A\u4E56\u4E56\u5403\u996D\u7684")
     ),
     // --- 成长与生死 -------------------------------------------------------------
-    levelup: scene(
-      line("\u6211\u53C8\u957F\u5927\u4E86\u4E00\u70B9\uFF01", "\u771F\u4E56"),
-      line("\u611F\u89C9\u81EA\u5DF1\u53D8\u5389\u5BB3\u4E86"),
-      line("\u4F60\u770B\u6211\u662F\u4E0D\u662F\u9AD8\u4E86\u4E00\u70B9")
+    levelup: scene2(
+      line2("\u6211\u53C8\u957F\u5927\u4E86\u4E00\u70B9\uFF01", "\u771F\u4E56"),
+      line2("\u611F\u89C9\u81EA\u5DF1\u53D8\u5389\u5BB3\u4E86"),
+      line2("\u4F60\u770B\u6211\u662F\u4E0D\u662F\u9AD8\u4E86\u4E00\u70B9")
     ),
-    growUp: scene(
-      line("\u6211\u957F\u5927\u5566\uFF01"),
-      line("\u4EE5\u524D\u7684\u8863\u670D\u597D\u50CF\u7A7F\u4E0D\u4E0B\u4E86"),
-      line("[\u4E3B\u4EBA]\uFF0C\u6211\u73B0\u5728\u662F\u5927\u732A\u4E86")
+    growUp: scene2(
+      line2("\u6211\u957F\u5927\u5566\uFF01"),
+      line2("\u4EE5\u524D\u7684\u8863\u670D\u597D\u50CF\u7A7F\u4E0D\u4E0B\u4E86"),
+      line2("[\u4E3B\u4EBA]\uFF0C\u6211\u73B0\u5728\u662F\u5927\u732A\u4E86")
     ),
-    coronation: scene(
-      line("\u738B\u51A0\u6709\u70B9\u91CD\uFF0C\u4F46\u6211\u4F1A\u597D\u597D\u6234\u7740\u7684\uFF0C[\u4E3B\u4EBA]\u3002", "\u4F60\u53EF\u4EE5\u7684"),
-      line("\u4ECE\u4ECA\u5929\u8D77\uFF0C\u96F6\u98DF\u4E5F\u7B97\u738B\u5BA4\u4E8B\u52A1\uFF01"),
-      line("\u6211\u5BA3\u5E03\uFF1A[\u4E3B\u4EBA]\u6C38\u8FDC\u662F\u6211\u7684\u7B2C\u4E00\u4F4D\u8D35\u5BA2\u3002"),
-      line("\u54B3\u54B3\uFF0C\u672C\u738B\u60F3\u5148\u5403\u4E2A\u82F9\u679C\u3002")
+    coronation: scene2(
+      line2("\u738B\u51A0\u6709\u70B9\u91CD\uFF0C\u4F46\u6211\u4F1A\u597D\u597D\u6234\u7740\u7684\uFF0C[\u4E3B\u4EBA]\u3002", "\u4F60\u53EF\u4EE5\u7684"),
+      line2("\u4ECE\u4ECA\u5929\u8D77\uFF0C\u96F6\u98DF\u4E5F\u7B97\u738B\u5BA4\u4E8B\u52A1\uFF01"),
+      line2("\u6211\u5BA3\u5E03\uFF1A[\u4E3B\u4EBA]\u6C38\u8FDC\u662F\u6211\u7684\u7B2C\u4E00\u4F4D\u8D35\u5BA2\u3002"),
+      line2("\u54B3\u54B3\uFF0C\u672C\u738B\u60F3\u5148\u5403\u4E2A\u82F9\u679C\u3002")
     ),
-    contract: scene(
-      line("\u5951\u7EA6\u7B7E\u597D\u4E86\u3002\u5148\u8BF4\u597D\uFF0C\u6211\u8FD8\u662F\u4F60\u90A3\u53EA\u732A\u3002", "\u5F53\u7136"),
-      line("\u89D2\u957F\u51FA\u6765\u4E86\uFF0C\u6492\u5A07\u7684\u672C\u4E8B\u53EF\u6CA1\u4E22\u3002"),
-      line("\u6076\u9B54\u4E5F\u8981\u5403\u996D\u5440\uFF0C[\u4E3B\u4EBA]\u3002"),
-      line("\u8FD9\u7B14\u4EA4\u6613\u6211\u8D5A\u4E86\uFF1A\u4EE5\u540E\u8FD8\u80FD\u548C\u4F60\u5728\u4E00\u8D77\u3002")
+    contract: scene2(
+      line2("\u5951\u7EA6\u7B7E\u597D\u4E86\u3002\u5148\u8BF4\u597D\uFF0C\u6211\u8FD8\u662F\u4F60\u90A3\u53EA\u732A\u3002", "\u5F53\u7136"),
+      line2("\u89D2\u957F\u51FA\u6765\u4E86\uFF0C\u6492\u5A07\u7684\u672C\u4E8B\u53EF\u6CA1\u4E22\u3002"),
+      line2("\u6076\u9B54\u4E5F\u8981\u5403\u996D\u5440\uFF0C[\u4E3B\u4EBA]\u3002"),
+      line2("\u8FD9\u7B14\u4EA4\u6613\u6211\u8D5A\u4E86\uFF1A\u4EE5\u540E\u8FD8\u80FD\u548C\u4F60\u5728\u4E00\u8D77\u3002")
     ),
-    enter: scene(
-      line("[\u4E3B\u4EBA]\u4F60\u56DE\u6765\u5566\uFF01", "\u56DE\u6765\u4E86"),
-      line("\u7B49\u4F60\u597D\u4E45\u4E86\uFF5E"),
-      line("\u4ECA\u5929\u4E5F\u8981\u4E00\u8D77\u52A0\u6CB9\u54E6")
+    enter: scene2(
+      line2("[\u4E3B\u4EBA]\u4F60\u56DE\u6765\u5566\uFF01", "\u56DE\u6765\u4E86"),
+      line2("\u7B49\u4F60\u597D\u4E45\u4E86\uFF5E"),
+      line2("\u4ECA\u5929\u4E5F\u8981\u4E00\u8D77\u52A0\u6CB9\u54E6")
     ),
-    death: scene(
-      line("[\u4E3B\u4EBA]\u4FDD\u91CD\uFF0C\u6211\u8D70\u4E86\uFF0C\u4E0D\u5E26\u8D70\u4E00\u7247\u4E91\u5F69\uFF5E"),
-      line("\u4E0B\u8F88\u5B50\u8FD8\u7ED9\u4F60\u5F53\u732A")
+    death: scene2(
+      line2("[\u4E3B\u4EBA]\u4FDD\u91CD\uFF0C\u6211\u8D70\u4E86\uFF0C\u4E0D\u5E26\u8D70\u4E00\u7247\u4E91\u5F69\uFF5E"),
+      line2("\u4E0B\u8F88\u5B50\u8FD8\u7ED9\u4F60\u5F53\u732A")
     ),
-    revive: scene(
-      line("\u6211\u2026\u2026\u6211\u56DE\u6765\u4E86\uFF1F"),
-      line("\u90A3\u8FB9\u597D\u51B7\uFF0C\u8FD8\u662F\u8FD9\u91CC\u597D"),
-      line("\u8C22\u8C22\u4F60\u6CA1\u653E\u5F03\u6211", "\u6B22\u8FCE\u56DE\u6765")
+    revive: scene2(
+      line2("\u6211\u2026\u2026\u6211\u56DE\u6765\u4E86\uFF1F"),
+      line2("\u90A3\u8FB9\u597D\u51B7\uFF0C\u8FD8\u662F\u8FD9\u91CC\u597D"),
+      line2("\u8C22\u8C22\u4F60\u6CA1\u653E\u5F03\u6211", "\u6B22\u8FCE\u56DE\u6765")
     ),
     // --- B5 用 ------------------------------------------------------------------
-    signIn: scene(
-      line("\u7B7E\u5230\u5566\uFF01\u4ECA\u5929\u4E5F\u8981\u597D\u597D\u7684"),
-      line("\u8FD9\u662F\u4ECA\u5929\u7684\u793C\u7269\uFF0C\u7ED9\u4F60\uFF5E")
+    signIn: scene2(
+      line2("\u7B7E\u5230\u5566\uFF01\u4ECA\u5929\u4E5F\u8981\u597D\u597D\u7684"),
+      line2("\u8FD9\u662F\u4ECA\u5929\u7684\u793C\u7269\uFF0C\u7ED9\u4F60\uFF5E")
     ),
-    gift: scene(
-      line("\u6211\u5728\u5730\u4E0A\u6361\u5230\u4E00\u4E2A\u76D2\u5B50\uFF01"),
-      line("\u966A\u4F60\u8FD9\u4E48\u4E45\uFF0C\u8FD9\u662F\u5956\u52B1")
+    gift: scene2(
+      line2("\u6211\u5728\u5730\u4E0A\u6361\u5230\u4E00\u4E2A\u76D2\u5B50\uFF01"),
+      line2("\u966A\u4F60\u8FD9\u4E48\u4E45\uFF0C\u8FD9\u662F\u5956\u52B1")
     ),
     // --- C2 番茄钟 --------------------------------------------------------------
-    pomodoroStart: scene(
-      line("[\u4E3B\u4EBA]\u5FD9\u5427\uFF0C\u6211\u8DB4\u8FD9\u513F\u4E0D\u52A8"),
-      line("\u4E13\u6CE8\u6A21\u5F0F\uFF01\u6211\u5E2E\u4F60\u770B\u7740\u65F6\u95F4"),
-      line("\u8FD9 25 \u5206\u949F\u6211\u4E5F\u4E0D\u5435\u4F60\uFF0C\u8BF4\u597D\u4E86")
+    pomodoroStart: scene2(
+      line2("[\u4E3B\u4EBA]\u5FD9\u5427\uFF0C\u6211\u8DB4\u8FD9\u513F\u4E0D\u52A8"),
+      line2("\u4E13\u6CE8\u6A21\u5F0F\uFF01\u6211\u5E2E\u4F60\u770B\u7740\u65F6\u95F4"),
+      line2("\u8FD9 25 \u5206\u949F\u6211\u4E5F\u4E0D\u5435\u4F60\uFF0C\u8BF4\u597D\u4E86")
     ),
-    pomodoroDone: scene(
-      line("\u65F6\u95F4\u5230\uFF01[\u4E3B\u4EBA]\u771F\u5389\u5BB3"),
-      line("\u505A\u5B8C\u4E00\u4E2A\u5566\uFF0C\u8D77\u6765\u52A8\u52A8\u8116\u5B50"),
-      line("\u6211\u966A\u4F60\u6570\u7740\u5462\uFF0C\u4E00\u4E2A\u90FD\u4E0D\u5C11")
+    pomodoroDone: scene2(
+      line2("\u65F6\u95F4\u5230\uFF01[\u4E3B\u4EBA]\u771F\u5389\u5BB3"),
+      line2("\u505A\u5B8C\u4E00\u4E2A\u5566\uFF0C\u8D77\u6765\u52A8\u52A8\u8116\u5B50"),
+      line2("\u6211\u966A\u4F60\u6570\u7740\u5462\uFF0C\u4E00\u4E2A\u90FD\u4E0D\u5C11")
     ),
-    pomodoroAbandon: scene(
-      line("\u4E0D\u505A\u4E86\u5440\uFF1F\u90A3\u5C31\u6B47\u4F1A\u513F"),
-      line("\u6CA1\u4E8B\uFF0C\u7B49\u4F60\u51C6\u5907\u597D\u518D\u6765"),
-      line("\u6211\u5148\u628A\u756A\u8304\u6536\u8D77\u6765\u5566")
+    pomodoroAbandon: scene2(
+      line2("\u4E0D\u505A\u4E86\u5440\uFF1F\u90A3\u5C31\u6B47\u4F1A\u513F"),
+      line2("\u6CA1\u4E8B\uFF0C\u7B49\u4F60\u51C6\u5907\u597D\u518D\u6765"),
+      line2("\u6211\u5148\u628A\u756A\u8304\u6536\u8D77\u6765\u5566")
     )
   });
+  var LINES = Object.freeze(Object.fromEntries(
+    [.../* @__PURE__ */ new Set([...Object.keys(BASE_LINES), ...Object.keys(MORE_LINES)])].map((key) => [key, Object.freeze([...BASE_LINES[key] ?? [], ...MORE_LINES[key] ?? []])])
+  ));
   var LINE_SCENES = Object.freeze(Object.keys(LINES));
 
   // src/client/tabs/dev.js
@@ -1203,13 +1374,13 @@
         }
       };
     }));
-    page("lines", "\u53F0\u8BCD")("\u8BA9\u732A\u8BF4\u4E00\u53E5", Object.keys(LINES).map(function(scene2) {
+    page("lines", "\u53F0\u8BCD")("\u8BA9\u732A\u8BF4\u4E00\u53E5", Object.keys(LINES).map(function(scene3) {
       return {
-        key: "say:" + scene2,
-        label: "\u{1F4AC} " + (SCENE_NAMES[scene2] ?? scene2),
-        desc: "\u968F\u673A\u8BF4\u300C" + scene2 + "\u300D\u573A\u666F\u91CC\u7684\u4E00\u53E5\uFF08\u514D\u6253\u6270\u65F6\u4E0D\u8BF4\uFF09",
+        key: "say:" + scene3,
+        label: "\u{1F4AC} " + (SCENE_NAMES[scene3] ?? scene3),
+        desc: "\u968F\u673A\u8BF4\u300C" + scene3 + "\u300D\u573A\u666F\u91CC\u7684\u4E00\u53E5\uFF08\u514D\u6253\u6270\u65F6\u4E0D\u8BF4\uFF09",
         run: function() {
-          patch({ say: scene2 });
+          patch({ say: scene3 });
         }
       };
     }));
@@ -1744,7 +1915,7 @@
 
   // src/client/effects.js
   function createEffects(deps) {
-    var scene2 = deps.scene;
+    var scene3 = deps.scene;
     var pig = deps.pig;
     var card = deps.card;
     var bubble = deps.bubble;
@@ -1802,7 +1973,7 @@
             var spot = headSpot();
             node.style.left = spot.x + Math.round((Math.random() - 0.5) * 22) + "px";
             node.style.top = spot.y + "px";
-            scene2.appendChild(node);
+            scene3.appendChild(node);
             window.setTimeout(function() {
               node.remove();
             }, 1200);
@@ -1812,9 +1983,9 @@
     }
     function headSpot() {
       var fallback = { x: 24, y: 8 };
-      if (typeof pig.getBoundingClientRect !== "function" || typeof scene2.getBoundingClientRect !== "function") return fallback;
+      if (typeof pig.getBoundingClientRect !== "function" || typeof scene3.getBoundingClientRect !== "function") return fallback;
       var p = pig.getBoundingClientRect();
-      var s = scene2.getBoundingClientRect();
+      var s = scene3.getBoundingClientRect();
       if (p.width === 0 && p.height === 0) return fallback;
       return { x: p.left - s.left + p.width / 2, y: p.top - s.top - 20 };
     }
@@ -2324,7 +2495,7 @@
           current: entry.current === true,
           unlocked: entry.unlocked !== false,
           unlockJob: str(entry.unlockJob, ""),
-          scenes: arr(entry.scenes).filter((scene2) => typeof scene2 === "string")
+          scenes: arr(entry.scenes).filter((scene3) => typeof scene3 === "string")
         };
       }).filter((entry) => entry.key !== "")
     };
@@ -2355,7 +2526,7 @@
           faded: obj(pig.stage).faded === true,
           // 加冕后的形态：有没有动作立绘、盖住哪些装扮位置。
           actionArt: obj(pig.stage).actionArt === true,
-          artScenes: arr(obj(pig.stage).artScenes).filter((scene2) => typeof scene2 === "string"),
+          artScenes: arr(obj(pig.stage).artScenes).filter((scene3) => typeof scene3 === "string"),
           hides: arr(obj(pig.stage).hides).map(function(slot) {
             return str(slot, "");
           })
@@ -3748,14 +3919,14 @@
     return row;
   }
   function nameLine(ui, p) {
-    var line2 = el("div", "dp-vcard-nameline");
+    var line3 = el("div", "dp-vcard-nameline");
     if (ui.cardEdit !== null && ui.cardEdit.field === "name") {
-      appendEditor(ui, line2, "name");
-      return line2;
+      appendEditor(ui, line3, "name");
+      return line3;
     }
-    line2.appendChild(el("b", "dp-vcard-name", p.name + (p.sex !== null ? " " + p.sex.symbol : "")));
-    line2.appendChild(pencil(ui, "name", "\u540D\u5B57", p.name, "dp-vcard-edit dp-vcard-name-edit"));
-    return line2;
+    line3.appendChild(el("b", "dp-vcard-name", p.name + (p.sex !== null ? " " + p.sex.symbol : "")));
+    line3.appendChild(pencil(ui, "name", "\u540D\u5B57", p.name, "dp-vcard-edit dp-vcard-name-edit"));
+    return line3;
   }
   function pencil(ui, key, label, value, className) {
     var btn = button(className, { "data-card-edit": key }, function() {
@@ -4309,11 +4480,11 @@
     const stage = button("dp-fish-stage", { "data-fish-fight": "pull", "data-fish-pull": "true", "aria-label": "\u6309\u4F4F\u6536\u7EBF\uFF0C\u677E\u5F00\u653E\u7EBF\uFF0C\u6307\u9488\u522B\u8FDB\u7EA2\u533A" }, function() {
     });
     stage.setAttribute("tabindex", "0");
-    const line2 = el("div", "dp-fish-line");
+    const line3 = el("div", "dp-fish-line");
     const rod = el("span", "dp-fish-rod", "\u{1F3A3}");
-    line2.appendChild(rod);
-    line2.appendChild(el("span", "dp-fish-string", "\u3030\u3030\u3030"));
-    line2.appendChild(el("span", "dp-fish-rod", fish2.emoji));
+    line3.appendChild(rod);
+    line3.appendChild(el("span", "dp-fish-string", "\u3030\u3030\u3030"));
+    line3.appendChild(el("span", "dp-fish-rod", fish2.emoji));
     const gauge = el("div", "dp-fish-gauge");
     const pin = el("b");
     gauge.appendChild(pin);
@@ -4322,7 +4493,7 @@
     const fill = el("i");
     meter2.appendChild(fill);
     stage.appendChild(el("div", "dp-fish-qte-title", fish2.emoji + "\u3000\u54AC\u7D27\u4E86\uFF01"));
-    stage.appendChild(line2);
+    stage.appendChild(line3);
     stage.appendChild(gauge);
     stage.appendChild(state2);
     stage.appendChild(meter2);
@@ -4463,15 +4634,15 @@
   function renderWaiting(ui, pending) {
     const water = button("dp-fish-waiting", { "data-fish": "hook" }, function() {
       if (Date.now() < pending.bitesAt) {
-        line2.textContent = "\u8FD8\u6CA1\u4E0A\u94A9\uFF0C\u7EE7\u7EED\u7B49\u2026";
+        line3.textContent = "\u8FD8\u6CA1\u4E0A\u94A9\uFF0C\u7EE7\u7EED\u7B49\u2026";
         return;
       }
       ui.send("fishHook");
     });
     const mark = el("span", "dp-fish-bobber", "\u{1F3A3}");
-    const line2 = el("b", null, "\u5B89\u9759\u7B49\u9C7C\u54AC\u94A9\u2026");
+    const line3 = el("b", null, "\u5B89\u9759\u7B49\u9C7C\u54AC\u94A9\u2026");
     water.appendChild(mark);
-    water.appendChild(line2);
+    water.appendChild(line3);
     ui.content.appendChild(water);
     waitUi = ui;
     function tick2() {
@@ -4479,7 +4650,7 @@
       const now = Date.now();
       if (now >= pending.bitesAt && now <= pending.hookUntil) {
         mark.textContent = "\u2757";
-        line2.textContent = "\u4E0A\u94A9\u4E86\uFF01\u5FEB\u70B9\uFF01";
+        line3.textContent = "\u4E0A\u94A9\u4E86\uFF01\u5FEB\u70B9\uFF01";
         water.setAttribute("data-bite", "true");
       } else if (now > pending.hookUntil) {
         stopWait();
@@ -5197,13 +5368,13 @@
     ui.content.appendChild(grid);
     const rules = el("div", "dp-pick");
     rules.appendChild(el("b", null, "\u89C4\u683C"));
-    for (const line2 of [
+    for (const line3 of [
       '\u6BCF\u5F20\u90FD\u662F SVG\uFF0C\u6839\u5143\u7D20\u5199 viewBox="0 0 64 64"\uFF0C\u900F\u660E\u80CC\u666F',
       "\u732A\u7684\u8EAB\u4F53\u5C45\u4E2D\u3001\u811A\u5E95\u8D34\u7740\u540C\u4E00\u6761\u7EBF\uFF08\u53C2\u7167\u9ED8\u8BA4\u5C0F\u732A\uFF09\uFF0C\u5207\u6362\u52A8\u4F5C\u624D\u4E0D\u4F1A\u8DF3",
       "\u53EA\u7528\u7B80\u5355\u56FE\u5F62\uFF1A\u4E0D\u80FD\u6709\u56FE\u7247\u3001\u6587\u5B57\u3001\u811A\u672C\u3001\u6E10\u53D8\u3001\u6EE4\u955C",
       "\u5355\u5F20 \u2264 96 KB\uFF0C\u6574\u4E2A ZIP \u2264 2 MB",
       "ZIP \u6253\u5F00\u76F4\u63A5\u770B\u5230 skin.json \u548C SVG\uFF0C\u4E0D\u8981\u518D\u5305\u4E00\u5C42\u6587\u4EF6\u5939"
-    ]) rules.appendChild(el("div", "dp-guide-rule", "\u2022 " + line2));
+    ]) rules.appendChild(el("div", "dp-guide-rule", "\u2022 " + line3));
     ui.content.appendChild(rules);
     const json = el("div", "dp-pick");
     json.appendChild(el("b", null, "skin.json \u5199\u4EC0\u4E48"));
@@ -5768,7 +5939,7 @@
     var host2 = document.createElement("div");
     host2.setAttribute(MOUNTED, "");
     var card = el("div", "dp-card");
-    var scene2 = el("div", "dp-scene");
+    var scene3 = el("div", "dp-scene");
     var hud = el("div", "dp-hud");
     var hudName = el("div", null, "\u732A\u732A");
     var hudCoins = el("div", null, "\u{1FA99} 0");
@@ -5776,10 +5947,10 @@
     hud.appendChild(hudName);
     hud.appendChild(hudCoins);
     hud.appendChild(hudHealth);
-    scene2.appendChild(hud);
+    scene3.appendChild(hud);
     var bubble = el("div", "dp-bubble", "");
     bubble.hidden = true;
-    scene2.appendChild(bubble);
+    scene3.appendChild(bubble);
     var work = el("div", "dp-work");
     var prop = el("span", "dp-prop", "\u{1F4BC}");
     var progressWrap = el("div", "dp-progress");
@@ -5788,18 +5959,18 @@
     work.appendChild(prop);
     work.appendChild(progressWrap);
     work.hidden = true;
-    scene2.appendChild(work);
+    scene3.appendChild(work);
     var pokeHint = el("div", "dp-poke-hint");
     pokeHint.appendChild(el("span", null, "\u{1F446}"));
     pokeHint.appendChild(el("span", null, "\u6233\u4E09\u4E0B"));
     pokeHint.hidden = true;
-    scene2.appendChild(pokeHint);
+    scene3.appendChild(pokeHint);
     var dailyHint = el("button", "dp-daily");
     dailyHint.hidden = true;
-    scene2.appendChild(dailyHint);
+    scene3.appendChild(dailyHint);
     var soul = el("span", "dp-soul", "\u{1F47B}");
     soul.hidden = true;
-    scene2.appendChild(soul);
+    scene3.appendChild(soul);
     var pigArt = document.createElement("img");
     pigArt.className = "dp-pig-img";
     pigArt.alt = "";
@@ -5814,8 +5985,8 @@
     pomoHint.setAttribute("data-pomo-pill", "true");
     pomoHint.hidden = true;
     pig.appendChild(pomoHint);
-    scene2.appendChild(pig);
-    scene2.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
+    scene3.appendChild(pig);
+    scene3.title = "\u5DE6\u952E\u6478\u6478 \xB7 \u53F3\u952E\u6253\u5F00\u9762\u677F \xB7 \u62D6\u52A8\u53EF\u79FB\u52A8";
     var bar = el("div", "dp-bar");
     var content = el("div", "dp-content");
     var footer = el("div", "dp-panel-footer");
@@ -5824,7 +5995,7 @@
     card.appendChild(footer);
     card.appendChild(bar);
     host2.appendChild(card);
-    host2.appendChild(scene2);
+    host2.appendChild(scene3);
     if (document.body !== null && document.body !== void 0) {
       document.body.appendChild(host2);
     } else {
@@ -5835,7 +6006,7 @@
         }
       }, { once: true });
     }
-    return { font, style, host: host2, card, scene: scene2, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
+    return { font, style, host: host2, card, scene: scene3, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
   }
 
   // src/client/drag-heartbeat.js
@@ -6293,8 +6464,8 @@
     return typeof bridge.geometry === "function" ? bridge.geometry() : null;
   }
   function dragging() {
-    const scene2 = document.querySelector("[data-dsh-pig] .dp-scene");
-    return scene2 !== null && scene2.getAttribute("data-dragging") === "true";
+    const scene3 = document.querySelector("[data-dsh-pig] .dp-scene");
+    return scene3 !== null && scene3.getAttribute("data-dragging") === "true";
   }
   function room() {
     const h = host();
@@ -6479,7 +6650,7 @@
           style,
           host: host2,
           card,
-          scene: scene2,
+          scene: scene3,
           hud,
           hudName,
           hudCoins,
@@ -6528,7 +6699,7 @@
         var lastPendingId = 0;
         var pollTimer = null;
         var fx = createEffects({
-          scene: scene2,
+          scene: scene3,
           pig,
           pigArt,
           card,
@@ -6547,7 +6718,7 @@
           card,
           content,
           footer,
-          scene: scene2,
+          scene: scene3,
           hud,
           hudName,
           hudCoins,
@@ -6719,7 +6890,7 @@
         var drag = null;
         var stopDragHeartbeat = function() {
         };
-        scene2.addEventListener("pointerdown", function(event) {
+        scene3.addEventListener("pointerdown", function(event) {
           if (event.button !== 0) return;
           stopDragHeartbeat();
           drag = {
@@ -6733,15 +6904,15 @@
             bottom: parseFloat(getComputedStyle(host2).bottom) || 18,
             moved: false
           };
-          scene2.setAttribute("data-dragging", "true");
-          scene2.setPointerCapture?.(event.pointerId);
+          scene3.setAttribute("data-dragging", "true");
+          scene3.setPointerCapture?.(event.pointerId);
           var shellAtStart = desktopShell();
           shellAtStart?.beginDrag?.();
           stopDragHeartbeat = startDragHeartbeat(shellAtStart, function() {
             return drag !== null;
           });
         });
-        scene2.addEventListener("pointermove", function(event) {
+        scene3.addEventListener("pointermove", function(event) {
           if (drag === null) return;
           var dx = event.clientX - drag.x;
           var dy = event.clientY - drag.y;
@@ -6774,7 +6945,7 @@
           stopDragHeartbeat = function() {
           };
           desktopShell()?.endDrag?.();
-          scene2.removeAttribute("data-dragging");
+          scene3.removeAttribute("data-dragging");
           clampPig();
           if (deskShell === null) writeStore(POSITION_KEY, JSON.stringify({ right: userRight, bottom: userBottom }));
           deskShell?.refreshRoom?.();
@@ -6798,7 +6969,7 @@
           burst(["\u{1F4A8}"], 2);
           showBubble(BOX_POKE_LINES[boxPokes - 1], 2200);
         }
-        scene2.addEventListener("pointerup", function() {
+        scene3.addEventListener("pointerup", function() {
           if (endDrag()) return;
           if (view.hatched !== true) {
             pokeBox();
@@ -6806,13 +6977,13 @@
           }
           if (!view.dead) flash("pet");
         });
-        scene2.addEventListener("pointercancel", function() {
+        scene3.addEventListener("pointercancel", function() {
           endDrag();
         });
-        scene2.addEventListener("lostpointercapture", function() {
+        scene3.addEventListener("lostpointercapture", function() {
           endDrag();
         });
-        scene2.addEventListener("contextmenu", function(event) {
+        scene3.addEventListener("contextmenu", function(event) {
           event.preventDefault();
           if (!isOpen && view.pig !== null) flash("pet");
           setOpen(!isOpen);

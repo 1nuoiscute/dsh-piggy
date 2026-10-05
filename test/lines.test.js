@@ -50,8 +50,8 @@ test('messages from the same instant each get their own increasing id', () => {
 test('a line with replies can be answered once, for a little happiness', () => {
   const pig = hatchEgg(T0)
   pig.happiness = 50
-  // Index 1 of the pet pool (7 lines) is 「再摸摸～」, which has a reply button.
-  assert.equal(say(pig, 'pet', T0, sequence([0.2])), true)
+  // Index 1 of the pet pool (14 lines since G) is 「再摸摸～」, which has a reply button.
+  assert.equal(say(pig, 'pet', T0, sequence([0.1])), true)
   const line = pig.pending.at(-1)
   assert.equal(line.kind, 'line')
   assert.deepEqual(line.replies, ['好'])
@@ -76,5 +76,5 @@ test('care actions make the pig speak', () => {
   assert.equal(result.ok, true)
   const line = pig.pending.find(entry => entry.kind === 'line')
   assert.ok(line !== undefined, 'petting queued a line')
-  assert.ok(LINES.pet.some(candidate => candidate.text === line.text))
+  assert.ok(LINES.pet.some(candidate => candidate.text.split('[主人]').join('主人') === line.text), line.text)
 })

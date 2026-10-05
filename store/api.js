@@ -61,6 +61,7 @@ import {
   startAutoFishing as coreStartAutoFishing,
   selectSkin as coreSelectSkin,
   registerCustomSkin as coreRegisterCustomSkin,
+  sayAfter as coreSayAfter,
 } from '../core.js'
 
 /**
@@ -134,19 +135,19 @@ export function createApi(control) {
     act: (action, itemKey) => mutate(live => coreAct(live, action, now(), itemKey)),
 
     /** Send the pig out to work. */
-    startWork: jobKey => mutate(live => coreStartWork(live, jobKey, now())),
+    startWork: jobKey => mutate(live => coreSayAfter(live, coreStartWork(live, jobKey, now()), 'workStart', now())),
 
     /** Send the pig to class. */
-    startStudy: (subjectKey, stageKey) => mutate(live => coreStartStudy(live, subjectKey, stageKey, now())),
+    startStudy: (subjectKey, stageKey) => mutate(live => coreSayAfter(live, coreStartStudy(live, subjectKey, stageKey, now()), 'studyStart', now())),
 
     /** Send the pig to an 兴趣课. */
-    startInterest: interestKey => mutate(live => coreStartInterest(live, interestKey, now())),
+    startInterest: interestKey => mutate(live => coreSayAfter(live, coreStartInterest(live, interestKey, now()), 'studyStart', now())),
 
     /** Debug: one of everything (consumables, 装扮, coins). */
     grantAll: () => mutate(live => coreGrantAll(live, now())),
 
     /** Send the pig travelling. */
-    startTrip: tripKey => mutate(live => coreStartTrip(live, tripKey, now())),
+    startTrip: tripKey => mutate(live => coreSayAfter(live, coreStartTrip(live, tripKey, now()), 'tripStart', now())),
     castFishing: (power, bait) => mutate(live => coreCastFishing(live, Number(power), now(), undefined, bait)),
     hookFishing: () => mutate(live => coreHookFishing(live, now())),
     resolveFishing: success => mutate(live => coreResolveFishing(live, success === true, now())),
@@ -156,7 +157,7 @@ export function createApi(control) {
     startAutoFishing: (minutes, bait) => mutate(live => coreStartAutoFishing(live, Number(minutes), now(), bait)),
     grantFish: key => mutate(live => ({ ok: coreGrantFish(live, key, now()) !== null })),
     skipFishingWait: () => mutate(live => coreSkipFishingWait(live, now())),
-    selectSkin: key => mutate(live => coreSelectSkin(live, key, now())),
+    selectSkin: key => mutate(live => coreSayAfter(live, coreSelectSkin(live, key, now()), 'skin', now())),
     registerCustomSkin: metadata => mutate(live => coreRegisterCustomSkin(live, metadata, now())),
 
     /** Bring the pig home early (work forfeits pay; study/trips are refunded). */
@@ -170,7 +171,7 @@ export function createApi(control) {
       // 关掉的扩展的商品（比如钓鱼关了的鱼饵）不卖。
       const kind = CORE_SHOP.find(item => item.key === itemKey)?.kind
       const owner = coreExtensionsView(live).find(extension => !extension.on && extension.shopKinds.includes(kind))
-      return owner === undefined ? coreBuy(live, itemKey, now()) : { ok: false, reason: 'extension-off' }
+      return owner === undefined ? coreSayAfter(live, coreBuy(live, itemKey, now()), 'buy', now()) : { ok: false, reason: 'extension-off' }
     }),
     /** 扩展开关（存档里）。 */
     setExtension: (key, on) => mutate(live => coreSetExtension(live, key, on, now())),
@@ -181,11 +182,11 @@ export function createApi(control) {
     useItem: itemKey => mutate(live => coreUseItem(live, itemKey, now())),
 
     /** 看医生: pay to be cured without buying the medicine. */
-    seeDoctor: () => mutate(live => coreSeeDoctor(live, now())),
+    seeDoctor: () => mutate(live => coreSayAfter(live, coreSeeDoctor(live, now()), null, now())),
     sellSouvenir: souvenirKey => mutate(live => coreSellSouvenir(live, souvenirKey, now())),
 
-    /** The pig speaks up on its own: 'enter' after a while away, or 'idle'. */
-    chat: reason => mutate(live => coreChat(live, reason === 'enter' ? 'enter' : 'idle', now())),
+    /** The pig speaks up on its own: 'enter' after a while away, 'idle', or 'time'（按时间说的话）. */
+    chat: reason => mutate(live => coreChat(live, reason === 'enter' || reason === 'time' ? reason : 'idle', now())),
 
     /** 免打扰 on or off. */
     setQuiet: on => mutate(live => coreSetQuiet(live, on)),

@@ -66,7 +66,7 @@ const OPERATIONS = {
   feed: (store, body) => store.act('feed', str(body.item)),
   bathe: (store, body) => store.act('bathe', str(body.item)),
   play: (store, body) => store.act('play', str(body.item)),
-  pet: store => store.act('pet'),
+  pet: (store, body) => store.act('pet', str(body.part)),
   // Answer the pig's latest line: `line` is the message id, `index` the button.
   reply: (store, body) => store.reply(Number(body.line), Number(body.index)),
   // 日常：签到（在线礼包在 B5 的第二步接上）。
