@@ -17,6 +17,12 @@ test('主菜单每页九格，圆点和滑动切页；打开 App 返回后仍在
   swipe.fire('pointerdown', { clientX: 80 })
   swipe.fire('pointerup', { clientX: 140 })
   assert.equal(findByAttr(content, 'data-home-page', '0').getAttribute('data-active'), 'true')
+  swipe.fire('wheel', { deltaY: 60, deltaX: 0 })
+  assert.equal(findByAttr(content, 'data-home-page', '1').getAttribute('data-active'), 'true', '滚轮往下翻到下一页')
+  swipe.fire('pointerdown', { clientX: 140, clientY: 50, pointerType: 'mouse', button: 0, pointerId: 1 })
+  swipe.fire('pointermove', { clientX: 120, clientY: 50, pointerId: 1 })
+  swipe.fire('pointerup', { clientX: 200, clientY: 50, pointerId: 1 })
+  assert.equal(findByAttr(content, 'data-home-page', '0').getAttribute('data-active'), 'true', '左键按住往右拖回上一页')
   findByAttr(content, 'data-home-dot', '1').fire('click')
   findByAttr(content, 'data-app', 'settings').fire('click')
   findByAttr(contentOf(dom), 'data-home', 'true').fire('click')
@@ -38,7 +44,7 @@ test('只有一页时不显示圆点，版本号仍在网格后', () => {
   assert.equal(content.children.at(-1).getAttribute('data-version'), 'true')
 })
 
-test('统一排序让新增 App 位于设置之前，末尾固定为设置和调试', () => {
+test('统一排序让新增 App 位于设置之前，末尾固定为设置、调试、退出', () => {
   const apps = ['settings', 'dev', 'future', 'ext:blindbox', 'quit', 'status'].map(key => ({ key }))
-  assert.deepEqual(orderHomeApps(apps).map(app => app.key), ['future', 'status', 'ext:blindbox', 'quit', 'settings', 'dev'])
+  assert.deepEqual(orderHomeApps(apps).map(app => app.key), ['future', 'status', 'ext:blindbox', 'settings', 'dev', 'quit'])
 })

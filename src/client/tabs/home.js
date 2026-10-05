@@ -18,7 +18,8 @@ var APP_COLOR = {
 
 /** 新 App 统一排在设置之前，末尾顺序不依赖注册或拼接时机。 */
 export function orderHomeApps(apps) {
-  const rank = key => key === 'dev' ? 4 : key === 'settings' ? 3 : key === 'quit' ? 2 : key.startsWith('ext:') ? 1 : 0
+  // 末尾固定：设置 → 调试（开发者模式）→ 退出。
+  const rank = key => key === 'quit' ? 4 : key === 'dev' ? 3 : key === 'settings' ? 2 : key.startsWith('ext:') ? 1 : 0
   return apps.slice().sort((a, b) => rank(a.key) - rank(b.key))
 }
 
@@ -73,15 +74,53 @@ export function renderHome(ui, apps) {
     dots.forEach((dot, index) => dot.setAttribute('aria-pressed', String(index === next)))
   }
   showPage(ui.homePage)
-  let startX = null
-  clip.addEventListener('pointerdown', event => { startX = event.clientX })
-  clip.addEventListener('pointerup', event => {
-    if (startX === null || Math.abs(event.clientX - startX) <= 40) return
-    event.preventDefault()
-    showPage(ui.homePage + (event.clientX < startX ? 1 : -1))
-    startX = null
+  // 翻页：左键（或手指）按住左右拖，页面跟着手走，松手超过 40px 就翻；拖过的这一下不算点开 App。
+  let drag = null
+  let swallowClick = false
+  clip.addEventListener('pointerdown', event => {
+    if (pages < 2 || (event.pointerType === 'mouse' && event.button !== 0)) return
+    drag = { x: event.clientX, y: event.clientY, id: event.pointerId, moved: false }
   })
-  clip.addEventListener('pointercancel', () => { startX = null })
+  clip.addEventListener('pointermove', event => {
+    if (drag === null || event.pointerId !== drag.id) return
+    const dx = event.clientX - drag.x
+    if (!drag.moved) {
+      if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(event.clientY - drag.y)) return
+      drag.moved = true
+      clip.setPointerCapture?.(event.pointerId)
+      track.style.transition = 'none'
+    }
+    const atEdge = (ui.homePage === 0 && dx > 0) || (ui.homePage === pages - 1 && dx < 0)
+    track.style.transform = 'translateX(calc(-' + ui.homePage * 100 + '% + ' + (atEdge ? dx / 3 : dx) + 'px))'
+  })
+  function endDrag(event) {
+    if (drag === null || event.pointerId !== drag.id) return
+    const dx = event.clientX - drag.x
+    const moved = drag.moved || Math.abs(dx) > 40 // 很快的一划可能没有 pointermove
+    drag = null
+    track.style.transition = ''
+    if (!moved) return
+    swallowClick = true
+    setTimeout(() => { swallowClick = false }, 0)
+    showPage(Math.abs(dx) > 40 ? ui.homePage + (dx < 0 ? 1 : -1) : ui.homePage)
+  }
+  clip.addEventListener('pointerup', endDrag)
+  clip.addEventListener('pointercancel', event => { if (drag !== null) { drag.moved = true; endDrag(event) } })
+  clip.addEventListener('click', event => { if (swallowClick) { event.stopPropagation(); event.preventDefault() } }, true)
+  // 鼠标滚轮：往下/往右滚翻到下一页，往上/往左回上一页；一下滚轮只翻一页。
+  let wheelLock = 0
+  clip.addEventListener('wheel', event => {
+    if (pages < 2) return
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
+    if (Math.abs(delta) < 4) return
+    const next = ui.homePage + (delta > 0 ? 1 : -1)
+    if (next < 0 || next >= pages) return
+    event.preventDefault()
+    const now = Date.now()
+    if (now < wheelLock) return
+    wheelLock = now + 450
+    showPage(next)
+  }, { passive: false })
   // 版本号（C1）：一行小灰字，不占格子；3 秒内连点 7 次解锁调试模式。
   var version = el('div', 'dp-version', 'v' + (ui.view.version === '' ? '未知' : ui.view.version))
   version.setAttribute('data-version', 'true')

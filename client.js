@@ -5335,7 +5335,7 @@
     dev: "brown"
   };
   function orderHomeApps(apps) {
-    const rank = (key) => key === "dev" ? 4 : key === "settings" ? 3 : key === "quit" ? 2 : key.startsWith("ext:") ? 1 : 0;
+    const rank = (key) => key === "quit" ? 4 : key === "dev" ? 3 : key === "settings" ? 2 : key.startsWith("ext:") ? 1 : 0;
     return apps.slice().sort((a, b) => rank(a.key) - rank(b.key));
   }
   function renderHome(ui, apps) {
@@ -5399,19 +5399,63 @@
       dots.forEach((dot, index) => dot.setAttribute("aria-pressed", String(index === next)));
     }
     showPage(ui.homePage);
-    let startX = null;
+    let drag = null;
+    let swallowClick = false;
     clip.addEventListener("pointerdown", (event) => {
-      startX = event.clientX;
+      if (pages < 2 || event.pointerType === "mouse" && event.button !== 0) return;
+      drag = { x: event.clientX, y: event.clientY, id: event.pointerId, moved: false };
     });
-    clip.addEventListener("pointerup", (event) => {
-      if (startX === null || Math.abs(event.clientX - startX) <= 40) return;
+    clip.addEventListener("pointermove", (event) => {
+      if (drag === null || event.pointerId !== drag.id) return;
+      const dx = event.clientX - drag.x;
+      if (!drag.moved) {
+        if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(event.clientY - drag.y)) return;
+        drag.moved = true;
+        clip.setPointerCapture?.(event.pointerId);
+        track.style.transition = "none";
+      }
+      const atEdge = ui.homePage === 0 && dx > 0 || ui.homePage === pages - 1 && dx < 0;
+      track.style.transform = "translateX(calc(-" + ui.homePage * 100 + "% + " + (atEdge ? dx / 3 : dx) + "px))";
+    });
+    function endDrag(event) {
+      if (drag === null || event.pointerId !== drag.id) return;
+      const dx = event.clientX - drag.x;
+      const moved = drag.moved || Math.abs(dx) > 40;
+      drag = null;
+      track.style.transition = "";
+      if (!moved) return;
+      swallowClick = true;
+      setTimeout(() => {
+        swallowClick = false;
+      }, 0);
+      showPage(Math.abs(dx) > 40 ? ui.homePage + (dx < 0 ? 1 : -1) : ui.homePage);
+    }
+    clip.addEventListener("pointerup", endDrag);
+    clip.addEventListener("pointercancel", (event) => {
+      if (drag !== null) {
+        drag.moved = true;
+        endDrag(event);
+      }
+    });
+    clip.addEventListener("click", (event) => {
+      if (swallowClick) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    }, true);
+    let wheelLock = 0;
+    clip.addEventListener("wheel", (event) => {
+      if (pages < 2) return;
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      if (Math.abs(delta) < 4) return;
+      const next = ui.homePage + (delta > 0 ? 1 : -1);
+      if (next < 0 || next >= pages) return;
       event.preventDefault();
-      showPage(ui.homePage + (event.clientX < startX ? 1 : -1));
-      startX = null;
-    });
-    clip.addEventListener("pointercancel", () => {
-      startX = null;
-    });
+      const now = Date.now();
+      if (now < wheelLock) return;
+      wheelLock = now + 450;
+      showPage(next);
+    }, { passive: false });
     var version = el("div", "dp-version", "v" + (ui.view.version === "" ? "\u672A\u77E5" : ui.view.version));
     version.setAttribute("data-version", "true");
     version.addEventListener("click", function(event) {
