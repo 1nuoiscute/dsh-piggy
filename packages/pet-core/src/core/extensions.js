@@ -15,7 +15,7 @@ export function ensureExtensions(state) {
   const raw = state.extensions !== null && typeof state.extensions === 'object' && !Array.isArray(state.extensions) ? state.extensions : {}
   const next = { ...raw }
   for (const extension of EXTENSIONS) {
-    if (typeof next[extension.key] !== 'boolean') next[extension.key] = extension.defaultOn
+    if (typeof next[extension.key] !== 'boolean') next[extension.key] = true
   }
   state.extensions = next
   // 删掉的内置扩展、下载来的扩展的数据（v0.30，见 docs/design/extension-download.md）。
@@ -38,7 +38,7 @@ export function extensionOn(state, key) {
   if (!extensionInstalled(state, key)) return false
   const value = state.extensions?.[key]
   if (typeof value === 'boolean') return value
-  return extensionByKey(key)?.defaultOn ?? true
+  return true
 }
 
 /**

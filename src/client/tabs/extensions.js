@@ -41,7 +41,15 @@ function loadOnline(ui, force) {
       online = { loading: false, loaded: true, error: str(body.error, ''), entries: arr(body.entries).filter(function (entry) { return typeof obj(entry).key === 'string' }), stamp: stampOf(ui.view) }
     })
     .catch(function () { online = { loading: false, loaded: true, error: '连不上', entries: online.entries, stamp: stampOf(ui.view) } })
-    .then(function () { if (ui.tab === 'extensions') ui.renderContent() })
+    .then(function () { if (['home', 'settings', 'extensions'].includes(ui.tab)) ui.renderContent() })
+}
+
+/** 主菜单与设置共用的扩展更新红点。 */
+export function extensionUpdateAvailable(ui) {
+  if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false)
+  return online.loaded && online.stamp === stampOf(ui.view) && online.entries.some(function (entry) {
+    return entry.update === true && ui.view.extensions.some(function (extension) { return extension.key === entry.key && extension.installed })
+  })
 }
 
 export function renderExtensionsTab(ui) {

@@ -29,7 +29,7 @@ export const PANEL_MARGIN = 10
 export const PANEL_MIN_HEIGHT = 120
 /**
  * 面板最高这么高：列表再长也在面板里滚动，不再把面板撑到整个屏幕那么高
- * （用户 2026-10-04 反馈）。主屏 15 个 App 正好放得下。
+ * （用户 2026-10-04 反馈）。主屏每页 9 个 App 放得下。
  */
 export const PANEL_MAX_HEIGHT = 520
 // Must match `--scene-open` in the CSS (a test keeps them honest). The pig

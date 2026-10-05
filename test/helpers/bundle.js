@@ -161,6 +161,7 @@ export async function mount(options = {}) {
   globalThis.document = dom.document
   globalThis.fetch = async (url, opts) => {
     calls.push({ url, method: opts?.method ?? 'GET', body: opts?.body })
+    if (String(url).includes('/extensions/online') && options.onlineResponse) return { ok: true, status: 200, async json() { return options.onlineResponse } }
     const payload = (opts?.method ?? 'GET') === 'POST' ? (options.actResult ?? options.status ?? SNAPSHOT) : (options.status ?? SNAPSHOT)
     return { ok: true, status: 200, async json() { return payload } }
   }

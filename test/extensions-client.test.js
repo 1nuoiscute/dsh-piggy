@@ -8,10 +8,16 @@ const ext = (pomodoro, fishing) => [
   { key: 'fishing', label: '钓鱼', emoji: '🎣', description: '钓鱼', on: fishing, apps: ['fishing'], dexSections: ['fish'], shopKinds: ['bait'] },
 ]
 
-test('主菜单有「扩展」App；全部打开时番茄钟、钓鱼都在', async () => {
+function openExtensions(dom) {
+  openPanel(dom, 'settings')
+  findByAttr(contentOf(dom), 'data-open-extensions', 'true').fire('click')
+}
+
+test('主菜单没有「扩展」方块；全部打开时番茄钟、钓鱼都在', async () => {
   const { dom } = await mount({ status: { ...SNAPSHOT, extensions: ext(true, true) } })
   openPanel(dom)
-  for (const key of ['extensions', 'pomodoro', 'fishing']) assert.ok(findByAttr(contentOf(dom), 'data-app', key), key)
+  assert.equal(findByAttr(contentOf(dom), 'data-app', 'extensions'), undefined)
+  for (const key of ['pomodoro', 'fishing']) assert.ok(findByAttr(contentOf(dom), 'data-app', key), key)
 })
 
 test('关掉钓鱼：主菜单没有钓鱼，图鉴没有鱼分区；番茄钟还在', async () => {
@@ -35,7 +41,7 @@ test('关掉番茄钟：主菜单没有番茄钟，专注中的角标也不显�
 
 test('「扩展」App：每个扩展一张卡，点开关发 setExtension', async () => {
   const { dom, calls } = await mount({ status: { ...SNAPSHOT, extensions: ext(true, true) } })
-  openPanel(dom, 'extensions')
+  openExtensions(dom)
   assert.ok(findByAttr(contentOf(dom), 'data-extension', 'pomodoro'))
   findByAttr(contentOf(dom), 'data-extension-toggle', 'fishing').fire('click')
   await settle()
@@ -60,7 +66,7 @@ test('正开着钓鱼页时钓鱼被关掉：退回主菜单', async () => {
 
 test('v0.30 delete asks once in the card, then sends removeExtension', async () => {
   const { dom, calls } = await mount({ status: SNAPSHOT })
-  openPanel(dom, 'extensions')
+  openExtensions(dom)
   findByAttr(contentOf(dom), 'data-ext-remove', 'fishing').fire('click')
   assert.match(contentOf(dom).allText(), /删掉会清空鱼篓里的鱼/)
   findByAttr(contentOf(dom), 'data-ext-remove-no', 'fishing').fire('click')
@@ -81,7 +87,8 @@ test('v0.30 a removed built-in leaves the local list; a downloaded one gets its 
   openPanel(dom)
   assert.notEqual(findByAttr(contentOf(dom), 'data-app', 'ext:piggybank'), undefined, 'downloaded app on the home grid')
   assert.equal(findByAttr(contentOf(dom), 'data-app', 'fishing'), undefined)
-  findByAttr(contentOf(dom), 'data-app', 'extensions').fire('click')
+  findByAttr(contentOf(dom), 'data-app', 'settings').fire('click')
+  findByAttr(contentOf(dom), 'data-open-extensions', 'true').fire('click')
   assert.equal(findByAttr(contentOf(dom), 'data-extension', 'fishing'), undefined, 'removed: not in the local list')
   assert.notEqual(findByAttr(contentOf(dom), 'data-extension', 'piggybank'), undefined)
 })
