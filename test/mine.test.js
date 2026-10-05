@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import mine, { dayKey, dayState, generateMap, recover, refresh, hitsNeeded } from '../extensions/mine/server.js'
+import mine, { dayKey, dayState, generateMap, recover, refresh, hitsNeeded, normalize } from '../extensions/mine/server.js'
 
 const at = (day, hour, minute = 0) => new Date(2026, 9, day, hour, minute).getTime()
 const fake = (now = at(5, 12), coins = 10_000) => {
@@ -74,9 +74,11 @@ test('未挖的格子不泄露内容，敲击进度留下，挖开后不重复�
   const hidden = mine.view(data, t.api).cells[target]
   assert.equal(hidden.kind, undefined)
   assert.equal(hidden.key, undefined)
+  assert.equal(hidden.remaining, undefined)
   assert.equal(mine.actions.dig(data, { cell: target }, t.api).ok, true)
   assert.equal(data.energy, 29)
   assert.equal(mine.view(data, t.api).cells[target].hits, 1)
+  assert.equal(mine.view(data, t.api).cells[target].remaining, 1)
   assert.equal(mine.actions.dig(data, { cell: target }, t.api).ok, true)
   assert.equal(mine.view(data, t.api).cells[target].open, true)
   assert.equal(mine.actions.dig(data, { cell: target }, t.api).reason, 'already-open')
@@ -133,4 +135,38 @@ test('化石和宝石记入图鉴，宝石也进矿袋', () => {
   }
   assert.ok(data.bag.gem > 0)
   assert.ok(t.said.length >= 2)
+})
+
+test('缺字段的存档在 view 和全部动作中自动补齐，不丢已有矿袋', () => {
+  const t = fake()
+  const empty = {}
+  const first = mine.view(empty, t.api)
+  assert.equal(first.cells.length, 48)
+  assert.equal(first.energy, 30)
+  assert.equal(first.pickaxe, 1)
+  assert.equal(first.shelf.items.length, 3)
+  assert.deepEqual(empty, {}, 'view 不改原始存档')
+  assert.equal(mine.actions.dig(empty, { cell: 6 }, t.api).ok, true)
+  assert.equal(empty.maps[1].open.length >= 6, true)
+  assert.equal(mine.actions.surface(empty, {}, t.api).ok, true)
+  assert.equal(mine.actions.enter(empty, {}, t.api).ok, true)
+  assert.equal(mine.actions.descend(empty, {}, t.api).reason, 'no-ladder')
+  assert.equal(mine.actions.buy(empty, { item: 'drink' }, t.api).ok, true)
+  assert.equal(mine.actions.sell(empty, {}, t.api).reason, 'underground')
+  const partial = { day: dayKey(t.api.now), bag: { coal: 2 }, maps: { 1: { open: [0, 1, 2, 3, 4, 5] } } }
+  normalize(partial)
+  assert.equal(partial.bag.coal, 2)
+  assert.deepEqual(partial.maps[1].hits, {})
+  assert.equal(mine.view(partial, t.api).cells.length, 48)
+})
+
+test('下一点体力按剩余整分钟显示，满体力时不显示', () => {
+  const t = fake()
+  const data = mine.init()
+  refresh(data, t.api.now)
+  assert.equal(mine.view(data, t.api).nextEnergyMinutes, null)
+  data.energy = 29
+  assert.equal(mine.view(data, t.api).nextEnergyMinutes, 10)
+  assert.equal(mine.view(data, { ...t.api, now: t.api.now + 9 * 60_000 + 1 }).nextEnergyMinutes, 1)
+  assert.equal(mine.view(data, { ...t.api, now: t.api.now + 10 * 60_000 }).nextEnergyMinutes, null)
 })

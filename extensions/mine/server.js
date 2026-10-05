@@ -81,6 +81,27 @@ export function recover(energy, energyAt, now) {
   return { energy: next, energyAt: next === 30 ? now : energyAt + gained * TEN_MINUTES }
 }
 
+/** 补齐旧存档或部分写入的矿洞数据，保留已有进度。 */
+export function normalize(data) {
+  if (!Number.isInteger(data.layer) || data.layer < 1 || data.layer > 10) data.layer = 1
+  if (!data.maps || typeof data.maps !== 'object' || Array.isArray(data.maps)) data.maps = {}
+  if (!data.bag || typeof data.bag !== 'object' || Array.isArray(data.bag)) data.bag = {}
+  if (!data.found || typeof data.found !== 'object' || Array.isArray(data.found)) data.found = {}
+  if (![1, 2, 3].includes(data.pickaxe)) data.pickaxe = 1
+  if (!Number.isFinite(data.energy)) data.energy = 30
+  data.energy = Math.max(0, Math.min(30, Math.floor(data.energy)))
+  if (!Number.isFinite(data.energyAt)) data.energyAt = 0
+  if (!Number.isInteger(data.drinks) || data.drinks < 0) data.drinks = 0
+  if (typeof data.day !== 'string') data.day = null
+  if (typeof data.surface !== 'boolean') data.surface = false
+  if (!data.last || typeof data.last !== 'object') data.last = null
+  for (const [layer, value] of Object.entries(data.maps)) {
+    if (!value || typeof value !== 'object' || !Array.isArray(value.open)) { delete data.maps[layer]; continue }
+    if (!value.hits || typeof value.hits !== 'object' || Array.isArray(value.hits)) value.hits = {}
+  }
+  return data
+}
+
 export function dayState(data, now) {
   const day = dayKey(now)
   if (data.day !== day) {
@@ -90,6 +111,7 @@ export function dayState(data, now) {
 }
 
 export function refresh(data, now) {
+  normalize(data)
   Object.assign(data, dayState(data, now))
   return data
 }
@@ -174,8 +196,9 @@ export default {
     const map = generateMap(d.layer, d.day)
     return {
       day: d.day, layer: d.layer, surface: d.surface, energy: d.energy, energyAt: d.energyAt,
+      nextEnergyMinutes: d.energy < 30 ? Math.max(1, Math.ceil((d.energyAt + TEN_MINUTES - api.now) / 60_000)) : null,
       pickaxe: d.pickaxe, drinks: d.drinks, bag: d.bag, last: d.last,
-      cells: map.map((cell, index) => ({ index, open: p.open.includes(index), hits: p.hits[index] ?? 0, needed: hitsNeeded(cell.kind, d.pickaxe), adjacent: adjacent(index, p.open), ...(p.open.includes(index) ? cell : {}) })),
+      cells: map.map((cell, index) => ({ index, open: p.open.includes(index), hits: p.hits[index] ?? 0, remaining: p.hits[index] > 0 ? Math.max(1, hitsNeeded(cell.kind, d.pickaxe) - p.hits[index]) : undefined, adjacent: adjacent(index, p.open), ...(p.open.includes(index) ? cell : {}) })),
       canDescend: d.layer < 10 && p.open.includes(map.findIndex(cell => cell.kind === 'ladder')),
       shelf: { key: 'mine', label: '矿工用品', emoji: '⛏️', color: 'teal', currency: { label: '金币', emoji: '🪙', balance: api.coins() }, items: SHOP.map(item => ({ ...item, disabled: item.key === 'iron' ? d.pickaxe !== 1 || api.coins() < item.price : item.key === 'diamond' ? d.pickaxe !== 2 || api.coins() < item.price : d.drinks >= 5 || api.coins() < item.price, pick: null })) },
       dex: { key: 'mine', label: '矿石', emoji: '💎', color: 'teal', entries: [...FOSSILS, ORES[4]].map(entry => ({ key: entry.key, emoji: entry.emoji, label: entry.label, stars: 1, blurb: entry.key === 'gem' ? '矿洞深处的闪亮宝石' : '矿洞里发现的古老收藏品', potential: d.found[entry.key] ? 1 : 0, acquired: !!d.found[entry.key] })) },
