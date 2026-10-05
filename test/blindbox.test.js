@@ -80,3 +80,8 @@ test('the view lists every series with its figures, pity and prices', () => {
   assert.equal(farm.owned, 1)
   assert.equal(farm.pityLeft, 49)
 })
+
+test('box tickets survive loading a save (they are not sold in the shop)', async () => {
+  const { sanitizeInventory } = await import('../packages/pet-core/src/core/migrate.js')
+  assert.deepEqual(sanitizeInventory({ boxticket: 2, apple: 1, nonsense: 5 }), { boxticket: 2, apple: 1 })
+})

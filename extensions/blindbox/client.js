@@ -138,9 +138,9 @@
   /** 刚开的那一盒：第一次画时播动画，之后（面板每几秒重画）直接摆着结果。 */
   function renderReveal(app, data) {
     var last = data.last
-    if (!last || last.id === seenId) return
+    if (!last || last.id === seenId) return false
     var def = data.series.find(function (s) { return s.key === last.series })
-    if (!def) return
+    if (!def) return false
     var wrap = app.el('div', 'bbx-' + def.theme)
     var stage = app.el('div', 'bbx-stage')
     var fresh = revealId !== last.id
@@ -173,6 +173,7 @@
       stage.setAttribute('data-open', 'true')
       if (hidden) confetti(stage)
     }, openAfter)
+    return fresh
   }
 
   function renderOpen(app, data) {
@@ -260,7 +261,7 @@
     var root = app.el('div', 'bbx')
     var outer = app.content
     app.content = root
-    renderReveal(app, data)
+    var fresh = renderReveal(app, data)
     var tabs = app.el('div', 'bbx-tabs')
     ;[['open', '🎁 开盒'], ['shelf', '🏛 展示柜']].forEach(function (pair) {
       var b = app.button('bbx-tab', { 'data-bbx-tab': pair[0], 'aria-pressed': String(tab === pair[0]) }, function () { tab = pair[0]; app.rerender && app.rerender() })
@@ -272,6 +273,9 @@
     else renderOpen(app, data)
     app.content = outer
     outer.appendChild(root)
+    // 刚开的盒子画在最上面：从下面的系列点的开盒，要滚上去才看得到。
+    // 面板重画后会把滚动位置放回去，所以等这一轮画完再滚。
+    if (fresh) setTimeout(function () { outer.scrollTop = 0 }, 0)
   }
 
   if (window.dshPiggyExtensions) window.dshPiggyExtensions.register('blindbox', { render: render })
