@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
+import { runInNewContext } from 'node:vm'
 
 import farm, { CROPS, PLOT_PRICES, advancePlot, stageTime } from '../extensions/farm/server.js'
+import { fakeDom } from './helpers/bundle.js'
 
 const T0 = Date.UTC(2026, 9, 5)
 
@@ -111,4 +114,71 @@ test('货架和图鉴字段符合 H2 格式，view 不改存档', () => {
   assert.equal(view.shelf.items.find(c => c.key === 'strawberry').disabled, true)
   assert.equal(view.dex.label, '作物')
   assert.equal(view.dex.entries.length, 8)
+})
+
+test('仓库给出背包食物名称，货架整小时用小时标注', () => {
+  const view = farm.view(farm.init(), fakeApi().api)
+  assert.equal(view.harvest.find(crop => crop.key === 'pumpkin').foodLabel, '南瓜粥')
+  assert.equal(view.harvest.find(crop => crop.key === 'sweetpotato').foodLabel, '烤红薯')
+  assert.equal(view.harvest.find(crop => crop.key === 'strawberry').foodLabel, '草莓')
+  assert.equal(view.shelf.items.find(crop => crop.key === 'cabbage').note, '30 分钟成熟 · 收 3 个')
+  assert.equal(view.shelf.items.find(crop => crop.key === 'strawberry').note, '60 分钟成熟 · 收 3 个')
+  assert.equal(view.shelf.items.find(crop => crop.key === 'watermelon').note, '8 小时成熟 · 收 2 个')
+})
+
+test('仓库超过一个时显示全卖金额并发送全部数量，背包按钮写出食物', () => {
+  const data = farm.init()
+  data.harvest.pumpkin = 2
+  data.harvest.strawberry = 1
+  const view = farm.view(data, fakeApi().api)
+  const dom = fakeDom()
+  dom.document.getElementById = () => null
+  let render
+  const window = { dshPiggyExtensions: { register(_key, impl) { render = impl.render } } }
+  runInNewContext(readFileSync(new URL('../extensions/farm/client.js', import.meta.url), 'utf8'), { window, document: dom.document, Date })
+  const sent = []
+  const app = {
+    data: view,
+    content: dom.body,
+    el(tag, className, label) {
+      const node = dom.document.createElement(tag)
+      node.className = className ?? ''
+      if (label !== undefined) node.textContent = label
+      return node
+    },
+    button(className, attrs, onClick) {
+      const node = this.el('button', className)
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value)
+      node.addEventListener('click', onClick)
+      return node
+    },
+    send(op, payload) { sent.push({ op, payload }) },
+  }
+  render(app)
+  const find = (attr, key) => {
+    let result
+    dom.body.walk(node => { if (node.getAttribute(attr) === key) result = node })
+    return result
+  }
+  const all = find('data-farm-sell-all', 'pumpkin')
+  assert.equal(all.textContent, '全卖 150🪙')
+  assert.equal(find('data-farm-sell-all', 'strawberry'), undefined)
+  assert.equal(find('data-farm-store', 'pumpkin').textContent, '放进背包 · 南瓜粥')
+  all.fire('click')
+  assert.deepEqual(JSON.parse(JSON.stringify(sent)), [{ op: 'sell', payload: { item: 'pumpkin', count: 2 } }])
+  const t = fakeApi()
+  assert.equal(farm.actions.sell(data, sent[0].payload, t.api).ok, true)
+  assert.equal(data.harvest.pumpkin, 0)
+  assert.equal(t.coins(), 10_150)
+})
+
+test('全卖超过 99 个也能结算；单次收入超过宿主上限时分笔记账', () => {
+  const data = farm.init()
+  data.harvest.watermelon = 1000
+  const t = fakeApi()
+  let earned = 0
+  t.api.earn = amount => { assert.ok(amount <= 100_000); earned += amount }
+  assert.equal(farm.actions.sell(data, { item: 'watermelon', count: 1000 }, t.api).ok, true)
+  assert.equal(data.harvest.watermelon, 0)
+  assert.equal(earned, 140_000)
 })

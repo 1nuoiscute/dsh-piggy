@@ -15,8 +15,9 @@
     '.fm .dp-mini{padding:4px 10px;font-size:10px}.fm .dp-btn{padding:5px 12px;font-size:11px}',
     '.fm-pick{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px;padding:8px;border-radius:13px;background:var(--ac-bg-input,#fffbe7);border:2px solid var(--ac-border-light,#e5dcc6)}',
     '.fm-section{font-size:11px;font-weight:800;margin:2px 0 -4px}.fm-stock{display:grid;gap:6px}',
-    '.fm-row{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:13px;background:var(--ac-bg-content,#f7f3df);border:2px solid var(--ac-border-light,#e5dcc6);font-size:11px}',
+    '.fm-row{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:7px 9px;border-radius:13px;background:var(--ac-bg-content,#f7f3df);border:2px solid var(--ac-border-light,#e5dcc6);font-size:11px}',
     '.fm-row .fm-grow{flex:1;min-width:0}.fm-row small{display:block;color:var(--ac-text-2,#9f927d)}',
+    '.fm-sells{display:flex;align-items:center;gap:5px;white-space:nowrap}',
     '.fm-effect{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center;font-size:32px;z-index:2}',
     '.fm-effect[data-kind="water"]{animation:fm-water .65s ease-out both}.fm-effect[data-kind="harvest"]{animation:fm-harvest .65s ease-out both}',
     '@keyframes fm-water{0%{opacity:0;transform:translateY(-35px) scale(.7)}35%{opacity:1;transform:translateY(0) scale(1.15)}100%{opacity:0;transform:translateY(12px) scale(.7)}}',
@@ -121,8 +122,11 @@
       var name = app.el('span', 'fm-grow', crop.label + ' ×' + crop.count)
       name.appendChild(app.el('small', null, '卖价 ' + crop.sell + ' 🪙 / 个'))
       row.appendChild(name)
-      row.appendChild(button(app, 'dp-mini', { 'data-farm-sell': crop.key }, '卖', function () { app.send('sell', { item: crop.key }) }))
-      if (crop.food) row.appendChild(button(app, 'dp-mini dp-mini-plain', { 'data-farm-store': crop.key }, '放进背包', function () { app.send('store', { item: crop.key }) }))
+      var sells = app.el('span', 'fm-sells')
+      sells.appendChild(button(app, 'dp-mini', { 'data-farm-sell': crop.key }, '卖', function () { app.send('sell', { item: crop.key }) }))
+      if (crop.count > 1) sells.appendChild(button(app, 'dp-mini dp-mini-plain', { 'data-farm-sell-all': crop.key }, '全卖 ' + crop.count * crop.sell + '🪙', function () { app.send('sell', { item: crop.key, count: crop.count }) }))
+      row.appendChild(sells)
+      if (crop.food) row.appendChild(button(app, 'dp-mini dp-mini-plain', { 'data-farm-store': crop.key }, '放进背包 · ' + crop.foodLabel, function () { app.send('store', { item: crop.key }) }))
       stock.appendChild(row)
     })
     root.appendChild(stock)

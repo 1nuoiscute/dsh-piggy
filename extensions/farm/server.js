@@ -3,18 +3,18 @@ export const PLOT_PRICES = [0, 0, 500, 1200, 2500, 5000]
 
 export const CROPS = [
   { key: 'cabbage', emoji: '🥬', label: '小白菜', price: 10, minutes: 30, yield: 3, sell: 6, food: null },
-  { key: 'strawberry', emoji: '🍓', label: '草莓', price: 20, minutes: 60, yield: 3, sell: 12, food: 'strawberry' },
+  { key: 'strawberry', emoji: '🍓', label: '草莓', price: 20, minutes: 60, yield: 3, sell: 12, food: 'strawberry', foodLabel: '草莓' },
   { key: 'carrot', emoji: '🥕', label: '胡萝卜', price: 25, minutes: 120, yield: 4, sell: 12, food: null },
-  { key: 'sweetpotato', emoji: '🍠', label: '红薯', price: 40, minutes: 180, yield: 3, sell: 25, food: 'sweetpotato' },
+  { key: 'sweetpotato', emoji: '🍠', label: '红薯', price: 40, minutes: 180, yield: 3, sell: 25, food: 'sweetpotato', foodLabel: '烤红薯' },
   { key: 'tomato', emoji: '🍅', label: '番茄', price: 60, minutes: 240, yield: 4, sell: 25, food: null },
-  { key: 'pumpkin', emoji: '🎃', label: '南瓜', price: 90, minutes: 360, yield: 2, sell: 75, food: 'pumpkin' },
+  { key: 'pumpkin', emoji: '🎃', label: '南瓜', price: 90, minutes: 360, yield: 2, sell: 75, food: 'pumpkin', foodLabel: '南瓜粥' },
   { key: 'corn', emoji: '🌽', label: '玉米', price: 80, minutes: 300, yield: 5, sell: 30, food: null },
   { key: 'watermelon', emoji: '🍉', label: '西瓜', price: 150, minutes: 480, yield: 2, sell: 140, food: null },
 ]
 
 const cropFor = key => CROPS.find(crop => crop.key === key) ?? null
 const count = value => Math.max(0, Math.floor(Number(value) || 0))
-const validCount = value => Number.isSafeInteger(value) && value > 0 && value <= 99
+const validCount = value => Number.isSafeInteger(value) && value > 0
 
 /** 一个生长阶段需要的浇水后时间。 */
 export function stageTime(key) {
@@ -115,9 +115,15 @@ export default {
       normalize(data)
       const crop = cropFor(payload.item)
       const n = payload.count === undefined ? 1 : payload.count
-      if (crop === null || !validCount(n) || amountFor(data, 'harvest', crop.key) < n) return { ok: false, reason: 'unavailable' }
+      if (crop === null || !validCount(n) || !Number.isSafeInteger(crop.sell * n) || amountFor(data, 'harvest', crop.key) < n) return { ok: false, reason: 'unavailable' }
       data.harvest[crop.key] -= n
-      api.earn(crop.sell * n)
+      // 宿主单次 earn 最多记 10 万，整仓出售时分笔结算。
+      let earnings = crop.sell * n
+      while (earnings > 0) {
+        const part = Math.min(100_000, earnings)
+        api.earn(part)
+        earnings -= part
+      }
       return { ok: true }
     },
 
@@ -125,7 +131,7 @@ export default {
       normalize(data)
       const crop = cropFor(payload.item)
       const n = payload.count === undefined ? 1 : payload.count
-      if (crop === null || crop.food === null || !validCount(n) || amountFor(data, 'harvest', crop.key) < n) return { ok: false, reason: 'unavailable' }
+      if (crop === null || crop.food === null || !validCount(n) || n > 99 || amountFor(data, 'harvest', crop.key) < n) return { ok: false, reason: 'unavailable' }
       if (!api.give(crop.food, n)) return { ok: false, reason: 'unavailable' }
       data.harvest[crop.key] -= n
       return { ok: true }
@@ -152,12 +158,12 @@ export default {
         }
       }),
       seeds: CROPS.map(crop => ({ key: crop.key, emoji: crop.emoji, label: crop.label, count: amountFor(d, 'seeds', crop.key) })),
-      harvest: CROPS.map(crop => ({ key: crop.key, emoji: crop.emoji, label: crop.label, count: amountFor(d, 'harvest', crop.key), sell: crop.sell, food: crop.food })),
+      harvest: CROPS.map(crop => ({ key: crop.key, emoji: crop.emoji, label: crop.label, count: amountFor(d, 'harvest', crop.key), sell: crop.sell, food: crop.food, foodLabel: crop.foodLabel ?? null })),
       prices: PLOT_PRICES,
       shelf: {
         key: 'farm', label: '种子', emoji: '🌱', color: 'green',
         currency: { label: '金币', emoji: '🪙', balance: api.coins() },
-        items: CROPS.map(crop => ({ key: crop.key, emoji: crop.emoji, label: crop.label, note: crop.minutes + ' 分钟成熟 · 收 ' + crop.yield + ' 个', price: crop.price, disabled: api.coins() < crop.price, pick: null })),
+        items: CROPS.map(crop => ({ key: crop.key, emoji: crop.emoji, label: crop.label, note: (crop.minutes > 60 ? crop.minutes / 60 + ' 小时' : crop.minutes + ' 分钟') + '成熟 · 收 ' + crop.yield + ' 个', price: crop.price, disabled: api.coins() < crop.price, pick: null })),
       },
       dex: {
         key: 'crops', label: '作物', emoji: '🌾', color: 'green',
