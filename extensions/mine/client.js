@@ -61,11 +61,11 @@
     var top = app.el('div', 'mn-card')
     top.appendChild(app.el('div', 'mn-head', '⛏️ 矿洞 · 第 ' + d.layer + ' / 10 层'))
     var stats = app.el('div', 'mn-stats')
-    stats.appendChild(app.el('span', 'mn-chip', '⚡ 体力 ' + d.energy + ' / 30' + (d.energy < 30 ? ' · 下一点 ' + d.nextEnergyMinutes + ' 分钟后' : '')))
+    stats.appendChild(app.el('span', 'mn-chip', '⚡ 体力 ' + d.energy + ' / 100' + (d.energy < 100 ? ' · 下一点 ' + d.nextEnergyMinutes + ' 分钟后' : '')))
     stats.appendChild(app.el('span', 'mn-chip', '⛏️ ' + (['', '木镐', '铁镐', '钻石镐'][d.pickaxe] || '木镐')))
     stats.appendChild(app.el('span', 'mn-chip', d.surface ? '🌿 地面' : '🕳️ 地下'))
     top.appendChild(stats)
-    top.appendChild(app.el('div', 'mn-muted', d.energy === 0 ? '累了，歇会儿再挖。每 10 分钟恢复 1 点体力。' : '只能挖和已挖开区域相邻的格子。每敲一下消耗 1 体力。'))
+    top.appendChild(app.el('div', 'mn-muted', d.energy === 0 ? '累了，歇会儿再挖。每 3 分钟恢复 1 点体力。' : '只能挖和已挖开区域相邻的格子。每敲一下消耗 1 体力。'))
     root.appendChild(top)
 
     var bag = app.el('div', 'mn-card')
