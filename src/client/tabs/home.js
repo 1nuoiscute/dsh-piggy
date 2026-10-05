@@ -5,14 +5,21 @@
  * @module dsh-piggy/client/tabs/home
  */
 
-import { el } from '../dom.js'
+import { button, el } from '../dom.js'
 import { tile, tileGrid } from '../widgets.js'
 import { appIcon } from '../icon-style.js'
+import { extensionUpdateAvailable } from './extensions.js'
 
 /** One colour per app, so the home screen reads at a glance. */
 var APP_COLOR = {
   status: 'green', card: 'pink', dex: 'purple', skins: 'purple', study: 'yellow', work: 'orange',
   shop: 'red', travel: 'blue', bag: 'teal', pomodoro: 'red', fishing: 'blue', settings: 'peach', update: 'lime', quit: 'peach', dev: 'brown',
+}
+
+/** 新 App 统一排在设置之前，末尾顺序不依赖注册或拼接时机。 */
+export function orderHomeApps(apps) {
+  const rank = key => key === 'dev' ? 4 : key === 'settings' ? 3 : key === 'quit' ? 2 : key.startsWith('ext:') ? 1 : 0
+  return apps.slice().sort((a, b) => rank(a.key) - rank(b.key))
 }
 
 /** The home screen: who the pig is, its money, and one tile per app. */
@@ -22,20 +29,59 @@ export function renderHome(ui, apps) {
   head.appendChild(el('b', null, p.name + (p.sex !== null ? ' ' + p.sex.symbol : '') + ' Lv.' + p.level.level))
   head.appendChild(el('span', null, '🪙 ' + p.coins))
   ui.content.appendChild(head)
-  var grid = tileGrid()
-  for (var i = 0; i < apps.length; i += 1) {
-    (function (app) {
+  const pages = Math.max(1, Math.ceil(apps.length / 9))
+  ui.homePage = Math.max(0, Math.min(pages - 1, ui.homePage ?? 0))
+  const clip = el('div', 'dp-home-clip')
+  clip.setAttribute('data-home-swipe', 'true')
+  const track = el('div', 'dp-home-track')
+  const grids = []
+  const dots = []
+  for (let page = 0; page < pages; page += 1) {
+    const grid = tileGrid()
+    grid.className += ' dp-home-page'
+    grid.setAttribute('data-home-page', String(page))
+    for (const app of apps.slice(page * 9, page * 9 + 9)) {
       grid.appendChild(tile({
         emoji: app.emoji, icon: appIcon(app.key, app.emoji, 'dp-tile-e'), label: app.label, color: APP_COLOR[app.key] ?? 'blue',
         // 更新入口收进了设置：有新正式版时设置格子冒红点（G 批次）。
         tag: app.key === 'update' || app.key === 'settings' ? '' : alertFor(ui, app.key),
-        badge: app.key === 'update' || app.key === 'settings' ? alertFor(ui, 'update') : '',
+        badge: app.key === 'settings' ? (alertFor(ui, 'update') || (extensionUpdateAvailable(ui) ? '!' : '')) : '',
         data: { 'data-app': app.key },
         onPick: function () { ui.select(app.key) },
       }))
-    })(apps[i])
+    }
+    grids.push(grid)
+    track.appendChild(grid)
   }
-  ui.content.appendChild(grid)
+  clip.appendChild(track)
+  ui.content.appendChild(clip)
+  let dotRow = null
+  if (pages > 1) {
+    dotRow = el('div', 'dp-home-dots')
+    for (let page = 0; page < pages; page += 1) {
+      const dot = button('dp-home-dot', { 'data-home-dot': String(page), 'aria-label': '第 ' + (page + 1) + ' 页' }, function () { showPage(page) })
+      dots.push(dot)
+      dotRow.appendChild(dot)
+    }
+    ui.content.appendChild(dotRow)
+  }
+  function showPage(page) {
+    const next = Math.max(0, Math.min(pages - 1, page))
+    ui.homePage = next
+    track.style.transform = 'translateX(-' + next * 100 + '%)'
+    grids.forEach((grid, index) => { grid.setAttribute('data-active', String(index === next)); grid.setAttribute('aria-hidden', String(index !== next)); grid.inert = index !== next })
+    dots.forEach((dot, index) => dot.setAttribute('aria-pressed', String(index === next)))
+  }
+  showPage(ui.homePage)
+  let startX = null
+  clip.addEventListener('pointerdown', event => { startX = event.clientX })
+  clip.addEventListener('pointerup', event => {
+    if (startX === null || Math.abs(event.clientX - startX) <= 40) return
+    event.preventDefault()
+    showPage(ui.homePage + (event.clientX < startX ? 1 : -1))
+    startX = null
+  })
+  clip.addEventListener('pointercancel', () => { startX = null })
   // 版本号（C1）：一行小灰字，不占格子；3 秒内连点 7 次解锁调试模式。
   var version = el('div', 'dp-version', 'v' + (ui.view.version === '' ? '未知' : ui.view.version))
   version.setAttribute('data-version', 'true')
@@ -75,7 +121,7 @@ export function appHeader(ui, app, info) {
   back.textContent = '‹'
   back.addEventListener('click', function (event) {
     if (event && typeof event.stopPropagation === 'function') event.stopPropagation()
-    ui.select('home')
+    ui.select(app.key === 'extensions' ? 'settings' : 'home')
   })
   row.appendChild(back)
   var title = el('b', 'dp-drill-title dp-app-title')

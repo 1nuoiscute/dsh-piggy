@@ -10,6 +10,7 @@ import { desktopShell } from '../desktop-shell.js'
 import { emojiStyle, hasBundledEmoji, setEmojiStyle, applyEmojiStyle } from '../emoji-style.js'
 import { PIG_SIZES, displayedPigSize, pigSize, setPigSize } from '../pig-size.js'
 import { setWalk, walkEnabled } from '../life.js'
+import { extensionUpdateAvailable } from './extensions.js'
 
 /** 一项设置：标题、说明，下面放控件。 */
 function section(ui, title, note) {
@@ -43,6 +44,13 @@ export function renderSettingsTab(ui) {
   go.textContent = '🔄 更新'
   if (fresh) go.appendChild(el('b', 'dp-tile-badge dp-update-dot', '!'))
   update.head.appendChild(go)
+
+  const extFresh = extensionUpdateAvailable(ui)
+  const extensions = section(ui, '扩展', '本地玩法、开关与在线扩展')
+  const openExtensions = button('dp-mini dp-update-entry', { 'data-open-extensions': 'true' }, function () { ui.select('extensions') })
+  openExtensions.textContent = '🧩 扩展'
+  if (extFresh) openExtensions.appendChild(el('b', 'dp-tile-badge dp-update-dot', '!'))
+  extensions.head.appendChild(openExtensions)
 
   const size = section(ui, '小猪大小', '只改这台设备上的显示大小，不改存档')
   const sizeLabels = { small: '小', standard: '标准', large: '大', extra: '特大' }

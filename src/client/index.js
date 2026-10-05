@@ -190,7 +190,7 @@ import { partAt } from './pet-parts.js'
         get userRight() { return userRight }, set userRight(next) { userRight = next },
         get userBottom() { return userBottom }, set userBottom(next) { userBottom = next },
         get busy() { return busy }, set busy(next) { busy = next },
-        justBought: null,
+        justBought: null, homePage: 0,
         get stopped() { return stopped }, set stopped(next) { stopped = next },
         get devMode() { return devMode },
       }

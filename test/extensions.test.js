@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
-  ensureExtensions, extensionOn, extensionsView, hatchEgg, migrate, setExtension, startAutoFishing, startPomodoro,
+  ensureExtensions, extensionOn, extensionsView, hatchEgg, installExtension, migrate, setExtension, startAutoFishing, startPomodoro,
 } from '../packages/pet-core/src/core.js'
 import { EXTENSIONS, FISH, extensionForAction } from '../packages/pet-core/src/data.js'
 import { createStore } from '../store.js'
@@ -38,6 +38,20 @@ test('老存档默认全开，不升存档版本；认不出的开关原样保�
   ensureExtensions(state)
   assert.equal(state.extensions.garden, false)
   assert.equal(extensionOn(null, 'fishing'), true)
+})
+
+test('新下载扩展默认开；存档明确关过的内置与下载扩展保持关', () => {
+  const state = hatchEgg(NOW)
+  delete state.extensions
+  ensureExtensions(state)
+  for (const extension of EXTENSIONS) assert.equal(extensionOn(state, extension.key), true)
+  assert.equal(installExtension(state, 'piggybank', {}).ok, true)
+  assert.equal(extensionOn(state, 'piggybank'), true)
+  assert.equal(setExtension(state, 'piggybank', false, NOW).ok, true)
+  assert.equal(setExtension(state, 'fishing', false, NOW).ok, true)
+  ensureExtensions(state)
+  assert.equal(extensionOn(state, 'piggybank'), false)
+  assert.equal(extensionOn(state, 'fishing'), false)
 })
 
 test('关掉番茄钟：专注中的那一个放弃（不给奖励，免打扰恢复），再打开数据都在', () => {

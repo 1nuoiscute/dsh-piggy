@@ -3713,6 +3713,10 @@
     '.dp-tile[data-color="brown"]{--tile-c:var(--tile-brown)}',
     // The grid: three columns that can never be widened by their content.
     ".dp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:4px 2px 2px}",
+    ".dp-home-clip{overflow:hidden;touch-action:pan-y}.dp-home-track{display:flex;transition:transform .25s ease;will-change:transform}",
+    '.dp-home-page{box-sizing:border-box;flex:0 0 100%;grid-template-rows:repeat(3,72px);align-content:start}.dp-home-page[data-active="false"]{pointer-events:none}',
+    '.dp-home-dots{display:flex;justify-content:center;gap:8px;margin:9px 0 2px}.dp-home-dot{width:9px;height:9px;padding:0;border:1.5px solid var(--ac-primary);border-radius:50%;background:transparent;cursor:pointer}.dp-home-dot[aria-pressed="true"]{background:var(--ac-primary)}',
+    "@media (prefers-reduced-motion:reduce){.dp-home-track{transition:none}}",
     // A tile is a column: the coloured square, then its name, then a note.
     ".dp-tile{font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;",
     "padding:0;margin:0;border:0;background:none;cursor:pointer;color:var(--ac-text)}",
@@ -5072,6 +5076,246 @@
     return img;
   }
 
+  // src/client/ext-apps.js
+  var registry = {};
+  var requested = {};
+  var rerender = null;
+  function bridge() {
+    var host2 = (
+      /** @type {any} */
+      window
+    );
+    if (!host2.dshPiggyExtensions) {
+      host2.dshPiggyExtensions = {
+        register: function(key, impl) {
+          if (typeof key !== "string" || impl === null || typeof impl !== "object") return;
+          registry[key] = impl;
+          if (typeof rerender === "function") rerender();
+        }
+      };
+    }
+    return host2.dshPiggyExtensions;
+  }
+  function ensureScript(key, version) {
+    bridge();
+    var id = key + "@" + version;
+    if (requested[id] || typeof document === "undefined" || typeof document.createElement !== "function") return;
+    requested[id] = true;
+    var script = (
+      /** @type {HTMLScriptElement} */
+      document.createElement("script")
+    );
+    script.src = "/dsh-piggy/ext/" + encodeURIComponent(key) + "/client.js?v=" + encodeURIComponent(version);
+    script.async = true;
+    (document.head || document.body)?.appendChild(script);
+  }
+  function renderDownloadedApp(ui, key) {
+    var extension = (ui.view.extensions || []).find(function(entry) {
+      return entry.key === key;
+    });
+    if (!extension) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u5DF2\u7ECF\u5220\u6389\u4E86"));
+      return;
+    }
+    if (extension.error) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + extension.error));
+      return;
+    }
+    ensureScript(key, extension.version);
+    rerender = function() {
+      if (ui.tab === "ext:" + key) ui.renderContent();
+    };
+    var impl = registry[key];
+    if (!impl || typeof impl.render !== "function") {
+      ui.content.appendChild(el("div", "dp-empty", "\u6B63\u5728\u52A0\u8F7D\u2026\u2026"));
+      return;
+    }
+    var data = ui.view.extViews ? ui.view.extViews[key] : void 0;
+    try {
+      impl.render({
+        content: ui.content,
+        data: data === void 0 ? null : data,
+        send: function(op, payload) {
+          ui.send("ext", { key, op, data: payload || {} });
+        },
+        el,
+        button,
+        rerender: function() {
+          ui.renderContent();
+        },
+        openDex: function(section2) {
+          ui.select("dex");
+          ui.drill.dex = "ext:" + key + ":" + section2;
+          ui.renderContent();
+        }
+      });
+    } catch (error) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + (error instanceof Error ? error.message : String(error))));
+    }
+  }
+
+  // src/client/tabs/extensions.js
+  var confirming = null;
+  var online = { loading: false, loaded: false, error: "", entries: (
+    /** @type {any[]} */
+    []
+  ), stamp: "" };
+  function stampOf(view) {
+    return view.extensions.map(function(extension) {
+      return extension.key + "@" + extension.version + ":" + extension.installed;
+    }).join(",");
+  }
+  function closingNote(view, key) {
+    if (key === "pomodoro" && view.pomodoro !== null && view.pomodoro.active) return "\u6B63\u5728\u4E13\u6CE8\uFF1A\u5173\u6389\u4F1A\u653E\u5F03\u8FD9\u4E00\u4E2A\uFF0C\u4E0D\u7ED9\u5956\u52B1";
+    if (key === "fishing" && view.activity?.kind === "fishing") return "\u732A\u6B63\u5728\u5916\u9762\u9493\u9C7C\uFF1A\u5173\u6389\u4F1A\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u9C7C\u9975\u9000\u56DE";
+    return "";
+  }
+  var CLEARS = { pomodoro: "\u4ECA\u5929\u548C\u7D2F\u8BA1\u7684\u756A\u8304\u6570", fishing: "\u9C7C\u7BD3\u91CC\u7684\u9C7C\u3001\u56FE\u9274\u91CC\u7684\u9C7C\u3001\u80CC\u5305\u91CC\u7684\u9C7C\u9975" };
+  function loadOnline(ui, force) {
+    if (online.loading || typeof fetch !== "function") return;
+    online.loading = true;
+    fetch("/dsh-piggy/extensions/online" + (force ? "?force=1" : ""), { cache: "no-store" }).then(function(response) {
+      return response.json();
+    }).then(function(data) {
+      var body = obj(data);
+      online = { loading: false, loaded: true, error: str(body.error, ""), entries: arr(body.entries).filter(function(entry) {
+        return typeof obj(entry).key === "string";
+      }), stamp: stampOf(ui.view) };
+    }).catch(function() {
+      online = { loading: false, loaded: true, error: "\u8FDE\u4E0D\u4E0A", entries: online.entries, stamp: stampOf(ui.view) };
+    }).then(function() {
+      if (["home", "settings", "extensions"].includes(ui.tab)) ui.renderContent();
+    });
+  }
+  function extensionUpdateAvailable(ui) {
+    if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false);
+    return online.loaded && online.stamp === stampOf(ui.view) && online.entries.some(function(entry) {
+      return entry.update === true && ui.view.extensions.some(function(extension) {
+        return extension.key === entry.key && extension.installed;
+      });
+    });
+  }
+  function renderExtensionsTab(ui) {
+    if (String(ui.tab).startsWith("ext:")) {
+      renderDownloadedApp(ui, String(ui.tab).slice(4));
+      return;
+    }
+    if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false);
+    ui.content.appendChild(el("div", "dp-ext-intro", "\u7528\u4E0D\u4E0A\u7684\u73A9\u6CD5\u53EF\u4EE5\u5173\u6389\uFF0C\u6570\u636E\u7559\u7740\u968F\u65F6\u6062\u590D\uFF1B\u5220\u9664\u4F1A\u8FDE\u6570\u636E\u4E00\u8D77\u6E05\u6389\uFF0C\u4EE5\u540E\u53EF\u4EE5\u5728\u4E0B\u9762\u91CD\u65B0\u88C5\u3002"));
+    ui.content.appendChild(el("div", "dp-ext-section", "\u672C\u5730\u6269\u5C55"));
+    var local = ui.view.extensions.filter(function(extension) {
+      return extension.installed;
+    });
+    if (local.length === 0) ui.content.appendChild(el("div", "dp-ext-later", "\u4E00\u4E2A\u6269\u5C55\u90FD\u6CA1\u88C5"));
+    for (var i = 0; i < local.length; i += 1) ui.content.appendChild(localCard(ui, local[i]));
+    var head = el("div", "dp-ext-section dp-ext-online-head");
+    head.appendChild(el("span", null, "\u5728\u7EBF\u6269\u5C55"));
+    var refresh2 = button("dp-mini dp-mini-plain", { "data-ext-refresh": "true" }, function() {
+      loadOnline(ui, true);
+      ui.renderContent();
+    });
+    refresh2.textContent = online.loading ? "\u8BFB\u53D6\u4E2D\u2026" : "\u{1F504} \u5237\u65B0";
+    refresh2.disabled = online.loading;
+    head.appendChild(refresh2);
+    ui.content.appendChild(head);
+    renderOnline(ui);
+  }
+  function localCard(ui, extension) {
+    var card2 = el("div", "dp-set dp-ext-card");
+    card2.setAttribute("data-extension", extension.key);
+    var head = el("div", "dp-set-head");
+    head.appendChild(el("span", "dp-ext-emoji", extension.emoji));
+    head.appendChild(el("b", null, extension.label + (extension.builtin ? "" : " " + extension.version)));
+    if (extension.description) head.appendChild(el("small", "dp-dim", extension.description));
+    card2.appendChild(head);
+    var note = extension.on ? closingNote(ui.view, extension.key) : "";
+    if (note) card2.appendChild(el("div", "dp-ext-note", note));
+    if (extension.error) card2.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
+    var newer = online.entries.find(function(entry) {
+      return entry.key === extension.key && entry.update === true;
+    });
+    var row = el("div", "dp-ext-actions");
+    var toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
+      ui.send("setExtension", { key: extension.key, on: !extension.on });
+    });
+    toggle.appendChild(el("span", "dp-switch-knob"));
+    toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
+    row.appendChild(toggle);
+    if (newer) {
+      var update = button("dp-mini", { "data-ext-update": extension.key }, function() {
+        online.loaded = false;
+        ui.send("installExtension", { key: extension.key });
+      });
+      update.textContent = "\u66F4\u65B0\u5230 " + str(newer.version, "");
+      row.appendChild(update);
+    }
+    if (confirming === extension.key) {
+      row.appendChild(el("span", "dp-ext-warn", "\u5220\u6389\u4F1A\u6E05\u7A7A" + (CLEARS[extension.key] ?? "\u5B83\u7684\u6570\u636E") + "\uFF0C\u786E\u5B9A\u5417\uFF1F"));
+      var yes = button("dp-mini dp-ext-danger", { "data-ext-remove-yes": extension.key }, function() {
+        confirming = null;
+        online.loaded = false;
+        ui.send("removeExtension", { key: extension.key });
+      });
+      yes.textContent = "\u5220\u9664";
+      var no = button("dp-mini dp-mini-plain", { "data-ext-remove-no": extension.key }, function() {
+        confirming = null;
+        ui.renderContent();
+      });
+      no.textContent = "\u7B97\u4E86";
+      row.appendChild(yes);
+      row.appendChild(no);
+    } else {
+      var remove = button("dp-mini dp-mini-plain dp-ext-remove", { "data-ext-remove": extension.key }, function() {
+        confirming = extension.key;
+        ui.renderContent();
+      });
+      remove.textContent = "\u5220\u9664";
+      row.appendChild(remove);
+    }
+    card2.appendChild(row);
+    return card2;
+  }
+  function renderOnline(ui) {
+    if (!online.loaded) {
+      ui.content.appendChild(el("div", "dp-ext-later", "\u6B63\u5728\u8BFB\u53D6\u5728\u7EBF\u6269\u5C55\u2026\u2026"));
+      return;
+    }
+    var installed = {};
+    for (var i = 0; i < ui.view.extensions.length; i += 1) if (ui.view.extensions[i].installed) installed[ui.view.extensions[i].key] = true;
+    var entries = online.entries.filter(function(entry) {
+      return !installed[entry.key];
+    });
+    if (online.error && entries.length === 0) {
+      ui.content.appendChild(el("div", "dp-ext-later", "\u8BFB\u4E0D\u5230\u5728\u7EBF\u6269\u5C55\u76EE\u5F55\uFF08" + online.error + "\uFF09\uFF0C\u7A0D\u540E\u70B9\u5237\u65B0"));
+      return;
+    }
+    if (entries.length === 0) {
+      ui.content.appendChild(el("div", "dp-ext-later", "\u5728\u7EBF\u7684\u6269\u5C55\u90FD\u88C5\u597D\u4E86\uFF0C\u4EE5\u540E\u6709\u65B0\u7684\u4F1A\u51FA\u73B0\u5728\u8FD9\u91CC"));
+      return;
+    }
+    for (var k = 0; k < entries.length; k += 1) {
+      (function(entry) {
+        var card2 = el("div", "dp-set dp-ext-card");
+        card2.setAttribute("data-online-extension", entry.key);
+        var head = el("div", "dp-set-head");
+        head.appendChild(el("span", "dp-ext-emoji", str(entry.emoji, "\u{1F9E9}")));
+        head.appendChild(el("b", null, str(entry.label, entry.key) + (entry.builtin ? " \xB7 \u5185\u7F6E" : " " + str(entry.version, ""))));
+        var get = button("dp-mini", { "data-ext-install": entry.key }, function() {
+          online.loaded = false;
+          ui.send("installExtension", { key: entry.key });
+        });
+        get.textContent = entry.builtin ? "\u91CD\u65B0\u5B89\u88C5" : "\u4E0B\u8F7D";
+        get.disabled = entry.blocked !== null && entry.blocked !== void 0;
+        head.appendChild(get);
+        if (entry.description) head.appendChild(el("small", "dp-dim", str(entry.description, "")));
+        card2.appendChild(head);
+        if (entry.blocked === "game-too-old") card2.appendChild(el("div", "dp-ext-note", "\u9700\u8981\u6E38\u620F v" + str(entry.minGame, "") + "\uFF0C\u5148\u66F4\u65B0\u6E38\u620F"));
+        else if (entry.builtin) card2.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
+        ui.content.appendChild(card2);
+      })(entries[k]);
+    }
+  }
+
   // src/client/tabs/home.js
   var APP_COLOR = {
     status: "green",
@@ -5090,15 +5334,28 @@
     quit: "peach",
     dev: "brown"
   };
+  function orderHomeApps(apps) {
+    const rank = (key) => key === "dev" ? 4 : key === "settings" ? 3 : key === "quit" ? 2 : key.startsWith("ext:") ? 1 : 0;
+    return apps.slice().sort((a, b) => rank(a.key) - rank(b.key));
+  }
   function renderHome(ui, apps) {
     var p = ui.view.pig;
     var head = el("div", "dp-title");
     head.appendChild(el("b", null, p.name + (p.sex !== null ? " " + p.sex.symbol : "") + " Lv." + p.level.level));
     head.appendChild(el("span", null, "\u{1FA99} " + p.coins));
     ui.content.appendChild(head);
-    var grid = tileGrid();
-    for (var i = 0; i < apps.length; i += 1) {
-      (function(app) {
+    const pages = Math.max(1, Math.ceil(apps.length / 9));
+    ui.homePage = Math.max(0, Math.min(pages - 1, ui.homePage ?? 0));
+    const clip = el("div", "dp-home-clip");
+    clip.setAttribute("data-home-swipe", "true");
+    const track = el("div", "dp-home-track");
+    const grids = [];
+    const dots = [];
+    for (let page = 0; page < pages; page += 1) {
+      const grid = tileGrid();
+      grid.className += " dp-home-page";
+      grid.setAttribute("data-home-page", String(page));
+      for (const app of apps.slice(page * 9, page * 9 + 9)) {
         grid.appendChild(tile({
           emoji: app.emoji,
           icon: appIcon(app.key, app.emoji, "dp-tile-e"),
@@ -5106,15 +5363,55 @@
           color: APP_COLOR[app.key] ?? "blue",
           // 更新入口收进了设置：有新正式版时设置格子冒红点（G 批次）。
           tag: app.key === "update" || app.key === "settings" ? "" : alertFor(ui, app.key),
-          badge: app.key === "update" || app.key === "settings" ? alertFor(ui, "update") : "",
+          badge: app.key === "settings" ? alertFor(ui, "update") || (extensionUpdateAvailable(ui) ? "!" : "") : "",
           data: { "data-app": app.key },
           onPick: function() {
             ui.select(app.key);
           }
         }));
-      })(apps[i]);
+      }
+      grids.push(grid);
+      track.appendChild(grid);
     }
-    ui.content.appendChild(grid);
+    clip.appendChild(track);
+    ui.content.appendChild(clip);
+    let dotRow = null;
+    if (pages > 1) {
+      dotRow = el("div", "dp-home-dots");
+      for (let page = 0; page < pages; page += 1) {
+        const dot = button("dp-home-dot", { "data-home-dot": String(page), "aria-label": "\u7B2C " + (page + 1) + " \u9875" }, function() {
+          showPage(page);
+        });
+        dots.push(dot);
+        dotRow.appendChild(dot);
+      }
+      ui.content.appendChild(dotRow);
+    }
+    function showPage(page) {
+      const next = Math.max(0, Math.min(pages - 1, page));
+      ui.homePage = next;
+      track.style.transform = "translateX(-" + next * 100 + "%)";
+      grids.forEach((grid, index) => {
+        grid.setAttribute("data-active", String(index === next));
+        grid.setAttribute("aria-hidden", String(index !== next));
+        grid.inert = index !== next;
+      });
+      dots.forEach((dot, index) => dot.setAttribute("aria-pressed", String(index === next)));
+    }
+    showPage(ui.homePage);
+    let startX = null;
+    clip.addEventListener("pointerdown", (event) => {
+      startX = event.clientX;
+    });
+    clip.addEventListener("pointerup", (event) => {
+      if (startX === null || Math.abs(event.clientX - startX) <= 40) return;
+      event.preventDefault();
+      showPage(ui.homePage + (event.clientX < startX ? 1 : -1));
+      startX = null;
+    });
+    clip.addEventListener("pointercancel", () => {
+      startX = null;
+    });
     var version = el("div", "dp-version", "v" + (ui.view.version === "" ? "\u672A\u77E5" : ui.view.version));
     version.setAttribute("data-version", "true");
     version.addEventListener("click", function(event) {
@@ -5142,7 +5439,7 @@
     back.textContent = "\u2039";
     back.addEventListener("click", function(event) {
       if (event && typeof event.stopPropagation === "function") event.stopPropagation();
-      ui.select("home");
+      ui.select(app.key === "extensions" ? "settings" : "home");
     });
     row.appendChild(back);
     var title = el("b", "dp-drill-title dp-app-title");
@@ -6022,6 +6319,14 @@
     go.textContent = "\u{1F504} \u66F4\u65B0";
     if (fresh) go.appendChild(el("b", "dp-tile-badge dp-update-dot", "!"));
     update.head.appendChild(go);
+    const extFresh = extensionUpdateAvailable(ui);
+    const extensions = section(ui, "\u6269\u5C55", "\u672C\u5730\u73A9\u6CD5\u3001\u5F00\u5173\u4E0E\u5728\u7EBF\u6269\u5C55");
+    const openExtensions = button("dp-mini dp-update-entry", { "data-open-extensions": "true" }, function() {
+      ui.select("extensions");
+    });
+    openExtensions.textContent = "\u{1F9E9} \u6269\u5C55";
+    if (extFresh) openExtensions.appendChild(el("b", "dp-tile-badge dp-update-dot", "!"));
+    extensions.head.appendChild(openExtensions);
     const size = section(ui, "\u5C0F\u732A\u5927\u5C0F", "\u53EA\u6539\u8FD9\u53F0\u8BBE\u5907\u4E0A\u7684\u663E\u793A\u5927\u5C0F\uFF0C\u4E0D\u6539\u5B58\u6863");
     const sizeLabels = { small: "\u5C0F", standard: "\u6807\u51C6", large: "\u5927", extra: "\u7279\u5927" };
     segmented(size, "data-pig-size", PIG_SIZES.map((key) => ({ key, label: sizeLabels[key] })), pigSize(), function(key) {
@@ -6070,238 +6375,6 @@
       walkToggle.appendChild(el("span", "dp-switch-knob"));
       walkToggle.appendChild(el("span", "dp-switch-text", walking ? "\u5F00" : "\u5173"));
       walk.head.appendChild(walkToggle);
-    }
-  }
-
-  // src/client/ext-apps.js
-  var registry = {};
-  var requested = {};
-  var rerender = null;
-  function bridge() {
-    var host2 = (
-      /** @type {any} */
-      window
-    );
-    if (!host2.dshPiggyExtensions) {
-      host2.dshPiggyExtensions = {
-        register: function(key, impl) {
-          if (typeof key !== "string" || impl === null || typeof impl !== "object") return;
-          registry[key] = impl;
-          if (typeof rerender === "function") rerender();
-        }
-      };
-    }
-    return host2.dshPiggyExtensions;
-  }
-  function ensureScript(key, version) {
-    bridge();
-    var id = key + "@" + version;
-    if (requested[id] || typeof document === "undefined" || typeof document.createElement !== "function") return;
-    requested[id] = true;
-    var script = (
-      /** @type {HTMLScriptElement} */
-      document.createElement("script")
-    );
-    script.src = "/dsh-piggy/ext/" + encodeURIComponent(key) + "/client.js?v=" + encodeURIComponent(version);
-    script.async = true;
-    (document.head || document.body)?.appendChild(script);
-  }
-  function renderDownloadedApp(ui, key) {
-    var extension = (ui.view.extensions || []).find(function(entry) {
-      return entry.key === key;
-    });
-    if (!extension) {
-      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u5DF2\u7ECF\u5220\u6389\u4E86"));
-      return;
-    }
-    if (extension.error) {
-      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + extension.error));
-      return;
-    }
-    ensureScript(key, extension.version);
-    rerender = function() {
-      if (ui.tab === "ext:" + key) ui.renderContent();
-    };
-    var impl = registry[key];
-    if (!impl || typeof impl.render !== "function") {
-      ui.content.appendChild(el("div", "dp-empty", "\u6B63\u5728\u52A0\u8F7D\u2026\u2026"));
-      return;
-    }
-    var data = ui.view.extViews ? ui.view.extViews[key] : void 0;
-    try {
-      impl.render({
-        content: ui.content,
-        data: data === void 0 ? null : data,
-        send: function(op, payload) {
-          ui.send("ext", { key, op, data: payload || {} });
-        },
-        el,
-        button,
-        rerender: function() {
-          ui.renderContent();
-        },
-        openDex: function(section2) {
-          ui.select("dex");
-          ui.drill.dex = "ext:" + key + ":" + section2;
-          ui.renderContent();
-        }
-      });
-    } catch (error) {
-      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + (error instanceof Error ? error.message : String(error))));
-    }
-  }
-
-  // src/client/tabs/extensions.js
-  var confirming = null;
-  var online = { loading: false, loaded: false, error: "", entries: (
-    /** @type {any[]} */
-    []
-  ), stamp: "" };
-  function stampOf(view) {
-    return view.extensions.map(function(extension) {
-      return extension.key + "@" + extension.version + ":" + extension.installed;
-    }).join(",");
-  }
-  function closingNote(view, key) {
-    if (key === "pomodoro" && view.pomodoro !== null && view.pomodoro.active) return "\u6B63\u5728\u4E13\u6CE8\uFF1A\u5173\u6389\u4F1A\u653E\u5F03\u8FD9\u4E00\u4E2A\uFF0C\u4E0D\u7ED9\u5956\u52B1";
-    if (key === "fishing" && view.activity?.kind === "fishing") return "\u732A\u6B63\u5728\u5916\u9762\u9493\u9C7C\uFF1A\u5173\u6389\u4F1A\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u9C7C\u9975\u9000\u56DE";
-    return "";
-  }
-  var CLEARS = { pomodoro: "\u4ECA\u5929\u548C\u7D2F\u8BA1\u7684\u756A\u8304\u6570", fishing: "\u9C7C\u7BD3\u91CC\u7684\u9C7C\u3001\u56FE\u9274\u91CC\u7684\u9C7C\u3001\u80CC\u5305\u91CC\u7684\u9C7C\u9975" };
-  function loadOnline(ui, force) {
-    if (online.loading || typeof fetch !== "function") return;
-    online.loading = true;
-    fetch("/dsh-piggy/extensions/online" + (force ? "?force=1" : ""), { cache: "no-store" }).then(function(response) {
-      return response.json();
-    }).then(function(data) {
-      var body = obj(data);
-      online = { loading: false, loaded: true, error: str(body.error, ""), entries: arr(body.entries).filter(function(entry) {
-        return typeof obj(entry).key === "string";
-      }), stamp: stampOf(ui.view) };
-    }).catch(function() {
-      online = { loading: false, loaded: true, error: "\u8FDE\u4E0D\u4E0A", entries: online.entries, stamp: stampOf(ui.view) };
-    }).then(function() {
-      if (ui.tab === "extensions") ui.renderContent();
-    });
-  }
-  function renderExtensionsTab(ui) {
-    if (String(ui.tab).startsWith("ext:")) {
-      renderDownloadedApp(ui, String(ui.tab).slice(4));
-      return;
-    }
-    if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false);
-    ui.content.appendChild(el("div", "dp-ext-intro", "\u7528\u4E0D\u4E0A\u7684\u73A9\u6CD5\u53EF\u4EE5\u5173\u6389\uFF0C\u6570\u636E\u7559\u7740\u968F\u65F6\u6062\u590D\uFF1B\u5220\u9664\u4F1A\u8FDE\u6570\u636E\u4E00\u8D77\u6E05\u6389\uFF0C\u4EE5\u540E\u53EF\u4EE5\u5728\u4E0B\u9762\u91CD\u65B0\u88C5\u3002"));
-    ui.content.appendChild(el("div", "dp-ext-section", "\u672C\u5730\u6269\u5C55"));
-    var local = ui.view.extensions.filter(function(extension) {
-      return extension.installed;
-    });
-    if (local.length === 0) ui.content.appendChild(el("div", "dp-ext-later", "\u4E00\u4E2A\u6269\u5C55\u90FD\u6CA1\u88C5"));
-    for (var i = 0; i < local.length; i += 1) ui.content.appendChild(localCard(ui, local[i]));
-    var head = el("div", "dp-ext-section dp-ext-online-head");
-    head.appendChild(el("span", null, "\u5728\u7EBF\u6269\u5C55"));
-    var refresh2 = button("dp-mini dp-mini-plain", { "data-ext-refresh": "true" }, function() {
-      loadOnline(ui, true);
-      ui.renderContent();
-    });
-    refresh2.textContent = online.loading ? "\u8BFB\u53D6\u4E2D\u2026" : "\u{1F504} \u5237\u65B0";
-    refresh2.disabled = online.loading;
-    head.appendChild(refresh2);
-    ui.content.appendChild(head);
-    renderOnline(ui);
-  }
-  function localCard(ui, extension) {
-    var card2 = el("div", "dp-set dp-ext-card");
-    card2.setAttribute("data-extension", extension.key);
-    var head = el("div", "dp-set-head");
-    head.appendChild(el("span", "dp-ext-emoji", extension.emoji));
-    head.appendChild(el("b", null, extension.label + (extension.builtin ? "" : " " + extension.version)));
-    if (extension.description) head.appendChild(el("small", "dp-dim", extension.description));
-    card2.appendChild(head);
-    var note = extension.on ? closingNote(ui.view, extension.key) : "";
-    if (note) card2.appendChild(el("div", "dp-ext-note", note));
-    if (extension.error) card2.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
-    var newer = online.entries.find(function(entry) {
-      return entry.key === extension.key && entry.update === true;
-    });
-    var row = el("div", "dp-ext-actions");
-    var toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
-      ui.send("setExtension", { key: extension.key, on: !extension.on });
-    });
-    toggle.appendChild(el("span", "dp-switch-knob"));
-    toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
-    row.appendChild(toggle);
-    if (newer) {
-      var update = button("dp-mini", { "data-ext-update": extension.key }, function() {
-        online.loaded = false;
-        ui.send("installExtension", { key: extension.key });
-      });
-      update.textContent = "\u66F4\u65B0\u5230 " + str(newer.version, "");
-      row.appendChild(update);
-    }
-    if (confirming === extension.key) {
-      row.appendChild(el("span", "dp-ext-warn", "\u5220\u6389\u4F1A\u6E05\u7A7A" + (CLEARS[extension.key] ?? "\u5B83\u7684\u6570\u636E") + "\uFF0C\u786E\u5B9A\u5417\uFF1F"));
-      var yes = button("dp-mini dp-ext-danger", { "data-ext-remove-yes": extension.key }, function() {
-        confirming = null;
-        online.loaded = false;
-        ui.send("removeExtension", { key: extension.key });
-      });
-      yes.textContent = "\u5220\u9664";
-      var no = button("dp-mini dp-mini-plain", { "data-ext-remove-no": extension.key }, function() {
-        confirming = null;
-        ui.renderContent();
-      });
-      no.textContent = "\u7B97\u4E86";
-      row.appendChild(yes);
-      row.appendChild(no);
-    } else {
-      var remove = button("dp-mini dp-mini-plain dp-ext-remove", { "data-ext-remove": extension.key }, function() {
-        confirming = extension.key;
-        ui.renderContent();
-      });
-      remove.textContent = "\u5220\u9664";
-      row.appendChild(remove);
-    }
-    card2.appendChild(row);
-    return card2;
-  }
-  function renderOnline(ui) {
-    if (!online.loaded) {
-      ui.content.appendChild(el("div", "dp-ext-later", "\u6B63\u5728\u8BFB\u53D6\u5728\u7EBF\u6269\u5C55\u2026\u2026"));
-      return;
-    }
-    var installed = {};
-    for (var i = 0; i < ui.view.extensions.length; i += 1) if (ui.view.extensions[i].installed) installed[ui.view.extensions[i].key] = true;
-    var entries = online.entries.filter(function(entry) {
-      return !installed[entry.key];
-    });
-    if (online.error && entries.length === 0) {
-      ui.content.appendChild(el("div", "dp-ext-later", "\u8BFB\u4E0D\u5230\u5728\u7EBF\u6269\u5C55\u76EE\u5F55\uFF08" + online.error + "\uFF09\uFF0C\u7A0D\u540E\u70B9\u5237\u65B0"));
-      return;
-    }
-    if (entries.length === 0) {
-      ui.content.appendChild(el("div", "dp-ext-later", "\u5728\u7EBF\u7684\u6269\u5C55\u90FD\u88C5\u597D\u4E86\uFF0C\u4EE5\u540E\u6709\u65B0\u7684\u4F1A\u51FA\u73B0\u5728\u8FD9\u91CC"));
-      return;
-    }
-    for (var k = 0; k < entries.length; k += 1) {
-      (function(entry) {
-        var card2 = el("div", "dp-set dp-ext-card");
-        card2.setAttribute("data-online-extension", entry.key);
-        var head = el("div", "dp-set-head");
-        head.appendChild(el("span", "dp-ext-emoji", str(entry.emoji, "\u{1F9E9}")));
-        head.appendChild(el("b", null, str(entry.label, entry.key) + (entry.builtin ? " \xB7 \u5185\u7F6E" : " " + str(entry.version, ""))));
-        var get = button("dp-mini", { "data-ext-install": entry.key }, function() {
-          online.loaded = false;
-          ui.send("installExtension", { key: entry.key });
-        });
-        get.textContent = entry.builtin ? "\u91CD\u65B0\u5B89\u88C5" : "\u4E0B\u8F7D";
-        get.disabled = entry.blocked !== null && entry.blocked !== void 0;
-        head.appendChild(get);
-        if (entry.description) head.appendChild(el("small", "dp-dim", str(entry.description, "")));
-        card2.appendChild(head);
-        if (entry.blocked === "game-too-old") card2.appendChild(el("div", "dp-ext-note", "\u9700\u8981\u6E38\u620F v" + str(entry.minGame, "") + "\uFF0C\u5148\u66F4\u65B0\u6E38\u620F"));
-        else if (entry.builtin) card2.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
-        ui.content.appendChild(card2);
-      })(entries[k]);
     }
   }
 
@@ -6411,10 +6484,10 @@
         return;
       }
       var shell = updatesBridge();
-      var apps = enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
+      var apps = orderHomeApps(enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []));
       if (ctx.tab === "home") {
         renderHome(ctx, apps.filter(function(a) {
-          return a.key !== "update";
+          return a.key !== "update" && a.key !== "extensions";
         }));
         ctx.fitPanel();
         return;
@@ -7597,6 +7670,7 @@
             busy = next;
           },
           justBought: null,
+          homePage: 0,
           get stopped() {
             return stopped;
           },
