@@ -95,7 +95,7 @@ test('H2 扩展货架可购买，指定摆件先展开选择', async () => {
   const { dom, calls } = await mount({ status: { ...SNAPSHOT, extensions, extShelves: [shelf] } })
   openPanel(dom, 'shop')
   findByAttr(contentOf(dom), 'data-shelf', 'ext:blindbox').fire('click')
-  assert.match(contentOf(dom).allText(), /盲盒货架/)
+  assert.match(contentOf(dom).allText(), /🎁 盲盒 📜/)
   findByAttr(contentOf(dom), 'data-ext-buy', 'ticket').fire('click')
   await settle()
   assert.deepEqual(JSON.parse(calls.filter(call => call.method === 'POST').at(-1).body), { action: 'ext', key: 'blindbox', op: 'buy', data: { item: 'ticket', pick: null } })

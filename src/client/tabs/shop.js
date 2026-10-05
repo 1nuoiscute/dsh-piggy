@@ -68,8 +68,9 @@ function renderShelves(ui) {
     })(KIND_ORDER[k])
   }
   for (const shelf of ui.view.extShelves ?? []) {
-    grid.appendChild(tile({ emoji: shelf.emoji, label: shelf.label + '货架', color: shelf.color || 'orange',
-      note: shelf.currency?.label, data: { 'data-shelf': 'ext:' + shelf.extension },
+    grid.appendChild(tile({ emoji: shelf.emoji, label: shelf.label, color: shelf.color || 'orange',
+      // 跟内置货架一样只写名字；不用金币买的才在下面注明货币。
+      note: shelf.currency && shelf.currency.label !== '金币' ? shelf.currency.label : undefined, data: { 'data-shelf': 'ext:' + shelf.extension },
       onPick: function () { drillTo(ui, 'shop', 'ext:' + shelf.extension) } }))
   }
   ui.content.appendChild(grid)
@@ -78,7 +79,7 @@ function renderShelves(ui) {
 /** 下载扩展自己的商品，购买仍由扩展的 buy 动作结算。 */
 function renderExtShelf(ui, shelf) {
   const currency = shelf.currency ?? { label: '货币', emoji: '🪙', balance: 0 }
-  drillHeader(ui, 'shop', shelf.emoji + ' ' + shelf.label + '货架', currency.emoji + ' ' + currency.balance)
+  drillHeader(ui, 'shop', shelf.emoji + ' ' + shelf.label, currency.emoji + ' ' + currency.balance)
   ui.content.appendChild(el('div', 'dp-ext-shelf-note', '用' + currency.label + '买 · ' + currency.emoji + ' 余额 ' + currency.balance))
   const list = el('div', 'dp-ext-goods')
   for (const item of shelf.items ?? []) {

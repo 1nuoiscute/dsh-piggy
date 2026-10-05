@@ -331,9 +331,10 @@
     for (const shelf of ui.view.extShelves ?? []) {
       grid.appendChild(tile({
         emoji: shelf.emoji,
-        label: shelf.label + "\u8D27\u67B6",
+        label: shelf.label,
         color: shelf.color || "orange",
-        note: shelf.currency?.label,
+        // 跟内置货架一样只写名字；不用金币买的才在下面注明货币。
+        note: shelf.currency && shelf.currency.label !== "\u91D1\u5E01" ? shelf.currency.label : void 0,
         data: { "data-shelf": "ext:" + shelf.extension },
         onPick: function() {
           drillTo(ui, "shop", "ext:" + shelf.extension);
@@ -344,7 +345,7 @@
   }
   function renderExtShelf(ui, shelf) {
     const currency = shelf.currency ?? { label: "\u8D27\u5E01", emoji: "\u{1FA99}", balance: 0 };
-    drillHeader(ui, "shop", shelf.emoji + " " + shelf.label + "\u8D27\u67B6", currency.emoji + " " + currency.balance);
+    drillHeader(ui, "shop", shelf.emoji + " " + shelf.label, currency.emoji + " " + currency.balance);
     ui.content.appendChild(el("div", "dp-ext-shelf-note", "\u7528" + currency.label + "\u4E70 \xB7 " + currency.emoji + " \u4F59\u989D " + currency.balance));
     const list = el("div", "dp-ext-goods");
     for (const item of shelf.items ?? []) {
