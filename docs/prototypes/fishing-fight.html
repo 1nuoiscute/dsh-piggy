@@ -1,0 +1,351 @@
+<title>猪猪钓鱼三选一</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Noto+Sans+SC:wght@500;700;900&display=swap">
+<style>
+/* 布局：三台并排的「猪猪面板」，每台一种搏斗玩法；窄屏竖着排。配色取自游戏面板（animal-island-ui）。 */
+:root{
+  --bg:#efeadb; --panel:#f8f8f0; --card:#fffbe7; --line:#e5dcc6; --line-2:#c4b89e;
+  --text:#794f27; --body:#725d42; --muted:#9f927d;
+  --primary:#19c8b9; --primary-2:#11a89b; --primary-bg:#e6f9f6;
+  --water:#bfe6ef; --water-2:#8fd0df; --good:#6bd47b; --perfect:#ffd45d; --bad:#e05a5a;
+  --font:Nunito,"Noto Sans SC",-apple-system,"PingFang SC",sans-serif;
+  --shadow:0 3px 10px rgba(61,52,40,.12);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#211d17; --panel:#2d2820; --card:#383126; --line:#4a4134; --line-2:#6b5f4c;
+  --text:#f1d9b8; --body:#e0cba9; --muted:#a8977c;
+  --primary:#24c7b8; --primary-2:#169c90; --primary-bg:#1f3b37;
+  --water:#22495a; --water-2:#2f6779; --good:#58b96a; --perfect:#e6bd47; --bad:#e46b6b;
+  --shadow:0 3px 12px rgba(0,0,0,.35); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#211d17; --panel:#2d2820; --card:#383126; --line:#4a4134; --line-2:#6b5f4c;
+  --text:#f1d9b8; --body:#e0cba9; --muted:#a8977c;
+  --primary:#24c7b8; --primary-2:#169c90; --primary-bg:#1f3b37;
+  --water:#22495a; --water-2:#2f6779; --good:#58b96a; --perfect:#e6bd47; --bad:#e46b6b;
+  --shadow:0 3px 12px rgba(0,0,0,.35); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--body);font-family:var(--font);padding-inline:16px;padding-block:20px 40px}
+.wrap{max-width:1040px;margin:0 auto;display:grid;gap:18px}
+header h1{margin:0;font-size:22px;font-weight:900;color:var(--text);text-wrap:balance}
+header p{margin:6px 0 0;max-width:62ch;line-height:1.6;font-size:13.5px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12.5px;font-weight:700;color:var(--text)}
+.seg{display:inline-flex;border:2px solid var(--line);border-radius:50px;overflow:hidden;background:var(--card)}
+.seg button{font:inherit;font-size:12px;border:0;background:transparent;color:var(--body);padding:5px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;align-items:start}
+.panel{background:var(--panel);border:3px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:14px;display:grid;gap:10px;min-width:0}
+.ptitle{display:flex;align-items:baseline;gap:8px}
+.ptitle b{font-size:16px;font-weight:900;color:var(--text)}
+.ptitle span{font-size:11.5px;color:var(--muted)}
+.blurb{font-size:12px;line-height:1.55;margin:0}
+.steps{display:flex;gap:4px;font-size:10.5px;font-weight:800}
+.steps i{font-style:normal;flex:1;text-align:center;padding:3px 0;border-radius:50px;background:var(--card);color:var(--muted);border:1.5px solid var(--line)}
+.steps i[data-on="true"]{background:var(--primary-bg);color:var(--primary-2);border-color:var(--primary)}
+.screen{min-height:330px;display:grid;gap:10px;align-content:start}
+.btn{font:inherit;font-weight:800;font-size:14px;border:0;border-radius:50px;padding:11px 14px;background:var(--primary);color:#fff;cursor:pointer;box-shadow:0 4px 0 var(--primary-2);transition:transform .1s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--primary-2)}
+.btn:disabled{background:var(--line);color:var(--muted);box-shadow:none;cursor:not-allowed}
+.btn.plain{background:var(--card);color:var(--text);border:2px solid var(--line);box-shadow:none}
+button:focus-visible,.stage:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.baits{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.bait{font:inherit;display:grid;justify-items:center;gap:2px;padding:8px 4px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--body);cursor:pointer}
+.bait[aria-pressed="true"]{border-color:var(--primary);background:var(--primary-bg)}
+.bait em{font-style:normal;font-size:22px}
+.bait b{font-size:11.5px;color:var(--text)}
+.bait small{font-size:10px;color:var(--muted)}
+.auto{border-top:1.5px dashed var(--line);padding-top:8px;display:grid;gap:4px;font-size:11.5px}
+.auto summary{cursor:pointer;font-weight:800;color:var(--text)}
+.auto .why{color:var(--muted)}
+.label{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em}
+.water{position:relative;height:150px;border-radius:18px;background:linear-gradient(var(--water),var(--water-2));overflow:hidden;display:grid;place-items:center;cursor:pointer;border:0;font:inherit;width:100%}
+.water::after{content:"";position:absolute;inset:auto -20% 22% -20%;height:2px;background:rgba(255,255,255,.5);border-radius:2px}
+.bob{font-size:30px;animation:bob 1.6s ease-in-out infinite}
+.water[data-bite="true"] .bob{animation:shake .12s linear infinite}
+@keyframes bob{50%{transform:translateY(6px)}}
+@keyframes shake{25%{transform:translate(-2px,3px)}75%{transform:translate(2px,-2px)}}
+.hint{font-size:12.5px;font-weight:800;color:var(--text);text-align:center;min-height:1.4em}
+.stage{position:relative;border-radius:18px;background:var(--card);border:2px solid var(--line);display:grid;place-items:center;padding:12px;user-select:none;touch-action:none;cursor:pointer}
+.ring{width:170px;height:170px;border-radius:50%;position:relative;display:grid;place-items:center}
+.ring::before{content:"";position:absolute;inset:18px;border-radius:50%;background:var(--card)}
+.needle{position:absolute;left:50%;top:6px;width:4px;height:79px;margin-left:-2px;background:var(--text);border-radius:3px;transform-origin:50% 79px}
+.core{position:relative;font-size:34px}
+.meter{height:10px;border-radius:50px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--good);transition:width .08s linear}
+.row{display:flex;justify-content:space-between;font-size:11.5px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
+.bar{display:grid;grid-template-columns:54px 16px;gap:10px;height:230px}
+.track{position:relative;border-radius:14px;background:linear-gradient(var(--water),var(--water-2));overflow:hidden}
+.zone{position:absolute;left:3px;right:3px;border-radius:10px;background:color-mix(in srgb,var(--good) 75%,transparent);border:2px solid var(--good)}
+.fish{position:absolute;left:50%;font-size:24px;transform:translate(-50%,50%)}
+.vprog{position:relative;border-radius:10px;background:var(--line);overflow:hidden}
+.vprog i{position:absolute;left:0;right:0;bottom:0;background:var(--good)}
+.gauge{position:relative;height:26px;border-radius:50px;background:linear-gradient(90deg,var(--water) 0 30%,var(--good) 30% 72%,var(--perfect) 72% 85%,var(--bad) 85%);width:100%}
+.gauge b{position:absolute;top:-6px;width:6px;height:38px;border-radius:4px;background:var(--text);transform:translateX(-50%)}
+.pull{display:flex;gap:6px;align-items:center;justify-content:center;width:100%}
+.reel{font-size:40px;transition:transform .1s}
+.result{display:grid;justify-items:center;gap:4px;text-align:center;padding:10px 0}
+.result .big{font-size:72px;line-height:1}
+.result b{font-size:18px;color:var(--text)}
+.stars{color:var(--perfect);letter-spacing:2px}
+.result small{color:var(--muted);font-size:12px}
+.pick{display:grid;gap:4px;font-size:11.5px;line-height:1.5}
+.pick b{color:var(--text)}
+.note{font-size:12.5px;line-height:1.6;max-width:70ch}
+@media (prefers-reduced-motion: reduce){.bob,.water[data-bite="true"] .bob{animation:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>猪猪钓鱼：三种搏斗玩法</h1>
+    <p>三台面板的「抛竿前」「等鱼咬钩」「钓到了」三页是同一套新设计，只有中间的<b>搏斗</b>玩法不同。每台都能真的玩：点「抛竿」，看到 ❗ 就点水面，然后按各自的规则把鱼拉上来。挑一种（也可以说「A 的样子 + B 的手感」）。</p>
+  </header>
+  <div class="controls">
+    <span>试试不同的鱼：</span>
+    <div class="seg" id="diff">
+      <button type="button" data-d="18" aria-pressed="true">🐟 鲤鱼（普通）</button>
+      <button type="button" data-d="61">🐍 鳗鱼（少见）</button>
+      <button type="button" data-d="86">🎏 锦鲤（稀有）</button>
+      <button type="button" data-d="100">🌙 月影鱼（传说）</button>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <p class="note">规则都还能调：圆盘要命中几次、竖条的绿条多高、拉力条的安全区多宽，都会按鱼的难度变化。挑好之后我再出一张数值单。</p>
+</div>
+
+<script>
+var FISH = {
+  18:{emoji:'🐟',label:'鲤鱼',stars:1,behavior:'smooth',size:[20,55],price:12},
+  61:{emoji:'🐍',label:'鳗鱼',stars:2,behavior:'rise',size:[42,110],price:78},
+  86:{emoji:'🎏',label:'黄金锦鲤',stars:3,behavior:'mixed',size:[30,88],price:220},
+  100:{emoji:'🌙',label:'月影鱼',stars:4,behavior:'mixed',size:[60,160],price:300}
+};
+var difficulty = 18;
+document.getElementById('diff').addEventListener('click', function (e) {
+  var b = e.target.closest('button'); if (!b) return;
+  difficulty = Number(b.dataset.d);
+  this.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)) });
+});
+
+var VARIANTS = [
+  {key:'A', name:'A · 圆盘', sub:'现在的玩法，改好看', blurb:'指针绕圈转，转到绿色时点一下，黄色算完美。连续空三圈鱼就跑了。节奏型，点一下就行，最省事。', fight:fightRing},
+  {key:'B', name:'B · 竖条拉锯', sub:'星露谷那种', blurb:'按住鼠标（或空格）让绿条往上浮，松开往下沉，让鱼一直待在绿条里，右边的进度就会涨满。鱼会按自己的脾气乱窜。最有手感，也最难。', fight:fightBar},
+  {key:'C', name:'C · 拉力收线', sub:'按住收线，别拉断', blurb:'按住收线、松开放线，把指针稳在绿区里鱼才会靠近；鱼会突然发力，指针进红区线就断了，太松鱼会跑。比 B 简单，比 A 有手感。', fight:fightPull}
+];
+
+var grid = document.getElementById('grid');
+VARIANTS.forEach(function (v) { grid.appendChild(makePanel(v)) });
+
+function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n }
+
+function makePanel(v) {
+  var panel = el('section', 'panel');
+  var t = el('div', 'ptitle'); t.appendChild(el('b', null, v.name)); t.appendChild(el('span', null, v.sub));
+  panel.appendChild(t);
+  panel.appendChild(el('p', 'blurb', v.blurb));
+  var steps = el('div', 'steps');
+  ['抛竿前', '等咬钩', '搏斗', '钓到了'].forEach(function (s) { steps.appendChild(el('i', null, s)) });
+  panel.appendChild(steps);
+  var screen = el('div', 'screen'); panel.appendChild(screen);
+  var state = {bait:1, stop:null};
+  function step(i) { [].forEach.call(steps.children, function (c, k) { c.dataset.on = String(k === i) }) }
+  function clear() { if (state.stop) state.stop(); state.stop = null; screen.textContent = '' }
+  function ready() {
+    clear(); step(0);
+    screen.appendChild(el('div', 'label', '选鱼饵'));
+    var baits = el('div', 'baits');
+    [['🪱','蚯蚓',12,'普通鱼'],['🦐','鲜虾',5,'少见的多一点'],['✨','夜光',0,'稀有的多很多']].forEach(function (b, i) {
+      var c = el('button', 'bait'); c.type = 'button';
+      c.appendChild(el('em', null, b[0])); c.appendChild(el('b', null, b[1] + ' ×' + b[2])); c.appendChild(el('small', null, b[3]));
+      c.disabled = b[2] === 0; if (b[2] === 0) c.style.opacity = .5;
+      c.setAttribute('aria-pressed', String(state.bait === i));
+      c.onclick = function () { state.bait = i; ready() };
+      baits.appendChild(c);
+    });
+    screen.appendChild(baits);
+    var cast = el('button', 'btn', '🎣 抛竿'); cast.type = 'button'; cast.onclick = wait;
+    screen.appendChild(cast);
+    var auto = el('details', 'auto');
+    auto.appendChild(el('summary', null, '🐷 让猪自己去钓（自动钓鱼）'));
+    auto.appendChild(el('span', null, '猪出门 30 / 60 分钟，每 3 分钟用 1 个鱼饵，钓到的放进鱼篓。'));
+    var go = el('button', 'btn plain', '去 30 分钟（鲜虾 ×10）'); go.type = 'button'; go.disabled = true;
+    auto.appendChild(go);
+    auto.appendChild(el('span', 'why', '点不了：鲜虾只剩 5 个，不够 10 个。'));
+    screen.appendChild(auto);
+  }
+  function wait() {
+    clear(); step(1);
+    var water = el('button', 'water'); water.type = 'button';
+    var bob = el('span', 'bob', '🎣'); water.appendChild(bob);
+    var hint = el('div', 'hint', '安静等鱼咬钩…');
+    screen.appendChild(water); screen.appendChild(hint);
+    var bite = 1200 + Math.random() * 2600, start = performance.now(), live = true, bitten = false;
+    var timer = setInterval(function () {
+      var t = performance.now() - start;
+      if (!bitten && t > bite) { bitten = true; water.dataset.bite = 'true'; bob.textContent = '❗'; hint.textContent = '上钩了！点水面！' }
+      if (bitten && t > bite + 1300) { done(false, '慢了一步，鱼吃了饵跑了') }
+    }, 30);
+    water.onclick = function () {
+      if (!bitten) { hint.textContent = '还没咬钩，再等等…'; return }
+      fight();
+    };
+    state.stop = function () { live = false; clearInterval(timer) };
+  }
+  function fight() {
+    clear(); step(2);
+    var fish = FISH[difficulty];
+    state.stop = v.fight(screen, difficulty, fish, function (ok, why) { done(ok, why) });
+  }
+  function done(ok, why) {
+    clear(); step(3);
+    var fish = FISH[difficulty];
+    var box = el('div', 'result');
+    if (ok) {
+      box.appendChild(el('div', 'big', fish.emoji));
+      box.appendChild(el('b', null, '钓到了 ' + fish.label + '！'));
+      box.appendChild(el('div', 'stars', '★'.repeat(fish.stars) + '☆'.repeat(4 - fish.stars)));
+      var cm = (fish.size[0] + Math.random() * (fish.size[1] - fish.size[0])).toFixed(1);
+      box.appendChild(el('small', null, cm + ' cm · 值 🪙 ' + fish.price + (Number(cm) > fish.size[1] * .85 ? ' · 新纪录！' : '')));
+    } else {
+      box.appendChild(el('div', 'big', '💨'));
+      box.appendChild(el('b', null, '鱼跑了'));
+      box.appendChild(el('small', null, why || '下一条一定是我的'));
+    }
+    screen.appendChild(box);
+    var again = el('button', 'btn', ok ? '🎒 放进鱼篓，再来一竿' : '🎣 再来一竿'); again.type = 'button'; again.onclick = ready;
+    screen.appendChild(again);
+  }
+  ready();
+  return panel;
+}
+
+/** A：圆盘。点到绿区算命中，黄区算两次；空三圈失败。 */
+function fightRing(screen, d, fish, end) {
+  var zone = 115 - d * .38, perfect = 16 - d * .06, speed = .28 + d * .0018, need = d >= 80 ? 4 : d >= 45 ? 3 : 2;
+  var stage = el('div', 'stage'); stage.tabIndex = 0;
+  var ring = el('div', 'ring'), needle = el('i', 'needle'), core = el('span', 'core', fish.emoji);
+  ring.appendChild(needle); ring.appendChild(core); stage.appendChild(ring);
+  var row = el('div', 'row'), score = el('span'), lives = el('span'); row.appendChild(score); row.appendChild(lives);
+  var hint = el('div', 'hint', '指针进绿区时点一下');
+  screen.appendChild(stage); screen.appendChild(row); screen.appendChild(hint);
+  var hits = 0, misses = 0, start = 0, angle = 0, laps = 0, zs = 0, lock = false, raf = 0;
+  function round() { zs = 100 + Math.random() * 140; angle = 0; laps = 0; start = 0; lock = false }
+  function paint() {
+    ring.style.background = 'conic-gradient(var(--line) 0 ' + zs + 'deg,var(--perfect) ' + zs + 'deg ' + (zs + perfect) + 'deg,var(--good) ' + (zs + perfect) + 'deg ' + (zs + zone) + 'deg,var(--line) ' + (zs + zone) + 'deg)';
+    needle.style.transform = 'rotate(' + (angle % 360) + 'deg)';
+    score.textContent = '命中 ' + Math.min(hits, need) + ' / ' + need;
+    lives.textContent = '机会 ' + '♥'.repeat(3 - misses) + '♡'.repeat(misses);
+  }
+  function hit(e) {
+    if (e) e.preventDefault();
+    if (lock) return;
+    var off = angle % 360 - zs;
+    if (off < 0 || off > zone) { hint.textContent = off < 0 ? '早了，再等等' : '晚了，等下一圈'; return }
+    var p = off <= perfect; hits += p ? 2 : 1; misses = 0; lock = true;
+    hint.textContent = p ? '完美！+2' : '命中！'; paint();
+    if (hits >= need) return setTimeout(function () { end(true) }, 300);
+    setTimeout(function () { round(); paint() }, 380);
+  }
+  function tick(now) {
+    if (!start) start = now;
+    if (!lock) angle = (now - start) * speed * .36;
+    var l = Math.floor(angle / 360);
+    if (!lock && l > laps) { misses += l - laps; laps = l; hint.textContent = misses >= 3 ? '空了三圈' : '空了一圈'; if (misses >= 3) return end(false, '连续空了三圈，鱼跑了') }
+    paint(); raf = requestAnimationFrame(tick);
+  }
+  stage.addEventListener('pointerdown', hit);
+  function key(e) { if (e.code === 'Space') hit(e) }
+  stage.addEventListener('keydown', key);
+  round(); paint(); raf = requestAnimationFrame(tick); stage.focus({preventScroll:true});
+  return function () { cancelAnimationFrame(raf) };
+}
+
+/** B：竖条。按住绿条上浮，鱼在绿条里进度涨，不在就掉。 */
+function fightBar(screen, d, fish, end) {
+  var stage = el('div', 'stage'); stage.tabIndex = 0;
+  var bar = el('div', 'bar'), track = el('div', 'track'), zoneEl = el('div', 'zone'), fishEl = el('span', 'fish', fish.emoji), prog = el('div', 'vprog'), fill = el('i');
+  track.appendChild(zoneEl); track.appendChild(fishEl); prog.appendChild(fill); bar.appendChild(track); bar.appendChild(prog); stage.appendChild(bar);
+  var hint = el('div', 'hint', '按住让绿条上浮，松开下沉');
+  screen.appendChild(stage); screen.appendChild(hint);
+  var H = 230, zoneH = Math.max(46, 96 - d * .5), zone = 0, vel = 0, fishY = 60, target = 60, progress = 30, holding = false, last = 0, raf = 0, wait = 0;
+  function moveFish(dt) {
+    wait -= dt;
+    if (wait <= 0) {
+      var calm = fish.behavior === 'smooth';
+      target = Math.max(8, Math.min(H - 8, fishY + (Math.random() - .5) * (calm ? 90 : 60 + d * 1.6)));
+      if (fish.behavior === 'rise') target = Math.min(H - 8, target + 30);
+      wait = calm ? 900 : Math.max(250, 900 - d * 6);
+    }
+    var pace = .0018 + d * .00005;
+    fishY += (target - fishY) * Math.min(1, dt * pace * (fish.behavior === 'mixed' && Math.random() < .02 ? 6 : 1));
+  }
+  function tick(now) {
+    var dt = last ? Math.min(50, now - last) : 16; last = now;
+    vel += (holding ? .0016 : -.0013) * dt;
+    vel = Math.max(-.5, Math.min(.5, vel));
+    zone += vel * dt;
+    if (zone < 0) { zone = 0; vel = vel < 0 ? -vel * .3 : vel }
+    if (zone > H - zoneH) { zone = H - zoneH; vel = vel > 0 ? 0 : vel }
+    moveFish(dt);
+    var inside = fishY >= zone && fishY <= zone + zoneH;
+    progress += (inside ? .028 : -.022 - d * .0001) * dt;
+    progress = Math.max(0, Math.min(100, progress));
+    zoneEl.style.bottom = zone + 'px'; zoneEl.style.height = zoneH + 'px';
+    fishEl.style.bottom = fishY + 'px';
+    fill.style.height = progress + '%';
+    fill.style.background = inside ? 'var(--good)' : 'var(--perfect)';
+    if (progress >= 100) return end(true);
+    if (progress <= 0) return end(false, '鱼游出了绿条太久，跑了');
+    raf = requestAnimationFrame(tick);
+  }
+  function down(e) { e.preventDefault(); holding = true }
+  function up() { holding = false }
+  stage.addEventListener('pointerdown', down);
+  window.addEventListener('pointerup', up);
+  stage.addEventListener('keydown', function (e) { if (e.code === 'Space') down(e) });
+  stage.addEventListener('keyup', function (e) { if (e.code === 'Space') up() });
+  raf = requestAnimationFrame(tick); stage.focus({preventScroll:true});
+  return function () { cancelAnimationFrame(raf); window.removeEventListener('pointerup', up) };
+}
+
+/** C：拉力条。按住拉力上升，松开下降；鱼会突然发力。绿区内收线，红区断线，太松太久鱼跑。 */
+function fightPull(screen, d, fish, end) {
+  var stage = el('div', 'stage'); stage.tabIndex = 0;
+  var pull = el('div', 'pull'), reel = el('span', 'reel', '🎣'), who = el('span', 'reel', fish.emoji);
+  pull.appendChild(reel); pull.appendChild(el('span', null, '〰〰〰')); pull.appendChild(who);
+  var gauge = el('div', 'gauge'), pin = el('b'); gauge.appendChild(pin);
+  var wrapG = el('div'); wrapG.style.width = '100%'; wrapG.style.display = 'grid'; wrapG.style.gap = '10px'; wrapG.appendChild(pull); wrapG.appendChild(gauge);
+  stage.appendChild(wrapG);
+  var row = el('div', 'row'), dist = el('span'), slack = el('span'); row.appendChild(dist); row.appendChild(slack);
+  var meter = el('div', 'meter'), mfill = el('i'); meter.appendChild(mfill);
+  var hint = el('div', 'hint', '按住收线，松开放线，指针别进红区');
+  screen.appendChild(stage); screen.appendChild(row); screen.appendChild(meter); screen.appendChild(hint);
+  var tension = 40, holding = false, distance = 100, loose = 0, last = 0, raf = 0, surge = 0, surgeCd = 1500;
+  function tick(now) {
+    var dt = last ? Math.min(50, now - last) : 16; last = now;
+    surgeCd -= dt;
+    if (surgeCd <= 0) { surge = 10 + d * .28; surgeCd = Math.max(700, 2600 - d * 16) + Math.random() * 900; hint.textContent = fish.emoji + ' 鱼发力了！松一松！' }
+    tension += ((holding ? .055 : -.05) + surge * .004) * dt;
+    surge = Math.max(0, surge - dt * .02);
+    tension = Math.max(0, Math.min(100, tension));
+    var green = tension >= 30 && tension < 85, perfect = tension >= 72 && tension < 85;
+    if (green) { distance -= (perfect ? .022 : .012) * dt * (1 - d * .004); loose = Math.max(0, loose - dt) }
+    if (tension < 30) loose += dt;
+    if (tension >= 100) return end(false, '拉得太猛，线断了');
+    if (loose > 2600) return end(false, '线太松，鱼挣脱了');
+    pin.style.left = tension + '%';
+    reel.style.transform = holding ? 'rotate(-12deg)' : 'none';
+    dist.textContent = '离岸 ' + Math.max(0, distance).toFixed(0) + ' 米';
+    slack.textContent = tension < 30 ? '太松了！' : tension >= 85 ? '要断了！' : perfect ? '稳！收得快' : '收线中';
+    mfill.style.width = (100 - Math.max(0, distance)) + '%';
+    if (distance <= 0) return end(true);
+    raf = requestAnimationFrame(tick);
+  }
+  function down(e) { e.preventDefault(); holding = true }
+  function up() { holding = false }
+  stage.addEventListener('pointerdown', down);
+  window.addEventListener('pointerup', up);
+  stage.addEventListener('keydown', function (e) { if (e.code === 'Space') down(e) });
+  stage.addEventListener('keyup', function (e) { if (e.code === 'Space') up() });
+  raf = requestAnimationFrame(tick); stage.focus({preventScroll:true});
+  return function () { cancelAnimationFrame(raf); window.removeEventListener('pointerup', up) };
+}
+</script>
