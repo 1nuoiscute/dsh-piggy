@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "extensions": [
+    {
+      "key": "pomodoro",
+      "label": "番茄钟",
+      "emoji": "🍅",
+      "version": "1.0.0",
+      "builtin": true,
+      "description": "专注 15 / 25 / 45 分钟，猪安静陪着你，每天前几个有奖励。"
+    },
+    {
+      "key": "fishing",
+      "label": "钓鱼",
+      "emoji": "🎣",
+      "version": "1.0.0",
+      "builtin": true,
+      "description": "抛竿、看准时机提竿，钓到的鱼进鱼篓，可以喂猪或卖钱；也能让猪自己出门钓。"
+    }
+  ]
+}
