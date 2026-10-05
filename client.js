@@ -40,18 +40,6 @@
   var DEV_TAB = { key: "dev", label: "\u8C03\u8BD5", emoji: "\u{1F527}" };
   var UPDATE_TAB = { key: "update", label: "\u66F4\u65B0", emoji: "\u{1F504}" };
   var QUIT_TAB = { key: "quit", label: "\u9000\u51FA", emoji: "\u{1F44B}" };
-  var PET_LINES = [
-    "\u597D\u8212\u670D\u2026",
-    "\u518D\u6478\u6478\uFF5E",
-    "\u563F\u563F",
-    "\u547C\u565C\u547C\u565C\u2026",
-    "\u8FD9\u91CC\u8FD9\u91CC\uFF01",
-    "\uFF08\u772F\u8D77\u773C\u775B\uFF09",
-    "\u4ECA\u5929\u5FC3\u60C5\u4E0D\u9519",
-    "\u5514\u2026\u597D\u75D2",
-    "\u4F60\u5728\u5FD9\u4EC0\u4E48\u5440",
-    "\u518D\u591A\u5F85\u4E00\u4F1A\u513F"
-  ];
   var MODES = ["feed", "bathe", "play", "pet"];
   var CARE_LABEL = { feed: ["\u5582\u98DF", "\u{1F34E}"], bathe: ["\u6D17\u6FA1", "\u{1F6C1}"], play: ["\u73A9\u800D", "\u{1F3BE}"], pet: ["\u6478\u6478", "\u2764\uFE0F"] };
   var BOX_POKES_TO_OPEN = 3;
@@ -1913,6 +1901,35 @@
     if (image.getAttribute("src") !== src) image.src = src;
   }
 
+  // src/client/pet-parts.js
+  var PART_FX = {
+    head: ["\u2764\uFE0F"],
+    ears: ["\u3030\uFE0F", "\u2764\uFE0F"],
+    nose: ["\u{1F4A6}"],
+    belly: ["\u{1F606}", "\u2764\uFE0F"],
+    back: ["\u2728"],
+    tail: ["\u{1F300}"],
+    feet: ["\u{1F43E}"]
+  };
+  function partFor(fx, fy) {
+    if (fy > 0.8) return "feet";
+    if (fx > 0.8 && fy < 0.45) return "tail";
+    if (fx < 0.42 && fy > 0.58) return "nose";
+    if (fx < 0.45 && fy < 0.38) return "ears";
+    if (fx < 0.5) return "head";
+    if (fy > 0.6) return "belly";
+    return "back";
+  }
+  function partAt(pig, event) {
+    if (!pig || typeof pig.getBoundingClientRect !== "function" || typeof event?.clientX !== "number") return "head";
+    var box = pig.getBoundingClientRect();
+    if (!box || box.width <= 0 || box.height <= 0) return "head";
+    var fx = (event.clientX - box.left) / box.width;
+    var fy = (event.clientY - box.top) / box.height;
+    if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return "head";
+    return partFor(fx, fy);
+  }
+
   // src/client/effects.js
   function createEffects(deps) {
     var scene3 = deps.scene;
@@ -2002,13 +2019,14 @@
       buy: { kind: "pet", ms: 620, fx: ["\u{1FA99}", "\u{1F6D2}"], count: 2, say: "\u4E70\u5230\u4E86\uFF01" },
       use: { kind: "pet", ms: 620, fx: ["\u2728"], count: 2, say: "\u7528\u6389\u4E86\u3002" }
     };
-    function flash(action) {
+    var SPOKEN_BY_HOST = { feed: true, bathe: true, play: true, pet: true, work: true, study: true, trip: true, buy: true, use: true };
+    function flash(action, extra) {
       var spec = REACTIONS[action];
       if (spec === void 0) return;
       react(spec.kind, spec.ms);
-      burst(spec.fx, spec.count);
-      var lines = action === "pet" ? PET_LINES : null;
-      showBubble(lines === null ? spec.say : lines[Math.floor(Math.random() * lines.length)], 1600);
+      var part = action === "pet" && extra ? PART_FX[extra.part] : void 0;
+      burst(part ?? spec.fx, part ? part.length : spec.count);
+      if (!SPOKEN_BY_HOST[action]) showBubble(spec.say, 1600);
     }
     var bubbleTimer = null;
     function showBubble(text, ms) {
@@ -2181,7 +2199,7 @@
       if (ctx.view.pig === null && action !== "hatch") return;
       actionSeq += 1;
       ctx.busy = true;
-      ctx.flash(action);
+      ctx.flash(action, extra);
       try {
         var body = { action };
         if (extra) for (var k in extra) body[k] = extra[k];
@@ -3152,6 +3170,20 @@
     "@keyframes dp-shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-4px) rotate(-5deg)}60%{transform:translateX(4px) rotate(5deg)}}",
     "@keyframes dp-spin{0%{transform:rotate(0)}50%{transform:rotate(180deg) scale(1.2)}100%{transform:rotate(360deg)}}",
     "@keyframes dp-jump{0%{transform:translateY(0)}30%{transform:translateY(-26px) scale(1.12)}60%{transform:translateY(0) scale(.92)}100%{transform:translateY(0)}}",
+    // G 批次：猪自己找事做（life.js 设 data-idle），桌面散步时朝走的方向。
+    '.dp-pig[data-idle="roll"]:not([data-react]){animation:dp-spin 1.4s ease-in-out}',
+    '.dp-pig[data-idle="nap"]:not([data-react]){animation:dp-idle-nod 2s ease-in-out 2}',
+    '.dp-pig[data-idle="butterfly"]:not([data-react]){animation:dp-jump .9s ease-out 3}',
+    '.dp-pig[data-idle="scratch"]:not([data-react]){animation:dp-shake .5s ease-in-out 4}',
+    '.dp-pig[data-idle="stretch"]:not([data-react]){animation:dp-idle-stretch 1.8s ease-in-out}',
+    '.dp-pig[data-idle="look"]:not([data-react]){animation:dp-idle-look 2.6s ease-in-out}',
+    '.dp-pig[data-idle="bubbles"]:not([data-react]){animation:dp-breathe .8s ease-in-out 3}',
+    '.dp-pig[data-idle="walk"]:not([data-react]){animation:dp-walking .6s ease-in-out infinite}',
+    '.dp-pig[data-walk="right"] .dp-pig-img{transform:scaleX(-1)}',
+    "@keyframes dp-idle-nod{0%,100%{transform:rotate(0)}40%,60%{transform:translateY(3px) rotate(6deg)}}",
+    "@keyframes dp-idle-stretch{0%,100%{transform:scale(1)}45%{transform:scaleX(1.16) scaleY(.88)}}",
+    "@keyframes dp-idle-look{0%,100%{transform:rotate(0)}30%,70%{transform:rotate(-8deg) translateX(-3px)}}",
+    "@media (prefers-reduced-motion:reduce){.dp-pig[data-idle]{animation:none!important}}",
     "@keyframes dp-wobble{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}55%{transform:rotate(14deg)}}",
     "@keyframes dp-cough{0%,100%{transform:translateX(0)}30%{transform:translateX(-4px) rotate(-7deg)}70%{transform:translateX(4px) rotate(6deg)}}",
     '.dp-pig[data-mood="happy"]{animation-duration:1.15s}',
@@ -5509,6 +5541,122 @@
     };
   }
 
+  // src/client/life.js
+  var TIME_TALK_MS = 5 * 6e4;
+  var WALK_KEY = "dsh-piggy:walk";
+  var IDLE_ACTIONS = [
+    { key: "roll", fx: ["\u{1F4AB}"], say: "\uFF08\u6EDA\u4E86\u4E00\u5708\uFF09\u8FD9\u6837\u6BD4\u8F83\u8212\u670D", ms: 1400 },
+    { key: "nap", fx: ["\u{1F4A4}", "\u{1F4A4}"], say: "\u6211\u5C31\u772F\u4E00\u4E0B\u2026\u2026", ms: 4e3 },
+    { key: "butterfly", fx: ["\u{1F98B}"], say: "\u7B49\u7B49\u6211\uFF01", ms: 3e3 },
+    { key: "scratch", fx: ["\u3030\uFE0F"], say: "\u80CC\u4E0A\u75D2\u75D2\u7684", ms: 2e3 },
+    { key: "stretch", fx: ["\u2728"], say: "\u55EF\u2014\u2014\u4F38\u4E2A\u61D2\u8170", ms: 1800 },
+    { key: "look", fx: ["\u2753"], say: "\u4F60\u5728\u5199\u4EC0\u4E48\u5440", ms: 2600 },
+    { key: "bubbles", fx: ["\u{1FAE7}", "\u{1FAE7}", "\u{1FAE7}"], say: "\u5657\u565C\u565C\u2026\u2026", ms: 2400 }
+  ];
+  function walkEnabled() {
+    return readStore(WALK_KEY) === "on";
+  }
+  function setWalk(on) {
+    writeStore(WALK_KEY, on ? "on" : "off");
+  }
+  function attachLife(c) {
+    var timers = [];
+    var later = function(fn, ms) {
+      var id = window.setTimeout(fn, ms);
+      timers.push(id);
+      return id;
+    };
+    var between = function(min, max) {
+      return (min + Math.random() * (max - min)) * 6e4;
+    };
+    var hasPig = function() {
+      return c.getView().pig !== null && c.getView().hatched === true && !c.getView().dead;
+    };
+    var home = function() {
+      return hasPig() && c.getView().activity === null && !c.isOpen() && !c.isDragging();
+    };
+    var quiet = function() {
+      return c.getView().dialogue?.quiet === true;
+    };
+    later(function() {
+      if (!c.isStopped() && hasPig()) c.send("chat", { reason: "enter" });
+    }, GREET_DELAY_MS);
+    later(timeTalk, GREET_DELAY_MS + 4e3);
+    scheduleChat();
+    scheduleIdle();
+    scheduleWalk();
+    function scheduleChat() {
+      later(function() {
+        if (!c.isStopped() && !c.isBusy() && hasPig()) c.send("chat", { reason: "idle" });
+        scheduleChat();
+      }, between(IDLE_CHAT_MINUTES.min, IDLE_CHAT_MINUTES.max));
+    }
+    function timeTalk() {
+      if (c.isStopped()) return;
+      if (!c.isBusy() && hasPig()) c.send("chat", { reason: "time" });
+      later(timeTalk, TIME_TALK_MS);
+    }
+    function scheduleIdle() {
+      later(function() {
+        if (c.isStopped()) return;
+        if (home()) doIdle(IDLE_ACTIONS[Math.floor(Math.random() * IDLE_ACTIONS.length)]);
+        scheduleIdle();
+      }, between(3, 8));
+    }
+    function doIdle(action) {
+      c.pig.setAttribute("data-idle", action.key);
+      c.burst(action.fx, action.fx.length);
+      if (!quiet() && Math.random() < 0.35) c.showBubble(action.say, Math.min(3e3, action.ms));
+      later(function() {
+        c.pig.removeAttribute("data-idle");
+      }, action.ms);
+    }
+    function scheduleWalk() {
+      later(function() {
+        if (c.isStopped()) return;
+        var shell = c.desktopShell();
+        if (walkEnabled() && !quiet() && home() && shell !== null && typeof shell.moveBy === "function") walk(shell);
+        scheduleWalk();
+      }, between(10, 20));
+    }
+    function walk(shell) {
+      var screenWidth = window.screen?.availWidth ?? 0;
+      var toLeft = screenWidth > 0 && (window.screenX ?? 0) > screenWidth / 2;
+      var distance = 120 + Math.floor(Math.random() * 180);
+      var step = toLeft ? -2 : 2;
+      var walked = 0;
+      var back = false;
+      c.pig.setAttribute("data-idle", "walk");
+      c.pig.setAttribute("data-walk", toLeft ? "left" : "right");
+      if (!quiet() && Math.random() < 0.5) c.showBubble("\u6211\u53BB\u5DE1\u903B\u4E00\u4E0B", 2e3);
+      var timer = window.setInterval(function() {
+        if (c.isStopped() || c.isOpen() || c.isDragging()) return stop();
+        shell.moveBy(back ? -step : step, 0);
+        walked += 2;
+        if (!back && walked >= distance) {
+          back = true;
+          walked = 0;
+          c.pig.setAttribute("data-walk", toLeft ? "right" : "left");
+        } else if (back && walked >= distance) stop();
+      }, 16);
+      timers.push(timer);
+      function stop() {
+        window.clearInterval(timer);
+        c.pig.removeAttribute("data-idle");
+        c.pig.removeAttribute("data-walk");
+      }
+    }
+    return {
+      dispose: function() {
+        for (var i = 0; i < timers.length; i += 1) {
+          window.clearTimeout(timers[i]);
+          window.clearInterval(timers[i]);
+        }
+        timers = [];
+      }
+    };
+  }
+
   // src/client/tabs/settings.js
   function section(ui, title, note) {
     const box = el("div", "dp-set");
@@ -5579,6 +5727,17 @@
     toggle.appendChild(el("span", "dp-switch-knob"));
     toggle.appendChild(el("span", "dp-switch-text", on ? "\u5F00" : "\u5173"));
     close.head.appendChild(toggle);
+    if (desktopShell() !== null) {
+      const walk = section(ui, "\u684C\u9762\u6563\u6B65", "\u6BCF 10\u201320 \u5206\u949F\u6CBF\u5C4F\u5E55\u5E95\u8FB9\u8D70\u4E00\u6BB5\u518D\u8D70\u56DE\u6765\uFF1B\u62D6\u5B83\u3001\u5F00\u7740\u9762\u677F\u3001\u514D\u6253\u6270\u65F6\u4E0D\u8D70");
+      const walking = walkEnabled();
+      const walkToggle = button("dp-switch", { "data-walk": String(!walking), "aria-pressed": String(walking) }, function() {
+        setWalk(!walkEnabled());
+        ui.renderContent();
+      });
+      walkToggle.appendChild(el("span", "dp-switch-knob"));
+      walkToggle.appendChild(el("span", "dp-switch-text", walking ? "\u5F00" : "\u5173"));
+      walk.head.appendChild(walkToggle);
+    }
   }
 
   // src/client/tabs/extensions.js
@@ -6969,13 +7128,13 @@
           burst(["\u{1F4A8}"], 2);
           showBubble(BOX_POKE_LINES[boxPokes - 1], 2200);
         }
-        scene3.addEventListener("pointerup", function() {
+        scene3.addEventListener("pointerup", function(event) {
           if (endDrag()) return;
           if (view.hatched !== true) {
             pokeBox();
             return;
           }
-          if (!view.dead) flash("pet");
+          if (!view.dead) send("pet", { part: partAt(pig, event) });
         });
         scene3.addEventListener("pointercancel", function() {
           endDrag();
@@ -7009,18 +7168,34 @@
         render(view);
         refresh2();
         pollTimer = window.setInterval(refresh2, POLL_MS);
-        var chatTimer = null;
-        function scheduleChat() {
-          var minutes = IDLE_CHAT_MINUTES.min + Math.random() * (IDLE_CHAT_MINUTES.max - IDLE_CHAT_MINUTES.min);
-          chatTimer = window.setTimeout(function() {
-            if (!stopped && !busy && view.pig !== null) send("chat", { reason: "idle" });
-            scheduleChat();
-          }, minutes * 6e4);
-        }
-        var greetTimer = window.setTimeout(function() {
-          if (!stopped && view.pig !== null) send("chat", { reason: "enter" });
-        }, GREET_DELAY_MS);
-        scheduleChat();
+        var life = attachLife({
+          send,
+          isStopped: function() {
+            return stopped;
+          },
+          isBusy: function() {
+            return busy;
+          },
+          isOpen: function() {
+            return isOpen;
+          },
+          getView: function() {
+            return view;
+          },
+          isDragging: function() {
+            return drag !== null;
+          },
+          pig,
+          burst: (
+            /** @type {any} */
+            burst
+          ),
+          showBubble: (
+            /** @type {any} */
+            showBubble
+          ),
+          desktopShell
+        });
         var stopResize = layout.attachResize();
         var dev = attachDevMode({
           setEnabled: function(next) {
@@ -7044,8 +7219,7 @@
           autoCollapse.dispose();
           dev.dispose();
           if (pollTimer !== null) window.clearInterval(pollTimer);
-          if (chatTimer !== null) window.clearTimeout(chatTimer);
-          window.clearTimeout(greetTimer);
+          life.dispose();
           fx.dispose();
           pollTimer = null;
           host2.remove();

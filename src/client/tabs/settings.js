@@ -9,6 +9,7 @@ import { autoCollapseEnabled, setAutoCollapse } from '../auto-collapse.js'
 import { desktopShell } from '../desktop-shell.js'
 import { emojiStyle, hasBundledEmoji, setEmojiStyle, applyEmojiStyle } from '../emoji-style.js'
 import { PIG_SIZES, displayedPigSize, pigSize, setPigSize } from '../pig-size.js'
+import { setWalk, walkEnabled } from '../life.js'
 
 /** 一项设置：标题、说明，下面放控件。 */
 function section(ui, title, note) {
@@ -85,4 +86,17 @@ export function renderSettingsTab(ui) {
   toggle.appendChild(el('span', 'dp-switch-knob'))
   toggle.appendChild(el('span', 'dp-switch-text', on ? '开' : '关'))
   close.head.appendChild(toggle)
+
+  // 桌面散步只有桌面版有（G 批次，默认关）。
+  if (desktopShell() !== null) {
+    const walk = section(ui, '桌面散步', '每 10–20 分钟沿屏幕底边走一段再走回来；拖它、开着面板、免打扰时不走')
+    const walking = walkEnabled()
+    const walkToggle = button('dp-switch', { 'data-walk': String(!walking), 'aria-pressed': String(walking) }, function () {
+      setWalk(!walkEnabled())
+      ui.renderContent()
+    })
+    walkToggle.appendChild(el('span', 'dp-switch-knob'))
+    walkToggle.appendChild(el('span', 'dp-switch-text', walking ? '开' : '关'))
+    walk.head.appendChild(walkToggle)
+  }
 }

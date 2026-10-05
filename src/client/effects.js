@@ -7,7 +7,7 @@
  * @module dsh-piggy/client/effects
  */
 import { syncPigArt } from './art.js'
-import { PET_LINES } from './constants.js'
+import { PART_FX } from './pet-parts.js'
 import { el } from './dom.js'
 
 /**
@@ -116,15 +116,19 @@ var REACTIONS = {
   use: { kind: 'pet', ms: 620, fx: ['✨'], count: 2, say: '用掉了。' },
 }
 
-function flash(action) {
+/**
+ * 点下去立刻给的反应：动作、冒的小东西。核心会说话的动作（照料、出门、买东西、用东西）
+ * 这里不再冒一句固定的话，不然一次操作会连着冒两句（G 批次）。
+ */
+var SPOKEN_BY_HOST = { feed: true, bathe: true, play: true, pet: true, work: true, study: true, trip: true, buy: true, use: true }
+
+function flash(action, extra) {
   var spec = REACTIONS[action]
   if (spec === undefined) return
   react(spec.kind, spec.ms)
-  burst(spec.fx, spec.count)
-  // Patting is the one thing you do over and over, so it gets a pool of
-  // lines rather than the same four characters every time.
-  var lines = action === 'pet' ? PET_LINES : null
-  showBubble(lines === null ? spec.say : lines[Math.floor(Math.random() * lines.length)], 1600)
+  var part = action === 'pet' && extra ? PART_FX[extra.part] : undefined
+  burst(part ?? spec.fx, part ? part.length : spec.count)
+  if (!SPOKEN_BY_HOST[action]) showBubble(spec.say, 1600)
 }
 
 var bubbleTimer = null

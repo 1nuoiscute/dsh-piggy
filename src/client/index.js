@@ -26,7 +26,7 @@ import { createLayout } from './layout.js'
 import { createPanel } from './panel.js'
 import { createScene } from './scene.js'
 import { CSS } from './styles.js'
-import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_TAB, KIND_ORDER, KIND_TITLE, MOUNTED, MODES, NO_ITEM_LINE, OPEN_KEY, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PET_LINES, PIG_PADDING_X, GREET_DELAY_MS, IDLE_CHAT_MINUTES, POLL_MS, POSITION_KEY, SCENE_RESERVE, STAGES, STATE_URL, TABS } from './constants.js'
+import { ACT_URL, ART_URL, BOX_POKES_TO_OPEN, BOX_POKE_LINES, CARE_LABEL, DEV_TAB, KIND_ORDER, KIND_TITLE, MOUNTED, MODES, NO_ITEM_LINE, OPEN_KEY, PANEL_GAP, PANEL_MARGIN, PANEL_MIN_HEIGHT, PANEL_WIDTH, PIG_PADDING_X, POLL_MS, POSITION_KEY, SCENE_RESERVE, STAGES, STATE_URL, TABS } from './constants.js'
 import { button, el, meter } from './dom.js'
 import { normalize } from './normalize.js'
 import { desktopShell } from './desktop-shell.js'
@@ -39,6 +39,8 @@ import { attachUpdateNotice } from './update-notice.js'
 import { updatesBridge } from './tabs/update.js'
 import { arr, num, obj, str } from './values.js'
 import { desktop } from './desktop/index.js'
+import { attachLife } from './life.js'
+import { partAt } from './pet-parts.js'
 /** @type {any} */ (window).__ModuleLoader__.load({
   id: 'dsh-piggy',
   factory: (require) => {
@@ -315,14 +317,15 @@ import { desktop } from './desktop/index.js'
       }
 
       // Left click pats; context menu opens the panel.
-      scene.addEventListener('pointerup', function () {
+      scene.addEventListener('pointerup', function (event) {
         if (endDrag()) return
         // An unhatched save is a box, whether or not one exists yet.
         if (view.hatched !== true) {
           pokeBox()
           return
         }
-        if (!view.dead) flash('pet')
+        // 点在猪身上就是摸它，按点的位置告诉核心摸的是哪儿（G 批次）。
+        if (!view.dead) send('pet', { part: partAt(pig, event) })
       })
       scene.addEventListener('pointercancel', function () { endDrag() })
       scene.addEventListener('lostpointercapture', function () { endDrag() })
@@ -348,20 +351,12 @@ import { desktop } from './desktop/index.js'
       refresh()
       pollTimer = window.setInterval(refresh, POLL_MS)
 
-      // B6: the pig greets the owner once per page load (the host decides
-      // whether it has been away long enough), then speaks up now and then.
-      var chatTimer = null
-      function scheduleChat() {
-        var minutes = IDLE_CHAT_MINUTES.min + Math.random() * (IDLE_CHAT_MINUTES.max - IDLE_CHAT_MINUTES.min)
-        chatTimer = window.setTimeout(function () {
-          if (!stopped && !busy && view.pig !== null) send('chat', { reason: 'idle' })
-          scheduleChat()
-        }, minutes * 60000)
-      }
-      var greetTimer = window.setTimeout(function () {
-        if (!stopped && view.pig !== null) send('chat', { reason: 'enter' })
-      }, GREET_DELAY_MS)
-      scheduleChat()
+      // 打招呼、闲聊、按时间说话、自己找事做、桌面散步（G 批次）都在 life.js。
+      var life = attachLife({
+        send: send, isStopped: function () { return stopped }, isBusy: function () { return busy },
+        isOpen: function () { return isOpen }, getView: function () { return view }, isDragging: function () { return drag !== null },
+        pig: pig, burst: /** @type {any} */ (burst), showBubble: /** @type {any} */ (showBubble), desktopShell: desktopShell,
+      })
       var stopResize = layout.attachResize()
 
       var dev = attachDevMode({
@@ -381,8 +376,7 @@ import { desktop } from './desktop/index.js'
         // panel that had already been disposed.
         dev.dispose()
         if (pollTimer !== null) window.clearInterval(pollTimer)
-        if (chatTimer !== null) window.clearTimeout(chatTimer)
-        window.clearTimeout(greetTimer)
+        life.dispose()
         fx.dispose()
         pollTimer = null
         host.remove()

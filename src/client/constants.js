@@ -74,11 +74,6 @@ export const UPDATE_TAB = { key: 'update', label: '更新', emoji: '🔄' }
 export const QUIT_TAB = { key: 'quit', label: '退出', emoji: '👋' }
 
 /** What the pig says when you pat it. A single line got old immediately. */
-export const PET_LINES = [
-  '好舒服…', '再摸摸～', '嘿嘿', '呼噜呼噜…', '这里这里！',
-  '（眯起眼睛）', '今天心情不错', '唔…好痒', '你在忙什么呀', '再多待一会儿',
-]
-
 export const MODES = ['feed', 'bathe', 'play', 'pet']
 export const CARE_LABEL = { feed: ['喂食', '🍎'], bathe: ['洗澡', '🛁'], play: ['玩耍', '🎾'], pet: ['摸摸', '❤️'] }
 // What the pig says when the shelf it needs is bare. Being told plainly

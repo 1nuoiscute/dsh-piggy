@@ -24,7 +24,7 @@ export function createIo(ctx) {
         // action is stale by the time it lands and must be dropped.
         actionSeq += 1
         ctx.busy = true
-        ctx.flash(action)
+        ctx.flash(action, extra)
         try {
           var body = { action: action }
           if (extra) for (var k in extra) body[k] = extra[k]
