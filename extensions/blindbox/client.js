@@ -15,11 +15,10 @@
     '.bx-chip{padding:4px 10px;border-radius:50px;font-size:11px;font-weight:800;background:var(--ac-bg-input,#fffbe7);border:1.5px solid var(--ac-border-light,#e5dcc6);color:var(--ink)}',
     // 卡池和闪卡照原型，流光、浮动用独立动画。
     '.bx-banner{position:relative;overflow:hidden;border-radius:20px;padding:12px;color:var(--ink);background:var(--ac-bg-input,#fffbe7);border:2px solid var(--ac-border-light,#e5dcc6);box-shadow:0 3px 0 var(--ac-border-light,#e5dcc6);touch-action:pan-y}',
-    '.bx-banner[data-b="limited"]{background:linear-gradient(170deg,#fff0f4,#fffbe7 60%);border-color:#f3c8d4;box-shadow:0 3px 0 #f3c8d4}',
+    '.bx-banner[data-b="limited"]{background:linear-gradient(170deg,#fff0f4,#fffbe7 60%);border-color:#f3c8d4;box-shadow:0 3px 0 #f3c8d4}.bx-track{display:grid}.bx-track .bx-banner{grid-area:1/1}.bx-track .bx-banner[data-active="false"]{visibility:hidden;pointer-events:none}',
     '.bx-banner[data-slide="left"]{animation:bx-slide-left .35s ease-out both}.bx-banner[data-slide="right"]{animation:bx-slide-right .35s ease-out both}',
-    '.bx-btop{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:900}',
-    '.bx-ribbon{padding:2px 8px;border-radius:50px;background:#8fb9e8;color:#fff;font-size:10px;font-weight:900}.bx-banner[data-b="limited"] .bx-ribbon{background:#f38bab}',
-    '.bx-days{margin-left:auto;font-size:10px;font-weight:800;color:var(--soft);white-space:nowrap}',
+    '.bx-btop{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:900}.bx-btop b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bx-days{flex:none;margin-left:auto;font-size:10px;font-weight:800;color:var(--soft);white-space:nowrap}',
+    '.bx-ribbon{flex:none;white-space:nowrap;padding:2px 8px;border-radius:50px;background:#8fb9e8;color:#fff;font-size:10px;font-weight:900}.bx-banner[data-b="limited"] .bx-ribbon{background:#f38bab}',
     '.bx-ups{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:6px;align-items:end;margin:10px 0 8px}',
     '.bx-up{position:relative;aspect-ratio:3/4;min-width:0;padding:4px;border-radius:14px;background:linear-gradient(145deg,var(--c),color-mix(in srgb,var(--c) 55%,#fff));box-shadow:0 4px 0 color-mix(in srgb,var(--c) 70%,#6b5a40),0 8px 14px rgba(61,52,40,.18);animation:bx-float 3s ease-in-out infinite;animation-delay:var(--phase)}',
     '.bx-up .face{position:relative;box-sizing:border-box;height:100%;border-radius:10px;overflow:hidden;background:radial-gradient(circle at 50% 35%,#fff 0 30%,color-mix(in srgb,var(--c) 25%,#fff8e8) 100%);display:grid;grid-template-rows:1fr auto auto;justify-items:center;padding:6px 2px 5px}',
@@ -90,10 +89,8 @@
     '@keyframes bx-pop{0%{opacity:0;transform:scale(.3) translateY(16px)}100%{opacity:1;transform:none}}',
     '@keyframes bx-star{0%{opacity:0;transform:scale(1.8)}100%{opacity:1;transform:none}}',
     '@keyframes bx-fade{to{opacity:1}}',
-    '@keyframes bx-holo{from{background-position:150% 50%}to{background-position:-100% 50%}}',
-    '@keyframes bx-float{50%{transform:translateY(-3px)}}',
-    '@keyframes bx-slide-left{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}',
-    '@keyframes bx-slide-right{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}',
+    '@keyframes bx-holo{from{background-position:150% 50%}to{background-position:-100% 50%}}@keyframes bx-float{50%{transform:translateY(-3px)}}',
+    '@keyframes bx-slide-left{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}@keyframes bx-slide-right{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}',
     '@media (prefers-reduced-motion:reduce){.bx-stage *,.bx-up,.bx-up .face::after,.bx-banner{animation-duration:.01s!important;animation-delay:0s!important}}',
   ].join('\n')
   var tab = 'pull'
@@ -248,9 +245,12 @@
     app.content.appendChild(chips)
     var b = data.banners.find(function (entry) { return entry.key === activeBanner })
     if (!b) return
+    var track = app.el('div', 'bx-track')
+    data.banners.forEach(function (b) {
       var card = app.el('div', 'bx-banner')
       card.setAttribute('data-b', b.key)
-      if (bannerSlide) { card.setAttribute('data-slide', bannerSlide); bannerSlide = null }
+      card.setAttribute('data-active', String(b.key === activeBanner))
+      if (bannerSlide && b.key === activeBanner) card.setAttribute('data-slide', bannerSlide)
       card.addEventListener('pointerenter', function (event) { if (event.pointerType === 'mouse') { bannerHover = true; clearTimeout(bannerTimer); bannerTimer = null } })
       card.addEventListener('pointerleave', function (event) { if (event.pointerType === 'mouse') { bannerHover = false; armBannerTimer() } })
       var startX = null
@@ -261,7 +261,7 @@
       })
       card.addEventListener('pointercancel', function () { startX = null })
       var top = app.el('div', 'bx-btop')
-      top.appendChild(app.el('span', 'bx-ribbon', b.key === 'limited' ? '限时' : '常驻')); top.appendChild(app.el('b', null, b.label))
+      top.appendChild(app.el('span', 'bx-ribbon', b.key === 'limited' ? '限时' : '常驻')); top.appendChild(app.el('b', null, b.key === 'limited' ? b.label.replace(/^限时寻访 · /, '') : b.label))
       top.appendChild(app.el('span', 'bx-days', '还剩 ' + b.daysLeft + ' 天')); card.appendChild(top)
       var ups = app.el('div', 'bx bx-ups')
       b.up6.concat(b.up5).forEach(function (key, i) {
@@ -280,7 +280,9 @@
       var meter = app.el('div', 'bx-meter')
       var fill = app.el('i')
       fill.style.width = Math.min(100, b.since / 99 * 100) + '%'; meter.appendChild(fill)
-      card.appendChild(meter); app.content.appendChild(card)
+      card.appendChild(meter); track.appendChild(card)
+    })
+    bannerSlide = null; app.content.appendChild(track)
       var dots = app.el('div', 'bx-dots')
       data.banners.forEach(function (entry) {
         var dot = app.button('bx-dot', { 'data-bx-banner': entry.key, 'aria-label': entry.label, 'aria-pressed': String(entry.key === b.key) }, function () { switchBanner(entry.key, entry.key === 'limited' ? 'left' : 'right') })
@@ -298,7 +300,7 @@
         var free = app.button('bx-btn tk', { 'data-bx-ticket': b.key }, function () { app.send('open', { banner: b.key, count: 1, ticket: true }) })
         free.textContent = '🎟 用盲盒券寻访 1 次（有 ' + data.tickets + ' 张）'; app.content.appendChild(free)
       }
-      setTimeout(function () { if (card.isConnected && !card.matches(':hover') && bannerHover) { bannerHover = false; armBannerTimer() } }, 0)
+      setTimeout(function () { var card = track.querySelector('[data-active="true"]'); if (card && card.isConnected && !card.matches(':hover') && bannerHover) { bannerHover = false; armBannerTimer() } }, 0)
   }
   function renderShowcase(app, data) {
     var owned = data.catalog.filter(function (f) { return f.potential > 0 }).length
@@ -333,7 +335,6 @@
       app.content.appendChild(tier)
     })
   }
-
   function renderShop(app, data) {
     var chips = app.el('div', 'bx-chips')
     chips.appendChild(app.el('span', 'bx-chip', '📜 资质凭证 ' + data.certs))
@@ -370,7 +371,6 @@
     })
     app.content.appendChild(shop)
   }
-
   function render(app) {
     ensureStyle()
     var data = app.data
