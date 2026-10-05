@@ -22,6 +22,8 @@ const DESKTOP_CSS = [
   '[data-dsh-pig] .dp-pig-img,[data-dsh-pig] .dp-pig-emoji{filter:none!important}',
   '[data-dsh-pig] .dp-card{box-shadow:inset 0 1px 2px rgba(61,52,40,.09)!important}',
   '[data-dsh-pig] .dp-panel-footer{max-height:270px!important}',
+  // 收起时拖猪，窗口缩到只包住猪；头顶的签到/礼包小气泡会被窗口边裁成半块白色，拖的时候先藏起来。
+  '[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-daily,[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-poke-hint{visibility:hidden!important}',
 ].join('\n')
 
 /** 非拖动时窗口差这么多以内就不改（Windows 分数缩放下读回来常差 1px）。 */
@@ -134,8 +136,7 @@ export function install(shell) {
   placement = createPlacement()
   const style = document.createElement('style')
   style.setAttribute('data-piggy-desktop-style', '')
-  // Linux（尤其 XWayland 高分屏）上「抓手」指针常画成一大块白色，按住猪时正好盖住猪前面；换成普通箭头。
-  style.textContent = DESKTOP_CSS + (shell.platform === 'linux' ? '\n[data-dsh-pig] .dp-scene,[data-dsh-pig] .dp-scene[data-dragging="true"]{cursor:default!important}' : '')
+  style.textContent = DESKTOP_CSS
   document.head.appendChild(style)
   if (typeof shell.onGeometry === 'function') shell.onGeometry(function (info) {
     if (info && info.window && !dragging()) placement.remember(info.window)

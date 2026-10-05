@@ -7234,7 +7234,9 @@
     '[data-dsh-pig][data-open="false"] .dp-pig{filter:none!important}',
     "[data-dsh-pig] .dp-pig-img,[data-dsh-pig] .dp-pig-emoji{filter:none!important}",
     "[data-dsh-pig] .dp-card{box-shadow:inset 0 1px 2px rgba(61,52,40,.09)!important}",
-    "[data-dsh-pig] .dp-panel-footer{max-height:270px!important}"
+    "[data-dsh-pig] .dp-panel-footer{max-height:270px!important}",
+    // 收起时拖猪，窗口缩到只包住猪；头顶的签到/礼包小气泡会被窗口边裁成半块白色，拖的时候先藏起来。
+    '[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-daily,[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-poke-hint{visibility:hidden!important}'
   ].join("\n");
   var TOLERANCE = 2;
   var bridge2 = (
@@ -7361,7 +7363,7 @@
     placement = createPlacement();
     const style = document.createElement("style");
     style.setAttribute("data-piggy-desktop-style", "");
-    style.textContent = DESKTOP_CSS + (shell.platform === "linux" ? '\n[data-dsh-pig] .dp-scene,[data-dsh-pig] .dp-scene[data-dragging="true"]{cursor:default!important}' : "");
+    style.textContent = DESKTOP_CSS;
     document.head.appendChild(style);
     if (typeof shell.onGeometry === "function") shell.onGeometry(function(info) {
       if (info && info.window && !dragging()) placement.remember(info.window);
