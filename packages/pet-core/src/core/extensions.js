@@ -4,7 +4,7 @@
  * 老存档补成全部打开；认不出的 key 原样保留（以后降级再升级不丢开关）。不升存档版本。
  */
 import { EXTENSIONS, extensionByKey } from '../data/extensions.js'
-import { itemByKey } from '../data.js'
+import { BOX_TICKET, itemByKey } from '../data.js'
 import { abandonPomodoro, emptyPomodoro, ensurePomodoro } from './pomodoro.js'
 import { emptyFishing, ensureFishing, keepFish } from './fishing.js'
 import { ensureDex } from './dex.js'
@@ -95,6 +95,12 @@ export function removeExtension(state, key, nowMs) {
   }
   if (builtin !== null) state.extensionsRemoved = [...state.extensionsRemoved, key]
   else delete state.extData[key]
+  // 盲盒券是盲盒的东西：删盲盒时一起收走。
+  if (key === BOX_TICKET.extension && state.inventory?.[BOX_TICKET.key] !== undefined) {
+    const inventory = { ...state.inventory }
+    delete inventory[BOX_TICKET.key]
+    state.inventory = inventory
+  }
   delete state.extensions[key]
   return { ok: true, key, removed: true, wrapped: closed.ok ? closed.wrapped ?? [] : [] }
 }

@@ -105,6 +105,19 @@ export function createExtRuntime(store, options) {
         return true
       },
       say: text => { announce(state, 'line', String(text).slice(0, 80), nowMs, { scene: 'ext:' + key, replies: [] }) },
+      /** 背包里某样东西有几个。 */
+      count: itemKey => Math.max(0, Math.floor(Number(state.inventory?.[itemKey]) || 0)),
+      /** 用掉背包里的东西；不够就不动，返回 false。 */
+      take: (itemKey, amount = 1) => {
+        const n = Math.max(1, Math.floor(Number(amount) || 1))
+        const have = Math.floor(Number(state.inventory?.[itemKey]) || 0)
+        if (have < n) return false
+        const inventory = { ...state.inventory }
+        if (have === n) delete inventory[itemKey]
+        else inventory[itemKey] = have - n
+        state.inventory = inventory
+        return true
+      },
     }
   }
 

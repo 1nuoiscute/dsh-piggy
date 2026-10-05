@@ -2340,7 +2340,9 @@
             "not-installed": "\u8FD9\u4E2A\u6269\u5C55\u8FD8\u6CA1\u88C5",
             "extension-off": "\u8FD9\u4E2A\u6269\u5C55\u5173\u7740",
             "extension-error": "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86",
-            "unknown-extension": "\u6CA1\u6709\u8FD9\u4E2A\u6269\u5C55"
+            "unknown-extension": "\u6CA1\u6709\u8FD9\u4E2A\u6269\u5C55",
+            "no-ticket": "\u6CA1\u6709\u76F2\u76D2\u5238\u4E86",
+            "no-shards": "\u788E\u7247\u8FD8\u4E0D\u591F"
           };
           ctx.showBubble(reasons[next.reason] ?? "\u8FD9\u4E2A\u64CD\u4F5C\u6CA1\u6210", 2400);
         }
@@ -5918,7 +5920,10 @@
           ui.send("ext", { key, op, data: payload || {} });
         },
         el,
-        button
+        button,
+        rerender: function() {
+          ui.renderContent();
+        }
       });
     } catch (error) {
       ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + (error instanceof Error ? error.message : String(error))));

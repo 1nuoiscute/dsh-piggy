@@ -94,6 +94,8 @@ export function createIo(ctx) {
               'extension-off': '这个扩展关着',
               'extension-error': '这个扩展出错了',
               'unknown-extension': '没有这个扩展',
+              'no-ticket': '没有盲盒券了',
+              'no-shards': '碎片还不够',
             }
             ctx.showBubble(reasons[next.reason] ?? '这个操作没成', 2400)
           }

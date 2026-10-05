@@ -66,5 +66,12 @@ export const GIFT_TABLE = Object.freeze([
   Object.freeze({ chance: 0.01, keys: Object.freeze(['baicaodan']) }),
 ])
 
+/**
+ * 盲盒券（用户 2026-10-05：签到和在线礼包偶尔送盲盒）。盲盒是下载的扩展，
+ * 所以只有装了、开着盲盒的猪才会掉券；券在盲盒里能免费开一个。
+ */
+export const BOX_TICKET = Object.freeze({ key: 'boxticket', label: '盲盒券', emoji: '🎟', extension: 'blindbox' })
+export const BOX_TICKET_CHANCE = Object.freeze({ signIn: 0.15, gift: 0.12 })
+
 /** 日记最多留几篇，更早的删掉。 */
 export const DIARY_MAX = 60

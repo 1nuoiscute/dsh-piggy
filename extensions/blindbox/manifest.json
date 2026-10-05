@@ -1,0 +1,9 @@
+{
+  "key": "blindbox",
+  "label": "盲盒",
+  "emoji": "🎁",
+  "version": "1.0.0",
+  "minGame": "0.30.0",
+  "description": "买盲盒、摇一摇拆开，收集一整排小摆件。每个系列都有隐藏款，抽多了一定会出。",
+  "app": { "emoji": "🎁", "label": "盲盒" }
+}

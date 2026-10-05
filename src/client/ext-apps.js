@@ -5,7 +5,7 @@
  * 扩展包里的 client.js 是普通脚本，加载后调用
  *   window.dshPiggyExtensions.register('<key>', { render(app) { … } })
  * `app` 给它：content（往里画）、data（宿主 view 给的数据）、send(op, data)（发给它自己的动作）、
- * el / button（和面板一样的小工具）。出错只影响它自己的页面。
+ * el / button（和面板一样的小工具）、rerender()（只改了面板里的状态时重画）。出错只影响它自己的页面。
  * @module dsh-piggy/client/ext-apps
  */
 import { button, el } from './dom.js'
@@ -59,6 +59,7 @@ export function renderDownloadedApp(ui, key) {
       send: function (op, payload) { ui.send('ext', { key: key, op: op, data: payload || {} }) },
       el: el,
       button: button,
+      rerender: function () { ui.renderContent() },
     })
   } catch (error) {
     ui.content.appendChild(el('div', 'dp-empty', '这个扩展出错了：' + (error instanceof Error ? error.message : String(error))))
