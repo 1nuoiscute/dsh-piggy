@@ -4,7 +4,7 @@
 
 <p align="center">一只住在 <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness</a> 里，也能独立住在桌面上的猪。</p>
 
-它会长大、上学、打工、旅行、钓鱼、生病，也会跟你搭话。界面采用动森风格的 App 主菜单，全部玩法都能用鼠标完成。番茄钟、钓鱼这类玩法是扩展：可以单独关掉、删除，也能从本仓库在线下载新扩展。
+它会长大、上学、打工、旅行、钓鱼、生病，也会跟你搭话。界面采用动森风格的 App 主菜单，全部玩法都能用鼠标完成。番茄钟、钓鱼这类玩法是扩展：可以单独关掉、删除，也能从本仓库在线下载新扩展（第一个是收集摆件的盲盒）。
 
 **欢迎一起画猪。** 目前项目还缺形态、动作和皮肤等美术资源；如果你有喜欢的猪猪形象，欢迎提交 [Pull Request](https://github.com/CLICGGER-TYPES/dsh-piggy/pulls)，我会认真看并合并合适的作品。也欢迎 Fork 项目，做一只完全符合自己喜好的猪。自定义皮肤可从[制作教程](docs/guides/creating-skins.md)开始。
 
