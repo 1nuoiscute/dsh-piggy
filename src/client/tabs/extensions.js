@@ -91,7 +91,7 @@ function localCard(ui, extension) {
     row.appendChild(yes)
     row.appendChild(no)
   } else {
-    var remove = button('dp-mini dp-mini-plain', { 'data-ext-remove': extension.key }, function () { confirming = extension.key; ui.renderContent() })
+    var remove = button('dp-ext-remove-link', { 'data-ext-remove': extension.key }, function () { confirming = extension.key; ui.renderContent() })
     remove.textContent = '删除'
     row.appendChild(remove)
   }
@@ -104,7 +104,7 @@ function renderOnline(ui) {
   var installed = {}
   for (var i = 0; i < ui.view.extensions.length; i += 1) if (ui.view.extensions[i].installed) installed[ui.view.extensions[i].key] = true
   var entries = online.entries.filter(function (entry) { return !installed[entry.key] })
-  if (online.error && entries.length === 0) { ui.content.appendChild(el('div', 'dp-ext-later', '连不上 GitHub，稍后点刷新')); return }
+  if (online.error && entries.length === 0) { ui.content.appendChild(el('div', 'dp-ext-later', '读不到在线扩展目录（' + online.error + '），稍后点刷新')); return }
   if (entries.length === 0) { ui.content.appendChild(el('div', 'dp-ext-later', '在线的扩展都装好了，以后有新的会出现在这里')); return }
   for (var k = 0; k < entries.length; k += 1) {
     (function (entry) {

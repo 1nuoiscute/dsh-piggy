@@ -357,6 +357,7 @@ import { partAt } from './pet-parts.js'
         isOpen: function () { return isOpen }, getView: function () { return view }, isDragging: function () { return drag !== null },
         pig: pig, burst: /** @type {any} */ (burst), showBubble: /** @type {any} */ (showBubble), desktopShell: desktopShell,
       })
+      ctx.life = life // 调试页「散步一次」「做个小动作」用
       var stopResize = layout.attachResize()
 
       var dev = attachDevMode({

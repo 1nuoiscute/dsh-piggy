@@ -601,6 +601,15 @@
     ui.content.appendChild(story);
   }
 
+  // src/client/desktop-shell.js
+  function desktopShell() {
+    var shell = typeof window !== "undefined" ? (
+      /** @type {any} */
+      window.__dshPiggyShell
+    ) : null;
+    return shell !== null && typeof shell === "object" && (typeof shell.beginDrag === "function" || typeof shell.moveBy === "function") ? shell : null;
+  }
+
   // packages/pet-core/src/data/fish.js
   var FISH = Object.freeze([
     { key: "fish_crucian", label: "\u9CAB\u9C7C", emoji: "\u{1F41F}", rarity: "common", times: ["early", "noon", "evening"], behavior: "smooth", difficulty: 12, minCm: 12, maxCm: 32, price: 8 },
@@ -1396,6 +1405,19 @@
       } },
       { key: "away24", label: "\u23E9 +1 \u5929", desc: "\u65F6\u95F4\u76F4\u63A5\u8FC7\u53BB 1 \u5929\uFF08\u6362\u5929\u3001\u7B7E\u5230\u3001\u65E5\u8BB0\uFF09", run: function() {
         patch({ __advanceMs: 864e5 });
+      } }
+    ]);
+    time("\u732A\u81EA\u5DF1\u627E\u4E8B\u505A", [
+      { key: "idle", label: "\u{1F437} \u5C0F\u52A8\u4F5C", desc: "\u9A6C\u4E0A\u505A\u4E00\u4E2A\u5C0F\u52A8\u4F5C\uFF08\u6253\u6EDA\u3001\u6253\u76F9\u3001\u8FFD\u8774\u8776\u2026\u2026\uFF09", off: !ui.life, run: function() {
+        ui.setOpen(false);
+        ui.life.idleNow();
+      } },
+      { key: "walk", label: "\u{1F6B6} \u6563\u6B65\u4E00\u6B21", desc: "\u9A6C\u4E0A\u6CBF\u5C4F\u5E55\u5E95\u8FB9\u8D70\u4E00\u8D9F\uFF08\u53EA\u6709\u684C\u9762\u7248\uFF09", off: !ui.life || typeof desktopShell()?.moveBy !== "function", run: function() {
+        ui.setOpen(false);
+        ui.life.walkNow();
+      } },
+      { key: "timeTalk", label: "\u{1F550} \u6309\u65F6\u95F4\u8BF4", desc: "\u95EE\u4E00\u6B21\u300C\u73B0\u5728\u6709\u6CA1\u6709\u6309\u65F6\u95F4\u8BE5\u8BF4\u7684\u8BDD\u300D\uFF08\u4E00\u5929\u4E00\u6B21\u7684\u5DF2\u7ECF\u8BF4\u8FC7\u5C31\u4E0D\u8BF4\uFF09", run: function() {
+        ui.send("chat", { reason: "time" });
       } }
     ]);
     var values = el("div", "dp-dev-page");
@@ -2303,15 +2325,6 @@
       }
     ).tick;
     return { send, refresh: refresh2 };
-  }
-
-  // src/client/desktop-shell.js
-  function desktopShell() {
-    var shell = typeof window !== "undefined" ? (
-      /** @type {any} */
-      window.__dshPiggyShell
-    ) : null;
-    return shell !== null && typeof shell === "object" && (typeof shell.beginDrag === "function" || typeof shell.moveBy === "function") ? shell : null;
   }
 
   // src/client/extensions.js
@@ -3624,6 +3637,10 @@
     ".dp-ext-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:8px;flex-wrap:wrap}",
     ".dp-ext-warn{flex:1;min-width:0;font-size:10px;font-weight:700;color:#c0503f}",
     ".dp-mini.dp-ext-danger{background:#e05a5a;box-shadow:none}",
+    ".dp-ext-remove-link{font:inherit;font-size:10px;font-weight:700;color:var(--ac-text-2);background:none;border:0;padding:2px 4px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}",
+    ".dp-ext-remove-link:hover{color:#c0503f}",
+    ".dp-ext-card .dp-ext-actions{margin-top:2px}",
+    ".dp-ext-card [data-ext-install]{margin-left:auto;flex:none}",
     ".dp-set:first-child{padding-top:2px}.dp-set:last-child{border-bottom:0}",
     ".dp-set-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}",
     ".dp-set-head b{font-size:12px;color:var(--ac-text)}",
@@ -5671,6 +5688,17 @@
       }
     }
     return {
+      /** 调试页「散步一次」：不等计时，马上走一趟（只有桌面版能走）。 */
+      walkNow: function() {
+        var shell = c.desktopShell();
+        if (shell === null || typeof shell.moveBy !== "function") return false;
+        walk(shell);
+        return true;
+      },
+      /** 调试页「做个小动作」。 */
+      idleNow: function() {
+        doIdle(IDLE_ACTIONS[Math.floor(Math.random() * IDLE_ACTIONS.length)]);
+      },
       dispose: function() {
         for (var i = 0; i < timers.length; i += 1) {
           window.clearTimeout(timers[i]);
@@ -5921,7 +5949,7 @@
       row.appendChild(yes);
       row.appendChild(no);
     } else {
-      var remove = button("dp-mini dp-mini-plain", { "data-ext-remove": extension.key }, function() {
+      var remove = button("dp-ext-remove-link", { "data-ext-remove": extension.key }, function() {
         confirming = extension.key;
         ui.renderContent();
       });
@@ -5942,7 +5970,7 @@
       return !installed[entry.key];
     });
     if (online.error && entries.length === 0) {
-      ui.content.appendChild(el("div", "dp-ext-later", "\u8FDE\u4E0D\u4E0A GitHub\uFF0C\u7A0D\u540E\u70B9\u5237\u65B0"));
+      ui.content.appendChild(el("div", "dp-ext-later", "\u8BFB\u4E0D\u5230\u5728\u7EBF\u6269\u5C55\u76EE\u5F55\uFF08" + online.error + "\uFF09\uFF0C\u7A0D\u540E\u70B9\u5237\u65B0"));
       return;
     }
     if (entries.length === 0) {
@@ -6946,7 +6974,11 @@
       },
       syncGeometry: function() {
         tick();
-      }
+      },
+      // 桌面散步（G 批次）：用外壳本来就有的 moveBy 挪窗口，新位置由主进程推回来的几何记住。
+      moveBy: typeof shell.moveBy === "function" ? function(dx, dy) {
+        shell.moveBy(dx, dy);
+      } : void 0
     };
     document.addEventListener("mouseover", function(event) {
       const target = (
@@ -7397,6 +7429,7 @@
           ),
           desktopShell
         });
+        ctx.life = life;
         var stopResize = layout.attachResize();
         var dev = attachDevMode({
           setEnabled: function(next) {

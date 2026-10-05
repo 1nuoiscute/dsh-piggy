@@ -140,12 +140,14 @@ export function createExtRuntime(store, options) {
     if (!force && now() - registry.at < REGISTRY_TTL_MS && registry.error === null && registry.at > 0) return registry
     try {
       const response = await doFetch(registryUrl, { headers: { accept: 'application/json' } })
-      if (!response.ok) throw new Error('HTTP ' + response.status)
+      if (response.status === 404) throw new Error('目录还没发布')
+      if (!response.ok) throw new Error('GitHub 返回 ' + response.status)
       const parsed = await response.json()
       const entries = Array.isArray(parsed?.extensions) ? parsed.extensions.filter(entry => KEY.test(entry?.key ?? '')) : []
       registry = { at: now(), entries, error: null }
     } catch (error) {
-      registry = { at: now(), entries: registry.entries, error: error instanceof Error ? error.message : String(error) }
+      const message = error instanceof Error ? error.message : String(error)
+      registry = { at: now(), entries: registry.entries, error: /fetch failed|ENOTFOUND|ECONN|timed? ?out/i.test(message) ? '连不上 GitHub' : message }
     }
     return registry
   }

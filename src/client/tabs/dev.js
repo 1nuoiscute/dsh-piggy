@@ -9,6 +9,7 @@
  */
 
 import { button, el, sideScroller } from '../dom.js'
+import { desktopShell } from '../desktop-shell.js'
 import { num } from '../values.js'
 import { FISH } from '../../../packages/pet-core/src/data/fish.js'
 import { SKINS } from '../../../packages/pet-core/src/data/skins.js'
@@ -222,6 +223,11 @@ export function renderDevTab(ui) {
     { key: 'open', label: '展开/收起', desc: '切换面板开关（测开关动画）', run: function () { ui.setOpen(ui.host.getAttribute('data-open') !== 'true') } },
     { key: 'away1', label: '⏩ +1 小时', desc: '时间直接过去 1 小时（结算数值、成长、打工）', run: function () { patch({ __advanceMs: 3600000 }) } },
     { key: 'away24', label: '⏩ +1 天', desc: '时间直接过去 1 天（换天、签到、日记）', run: function () { patch({ __advanceMs: 86400000 }) } },
+  ])
+  time('猪自己找事做', [
+    { key: 'idle', label: '🐷 小动作', desc: '马上做一个小动作（打滚、打盹、追蝴蝶……）', off: !ui.life, run: function () { ui.setOpen(false); ui.life.idleNow() } },
+    { key: 'walk', label: '🚶 散步一次', desc: '马上沿屏幕底边走一趟（只有桌面版）', off: !ui.life || typeof desktopShell()?.moveBy !== 'function', run: function () { ui.setOpen(false); ui.life.walkNow() } },
+    { key: 'timeTalk', label: '🕐 按时间说', desc: '问一次「现在有没有按时间该说的话」（一天一次的已经说过就不说）', run: function () { ui.send('chat', { reason: 'time' }) } },
   ])
 
   // ---- 数值（只看不改） ----

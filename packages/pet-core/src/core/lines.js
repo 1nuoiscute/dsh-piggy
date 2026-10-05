@@ -48,7 +48,7 @@ export function pickLine(state, scene, next = rollerFor(state)) {
  */
 function withCatchphrase(state, scene, text, next) {
   const phrase = typeof state.catchphrase === 'string' ? state.catchphrase.trim() : ''
-  if (phrase === '' || SERIOUS_SCENES.includes(scene) || text.startsWith('（') || text.includes(phrase)) return text
+  if (phrase === '' || SERIOUS_SCENES.includes(scene) || text.startsWith('（') || text.endsWith('）') || text.includes(phrase)) return text
   if (!chance(next, CATCHPHRASE_CHANCE)) return text
   const match = /^(.*?)([。！？!?～~…]*)$/.exec(text)
   const body = match === null ? text : match[1]

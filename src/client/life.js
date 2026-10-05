@@ -121,6 +121,15 @@ export function attachLife(c) {
   }
 
   return {
+    /** 调试页「散步一次」：不等计时，马上走一趟（只有桌面版能走）。 */
+    walkNow: function () {
+      var shell = c.desktopShell()
+      if (shell === null || typeof shell.moveBy !== 'function') return false
+      walk(shell)
+      return true
+    },
+    /** 调试页「做个小动作」。 */
+    idleNow: function () { doIdle(IDLE_ACTIONS[Math.floor(Math.random() * IDLE_ACTIONS.length)]) },
     dispose: function () {
       for (var i = 0; i < timers.length; i += 1) { window.clearTimeout(timers[i]); window.clearInterval(timers[i]) }
       timers = []
