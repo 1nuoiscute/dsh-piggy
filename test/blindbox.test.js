@@ -1,87 +1,131 @@
-// 盲盒扩展的宿主逻辑（extensions/blindbox/server.js）：概率、保底、碎片、券。
+// 盲盒 2.0（照明日方舟寻访）：extensions/blindbox/server.js 的规矩。
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import blindbox, { SERIES, hiddenChance } from '../extensions/blindbox/server.js'
+import blindbox, { CATALOG, THEMES, banners, normalize, period, sixChance } from '../extensions/blindbox/server.js'
 
-function fakeApi({ coins = 100000, tickets = 0 } = {}) {
+const T0 = Date.UTC(2026, 9, 6)
+
+function fakeApi({ coins = 1_000_000, tickets = 0, now = T0 } = {}) {
   const said = []
+  const bag = {}
   const api = {
-    now: 0,
+    now,
     coins: () => coins,
     spend: n => { if (coins < n) return false; coins -= n; return true },
     earn: n => { coins += n },
-    give: () => true,
+    give: (key, n = 1) => { if (key === 'boxticket') tickets += n; else bag[key] = (bag[key] ?? 0) + n; return true },
     say: text => said.push(text),
     count: key => (key === 'boxticket' ? tickets : 0),
     take: (key, n = 1) => { if (key !== 'boxticket' || tickets < n) return false; tickets -= n; return true },
   }
-  return { api, said, left: () => coins, tickets: () => tickets }
+  return { api, said, bag, left: () => coins, tickets: () => tickets }
 }
 
-test('hidden chance: 3% base, +7% a pull from the 30th, certain on the 50th', () => {
-  assert.equal(hiddenChance(0), 0.03)
-  assert.equal(hiddenChance(28), 0.03)
-  assert.ok(Math.abs(hiddenChance(29) - 0.10) < 1e-9)
-  assert.ok(Math.abs(hiddenChance(30) - 0.17) < 1e-9)
-  assert.equal(hiddenChance(45), 0.95, 'soft pity tops out at 95%')
-  assert.equal(hiddenChance(49), 1)
+/** 按顺序给出的随机数，用完就一直给最后一个。 */
+const seq = (...values) => { let i = 0; return () => values[Math.min(i++, values.length - 1)] }
+
+test('36 figures: 6 six-stars, 8 five-stars, 10 four-stars, 12 three-stars, and the 1.0 keys survive', () => {
+  const count = stars => CATALOG.filter(entry => entry.stars === stars).length
+  assert.deepEqual([count(6), count(5), count(4), count(3)], [6, 8, 10, 12])
+  for (const key of ['chick', 'goldpig', 'whale', 'lantern', 'crab', 'ramen', 'tea']) assert.ok(CATALOG.some(entry => entry.key === key), key)
 })
 
-test('fifty unlucky pulls in a row still end on the hidden one, and the counter resets', () => {
+test('six-star chance: 2% for 50 pulls, then +2% a pull, certain on the 99th', () => {
+  assert.equal(sixChance(0), 0.02)
+  assert.equal(sixChance(49), 0.02)
+  assert.ok(Math.abs(sixChance(50) - 0.04) < 1e-9)
+  assert.equal(sixChance(98), 1)
+})
+
+test('99 unlucky pulls end on a six-star; standard and limited keep separate counters', () => {
   const data = blindbox.init()
-  const { api, left } = fakeApi()
-  const unlucky = () => 0.999
-  for (let i = 0; i < 49; i += 1) assert.equal(blindbox.actions.open(data, { series: 'farm', count: 1 }, api, unlucky).ok, true)
-  assert.equal(data.series.farm.have.goldpig, undefined)
-  blindbox.actions.open(data, { series: 'farm', count: 1 }, api, unlucky)
-  assert.equal(data.series.farm.have.goldpig, 1)
-  assert.equal(data.series.farm.since, 0)
-  assert.equal(left(), 100000 - 50 * 300)
+  const { api } = fakeApi()
+  for (let i = 0; i < 98; i += 1) blindbox.actions.open(data, { banner: 'standard', count: 1 }, api, () => 0.99)
+  assert.equal(data.pity.standard, 98)
+  assert.equal(data.pity.limited, 0)
+  blindbox.actions.open(data, { banner: 'standard', count: 1 }, api, () => 0.99)
+  assert.equal(data.last.items[0].stars, 6)
+  assert.equal(data.pity.standard, 0)
 })
 
-test('ten in one go costs 2700; duplicates turn into shards that buy a missing one', () => {
+test('rates come out near 2 / 8 / 50 / 40 over many pulls', () => {
   const data = blindbox.init()
-  const { api, said, left } = fakeApi()
-  blindbox.actions.open(data, { series: 'beach', count: 10 }, api, () => 0.5)
-  assert.equal(left(), 100000 - 2700)
-  assert.equal(data.last.items.length, 10)
-  const s = data.series.beach
-  assert.equal(s.shards, 9, 'same normal one ten times: nine duplicates')
-  assert.match(said.at(-1), /十连/)
-  blindbox.actions.open(data, { series: 'beach', count: 1 }, api, () => 0.5)
-  assert.equal(s.shards, 10)
-  const missing = SERIES.find(x => x.key === 'beach').items.find(item => s.have[item.key] === undefined)
-  assert.equal(blindbox.actions.swap(data, { series: 'beach', item: missing.key }, api).ok, true)
-  assert.equal(s.shards, 0)
-  assert.equal(s.have[missing.key], 1)
-  assert.equal(blindbox.actions.swap(data, { series: 'beach', item: missing.key }, api).reason, 'owned')
+  const { api } = fakeApi({ coins: 1e9 })
+  const tally = { 3: 0, 4: 0, 5: 0, 6: 0 }
+  let state = 7
+  const random = () => { state = (state * 1103515245 + 12345) % 2147483648; return state / 2147483648 }
+  for (let i = 0; i < 2000; i += 1) {
+    blindbox.actions.open(data, { banner: 'standard', count: 10 }, api, random)
+    for (const got of data.last.items) tally[got.stars] += 1
+  }
+  const total = 20000
+  assert.ok(Math.abs(tally[3] / total - 0.40) < 0.02, JSON.stringify(tally))
+  assert.ok(Math.abs(tally[4] / total - 0.50) < 0.02, JSON.stringify(tally))
+  assert.ok(Math.abs(tally[5] / total - 0.08) < 0.01, JSON.stringify(tally))
+  assert.ok(tally[6] / total > 0.02 && tally[6] / total < 0.035, JSON.stringify(tally)) // 保底会把 6★ 拉到 2% 以上
 })
 
-test('a ticket opens one box for free; no coins and no ticket is refused', () => {
+test('a limited six-star is the featured one 70% of the time', () => {
+  const [, limited] = banners(T0)
   const data = blindbox.init()
-  const withTicket = fakeApi({ coins: 0, tickets: 1 })
-  assert.equal(blindbox.actions.open(data, { series: 'night', count: 1, ticket: true }, withTicket.api, () => 0.2).ok, true)
-  assert.equal(withTicket.tickets(), 0)
-  assert.equal(blindbox.actions.open(data, { series: 'night', count: 1, ticket: true }, withTicket.api).reason, 'no-ticket')
-  assert.equal(blindbox.actions.open(data, { series: 'night', count: 1 }, withTicket.api).reason, 'poor')
+  const { api } = fakeApi()
+  blindbox.actions.open(data, { banner: 'limited', count: 1 }, api, seq(0.001, 0.5))
+  assert.equal(data.last.items[0].key, limited.up6[0])
+  blindbox.actions.open(data, { banner: 'limited', count: 1 }, api, seq(0.001, 0.8, 0))
+  assert.notEqual(data.last.items[0].key, limited.up6[0])
 })
 
-test('the view lists every series with its figures, pity and prices', () => {
+test('banners rotate every 14 days: the limited theme cycles, the standard UP never equals it', () => {
+  assert.equal(period(T0).index, 0)
+  const later = T0 + 14 * 86_400_000
+  assert.equal(period(later).index, 1)
+  assert.equal(banners(T0)[1].label.includes(THEMES[0].label), true)
+  assert.equal(banners(later)[1].label.includes(THEMES[1].label), true)
+  for (let i = 0; i < 12; i += 1) {
+    const [standard, limited] = banners(T0 + i * 14 * 86_400_000)
+    assert.notEqual(standard.up6[0], limited.up6[0])
+  }
+})
+
+test('duplicates raise potential up to 6 and pay certificates, doubled once maxed', () => {
   const data = blindbox.init()
-  const { api } = fakeApi({ tickets: 2 })
-  blindbox.actions.open(data, { series: 'farm', count: 1 }, api, () => 0.5)
-  const view = blindbox.view(data, api)
-  assert.equal(view.tickets, 2)
-  assert.equal(view.series.length, 3)
-  const farm = view.series.find(s => s.key === 'farm')
-  assert.equal(farm.items.length, 7)
-  assert.equal(farm.items.at(-1).hidden, true)
-  assert.equal(farm.owned, 1)
-  assert.equal(farm.pityLeft, 49)
+  const { api } = fakeApi()
+  // 6★ 掷中，非 UP，池子第一个 → 每次同一个
+  for (let i = 0; i < 8; i += 1) blindbox.actions.open(data, { banner: 'standard', count: 1 }, api, seq(0.001, 0.9, 0))
+  const key = data.last.items[0].key
+  assert.equal(data.owned[key], 6)
+  assert.equal(data.certs, 5 * 40 + 2 * 80)
 })
 
-test('box tickets survive loading a save (they are not sold in the shop)', async () => {
-  const { sanitizeInventory } = await import('../packages/pet-core/src/core/migrate.js')
-  assert.deepEqual(sanitizeInventory({ boxticket: 2, apple: 1, nonsense: 5 }), { boxticket: 2, apple: 1 })
+test('the certificate shop sells tickets and a chosen missing five-star', () => {
+  const data = blindbox.init()
+  data.certs = 200
+  const { api, tickets } = fakeApi()
+  assert.equal(blindbox.actions.buy(data, { item: 'ticket' }, api).ok, true)
+  assert.equal(tickets(), 1)
+  assert.equal(blindbox.actions.buy(data, { item: 'pick5', pick: 'panda' }, api).ok, true)
+  assert.equal(data.owned.panda, 1)
+  assert.equal(data.certs, 200 - 20 - 120)
+  assert.equal(blindbox.actions.buy(data, { item: 'pick5', pick: 'panda' }, api).reason, 'no-certs')
+})
+
+test('1.0 data moves over: figures kept as potential, shards become certificates', () => {
+  const old = { series: { farm: { pulls: 12, since: 12, shards: 7, have: { chick: 3, goldpig: 1 } }, night: { have: { tea: 9 }, shards: 1 } }, last: null, seq: 4 }
+  normalize(old)
+  assert.equal(old.v, 2)
+  assert.deepEqual(old.owned, { chick: 3, goldpig: 1, tea: 6 })
+  assert.equal(old.certs, 16)
+  assert.deepEqual(old.pity, { standard: 0, limited: 0 })
+})
+
+test('a ticket pulls once for free; the view has both banners and the whole catalog', () => {
+  const data = blindbox.init()
+  const t = fakeApi({ coins: 0, tickets: 1 })
+  assert.equal(blindbox.actions.open(data, { banner: 'standard', count: 1, ticket: true }, t.api, () => 0.5).ok, true)
+  assert.equal(blindbox.actions.open(data, { banner: 'standard', count: 1 }, t.api).reason, 'poor')
+  const view = blindbox.view(data, t.api)
+  assert.equal(view.banners.length, 2)
+  assert.equal(view.catalog.length, 36)
+  assert.equal(view.banners[0].pityLeft, 49)
 })

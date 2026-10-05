@@ -2342,7 +2342,8 @@
             "extension-error": "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86",
             "unknown-extension": "\u6CA1\u6709\u8FD9\u4E2A\u6269\u5C55",
             "no-ticket": "\u6CA1\u6709\u76F2\u76D2\u5238\u4E86",
-            "no-shards": "\u788E\u7247\u8FD8\u4E0D\u591F"
+            "no-shards": "\u788E\u7247\u8FD8\u4E0D\u591F",
+            "no-certs": "\u8D44\u8D28\u51ED\u8BC1\u4E0D\u591F"
           };
           ctx.showBubble(reasons[next.reason] ?? "\u8FD9\u4E2A\u64CD\u4F5C\u6CA1\u6210", 2400);
         }
@@ -5994,6 +5995,9 @@
     var note = extension.on ? closingNote(ui.view, extension.key) : "";
     if (note) card.appendChild(el("div", "dp-ext-note", note));
     if (extension.error) card.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
+    var newer = online.entries.find(function(entry) {
+      return entry.key === extension.key && entry.update === true;
+    });
     var row = el("div", "dp-ext-actions");
     var toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
       ui.send("setExtension", { key: extension.key, on: !extension.on });
@@ -6001,6 +6005,14 @@
     toggle.appendChild(el("span", "dp-switch-knob"));
     toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
     row.appendChild(toggle);
+    if (newer) {
+      var update = button("dp-mini", { "data-ext-update": extension.key }, function() {
+        online.loaded = false;
+        ui.send("installExtension", { key: extension.key });
+      });
+      update.textContent = "\u66F4\u65B0\u5230 " + str(newer.version, "");
+      row.appendChild(update);
+    }
     if (confirming === extension.key) {
       row.appendChild(el("span", "dp-ext-warn", "\u5220\u6389\u4F1A\u6E05\u7A7A" + (CLEARS[extension.key] ?? "\u5B83\u7684\u6570\u636E") + "\uFF0C\u786E\u5B9A\u5417\uFF1F"));
       var yes = button("dp-mini dp-ext-danger", { "data-ext-remove-yes": extension.key }, function() {

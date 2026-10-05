@@ -28,13 +28,14 @@ const PACKAGE = {
   'client.js': 'window.dshPiggyExtensions && window.dshPiggyExtensions.register("piggybank", { render: function () {} })',
 }
 
-function setup({ minGame, corrupt } = {}) {
+function setup({ minGame, corrupt, pkg = PACKAGE } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'dsh-piggy-ext-'))
   const seed = hatchEgg(Date.now() - 2 * HOUR)
   seed.coins = 100
   writeFileSync(join(dir, 'state.json'), JSON.stringify(seed))
   const store = createStore(join(dir, 'state.json'))
-  const files = Object.fromEntries(Object.entries(PACKAGE).map(([name, text]) => [name, { url: 'https://example.test/' + name, sha256: sha(corrupt === name ? text + ' ' : text) }]))
+  const filesOf = () => Object.fromEntries(Object.entries(pkg).map(([name, text]) => [name, { url: 'https://example.test/' + name, sha256: sha(corrupt === name ? text + ' ' : text) }]))
+  const files = filesOf()
   const registry = { version: 1, extensions: [
     { key: 'pomodoro', label: '番茄钟', emoji: '🍅', builtin: true },
     { key: 'fishing', label: '钓鱼', emoji: '🎣', builtin: true },
@@ -43,12 +44,14 @@ function setup({ minGame, corrupt } = {}) {
   const fetch = async url => {
     if (url === 'https://example.test/registry.json') return { ok: true, status: 200, json: async () => registry }
     const name = url.replace('https://example.test/', '')
-    if (PACKAGE[name] === undefined) return { ok: false, status: 404 }
-    return { ok: true, status: 200, arrayBuffer: async () => new TextEncoder().encode(PACKAGE[name]).buffer }
+    if (pkg[name] === undefined) return { ok: false, status: 404 }
+    return { ok: true, status: 200, arrayBuffer: async () => new TextEncoder().encode(pkg[name]).buffer }
   }
   const runtime = createExtRuntime(store, { gameVersion: '0.30.0', fetch, registryUrl: 'https://example.test/registry.json' })
   store.ext = runtime
-  return { dir, store, runtime, done: () => { store.dispose(); rmSync(dir, { recursive: true, force: true }) } }
+  /** 在假目录里「发布」新版本：pkg 已经改好，这里重算校验值、改版本号。 */
+  const publish = version => { const entry = registry.extensions.find(e => e.key === 'piggybank'); entry.version = version; entry.files = filesOf() }
+  return { dir, store, runtime, publish, done: () => { store.dispose(); rmSync(dir, { recursive: true, force: true }) } }
 }
 
 test('versions compare by number, ignoring a preview suffix', () => {
@@ -118,4 +121,26 @@ test('a file that does not match its checksum, or a game that is too old, is ref
     assert.equal((await old.runtime.onlineView()).entries.find(entry => entry.key === 'piggybank').blocked, 'game-too-old')
     assert.equal((await old.runtime.install('piggybank')).reason, 'game-too-old')
   } finally { old.done() }
+})
+
+test('an installed extension updates in place: new code, same data', async () => {
+  const pkg = { ...PACKAGE }
+  const { store, runtime, publish, done } = setup({ pkg })
+  try {
+    assert.equal((await runtime.install('piggybank')).ok, true)
+    assert.equal(runtime.act('piggybank', 'save', {}).ok, true)
+    assert.deepEqual(store.state.extData.piggybank, { saved: 10 })
+    // 目录里发了 1.1.0：server.js 多了一个「翻倍」动作。
+    pkg['server.js'] = pkg['server.js'].replace('boom(data)', 'double(data) { data.saved *= 2; return { ok: true } },\n      boom(data)')
+    pkg['manifest.json'] = pkg['manifest.json'].replace('"1.0.0"', '"1.1.0"')
+    publish('1.1.0')
+    const entry = (await runtime.onlineView(true)).entries.find(e => e.key === 'piggybank')
+    assert.equal(entry.update, true, JSON.stringify(entry))
+    assert.equal(entry.local, '1.0.0')
+    assert.equal((await runtime.install('piggybank')).ok, true)
+    assert.deepEqual(store.state.extData.piggybank, { saved: 10 }, 'data kept')
+    assert.equal(runtime.act('piggybank', 'double', {}).ok, true)
+    assert.equal(store.state.extData.piggybank.saved, 20)
+    assert.equal((await runtime.onlineView(true)).entries.find(e => e.key === 'piggybank').update, false)
+  } finally { done() }
 })

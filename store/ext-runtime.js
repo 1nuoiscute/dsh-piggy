@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import { announce, ensureExtensions, extensionOn, installExtension, removeExtension } from '../core.js'
-import { itemByKey } from '../data.js'
+import { BOX_TICKET, itemByKey } from '../data.js'
 
 export const REGISTRY_URL = 'https://raw.githubusercontent.com/CLICGGER-TYPES/dsh-piggy/main/extensions/registry.json'
 const FILES = ['manifest.json', 'server.js', 'client.js']
@@ -99,7 +99,8 @@ export function createExtRuntime(store, options) {
       },
       earn: amount => { state.coins += Math.max(0, Math.min(100_000, Math.floor(Number(amount) || 0))) },
       give: (itemKey, count = 1) => {
-        if (itemByKey(itemKey) === null) return false
+        // 盲盒券不在商店里，但盲盒的凭证商店要能发。
+        if (itemByKey(itemKey) === null && itemKey !== BOX_TICKET.key) return false
         const n = Math.max(1, Math.min(99, Math.floor(Number(count) || 1)))
         state.inventory = { ...(state.inventory ?? {}), [itemKey]: (state.inventory?.[itemKey] ?? 0) + n }
         return true
@@ -174,7 +175,11 @@ export function createExtRuntime(store, options) {
       entries: entries.map(entry => {
         const installed = state === null ? false : (entry.builtin === true ? !(state.extensionsRemoved ?? []).includes(entry.key) : state.extData?.[entry.key] !== undefined)
         const tooNew = typeof entry.minGame === 'string' && !versionAtLeast(options.gameVersion, entry.minGame)
+        // 已装的下载扩展：目录里版本更新就可以「更新」（重新下载，数据保留）。
+        const local = loaded.get(entry.key)?.manifest?.version ?? null
+        const update = installed && entry.builtin !== true && local !== null && typeof entry.version === 'string' && !versionAtLeast(local, entry.version)
         return {
+          local, update,
           key: entry.key, label: String(entry.label ?? entry.key), emoji: String(entry.emoji ?? '🧩'),
           description: String(entry.description ?? ''), version: String(entry.version ?? ''), builtin: entry.builtin === true,
           installed, minGame: typeof entry.minGame === 'string' ? entry.minGame : null, blocked: tooNew ? 'game-too-old' : null,

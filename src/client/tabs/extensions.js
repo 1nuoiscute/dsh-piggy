@@ -70,6 +70,7 @@ function localCard(ui, extension) {
   var note = extension.on ? closingNote(ui.view, extension.key) : ''
   if (note) card.appendChild(el('div', 'dp-ext-note', note))
   if (extension.error) card.appendChild(el('div', 'dp-ext-note', '加载出错：' + extension.error))
+  var newer = online.entries.find(function (entry) { return entry.key === extension.key && entry.update === true })
 
   // 开关和删除并排放在卡片左下（rc.1 反馈）。
   var row = el('div', 'dp-ext-actions')
@@ -79,6 +80,14 @@ function localCard(ui, extension) {
   toggle.appendChild(el('span', 'dp-switch-knob'))
   toggle.appendChild(el('span', 'dp-switch-text', extension.on ? '开' : '关'))
   row.appendChild(toggle)
+  if (newer) {
+    var update = button('dp-mini', { 'data-ext-update': extension.key }, function () {
+      online.loaded = false
+      ui.send('installExtension', { key: extension.key })
+    })
+    update.textContent = '更新到 ' + str(newer.version, '')
+    row.appendChild(update)
+  }
   if (confirming === extension.key) {
     row.appendChild(el('span', 'dp-ext-warn', '删掉会清空' + (CLEARS[extension.key] ?? '它的数据') + '，确定吗？'))
     var yes = button('dp-mini dp-ext-danger', { 'data-ext-remove-yes': extension.key }, function () {
