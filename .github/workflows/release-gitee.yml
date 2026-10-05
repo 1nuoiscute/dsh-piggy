@@ -118,6 +118,8 @@ jobs:
             rm -f "$f.blockmap"
             ls -l "$f"
           done
+          # mac 版不走自动更新（未签名，手动下载），转换后清单里的校验值也对不上，不上传
+          rm -f latest-mac.yml
       - name: 扫描 GitHub 地址、检查大小
         shell: bash
         run: |

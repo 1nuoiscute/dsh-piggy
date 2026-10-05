@@ -2,7 +2,7 @@
 /**
  * Gitee 发行版小工具（CI 和手动发扩展用），令牌从环境变量 GITEE_TOKEN 读，不落盘。
  *   node scripts/gitee-release.mjs ensure <tag> [说明.md]   有就复用、没有就建，打印发行版 id
- *   node scripts/gitee-release.mjs upload <id> <文件>...     上传附件（同名的先删，再传）
+ *   node scripts/gitee-release.mjs upload <id> <文件>...     上传附件（先传新的，成功后删掉旧的同名附件）
  *   node scripts/gitee-release.mjs prune <保留的tag>          删掉其它 v* 发行版里的安装包附件（游戏包留着，回退用）
  * 仓库默认 clicgger/dsh-piggy，可用 GITEE_REPO 改。Gitee 附件单个 ≤100MB、单仓库总量 ≤1GB。
  */
@@ -62,11 +62,13 @@ if (cmd === 'ensure') {
   const existing = await attachments(id)
   for (const file of files) {
     const name = basename(file)
-    for (const old of existing.filter(a => a.name === name)) await call(`/releases/${id}/attach_files/${old.id}`, { method: 'DELETE' })
+    const stale = existing.filter(a => a.name === name)
     // 大文件从海外 CI 传到 Gitee 很慢：用 curl，30 分钟超时、失败重试 3 次（fetch 默认 5 分钟就放弃）。
     const out = execFileSync('curl', ['-sS', '--fail-with-body', '--max-time', '1800', '--retry', '3', '--retry-all-errors', '--retry-delay', '10',
       '-F', `access_token=${TOKEN}`, '-F', `file=@${file};filename=${name}`, `${API}/releases/${id}/attach_files`], { encoding: 'utf8', maxBuffer: 1 << 20 })
     console.log('uploaded', name, JSON.parse(out)?.size ?? '')
+    // 新的传成功了再删旧的同名附件：中途断线也不会丢文件。
+    for (const old of stale) await call(`/releases/${id}/attach_files/${old.id}`, { method: 'DELETE' })
   }
 } else if (cmd === 'prune') {
   const [keep] = args
