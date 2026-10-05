@@ -21,21 +21,87 @@
       "key": "blindbox",
       "label": "盲盒",
       "emoji": "🎁",
-      "version": "2.0.0",
-      "minGame": "0.30.0",
+      "version": "2.1.0",
+      "minGame": "0.31.0",
       "description": "照明日方舟寻访的盲盒：3★～6★ 摆件，常驻和限时卡池轮换 UP，50 抽后六星概率逐抽提升，重复的加潜能、换资质凭证。",
       "files": {
         "manifest.json": {
-          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-2.0.0/manifest.json",
-          "sha256": "02e960350ecf5a02735bd1b4e25fc5b844e3aa8c0c313added3dcf2012c605f0"
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-2.1.0/manifest.json",
+          "sha256": "6ae80d7463a8c9732c7243673d0e1a18ec97922ae3ab2345f1753335a4dd7c68"
         },
         "server.js": {
-          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-2.0.0/server.js",
-          "sha256": "5ff0caacc2d557cabe23efba8734f9abc0e7d3ff858e91523d6dc9496e26502b"
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-2.1.0/server.js",
+          "sha256": "bf26046f8f1849e0999d463974cd2f812fbdf60f6c8c3b5b0bcd77a66d2e95dc"
         },
         "client.js": {
-          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-2.0.0/client.js",
-          "sha256": "3b86d43ebbd8c10235ed0d6b603c06b40b1dfda1b2a120bc8bc065c937357582"
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-2.1.0/client.js",
+          "sha256": "6345556ae4d7a8a4613170d322d98a722340b34fa1333868b2c8ffbd88c8876c"
+        }
+      }
+    },
+    {
+      "key": "gacha",
+      "label": "扭蛋",
+      "emoji": "🎰",
+      "version": "1.0.0",
+      "minGame": "0.31.0",
+      "description": "零食、杂货和药箱三台扭蛋机，每天第一颗免费，幸运值攒到 20 后下一颗必出金色。",
+      "files": {
+        "manifest.json": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-gacha-1.0.0/manifest.json",
+          "sha256": "a52165e5984aef9f3874569b7b43a05e60b67d2cc0a54895c5ed2b3ac71ff5f0"
+        },
+        "server.js": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-gacha-1.0.0/server.js",
+          "sha256": "5d500546623495f38cec3be7570eca32bb8657e4d3c972732bbfb91ea34bacce"
+        },
+        "client.js": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-gacha-1.0.0/client.js",
+          "sha256": "d99034335f193d29bed7412f5fd9e2a3719818a0b2e5a5005b76c89e5c9269b3"
+        }
+      }
+    },
+    {
+      "key": "farm",
+      "label": "菜园",
+      "emoji": "🥬",
+      "version": "1.0.0",
+      "minGame": "0.31.0",
+      "description": "买种、开垦、浇水，作物按真实时间生长；收获后可以卖出或放进背包。",
+      "files": {
+        "manifest.json": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-farm-1.0.0/manifest.json",
+          "sha256": "9e03569e550d806d2e98038289ea5c6f554e6fe60ae3d5d9315db24f78d4a8e3"
+        },
+        "server.js": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-farm-1.0.0/server.js",
+          "sha256": "31e5f6d1438dcbbda551959efecb980cc029ecd6a2d1862f4c91fbca526d15ce"
+        },
+        "client.js": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-farm-1.0.0/client.js",
+          "sha256": "88422b61cb7c279faac79dc8292467d0b673ddaedc43cc8475e1a52c82ce21a5"
+        }
+      }
+    },
+    {
+      "key": "mine",
+      "label": "矿洞",
+      "emoji": "⛏️",
+      "version": "1.0.0",
+      "minGame": "0.31.0",
+      "description": "逐层挖矿，收集化石与宝石，回地面卖矿升级镐子。",
+      "files": {
+        "manifest.json": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-mine-1.0.0/manifest.json",
+          "sha256": "799ed172df15f70b14b31755278123bd98ec6c3737b3f33fe6852b03d895e2a3"
+        },
+        "server.js": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-mine-1.0.0/server.js",
+          "sha256": "4aeace348fa2bb232417b60bdfd335634ec41f1904e279f9a04755f75cd40bdf"
+        },
+        "client.js": {
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-mine-1.0.0/client.js",
+          "sha256": "9eb1e574a566d1594fc646182a90795b5d17093dd274ccc7e32a8a08967ce4c2"
         }
       }
     }
