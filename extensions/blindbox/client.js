@@ -11,26 +11,28 @@
     '.bx-tabs{display:flex;gap:4px;padding:3px;border-radius:50px;background:var(--ac-bg-content,#f7f3df);border:2px solid var(--ac-border-light,#e5dcc6)}',
     '.bx-tab{flex:1;font:inherit;font-size:11.5px;font-weight:800;padding:6px 0;border:0;border-radius:50px;background:transparent;color:var(--soft);cursor:pointer}',
     '.bx-tab[aria-pressed="true"]{background:var(--ac-primary,#19c8b9);color:#fff;box-shadow:0 2px 0 var(--ac-primary-active,#11a89b)}',
-    '.bx-chips{display:flex;flex-wrap:wrap;gap:6px}',
+    '.bx-chips{display:flex;flex-wrap:nowrap;gap:5px}.bx-chips .bx-chip{white-space:nowrap}',
     '.bx-chip{padding:4px 10px;border-radius:50px;font-size:11px;font-weight:800;background:var(--ac-bg-input,#fffbe7);border:1.5px solid var(--ac-border-light,#e5dcc6);color:var(--ink)}',
-    // 卡池卡片：深色底、UP 摆件在中间发光。
-    '.bx-banner{position:relative;overflow:hidden;border-radius:20px;padding:12px;color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.18)}',
-    '.bx-banner[data-b="standard"]{background:linear-gradient(150deg,#3b4a6b,#22304d 70%)}',
-    '.bx-banner[data-b="limited"]{background:linear-gradient(150deg,#7a3d64,#3a2453 70%)}',
-    '.bx-banner::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 70% 35%,rgba(255,255,255,.18),transparent 55%);pointer-events:none}',
+    // 卡池和闪卡照原型，流光、浮动用独立动画。
+    '.bx-banner{position:relative;overflow:hidden;border-radius:20px;padding:12px;color:var(--ink);background:var(--ac-bg-input,#fffbe7);border:2px solid var(--ac-border-light,#e5dcc6);box-shadow:0 3px 0 var(--ac-border-light,#e5dcc6);touch-action:pan-y}',
+    '.bx-banner[data-b="limited"]{background:linear-gradient(170deg,#fff0f4,#fffbe7 60%);border-color:#f3c8d4;box-shadow:0 3px 0 #f3c8d4}',
+    '.bx-banner[data-slide="left"]{animation:bx-slide-left .35s ease-out both}.bx-banner[data-slide="right"]{animation:bx-slide-right .35s ease-out both}',
     '.bx-btop{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:900}',
-    '.bx-days{margin-left:auto;padding:2px 8px;border-radius:50px;background:rgba(255,255,255,.16);font-size:10px;font-weight:800}',
+    '.bx-ribbon{padding:2px 8px;border-radius:50px;background:#8fb9e8;color:#fff;font-size:10px;font-weight:900}.bx-banner[data-b="limited"] .bx-ribbon{background:#f38bab}',
+    '.bx-days{margin-left:auto;font-size:10px;font-weight:800;color:var(--soft);white-space:nowrap}',
     '.bx-ups{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:6px;align-items:end;margin:10px 0 8px}',
-    '.bx-up{display:grid;justify-items:center;gap:1px;position:relative}',
-    '.bx-up .em{font-size:30px;line-height:1.1;filter:drop-shadow(0 0 8px var(--c))}',
-    '.bx-up[data-big="true"] .em{font-size:46px}',
-    '.bx-up b{font-size:10.5px}.bx-up i{font-style:normal;font-size:9px;letter-spacing:-1px;color:var(--c)}',
-    '.bx-up .tag{position:absolute;top:-2px;right:6px;padding:0 5px;border-radius:50px;background:var(--c);color:#fff;font-size:8.5px;font-weight:900}',
-    '.bx-pity{font-size:10.5px;opacity:.85;margin-bottom:8px}',
-    '.bx-row{display:flex;flex-wrap:wrap;gap:6px}',
-    '.bx-btn{font:inherit;font-size:11.5px;font-weight:800;padding:7px 12px;border-radius:50px;border:0;cursor:pointer;color:#fff;background:linear-gradient(90deg,#ffb347,#ff7a2f);box-shadow:0 3px 0 #b8521c}',
-    '.bx-btn.alt{background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.5);box-shadow:none}',
-    '.bx-btn.tk{background:linear-gradient(90deg,#ffe07a,#f5b82e);color:#6b3d00;box-shadow:0 3px 0 #b88418}',
+    '.bx-up{position:relative;aspect-ratio:3/4;min-width:0;padding:4px;border-radius:14px;background:linear-gradient(145deg,var(--c),color-mix(in srgb,var(--c) 55%,#fff));box-shadow:0 4px 0 color-mix(in srgb,var(--c) 70%,#6b5a40),0 8px 14px rgba(61,52,40,.18);animation:bx-float 3s ease-in-out infinite;animation-delay:var(--phase)}',
+    '.bx-up .face{position:relative;box-sizing:border-box;height:100%;border-radius:10px;overflow:hidden;background:radial-gradient(circle at 50% 35%,#fff 0 30%,color-mix(in srgb,var(--c) 25%,#fff8e8) 100%);display:grid;grid-template-rows:1fr auto auto;justify-items:center;padding:6px 2px 5px}',
+    '.bx-up .face::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 20%,rgba(255,120,200,.28) 35%,rgba(120,220,255,.3) 45%,rgba(255,240,140,.3) 55%,transparent 70%);background-size:250% 250%;mix-blend-mode:screen;pointer-events:none;opacity:.7;animation:bx-holo 6s linear infinite}',
+    '.bx-up .em{position:relative;align-self:center;font-size:30px;line-height:1;filter:drop-shadow(0 6px 0 rgba(0,0,0,.08)) drop-shadow(0 7px 5px rgba(61,52,40,.28));z-index:1}',
+    '.bx-up[data-big="true"] .em{font-size:44px}',
+    '.bx-up b{font-size:10px;white-space:nowrap;z-index:1}.bx-up i{font-style:normal;font-size:8px;letter-spacing:-1px;color:var(--c);z-index:1}',
+    '.bx-up .tag{position:absolute;top:7px;left:7px;padding:0 5px;border-radius:50px;background:var(--c);color:#fff;font-size:8.5px;font-weight:900;z-index:2}',
+    '.bx-pity{font-size:10.5px;color:var(--soft);margin-bottom:5px}.bx-meter{height:8px;border-radius:50px;background:#efe6cf;overflow:hidden}.bx-meter i{display:block;height:100%;border-radius:50px;background:linear-gradient(90deg,#ffd27a,#ff8f5a)}',
+    '.bx-dots{display:flex;justify-content:center;gap:10px}.bx-dot{width:10px;height:10px;padding:0;border-radius:50%;border:1.5px solid var(--ac-primary,#19c8b9);background:transparent;cursor:pointer}.bx-dot[aria-pressed="true"]{background:var(--ac-primary,#19c8b9)}',
+    '.bx-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}',
+    '.bx-btn{font:inherit;font-size:12px;font-weight:800;padding:8px 4px;border-radius:16px;border:0;cursor:pointer;color:#fff;background:var(--ac-primary,#19c8b9);box-shadow:0 3px 0 var(--ac-primary-active,#11a89b)}.bx-btn small{display:block;font-size:10px;font-weight:700}',
+    '.bx-btn.tk{width:100%;background:var(--ac-bg-input,#fffbe7);color:#7a4a00;border:2px solid #dfb949;box-shadow:none}',
     '.bx-btn:active{transform:translateY(2px)}.bx-btn:disabled{opacity:.45;cursor:not-allowed}',
     // 开盒舞台：夜空底，光一亮就知道几星。
     '.bx-stage{position:relative;overflow:hidden;border-radius:22px;padding:14px 10px 12px;background:radial-gradient(circle at 50% 20%,#3d4a78,#161c33 75%);color:#fff;display:grid;justify-items:center;gap:10px}',
@@ -88,9 +90,12 @@
     '@keyframes bx-pop{0%{opacity:0;transform:scale(.3) translateY(16px)}100%{opacity:1;transform:none}}',
     '@keyframes bx-star{0%{opacity:0;transform:scale(1.8)}100%{opacity:1;transform:none}}',
     '@keyframes bx-fade{to{opacity:1}}',
-    '@media (prefers-reduced-motion:reduce){.bx-stage *{animation-duration:.01s!important;animation-delay:0s!important}}',
+    '@keyframes bx-holo{from{background-position:150% 50%}to{background-position:-100% 50%}}',
+    '@keyframes bx-float{50%{transform:translateY(-3px)}}',
+    '@keyframes bx-slide-left{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}',
+    '@keyframes bx-slide-right{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}',
+    '@media (prefers-reduced-motion:reduce){.bx-stage *,.bx-up,.bx-up .face::after,.bx-banner{animation-duration:.01s!important;animation-delay:0s!important}}',
   ].join('\n')
-
   var tab = 'pull'
   var picked = null
   var pickOpen = null
@@ -99,7 +104,24 @@
   var startedAt = 0
   var skipped = {}
   var confettiDone = {}
-
+  var activeBanner = 'standard'
+  var bannerTimer = null
+  var bannerHover = false
+  var bannerRerender = null
+  var bannerSlide = null
+  function armBannerTimer() {
+    clearTimeout(bannerTimer)
+    bannerTimer = null
+    if (tab !== 'pull' || bannerHover || !bannerRerender) return
+    bannerTimer = setTimeout(function () { switchBanner(activeBanner === 'standard' ? 'limited' : 'standard', 'left') }, 6000)
+  }
+  function switchBanner(key, direction) {
+    if (key === activeBanner) return
+    activeBanner = key
+    bannerSlide = direction
+    armBannerTimer()
+    if (bannerRerender) bannerRerender()
+  }
   function ensureStyle() {
     if (document.getElementById(STYLE_ID)) return
     var style = document.createElement('style')
@@ -109,7 +131,6 @@
   }
   var starText = function (n) { return new Array(n + 1).join('★') }
   var byKey = function (data, key) { return data.catalog.find(function (f) { return f.key === key }) }
-
   /** 撒彩纸（6★ 才撒）。 */
   function confetti(stage, delayMs) {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -137,7 +158,6 @@
       })(start)
     }, Math.max(0, delayMs))
   }
-
   /** 一个格子：箱子（落下、摇、漏光、消失）→ 光柱 → 摆件 + 星星。t 是各阶段相对现在的秒数。 */
   function slot(app, data, got, t) {
     var f = byKey(data, got.key)
@@ -169,7 +189,6 @@
     box.appendChild(figure)
     return box
   }
-
   /** 刚寻访的那一次。返回是不是第一次画（要滚到最上面）。 */
   function renderReveal(app, data) {
     var last = data.last
@@ -218,54 +237,69 @@
     app.content.appendChild(stage)
     return fresh
   }
-
   function renderBanners(app, data) {
+    bannerRerender = app.rerender
+    if (!data.banners.some(function (b) { return b.key === activeBanner })) activeBanner = data.banners[0].key
+    if (!bannerTimer && !bannerHover) armBannerTimer()
     var chips = app.el('div', 'bx-chips')
     chips.appendChild(app.el('span', 'bx-chip', '🪙 ' + data.coins))
-    chips.appendChild(app.el('span', 'bx-chip', '🎟 盲盒券 ×' + data.tickets))
-    chips.appendChild(app.el('span', 'bx-chip', '📜 资质凭证 ' + data.certs))
+    chips.appendChild(app.el('span', 'bx-chip', '🎟 ×' + data.tickets))
+    chips.appendChild(app.el('span', 'bx-chip', '📜 ' + data.certs))
     app.content.appendChild(chips)
-    data.banners.forEach(function (b) {
+    var b = data.banners.find(function (entry) { return entry.key === activeBanner })
+    if (!b) return
       var card = app.el('div', 'bx-banner')
       card.setAttribute('data-b', b.key)
-      var top = app.el('div', 'bx-btop', b.emoji + ' ' + b.label)
-      top.appendChild(app.el('span', 'bx-days', '还剩 ' + b.daysLeft + ' 天'))
-      card.appendChild(top)
+      if (bannerSlide) { card.setAttribute('data-slide', bannerSlide); bannerSlide = null }
+      card.addEventListener('pointerenter', function (event) { if (event.pointerType === 'mouse') { bannerHover = true; clearTimeout(bannerTimer); bannerTimer = null } })
+      card.addEventListener('pointerleave', function (event) { if (event.pointerType === 'mouse') { bannerHover = false; armBannerTimer() } })
+      var startX = null
+      card.addEventListener('pointerdown', function (event) { startX = event.clientX })
+      card.addEventListener('pointerup', function (event) {
+        if (startX === null || Math.abs(event.clientX - startX) <= 40) return
+        switchBanner(b.key === 'standard' ? 'limited' : 'standard', event.clientX < startX ? 'left' : 'right'); startX = null
+      })
+      card.addEventListener('pointercancel', function () { startX = null })
+      var top = app.el('div', 'bx-btop')
+      top.appendChild(app.el('span', 'bx-ribbon', b.key === 'limited' ? '限时' : '常驻')); top.appendChild(app.el('b', null, b.label))
+      top.appendChild(app.el('span', 'bx-days', '还剩 ' + b.daysLeft + ' 天')); card.appendChild(top)
       var ups = app.el('div', 'bx bx-ups')
       b.up6.concat(b.up5).forEach(function (key, i) {
         var f = byKey(data, key)
         var up = app.el('div', 'bx-up')
-        up.setAttribute('data-s', String(f.stars))
-        up.setAttribute('data-big', String(i === 0))
-        up.appendChild(app.el('span', 'em', f.emoji))
-        up.appendChild(app.el('b', null, f.label))
-        up.appendChild(app.el('i', null, starText(f.stars)))
-        up.appendChild(app.el('span', 'tag', 'UP'))
-        ups.appendChild(up)
+        up.setAttribute('data-s', String(f.stars)); up.setAttribute('data-big', String(i === 0)); up.style.setProperty('--phase', '-' + i + 's')
+        var face = app.el('div', 'face')
+        face.appendChild(app.el('span', 'em', f.emoji)); face.appendChild(app.el('b', null, f.label))
+        face.appendChild(app.el('i', null, starText(f.stars))); up.appendChild(face)
+        up.appendChild(app.el('span', 'tag', 'UP')); ups.appendChild(up)
       })
       card.appendChild(ups)
       card.appendChild(app.el('div', 'bx-pity', b.since < 50
         ? '六星 2% · 再抽 ' + b.pityLeft + ' 次后，每抽六星概率 +2%（第 99 抽必出）'
         : '六星概率已提升到 ' + Math.round(b.sixChance * 100) + '%'))
+      var meter = app.el('div', 'bx-meter')
+      var fill = app.el('i')
+      fill.style.width = Math.min(100, b.since / 99 * 100) + '%'; meter.appendChild(fill)
+      card.appendChild(meter); app.content.appendChild(card)
+      var dots = app.el('div', 'bx-dots')
+      data.banners.forEach(function (entry) {
+        var dot = app.button('bx-dot', { 'data-bx-banner': entry.key, 'aria-label': entry.label, 'aria-pressed': String(entry.key === b.key) }, function () { switchBanner(entry.key, entry.key === 'limited' ? 'left' : 'right') })
+        dots.appendChild(dot)
+      })
+      app.content.appendChild(dots)
       var row = app.el('div', 'bx-row')
+      var one = app.button('bx-btn', { 'data-bx-one': b.key }, function () { app.send('open', { banner: b.key, count: 1 }) })
+      one.appendChild(app.el('span', null, '寻访 1 次')); one.appendChild(app.el('small', null, data.coins < data.prices.one ? '金币不够' : data.prices.one + ' 🪙'))
+      one.disabled = data.coins < data.prices.one; row.appendChild(one)
+      var ten = app.button('bx-btn', { 'data-bx-ten': b.key }, function () { app.send('open', { banner: b.key, count: 10 }) })
+      ten.appendChild(app.el('span', null, '寻访 10 次')); ten.appendChild(app.el('small', null, data.coins < data.prices.ten ? '金币不够' : data.prices.ten + ' 🪙'))
+      ten.disabled = data.coins < data.prices.ten; row.appendChild(ten); app.content.appendChild(row)
       if (data.tickets > 0) {
         var free = app.button('bx-btn tk', { 'data-bx-ticket': b.key }, function () { app.send('open', { banner: b.key, count: 1, ticket: true }) })
-        free.textContent = '🎟 用券寻访'
-        row.appendChild(free)
+        free.textContent = '🎟 用盲盒券寻访 1 次（有 ' + data.tickets + ' 张）'; app.content.appendChild(free)
       }
-      var one = app.button('bx-btn', { 'data-bx-one': b.key }, function () { app.send('open', { banner: b.key, count: 1 }) })
-      one.textContent = '寻访 1 次 · ' + data.prices.one + ' 🪙'
-      one.disabled = data.coins < data.prices.one
-      row.appendChild(one)
-      var ten = app.button('bx-btn alt', { 'data-bx-ten': b.key }, function () { app.send('open', { banner: b.key, count: 10 }) })
-      ten.textContent = '寻访 10 次 · ' + data.prices.ten + ' 🪙'
-      ten.disabled = data.coins < data.prices.ten
-      row.appendChild(ten)
-      card.appendChild(row)
-      app.content.appendChild(card)
-    })
+      setTimeout(function () { if (card.isConnected && !card.matches(':hover') && bannerHover) { bannerHover = false; armBannerTimer() } }, 0)
   }
-
   function renderShowcase(app, data) {
     var owned = data.catalog.filter(function (f) { return f.potential > 0 }).length
     var chips = app.el('div', 'bx-chips')
@@ -348,7 +382,7 @@
     var fresh = renderReveal(app, data)
     var tabs = app.el('div', 'bx-tabs')
     ;[['pull', '🎁 寻访'], ['shelf', '🏛 展示柜'], ['shop', '📜 凭证商店']].forEach(function (pair) {
-      var b = app.button('bx-tab', { 'data-bx-tab': pair[0], 'aria-pressed': String(tab === pair[0]) }, function () { tab = pair[0]; app.rerender && app.rerender() })
+      var b = app.button('bx-tab', { 'data-bx-tab': pair[0], 'aria-pressed': String(tab === pair[0]) }, function () { tab = pair[0]; armBannerTimer(); app.rerender && app.rerender() })
       b.textContent = pair[1]
       tabs.appendChild(b)
     })
