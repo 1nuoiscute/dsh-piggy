@@ -8,10 +8,10 @@ import { ART_URL } from '../constants.js'
 import { button, el } from '../dom.js'
 import { drillHeader } from '../widgets.js'
 import { updatesBridge } from './update.js'
+import { CHANNEL } from '../../../channel.js'
 
-const REPO = 'https://github.com/CLICGGER-TYPES/dsh-piggy'
-export const GUIDE_URL = REPO + '/blob/main/docs/guides/creating-skins.md'
-export const EXAMPLE_URL = REPO + '/raw/main/docs/examples/skin-pack-example.zip'
+export const GUIDE_URL = CHANNEL.blobBase + '/docs/guides/creating-skins.md'
+export const EXAMPLE_URL = CHANNEL.rawBase + '/docs/examples/skin-pack-example.zip'
 
 /** 十张图：文件名、必须/可选、什么时候出现、示意用哪张内置图。 */
 const POSES = [

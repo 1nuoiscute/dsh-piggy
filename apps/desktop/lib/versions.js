@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * 游戏热更新：从 GitHub Release 下载游戏包，校验后放进 userData/versions/<版本>/，
+ * 游戏热更新：从发行版（GitHub 或 Gitee，看 lib/channel.js）下载游戏包，校验后放进 userData/versions/<版本>/，
  * 下次启动就用它。安装包自带的那份是兜底；上一个版本留着，可以一键回退。
  *
  * 每个 Release 附两个文件（scripts/release-game.mjs 生成）：
@@ -14,10 +14,10 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, normalize, sep } from 'node:path'
 import { gunzipSync } from 'node:zlib'
+import { CHANNEL } from './channel.js'
 
-export const REPO = 'CLICGGER-TYPES/dsh-piggy'
-export const RELEASES_URL = `https://api.github.com/repos/${REPO}/releases?per_page=20`
-export const RELEASES_PAGE = `https://github.com/${REPO}/releases`
+export const RELEASES_URL = CHANNEL.releasesList
+export const RELEASES_PAGE = CHANNEL.releasesPage
 
 /** `1.2.10` vs `1.2.9`, ignoring a leading v; missing parts count as 0. */
 export function compareVersions(a, b) {
@@ -134,7 +134,8 @@ export function createVersions(options) {
         current: version === here.version,
         blocked, minShell: manifest.minShell ?? null, latestShell,
         shellUpdate: latestShell !== null && compareVersions(latestShell, options.shellVersion) > 0,
-        page: release.html_url ?? RELEASES_PAGE,
+        // Gitee 的发行版没有 html_url，按 tag 拼。
+        page: release.html_url ?? `${RELEASES_PAGE}/tag/${release.tag_name}`,
         manifest, packUrl: packAsset.browser_download_url,
       })
     }

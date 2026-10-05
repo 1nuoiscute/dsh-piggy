@@ -591,7 +591,7 @@ ipcMain.handle('piggy:shell:download', async (event, version) => {
   // 预览版里的外壳也能下：只有在用预览版游戏的人，页面才会把它列出来。
   const target = releases.find(release => release.latestShell === version && release.shellUpdate)
   if (target === undefined) return { ok: false, reason: '版本列表过期了，点上面的「刷新」再试一次' }
-  return shellUpdates.download(version, target.prerelease === true)
+  return shellUpdates.download(version, target.prerelease === true, target.tag)
 })
 ipcMain.handle('piggy:shell:install', event => {
   if (!fromPage(event) || shellUpdates === null || shellUpdates.status().readyVersion === null) return { ok: false, reason: '还没有下载好桌面外壳' }

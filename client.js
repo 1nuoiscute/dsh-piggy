@@ -5494,10 +5494,28 @@
     ui.content.appendChild(row);
   }
 
+  // channel.js
+  var CHANNEL = {
+    name: "github",
+    repoPage: "https://github.com/CLICGGER-TYPES/dsh-piggy",
+    /** 发行版列表（新的在前），外壳用它找可下载的游戏包。 */
+    releasesList: "https://api.github.com/repos/CLICGGER-TYPES/dsh-piggy/releases?per_page=20",
+    /** 最新正式版，DSH 插件模式的更新提示用。 */
+    latestRelease: "https://api.github.com/repos/CLICGGER-TYPES/dsh-piggy/releases/latest",
+    releasesPage: "https://github.com/CLICGGER-TYPES/dsh-piggy/releases",
+    /** 发行版附件：<downloadBase>/<tag>/<文件名> */
+    downloadBase: "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download",
+    /** 仓库文件（main 分支）：原始内容 / 网页查看 */
+    rawBase: "https://raw.githubusercontent.com/CLICGGER-TYPES/dsh-piggy/main",
+    blobBase: "https://github.com/CLICGGER-TYPES/dsh-piggy/blob/main",
+    /** 在线扩展目录 */
+    registry: "https://raw.githubusercontent.com/CLICGGER-TYPES/dsh-piggy/main/extensions/registry.json"
+  };
+
   // src/client/update-notice.js
   var READ_KEY = "dsh-piggy:update-read";
   var NOTIFIED_KEY = "dsh-piggy:update-notified";
-  var GITHUB_LATEST = "https://api.github.com/repos/CLICGGER-TYPES/dsh-piggy/releases/latest";
+  var GITHUB_LATEST = CHANNEL.latestRelease;
   function compareVersions(a, b) {
     const split = (value) => {
       const [main, pre] = String(value).replace(/^v/, "").split("-", 2);
@@ -5523,14 +5541,15 @@
   }
   async function fetchGithubLatest(doFetch = fetch) {
     const response = await doFetch(GITHUB_LATEST, { headers: { accept: "application/vnd.github+json" }, cache: "no-store" });
-    if (!response.ok) throw new Error("GitHub " + response.status);
+    if (!response.ok) throw new Error((CHANNEL.name === "gitee" ? "Gitee " : "GitHub ") + response.status);
     const release = await response.json();
     if (release?.draft === true || release?.prerelease === true) return null;
     const version = String(release?.tag_name ?? "").replace(/^v/, "");
     if (version === "") return null;
     return {
       version,
-      page: String(release?.html_url ?? "https://github.com/CLICGGER-TYPES/dsh-piggy/releases"),
+      // Gitee 的发行版没有 html_url，按 tag 拼出发行版页面。
+      page: String(release?.html_url ?? CHANNEL.releasesPage + "/tag/" + String(release?.tag_name ?? "")),
       notes: String(release?.body ?? "").slice(0, 1200),
       prerelease: false
     };
@@ -6022,9 +6041,8 @@
   }
 
   // src/client/tabs/skin-guide.js
-  var REPO = "https://github.com/CLICGGER-TYPES/dsh-piggy";
-  var GUIDE_URL = REPO + "/blob/main/docs/guides/creating-skins.md";
-  var EXAMPLE_URL = REPO + "/raw/main/docs/examples/skin-pack-example.zip";
+  var GUIDE_URL = CHANNEL.blobBase + "/docs/guides/creating-skins.md";
+  var EXAMPLE_URL = CHANNEL.rawBase + "/docs/examples/skin-pack-example.zip";
   var POSES = [
     { file: "idle.svg", need: true, when: "\u5E73\u65F6\u5F85\u7740\uFF1B\u7F3A\u5C11\u53EF\u9009\u52A8\u4F5C\u65F6\u4E5F\u7528\u5B83", art: "skin-detective" },
     { file: "eat.svg", need: true, when: "\u5403\u4E1C\u897F", art: "skin-detective-eat" },

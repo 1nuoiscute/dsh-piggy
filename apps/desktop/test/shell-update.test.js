@@ -48,3 +48,18 @@ test('portable and unsigned macOS remain download-only without loading an update
     assert.equal(updates.install().ok, false)
   }
 })
+
+test('Gitee 渠道：按发行版 tag 把更新清单地址指到 Gitee 下载目录', async () => {
+  const { CHANNEL } = await import('../../../channels/gitee.js')
+  const calls = []
+  const updater = {
+    on() {}, setFeedURL(feed) { calls.push(['feed', feed]) },
+    async checkForUpdates() { calls.push(['check']); return { updateInfo: { version: '0.4.0' } } },
+    async downloadUpdate() { calls.push(['download']) },
+  }
+  const shell = createShellUpdates({ mode: 'automatic', currentVersion: '0.3.0', updater, channel: CHANNEL })
+  assert.equal((await shell.download('0.4.0', false)).ok, false, '没有 tag 时不去猜地址')
+  const result = await shell.download('0.4.0', false, 'v0.32.0')
+  assert.equal(result.ok, true)
+  assert.deepEqual(calls[0], ['feed', { provider: 'generic', url: 'https://gitee.com/clicgger/dsh-piggy/releases/download/v0.32.0' }])
+})

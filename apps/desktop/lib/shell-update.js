@@ -1,6 +1,7 @@
 // @ts-check
 /** Desktop executable updates are separate from the downloaded game packs. */
 import { compareVersions } from './versions.js'
+import { CHANNEL } from './channel.js'
 
 /**
  * @param {{ platform: string, packaged: boolean, portable?: boolean, appImage?: string }} build
@@ -14,10 +15,11 @@ export function shellUpdateMode(build) {
 }
 
 /**
- * @param {{ mode: string, currentVersion: string, updater?: any, onProgress?: (fraction: number) => void }} options
+ * @param {{ mode: string, currentVersion: string, updater?: any, onProgress?: (fraction: number) => void, channel?: typeof CHANNEL }} options
  */
 export function createShellUpdates(options) {
   const { mode, currentVersion, updater } = options
+  const channel = options.channel ?? CHANNEL
   let readyVersion = null
   let busy = false
   if (mode === 'automatic') {
@@ -28,8 +30,12 @@ export function createShellUpdates(options) {
 
   const status = () => ({ mode, currentVersion, readyVersion })
 
-  /** @param {string} expectedVersion @param {boolean} [prerelease] 外壳在预览版发布里时要让更新器也看预览版 */
-  async function download(expectedVersion, prerelease = false) {
+  /**
+   * @param {string} expectedVersion
+   * @param {boolean} [prerelease] 外壳在预览版发布里时要让更新器也看预览版
+   * @param {string} [tag] 带这个外壳的发行版；Gitee 没有「最新版」固定下载地址，按它拼出更新清单所在目录
+   */
+  async function download(expectedVersion, prerelease = false, tag = undefined) {
     if (mode !== 'automatic') return { ok: false, reason: '这个安装方式需要到发布页下载安装包' }
     if (busy) return { ok: false, reason: '桌面外壳正在下载' }
     if (readyVersion === expectedVersion) return { ok: true, version: readyVersion }
@@ -38,6 +44,10 @@ export function createShellUpdates(options) {
     readyVersion = null
     try {
       updater.allowPrerelease = prerelease
+      if (channel.name === 'gitee') {
+        if (!tag) return { ok: false, reason: '版本列表过期了，点上面的「刷新」再试一次' }
+        updater.setFeedURL({ provider: 'generic', url: `${channel.downloadBase}/${tag}` })
+      }
       const result = await updater.checkForUpdates()
       const found = result?.updateInfo?.version
       if (found !== expectedVersion) return { ok: false, reason: found ? `发布页当前外壳是 v${found}，点「刷新」再试` : '还没有可自动安装的外壳包，请到发布页下载' }

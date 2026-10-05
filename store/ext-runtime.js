@@ -16,8 +16,12 @@ import { pathToFileURL } from 'node:url'
 
 import { announce, ensureExtensions, extensionOn, installExtension, removeExtension } from '../core.js'
 import { BOX_TICKET, itemByKey } from '../data.js'
+import { CHANNEL } from '../channel.js'
 
-export const REGISTRY_URL = 'https://raw.githubusercontent.com/CLICGGER-TYPES/dsh-piggy/main/extensions/registry.json'
+/** 在线扩展目录：GitHub 或 Gitee，看打包时的渠道（channel.js）。 */
+export const REGISTRY_URL = CHANNEL.registry
+/** 扩展文件只许从本渠道的发行版附件和仓库原始文件下载。 */
+export const ALLOWED_SOURCES = [CHANNEL.downloadBase + '/', CHANNEL.rawBase + '/']
 const FILES = ['manifest.json', 'server.js', 'client.js']
 const KEY = /^[a-z0-9-]{2,24}$/
 const REGISTRY_TTL_MS = 10 * 60_000
@@ -212,7 +216,7 @@ export function createExtRuntime(store, options) {
       for (const name of FILES) {
         const spec = entry.files?.[name]
         if (spec === undefined || typeof spec.url !== 'string' || typeof spec.sha256 !== 'string') throw new Error('目录里缺少 ' + name)
-        if (!spec.url.startsWith('https://github.com/CLICGGER-TYPES/dsh-piggy/') && !spec.url.startsWith('https://raw.githubusercontent.com/CLICGGER-TYPES/dsh-piggy/') && options.registryUrl === undefined) throw new Error('来源不对：' + name)
+        if (!ALLOWED_SOURCES.some(prefix => spec.url.startsWith(prefix)) && options.registryUrl === undefined) throw new Error('来源不对：' + name)
         const response = await doFetch(spec.url)
         if (!response.ok) throw new Error(name + ' 下载失败（HTTP ' + response.status + '）')
         const buffer = Buffer.from(await response.arrayBuffer())

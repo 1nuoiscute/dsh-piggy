@@ -69,6 +69,15 @@ npm run dist:mac
 4. 执行 `npm view dsh-piggy version`，确认公开版本与标签相同。
 5. 进入 `packages/dsh-plugin-piggy/`，执行 `npm publish --access public` 发布别名包，再用 `npm view dsh-plugin-piggy version` 核对。
 
+### Gitee 渠道
+
+Gitee（[clicgger/dsh-piggy](https://gitee.com/clicgger/dsh-piggy)）是独立的一套发行：Gitee 发出去的游戏包和桌面外壳里，检查更新、下载游戏包、在线扩展都只走 gitee.com，不依赖 GitHub。
+
+- **渠道**：地址集中在 `channels/github.js`、`channels/gitee.js`；`node scripts/set-channel.mjs <github|gitee>` 把选中的复制成 `channel.js`（游戏）和 `apps/desktop/lib/channel.js`（外壳）。仓库里提交的永远是 github，`test/channel.test.js` 守着。
+- **自动发版**：推 `v*` 标签时 `.github/workflows/release-gitee.yml` 和 `release.yml` 各跑各的：先用默认渠道跑测试，再切到 gitee 渠道打游戏包和三平台安装包，用 `scripts/scan-channel.mjs` 扫掉 GitHub 地址，`scripts/gitee-release.mjs` 建 Gitee 发行版、上传附件、删掉旧版本的安装包附件。需要仓库密钥 `GITEE_TOKEN`。也能在 Actions 里手动对某个版本只发 Gitee（workflow_dispatch，填 tag）。
+- **大小限制**：Gitee 发行版附件单个 ≤100MB、单仓库总量 ≤1GB。Gitee 安装包用 `apps/desktop/electron-builder.gitee.cjs`（最大压缩、只留中英文语言包）和 `tools/slim-emoji-font.py`（只留游戏里用到的 emoji + 常用表情，约 1MB）；GitHub 安装包不受影响，仍带整套 emoji。超过 100MB 的文件 CI 不上传并给出警告。
+- **在线扩展**：每个扩展在 GitHub、Gitee 各发一个 `ext-<key>-<版本>` 发行版；`node scripts/extension-entry.mjs <key> --host gitee` 生成 `extensions/registry-gitee.json` 的条目（校验值和 GitHub 那份相同）。Gitee 上传：`GITEE_TOKEN=… node scripts/gitee-release.mjs ensure ext-<key>-<版本>`，再 `upload <id> extensions/<key>/{manifest.json,server.js,client.js}`。
+
 社区目录使用的 `dsh-plugin-piggy` 是 `packages/dsh-plugin-piggy/` 里的独立 npm 包。它作为 DSH bundle 加载原始 `dsh-piggy` 依赖，不复制游戏代码；发布后在隔离 profile 验证别名能解析到原插件，每个 profile 只安装其中一个包。
 
 ## 主要目录

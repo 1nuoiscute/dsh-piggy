@@ -2,10 +2,12 @@
 /** Background release checks shared by the desktop app and the DSH client. */
 
 import { readStore, writeStore } from './storage.js'
+import { CHANNEL } from '../../channel.js'
 
 const READ_KEY = 'dsh-piggy:update-read'
 const NOTIFIED_KEY = 'dsh-piggy:update-notified'
-export const GITHUB_LATEST = 'https://api.github.com/repos/CLICGGER-TYPES/dsh-piggy/releases/latest'
+/** 最新正式版的接口：GitHub 或 Gitee，看打包时的渠道（channel.js）。 */
+export const GITHUB_LATEST = CHANNEL.latestRelease
 
 /**
  * Compare versions like semver: numbers first, and a prerelease (0.27.3-rc.2) sorts
@@ -40,17 +42,18 @@ export function newestRelease(releases) {
     .sort((a, b) => compareVersions(b.version, a.version))[0] ?? null
 }
 
-/** Fetch the newest public GitHub Release for the DSH notification-only page. */
+/** Fetch the newest public release (GitHub or Gitee, per channel) for the DSH notification-only page. */
 export async function fetchGithubLatest(doFetch = fetch) {
   const response = await doFetch(GITHUB_LATEST, { headers: { accept: 'application/vnd.github+json' }, cache: 'no-store' })
-  if (!response.ok) throw new Error('GitHub ' + response.status)
+  if (!response.ok) throw new Error((CHANNEL.name === 'gitee' ? 'Gitee ' : 'GitHub ') + response.status)
   const release = await response.json()
   if (release?.draft === true || release?.prerelease === true) return null
   const version = String(release?.tag_name ?? '').replace(/^v/, '')
   if (version === '') return null
   return {
     version,
-    page: String(release?.html_url ?? 'https://github.com/CLICGGER-TYPES/dsh-piggy/releases'),
+    // Gitee 的发行版没有 html_url，按 tag 拼出发行版页面。
+    page: String(release?.html_url ?? CHANNEL.releasesPage + '/tag/' + String(release?.tag_name ?? '')),
     notes: String(release?.body ?? '').slice(0, 1200),
     prerelease: false,
   }
