@@ -21,21 +21,21 @@
       "key": "blindbox",
       "label": "盲盒",
       "emoji": "🎁",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "minGame": "0.30.0",
-      "description": "买盲盒、摇一摇拆开，收集一整排小摆件。每个系列都有隐藏款，抽多了一定会出。",
+      "description": "照明日方舟寻访的盲盒：3★～6★ 摆件，常驻和限时卡池轮换 UP，50 抽后六星概率逐抽提升，重复的加潜能、换资质凭证。",
       "files": {
         "manifest.json": {
-          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-1.0.0/manifest.json",
-          "sha256": "011df1681b1a17cc353027788dbf14d9c47662a5c2a1540a1ffa64ba47587f1a"
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-2.0.0/manifest.json",
+          "sha256": "02e960350ecf5a02735bd1b4e25fc5b844e3aa8c0c313added3dcf2012c605f0"
         },
         "server.js": {
-          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-1.0.0/server.js",
-          "sha256": "bb543387ef1b1acf400245bd699499f1315140faaf62a1a4d36f8fbf7c480290"
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-2.0.0/server.js",
+          "sha256": "5ff0caacc2d557cabe23efba8734f9abc0e7d3ff858e91523d6dc9496e26502b"
         },
         "client.js": {
-          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-1.0.0/client.js",
-          "sha256": "b8a80ec65a4ffcd1ac39ce45e3f8d551bf027fff928910573caff1c3a4e0925b"
+          "url": "https://github.com/CLICGGER-TYPES/dsh-piggy/releases/download/ext-blindbox-2.0.0/client.js",
+          "sha256": "3b86d43ebbd8c10235ed0d6b603c06b40b1dfda1b2a120bc8bc065c937357582"
         }
       }
     }
