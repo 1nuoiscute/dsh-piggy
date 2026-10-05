@@ -186,6 +186,8 @@ export function snapshot(store, options = {}) {
     // 内置扩展 + 下载来的扩展（store.ext 由 routes.js 建，见 store/ext-runtime.js）。
     extensions: [...extensionsView(state), ...(store.ext?.list(state) ?? [])],
     extViews: store.ext?.views(state) ?? {},
+    extShelves: store.ext?.shelves?.(state) ?? [],
+    extDex: store.ext?.dex?.(state) ?? [],
     dress: dressView(state),
     inventory: inventoryView(state),
     care: careView(state),

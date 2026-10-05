@@ -5,6 +5,7 @@ import { offParts } from '../extensions.js'
 import { ART_URL, shelfOf } from '../constants.js'
 import { button, el, sideScroller } from '../dom.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
+import { renderHoloSection } from './dex-holo.js'
 
 const SECTIONS = []
 const ITEM_KINDS = [
@@ -31,9 +32,24 @@ for (const section of [
 export function renderDexTab(ui) {
   const picked = ui.drill.dex
   if (picked === null) return renderSections(ui)
+  const ext = (ui.view.extDex ?? []).find(entry => picked === 'ext:' + entry.extension + ':' + entry.key)
+  if (ext && ext.style === 'holo') { renderHoloSection(ui, ext); return }
+  if (ext) { renderExtPlain(ui, ext); return }
   const section = SECTIONS.find(entry => entry.key === picked)
   if (section === undefined) return drillTo(ui, 'dex', null)
   const entries = ui.view.dex[section.key] ?? []
+  const detail = entries.find(entry => entry.key === ui.drill.pick)
+  if (detail !== undefined) return renderDetail(ui, section, detail)
+  renderEntries(ui, section, entries)
+}
+
+/** 不是闪卡的扩展分区（作物、矿石）：跟纪念品一样的展柜格子，详情页也共用。 */
+function renderExtPlain(ui, ext) {
+  const section = { key: 'ext:' + ext.extension + ':' + ext.key, label: ext.label, emoji: ext.emoji }
+  const entries = (ext.entries ?? []).map(entry => ({
+    key: entry.key, emoji: entry.emoji, label: entry.label, acquired: entry.acquired === true,
+    description: entry.blurb, foot: '',
+  }))
   const detail = entries.find(entry => entry.key === ui.drill.pick)
   if (detail !== undefined) return renderDetail(ui, section, detail)
   renderEntries(ui, section, entries)
@@ -59,6 +75,18 @@ function renderSections(ui) {
     progress.appendChild(fill)
     node.appendChild(progress)
     grid.appendChild(node)
+  }
+  for (const section of ui.view.extDex ?? []) {
+    const entries = section.entries ?? []
+    const got = entries.filter(entry => entry.acquired).length
+    const key = 'ext:' + section.extension + ':' + section.key
+    const node = tile({ emoji: section.emoji, label: section.label, color: section.color || 'orange',
+      note: got + '/' + entries.length, data: { 'data-dex-section': key },
+      onPick: function () { drillTo(ui, 'dex', key) } })
+    const progress = el('span', 'dp-dex-progress')
+    const fill = el('i')
+    fill.style.width = (entries.length === 0 ? 0 : Math.round(got / entries.length * 100)) + '%'
+    progress.appendChild(fill); node.appendChild(progress); grid.appendChild(node)
   }
   ui.content.appendChild(grid)
 }
@@ -195,7 +223,8 @@ function renderDetail(ui, section, entry) {
   card.appendChild(el('div', 'dp-dex-big-title', entry.acquired ? entry.emoji + ' ' + entry.label : '🔒 未知' + section.label))
   if (entry.acquired) {
     card.appendChild(el('div', 'dp-dex-story', entry.description || '这段故事还没有写进图鉴。'))
-    card.appendChild(el('div', 'dp-dex-foot', firstSeen(entry.firstAt) + ' · 获得 ' + entry.count + ' 次'
+    if (typeof entry.foot === 'string') { if (entry.foot) card.appendChild(el('div', 'dp-dex-foot', entry.foot)) }
+    else card.appendChild(el('div', 'dp-dex-foot', firstSeen(entry.firstAt) + ' · 获得 ' + entry.count + ' 次'
       + (typeof entry.maxSizeCm === 'number' ? ' · 最大 ' + entry.maxSizeCm.toFixed(1) + ' cm' : '')))
     if (section.key === 'skins') {
       const current = ui.view.skins.current === entry.key

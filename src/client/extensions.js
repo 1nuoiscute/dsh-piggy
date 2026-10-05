@@ -34,9 +34,17 @@ export function normalizeExtensions(raw) {
   }).filter(entry => entry.key !== '')
 }
 
-/** 快照里扩展相关的两样：扩展列表、下载扩展给自己 App 页的数据。 @param {any} d */
+/** 快照里下载扩展的列表、App 数据、货架和图鉴分区。 @param {any} d */
 export function normalizeExtensionParts(d) {
-  return { extensions: normalizeExtensions(d.extensions), extViews: obj(d.extViews) }
+  const extensions = normalizeExtensions(d.extensions)
+  const visible = part => {
+    if (typeof part?.extension !== 'string' || typeof part?.key !== 'string') return false
+    const owner = extensions.find(entry => entry.key === part.extension)
+    return owner !== undefined && owner.on && owner.installed && !owner.builtin
+  }
+  return { extensions, extViews: obj(d.extViews),
+    extShelves: arr(d.extShelves).filter(visible).map(part => ({ ...part, currency: obj(part.currency), items: arr(part.items) })),
+    extDex: arr(d.extDex).filter(visible).map(part => ({ ...part, entries: arr(part.entries) })) }
 }
 
 /** 关掉的扩展占的 App / 图鉴分区。 @param {any} view */

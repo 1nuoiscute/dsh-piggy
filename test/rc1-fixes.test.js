@@ -34,7 +34,8 @@ test('while the pig is out, starting work asks first, then calls it back and goe
 
 test('extension cards keep the switch and the delete button together at the bottom left', async () => {
   const { dom } = await mount({ status: SNAPSHOT })
-  openPanel(dom, 'extensions')
+  openPanel(dom, 'settings')
+  findByAttr(contentOf(dom), 'data-open-extensions', 'true').fire('click')
   const card = findByAttr(contentOf(dom), 'data-extension', 'fishing')
   const actions = findByClass(card, 'dp-ext-actions')
   assert.notEqual(findByAttr(actions, 'data-extension-toggle', 'fishing'), undefined)

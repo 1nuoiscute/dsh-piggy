@@ -2,7 +2,27 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFileSync } from 'node:fs'
-import { contentOf, findByAttr, findByClass, mount, openPanel } from './helpers/bundle.js'
+import { SNAPSHOT, contentOf, findByAttr, findByClass, mount, openPanel, settle } from './helpers/bundle.js'
+
+test('扩展收进设置；有扩展更新时设置方块和入口都有红点，返回设置', async () => {
+  const extensions = [
+    { key: 'pomodoro', label: '番茄钟', on: true, installed: true, builtin: true, apps: ['pomodoro'], dexSections: [], shopKinds: [] },
+    { key: 'fishing', label: '钓鱼', on: true, installed: true, builtin: true, apps: ['fishing'], dexSections: ['fish'], shopKinds: ['bait'] },
+    { key: 'blindbox', label: '盲盒', on: true, installed: true, builtin: false, version: '2.0.0', app: { emoji: '🎁', label: '盲盒' }, apps: [], dexSections: [], shopKinds: [] },
+  ]
+  const { dom } = await mount({ status: { ...SNAPSHOT, extensions }, onlineResponse: { entries: [{ key: 'blindbox', update: true, version: '2.1.0' }] } })
+  openPanel(dom)
+  await settle()
+  const settings = findByAttr(contentOf(dom), 'data-app', 'settings')
+  assert.ok(findByClass(settings, 'dp-tile-badge'))
+  settings.fire('click')
+  const entry = findByAttr(contentOf(dom), 'data-open-extensions', 'true')
+  assert.ok(findByClass(entry, 'dp-update-dot'))
+  entry.fire('click')
+  assert.ok(findByAttr(contentOf(dom), 'data-extension', 'blindbox'))
+  findByAttr(contentOf(dom), 'data-home', 'true').fire('click')
+  assert.ok(findByAttr(contentOf(dom), 'data-open-extensions', 'true'))
+})
 
 test('设置里没有「主菜单图标」选项；以前存过手绘图标的设备也显示 emoji', async () => {
   const { dom, store } = await mount()

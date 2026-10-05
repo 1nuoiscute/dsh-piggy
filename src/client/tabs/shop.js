@@ -8,7 +8,7 @@
 
 import { KIND_ORDER, KIND_TITLE, shelfOf } from '../constants.js'
 import { animatePurchase } from '../interaction-motion.js'
-import { el } from '../dom.js'
+import { button, el } from '../dom.js'
 import { num } from '../values.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
 
@@ -23,12 +23,15 @@ export function shelfParts(kind) {
 }
 
 export function renderShopTab(ui) {
-  if (ui.view.shop.length === 0) {
+  const extShelves = ui.view.extShelves ?? []
+  if (ui.view.shop.length === 0 && extShelves.length === 0) {
     ui.content.appendChild(el('div', 'dp-empty', '宿主还没提供货架。'))
     return
   }
   var coins = '🪙 ' + ui.view.pig.coins
   var shelf = ui.drill.shop
+  const extShelf = extShelves.find(entry => 'ext:' + entry.extension === shelf)
+  if (extShelf) { renderExtShelf(ui, extShelf); return }
   if (shelf === null || KIND_ORDER.indexOf(shelf) < 0) {
     renderShelves(ui)
     return
@@ -64,7 +67,50 @@ function renderShelves(ui) {
       }))
     })(KIND_ORDER[k])
   }
+  for (const shelf of ui.view.extShelves ?? []) {
+    grid.appendChild(tile({ emoji: shelf.emoji, label: shelf.label, color: shelf.color || 'orange',
+      // 跟内置货架一样只写名字；不用金币买的才在下面注明货币。
+      note: shelf.currency && shelf.currency.label !== '金币' ? shelf.currency.label : undefined, data: { 'data-shelf': 'ext:' + shelf.extension },
+      onPick: function () { drillTo(ui, 'shop', 'ext:' + shelf.extension) } }))
+  }
   ui.content.appendChild(grid)
+}
+
+/** 下载扩展自己的商品，购买仍由扩展的 buy 动作结算。 */
+function renderExtShelf(ui, shelf) {
+  const currency = shelf.currency ?? { label: '货币', emoji: '🪙', balance: 0 }
+  drillHeader(ui, 'shop', shelf.emoji + ' ' + shelf.label, currency.emoji + ' ' + currency.balance)
+  ui.content.appendChild(el('div', 'dp-ext-shelf-note', '用' + currency.label + '买 · ' + currency.emoji + ' 余额 ' + currency.balance))
+  const list = el('div', 'dp-ext-goods')
+  for (const item of shelf.items ?? []) {
+    const row = el('div', 'dp-ext-good')
+    row.appendChild(el('span', 'dp-ext-good-emoji', item.emoji))
+    const copy = el('div', 'dp-ext-good-copy')
+    copy.appendChild(el('b', null, item.label)); copy.appendChild(el('small', null, item.note))
+    row.appendChild(copy)
+    const hasPick = Array.isArray(item.pick)
+    const buy = button('dp-mini', { 'data-ext-buy': item.key }, function () {
+      if (hasPick) { ui.drill.pick = ui.drill.pick === item.key ? null : item.key; ui.renderContent(); return }
+      ui.send('ext', { key: shelf.extension, op: 'buy', data: { item: item.key, pick: null } })
+    })
+    buy.textContent = item.price + ' ' + currency.emoji
+    buy.disabled = item.disabled === true
+    row.appendChild(buy)
+    if (hasPick && ui.drill.pick === item.key) {
+      const choices = el('div', 'dp-ext-picks')
+      for (const pick of item.pick) {
+        const choose = button('dp-mini dp-mini-plain', { 'data-ext-pick': pick.key }, function () {
+          ui.drill.pick = null
+          ui.send('ext', { key: shelf.extension, op: 'buy', data: { item: item.key, pick: pick.key } })
+        })
+        choose.textContent = pick.emoji + ' ' + pick.label
+        choices.appendChild(choose)
+      }
+      row.appendChild(choices)
+    }
+    list.appendChild(row)
+  }
+  ui.content.appendChild(list)
 }
 
 /** A thing on the shelf: tap to buy. 家当 says 已拥有 or the level it waits for. */

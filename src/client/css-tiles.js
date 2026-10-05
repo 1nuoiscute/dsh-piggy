@@ -41,6 +41,10 @@ export const CSS_TILES = [
 
   // The grid: three columns that can never be widened by their content.
   '.dp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:4px 2px 2px}',
+  '.dp-home-clip{overflow:hidden;touch-action:pan-y}.dp-home-track{display:flex;transition:transform .25s ease;will-change:transform}',
+  '.dp-home-page{box-sizing:border-box;flex:0 0 100%;grid-template-rows:repeat(3,72px);align-content:start}.dp-home-page[data-active="false"]{pointer-events:none}',
+  '.dp-home-dots{display:flex;justify-content:center;gap:8px;margin:9px 0 2px}.dp-home-dot{width:9px;height:9px;padding:0;border:1.5px solid var(--ac-primary);border-radius:50%;background:transparent;cursor:pointer}.dp-home-dot[aria-pressed="true"]{background:var(--ac-primary)}',
+  '@media (prefers-reduced-motion:reduce){.dp-home-track{transition:none}}',
 
   // A tile is a column: the coloured square, then its name, then a note.
   '.dp-tile{font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;',
@@ -187,4 +191,9 @@ export const CSS_TILES = [
   '.dp-update-top .dp-pick-head{flex:1;min-width:0}',
   '.dp-update-refresh{flex:none}',
   '.dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}',
+  '.dp-ext-shelf-note{font-size:11px;color:var(--ac-text-2);margin:6px 2px 10px}.dp-ext-goods{display:grid;gap:7px}',
+  '.dp-ext-good{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 10px;border-radius:16px;background:var(--ac-bg-input);border:2px solid var(--ac-border-light)}',
+  '.dp-ext-good-emoji{width:42px;height:42px;border-radius:12px;background:#fff3c4;display:grid;place-items:center;font-size:22px}',
+  '.dp-ext-good-copy b{font-size:12px;color:var(--ac-text)}.dp-ext-good-copy small{display:block;font-size:10px;color:var(--ac-text-2)}',
+  '.dp-ext-picks{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px}.dp-ext-good .dp-mini{white-space:nowrap}',
 ].join('')

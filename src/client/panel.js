@@ -18,7 +18,7 @@ import { renderBagTab } from './tabs/bag.js'
 import { renderCardTab } from './tabs/card.js'
 import { renderDexTab } from './tabs/dex.js'
 import { closeFishing, renderFishingTab } from './tabs/fishing.js'
-import { appHeader, renderHome } from './tabs/home.js'
+import { appHeader, orderHomeApps, renderHome } from './tabs/home.js'
 import { clockText, renderPomodoroTab } from './tabs/pomodoro.js'
 import { renderDevTab } from './tabs/dev.js'
 import { renderUpdateTab, updatesBridge } from './tabs/update.js'
@@ -158,9 +158,9 @@ export function createPanel(ctx) {
 
         // B9: home first; every app's top layer gets a 「‹」 back (inside a category it goes up a layer).
         var shell = updatesBridge()
-        var apps = enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : [])
+        var apps = orderHomeApps(enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []))
         if (ctx.tab === 'home') {
-          renderHome(ctx, apps.filter(function (a) { return a.key !== 'update' })) // 更新入口在设置里（G 批次）
+          renderHome(ctx, apps.filter(function (a) { return a.key !== 'update' && a.key !== 'extensions' })) // 更新、扩展入口在设置里
           ctx.fitPanel()
           return
         }

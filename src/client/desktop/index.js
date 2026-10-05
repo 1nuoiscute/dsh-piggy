@@ -22,6 +22,8 @@ const DESKTOP_CSS = [
   '[data-dsh-pig] .dp-pig-img,[data-dsh-pig] .dp-pig-emoji{filter:none!important}',
   '[data-dsh-pig] .dp-card{box-shadow:inset 0 1px 2px rgba(61,52,40,.09)!important}',
   '[data-dsh-pig] .dp-panel-footer{max-height:270px!important}',
+  // 收起时拖猪，窗口缩到只包住猪；头顶的签到/礼包小气泡会被窗口边裁成半块白色，拖的时候先藏起来。
+  '[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-daily,[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-poke-hint{visibility:hidden!important}',
 ].join('\n')
 
 /** 非拖动时窗口差这么多以内就不改（Windows 分数缩放下读回来常差 1px）。 */
@@ -146,12 +148,33 @@ export function install(shell) {
     refreshRoom: function () { closedRoom = null },
     beginDrag: function () {
       placement.dragStarted()
+      const h = host()
+      if (h !== null && h.getAttribute('data-open') === 'false') {
+        measure.state.compact = true
+        tick()
+        const pigNode = h.querySelector('.dp-pig')
+        if (pigNode !== null) {
+          const pigBox = layoutBox(pigNode)
+          shell.beginDrag({ x: pigBox.x, y: pigBox.y, width: pigBox.width, height: pigBox.height })
+          return
+        }
+      }
       const pig = placement.pigWindow()
       const size = placement.pigSize()
       shell.beginDrag(pig === null ? null : { x: pig.x, y: pig.y, width: size.width, height: size.height })
     },
     dragHeartbeat: function () { if (typeof shell.dragHeartbeat === 'function') shell.dragHeartbeat() },
-    endDrag: function () { shell.endDrag() },
+    endDrag: function () {
+      shell.endDrag()
+      if (!measure.state.compact) return
+      measure.state.compact = false
+      const h = host()
+      const pigNode = h?.querySelector('.dp-pig')
+      // 拖动结束和同步读几何按 IPC 顺序处理，避免用到最后一帧之前的窗口位置。
+      const info = shell.place({})
+      if (pigNode !== null && pigNode !== undefined) measure.collapsedSide(layoutBox(pigNode), info)
+      tick()
+    },
     syncGeometry: function () { tick() },
     // 桌面散步（G 批次）：用外壳本来就有的 moveBy 挪窗口，新位置由主进程推回来的几何记住。
     moveBy: typeof shell.moveBy === 'function' ? function (dx, dy) { shell.moveBy(dx, dy) } : undefined,

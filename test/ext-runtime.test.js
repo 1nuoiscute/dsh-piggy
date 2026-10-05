@@ -23,7 +23,9 @@ const PACKAGE = {
       take(data, payload, api) { api.earn(data.saved); data.saved = 0; return { ok: true } },
       boom(data) { data.saved = 999; throw new Error('kaboom') },
     },
-    view(data) { return { saved: data.saved } },
+    view(data) { return { saved: data.saved,
+      shelf: { key: 'savings', label: '存钱罐', items: [{ key: 'coin', price: 10 }] },
+      dex: { key: 'coins', label: '硬币', entries: [{ key: 'gold', acquired: data.saved > 0 }] } } },
   }`,
   'client.js': 'window.dshPiggyExtensions && window.dshPiggyExtensions.register("piggybank", { render: function () {} })',
 }
@@ -92,7 +94,14 @@ test('a downloaded extension installs after its files check out, runs its action
 
     assert.equal(runtime.act('piggybank', 'save', {}).ok, true)
     assert.equal(store.state.coins, 90)
-    assert.deepEqual(runtime.views(store.state).piggybank, { saved: 10 })
+    assert.equal(runtime.views(store.state).piggybank.saved, 10)
+    assert.equal(runtime.shelves(store.state)[0].extension, 'piggybank')
+    assert.equal(runtime.shelves(store.state)[0].items[0].key, 'coin')
+    assert.equal(runtime.dex(store.state)[0].entries[0].acquired, true)
+    store.mutate(state => { state.extensions.piggybank = false })
+    assert.deepEqual(runtime.shelves(store.state), [])
+    assert.deepEqual(runtime.dex(store.state), [])
+    store.mutate(state => { state.extensions.piggybank = true })
     assert.ok(store.state.pending.some(entry => entry.kind === 'line' && entry.text === '存好了'))
 
     // 扩展抛错：它自己的数据不变，猪照常。

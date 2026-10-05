@@ -17,6 +17,41 @@ const OPEN_BOX_KEY = 'dsh-piggy:desktop-open-box'
 /** 面板上次朝哪边开：启动后第一次打开就按它留位置，不用先变一次窗口。 */
 const SIDES_KEY = 'dsh-piggy:desktop-sides'
 
+/** 收起时按需加回上次打开的面板范围；拖动时只保留本轮可见内容和气泡区。 */
+export function reservedOutline(outline, saved, pigBox, compact) {
+  if (compact || saved === undefined) return outline
+  return outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }])
+}
+
+/** 旧存档可能把另一朝向的范围写进当前 key；只读确实向该侧伸出的范围。 */
+export function validOpenBox(openBoxes, vertical, horizontal, pigBox) {
+  const saved = openBoxes[vertical + '|' + horizontal + '|' + Math.round(pigBox.width)]
+  if (saved === null || saved === undefined || ![saved.l, saved.t, saved.r, saved.b].every(Number.isFinite)) return undefined
+  if (saved.l >= saved.r || saved.t >= saved.b) return undefined
+  if (vertical === 'bottom' && saved.t >= -pigBox.height) return undefined
+  if (vertical === 'top' && saved.b <= pigBox.height * 2) return undefined
+  return saved
+}
+
+/** 根据猪在工作区的位置选收起朝向；面板在上优先，两边都放不下就保留原朝向。 */
+export function chooseCollapsedVertical(openBoxes, horizontal, width, height, pigTop, area, current) {
+  if (area === null || area === undefined) return current
+  const pigBox = { width, height }
+  const above = validOpenBox(openBoxes, 'bottom', horizontal, pigBox)
+  const below = validOpenBox(openBoxes, 'top', horizontal, pigBox)
+  if (above !== undefined && pigTop + above.t - PAD >= area.y) return 'bottom'
+  if (below !== undefined && pigTop + below.b + PAD <= area.y + area.height) return 'top'
+  return current
+}
+
+/** 从卡片和猪的实际位置判断面板朝向，供量框和锚边共用。 */
+function panelSide(cardBox, pigBox) {
+  return {
+    vertical: cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? 'bottom' : 'top',
+    horizontal: cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? 'right' : 'left',
+  }
+}
+
 /** @param {any} node */
 export function layoutBox(node) {
   let x = 0
@@ -42,15 +77,13 @@ function visible(node) {
 export function createMeasure(env) {
   let openBoxes = {}
   try { openBoxes = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || '{}') || {} } catch { openBoxes = {} }
-  const state = { vertical: 'bottom', horizontal: 'right', pinned: '' }
+  const state = { vertical: 'bottom', horizontal: 'right', pinned: '', compact: false }
   try {
     const sides = JSON.parse(localStorage.getItem(SIDES_KEY) || 'null')
     if (sides && (sides.vertical === 'top' || sides.vertical === 'bottom')) state.vertical = sides.vertical
     if (sides && (sides.horizontal === 'left' || sides.horizontal === 'right')) state.horizontal = sides.horizontal
   } catch { /* 用默认的右下角 */ }
   const reserves = env.platform !== 'darwin'
-
-  function openBoxKey(pigBox) { return state.vertical + '|' + state.horizontal + '|' + Math.round(pigBox.width) }
 
   /** @param {any} host */
   function boxes(host) {
@@ -109,8 +142,8 @@ export function createMeasure(env) {
     }
     // 面板打开时按它的最高高度留位置：切到内容少的 App 面板变矮，窗口不跟着缩。
     const card = /** @type {any} */ (host.querySelector('.dp-card'))
-    if (reserves && open && card !== null && card.hidden !== true) {
-      const cardBox = layoutBox(card)
+    const cardBox = card === null ? null : layoutBox(card)
+    if (reserves && open && cardBox !== null && card.hidden !== true) {
       const maxHeight = Math.min(PANEL_MAX_HEIGHT, parseFloat(card.style.maxHeight) || 0)
       if (maxHeight > cardBox.height && cardBox.width > 0) {
         zone = cardBox.y > pigBox.y
@@ -120,8 +153,9 @@ export function createMeasure(env) {
     }
     let outline = rects.concat(zone === null ? [] : [zone], bubbleZone === null ? [] : [bubbleZone])
     if (reserves && pigNode !== null) {
-      const key = openBoxKey(pigBox)
-      if (open && card !== null && card.hidden !== true) {
+      if (open && cardBox !== null && card.hidden !== true && cardBox.width > 0 && cardBox.height > 0) {
+        const side = panelSide(cardBox, pigBox)
+        const key = side.vertical + '|' + side.horizontal + '|' + Math.round(pigBox.width)
         let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity
         for (const o of outline) { l = Math.min(l, o.x); t = Math.min(t, o.y); r = Math.max(r, o.r); b = Math.max(b, o.b) }
         const rel = { l: Math.round(l - pigBox.x), t: Math.round(t - pigBox.y), r: Math.round(r - pigBox.x), b: Math.round(b - pigBox.y) }
@@ -130,9 +164,9 @@ export function createMeasure(env) {
           openBoxes[key] = rel
           try { localStorage.setItem(OPEN_BOX_KEY, JSON.stringify(openBoxes)) } catch { /* 存不下就每次启动重新量 */ }
         }
-      } else if (openBoxes[key] !== undefined) {
-        const saved = openBoxes[key]
-        outline = outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }])
+      } else if (!open) {
+        const saved = validOpenBox(openBoxes, state.vertical, state.horizontal, pigBox)
+        outline = reservedOutline(outline, saved, pigBox, state.compact)
       }
     }
     let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
@@ -161,14 +195,23 @@ export function createMeasure(env) {
     const cardBox = layoutBox(card)
     const pigBox = layoutBox(pigNode)
     if (cardBox.width < 1 || cardBox.height < 1) return { vertical: state.vertical, horizontal: state.horizontal }
-    const vertical = cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? 'bottom' : 'top'
-    const horizontal = cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? 'right' : 'left'
+    const { vertical, horizontal } = panelSide(cardBox, pigBox)
     if (vertical !== state.vertical || horizontal !== state.horizontal) {
       try { localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical, horizontal })) } catch { /* 下次启动从默认开始 */ }
     }
     state.vertical = vertical
     state.horizontal = horizontal
     return { vertical: state.vertical, horizontal: state.horizontal }
+  }
+
+  /** 松手时根据当前猪的位置更新收起朝向，下次打开面板沿这个方向。 */
+  function collapsedSide(pigBox, info) {
+    if (info === null || info.window === undefined || info.workArea === undefined) return
+    const pigTop = info.window.y + pigBox.y
+    const vertical = chooseCollapsedVertical(openBoxes, state.horizontal, pigBox.width, pigBox.height, pigTop, info.workArea, state.vertical)
+    if (vertical === state.vertical) return
+    state.vertical = vertical
+    try { localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical, horizontal: state.horizontal })) } catch { /* 下次启动从默认朝向恢复 */ }
   }
 
   /** 让整块内容离窗口锚边正好 PAD。 @param {any} host */
@@ -196,5 +239,5 @@ export function createMeasure(env) {
     return head.concat(tail.map(n => Math.floor(n / STEP))).join(',')
   }
 
-  return { boxes, sides, pin, keyOf, state }
+  return { boxes, sides, collapsedSide, pin, keyOf, state }
 }

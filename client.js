@@ -273,12 +273,18 @@
     return space < 0 ? ["\u{1F6D2}", title] : [title.slice(0, space), title.slice(space + 1)];
   }
   function renderShopTab(ui) {
-    if (ui.view.shop.length === 0) {
+    const extShelves = ui.view.extShelves ?? [];
+    if (ui.view.shop.length === 0 && extShelves.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u5BBF\u4E3B\u8FD8\u6CA1\u63D0\u4F9B\u8D27\u67B6\u3002"));
       return;
     }
     var coins = "\u{1FA99} " + ui.view.pig.coins;
     var shelf = ui.drill.shop;
+    const extShelf = extShelves.find((entry) => "ext:" + entry.extension === shelf);
+    if (extShelf) {
+      renderExtShelf(ui, extShelf);
+      return;
+    }
     if (shelf === null || KIND_ORDER.indexOf(shelf) < 0) {
       renderShelves(ui);
       return;
@@ -322,7 +328,60 @@
         }));
       })(KIND_ORDER[k]);
     }
+    for (const shelf of ui.view.extShelves ?? []) {
+      grid.appendChild(tile({
+        emoji: shelf.emoji,
+        label: shelf.label,
+        color: shelf.color || "orange",
+        // 跟内置货架一样只写名字；不用金币买的才在下面注明货币。
+        note: shelf.currency && shelf.currency.label !== "\u91D1\u5E01" ? shelf.currency.label : void 0,
+        data: { "data-shelf": "ext:" + shelf.extension },
+        onPick: function() {
+          drillTo(ui, "shop", "ext:" + shelf.extension);
+        }
+      }));
+    }
     ui.content.appendChild(grid);
+  }
+  function renderExtShelf(ui, shelf) {
+    const currency = shelf.currency ?? { label: "\u8D27\u5E01", emoji: "\u{1FA99}", balance: 0 };
+    drillHeader(ui, "shop", shelf.emoji + " " + shelf.label, currency.emoji + " " + currency.balance);
+    ui.content.appendChild(el("div", "dp-ext-shelf-note", "\u7528" + currency.label + "\u4E70 \xB7 " + currency.emoji + " \u4F59\u989D " + currency.balance));
+    const list = el("div", "dp-ext-goods");
+    for (const item of shelf.items ?? []) {
+      const row = el("div", "dp-ext-good");
+      row.appendChild(el("span", "dp-ext-good-emoji", item.emoji));
+      const copy = el("div", "dp-ext-good-copy");
+      copy.appendChild(el("b", null, item.label));
+      copy.appendChild(el("small", null, item.note));
+      row.appendChild(copy);
+      const hasPick = Array.isArray(item.pick);
+      const buy = button("dp-mini", { "data-ext-buy": item.key }, function() {
+        if (hasPick) {
+          ui.drill.pick = ui.drill.pick === item.key ? null : item.key;
+          ui.renderContent();
+          return;
+        }
+        ui.send("ext", { key: shelf.extension, op: "buy", data: { item: item.key, pick: null } });
+      });
+      buy.textContent = item.price + " " + currency.emoji;
+      buy.disabled = item.disabled === true;
+      row.appendChild(buy);
+      if (hasPick && ui.drill.pick === item.key) {
+        const choices = el("div", "dp-ext-picks");
+        for (const pick of item.pick) {
+          const choose = button("dp-mini dp-mini-plain", { "data-ext-pick": pick.key }, function() {
+            ui.drill.pick = null;
+            ui.send("ext", { key: shelf.extension, op: "buy", data: { item: item.key, pick: pick.key } });
+          });
+          choose.textContent = pick.emoji + " " + pick.label;
+          choices.appendChild(choose);
+        }
+        row.appendChild(choices);
+      }
+      list.appendChild(row);
+    }
+    ui.content.appendChild(list);
   }
   function itemTile(ui, item, color) {
     var owned = num(ui.view.inventory[item.key], 0);
@@ -462,9 +521,9 @@
     }
     for (var i = 0; i < list.length; i += 1) {
       (function(fish2) {
-        var card = el("div", "dp-pick dp-tile-card");
-        card.appendChild(el("div", "dp-pick-head", fish2.emoji + " " + fish2.label));
-        card.appendChild(el("div", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price));
+        var card2 = el("div", "dp-pick dp-tile-card");
+        card2.appendChild(el("div", "dp-pick-head", fish2.emoji + " " + fish2.label));
+        card2.appendChild(el("div", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price));
         var actions = el("div", "dp-dev-row");
         var feed = button("dp-mini", { "data-fish-feed": fish2.id }, function() {
           ui.send("fishFeed", { id: fish2.id });
@@ -476,8 +535,8 @@
         sell.textContent = "\u{1FA99} \u5356";
         actions.appendChild(feed);
         actions.appendChild(sell);
-        card.appendChild(actions);
-        ui.content.appendChild(card);
+        card2.appendChild(actions);
+        ui.content.appendChild(card2);
       })(list[i]);
     }
   }
@@ -2009,7 +2068,7 @@
   function createEffects(deps) {
     var scene3 = deps.scene;
     var pig = deps.pig;
-    var card = deps.card;
+    var card2 = deps.card;
     var bubble = deps.bubble;
     var pomoHint = deps.pomoHint ?? null;
     var isStopped = deps.isStopped;
@@ -2147,7 +2206,7 @@
     }
     function toast(text) {
       var node = el("div", "dp-toast", text);
-      card.insertBefore(node, card.firstChild);
+      card2.insertBefore(node, card2.firstChild);
       window.setTimeout(function() {
         node.remove();
       }, 4800);
@@ -2414,7 +2473,18 @@
     }).filter((entry) => entry.key !== "");
   }
   function normalizeExtensionParts(d) {
-    return { extensions: normalizeExtensions(d.extensions), extViews: obj(d.extViews) };
+    const extensions = normalizeExtensions(d.extensions);
+    const visible2 = (part) => {
+      if (typeof part?.extension !== "string" || typeof part?.key !== "string") return false;
+      const owner = extensions.find((entry) => entry.key === part.extension);
+      return owner !== void 0 && owner.on && owner.installed && !owner.builtin;
+    };
+    return {
+      extensions,
+      extViews: obj(d.extViews),
+      extShelves: arr(d.extShelves).filter(visible2).map((part) => ({ ...part, currency: obj(part.currency), items: arr(part.items) })),
+      extDex: arr(d.extDex).filter(visible2).map((part) => ({ ...part, entries: arr(part.entries) }))
+    };
   }
   function offParts(view) {
     const apps = /* @__PURE__ */ new Set();
@@ -2854,7 +2924,7 @@
       skins: normalizeSkins(d.skins),
       fishing: normalizeFishing(d.fishing),
       ...normalizeExtensionParts(d),
-      // extensions + extViews（v0.30 下载扩展）
+      // 下载扩展的 App、货架和图鉴入口
       daily: {
         canSignIn: obj(d.daily).canSignIn === true,
         signInDay: num(obj(d.daily).signInDay, 1),
@@ -3643,6 +3713,10 @@
     '.dp-tile[data-color="brown"]{--tile-c:var(--tile-brown)}',
     // The grid: three columns that can never be widened by their content.
     ".dp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px;padding:4px 2px 2px}",
+    ".dp-home-clip{overflow:hidden;touch-action:pan-y}.dp-home-track{display:flex;transition:transform .25s ease;will-change:transform}",
+    '.dp-home-page{box-sizing:border-box;flex:0 0 100%;grid-template-rows:repeat(3,72px);align-content:start}.dp-home-page[data-active="false"]{pointer-events:none}',
+    '.dp-home-dots{display:flex;justify-content:center;gap:8px;margin:9px 0 2px}.dp-home-dot{width:9px;height:9px;padding:0;border:1.5px solid var(--ac-primary);border-radius:50%;background:transparent;cursor:pointer}.dp-home-dot[aria-pressed="true"]{background:var(--ac-primary)}',
+    "@media (prefers-reduced-motion:reduce){.dp-home-track{transition:none}}",
     // A tile is a column: the coloured square, then its name, then a note.
     ".dp-tile{font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;",
     "padding:0;margin:0;border:0;background:none;cursor:pointer;color:var(--ac-text)}",
@@ -3786,7 +3860,12 @@
     ".dp-update-top{display:flex;align-items:center;gap:8px}",
     ".dp-update-top .dp-pick-head{flex:1;min-width:0}",
     ".dp-update-refresh{flex:none}",
-    ".dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}"
+    ".dp-update-now .dp-btn,.dp-update-detail .dp-btn{width:100%;margin-top:8px}",
+    ".dp-ext-shelf-note{font-size:11px;color:var(--ac-text-2);margin:6px 2px 10px}.dp-ext-goods{display:grid;gap:7px}",
+    ".dp-ext-good{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 10px;border-radius:16px;background:var(--ac-bg-input);border:2px solid var(--ac-border-light)}",
+    ".dp-ext-good-emoji{width:42px;height:42px;border-radius:12px;background:#fff3c4;display:grid;place-items:center;font-size:22px}",
+    ".dp-ext-good-copy b{font-size:12px;color:var(--ac-text)}.dp-ext-good-copy small{display:block;font-size:10px;color:var(--ac-text-2)}",
+    ".dp-ext-picks{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px}.dp-ext-good .dp-mini{white-space:nowrap}"
   ].join("");
 
   // src/client/css-card.js
@@ -3982,8 +4061,27 @@
 .dp-skin-intro{display:grid;gap:4px;margin:0 0 10px}.dp-skin-intro span{font-size:10.5px;line-height:1.5;color:var(--ac-text-2)}.dp-skin-grid{display:flex;flex-direction:column;gap:7px}.dp-skin-row{min-height:62px;padding:7px 9px}.dp-skin-current{background:var(--ac-active);border-color:#9db0d6}.dp-skin-row[data-locked="true"] .dp-skin-art{filter:grayscale(1);opacity:.48}.dp-skin-art{width:48px;height:48px;flex:none;object-fit:contain}.dp-skin-copy{display:grid;gap:3px}.dp-skin-copy b{font-size:10.5px}.dp-skin-copy small{line-height:1.35}.dp-skin-row>.dp-mini{flex:none;padding-inline:10px}.dp-skin-import{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 8px;margin-top:10px;cursor:pointer}.dp-skin-import .dp-pick-head{margin:0}.dp-skin-import>.dp-dim{font-size:10px;line-height:1.4;color:var(--ac-text-2)}.dp-skin-import input{position:absolute;width:1px;height:1px;opacity:0}.dp-skin-file{grid-column:2;grid-row:1/3;display:inline-flex!important;align-items:center;white-space:nowrap}.dp-skin-howto{display:flex;width:100%;justify-content:center;margin:10px 0 8px}
 `;
 
+  // src/client/css-holo.js
+  var CSS_HOLO = [
+    ".dp-holo{--c:#aeb9c4;box-sizing:border-box;position:relative;display:block;width:100%;min-width:0;aspect-ratio:3/4;padding:4px;border:0;border-radius:14px;background:linear-gradient(145deg,var(--c),var(--cl,#eef2f5));box-shadow:0 0 12px color-mix(in srgb,var(--c) 70%,transparent),0 5px 10px rgba(61,52,40,.14);font:inherit;cursor:pointer;transform:perspective(500px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .15s ease-out;transform-style:preserve-3d}",
+    '.dp-holo[data-s="4"]{--c:#b48cf2;--cl:#f3ecff}.dp-holo[data-s="5"]{--c:#f2b632;--cl:#fff4d6}.dp-holo[data-s="6"]{--c:#ff7a2f;--cl:#ffe6d6}.dp-holo[data-missing="true"]{box-shadow:0 3px 8px rgba(61,52,40,.1);filter:saturate(.55)}',
+    '.dp-holo-face{position:relative;box-sizing:border-box;display:grid;grid-template-rows:1fr auto auto;justify-items:center;width:100%;height:100%;padding:6px 3px 5px;overflow:hidden;border-radius:10px;background:radial-gradient(circle at 50% 38%,#fff 0 34%,var(--cl,#f3f0e8) 100%)}.dp-holo-face::before{content:"";position:absolute;left:50%;top:60%;width:52%;height:7%;transform:translateX(-50%);border-radius:50%;background:rgba(120,90,60,.16)}',
+    '.dp-holo-face::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 25%,rgba(255,140,210,.3) 40%,rgba(130,220,255,.32) 50%,rgba(255,240,150,.32) 60%,transparent 75%);background-size:260% 260%;opacity:.9;animation:dp-holo-shine 2.4s linear infinite}',
+    ".dp-holo:hover .dp-holo-face::after{animation:none;background-position:var(--hx,50%) var(--hy,50%)}",
+    ".dp-holo-doll{position:relative;z-index:1;align-self:center;font-size:30px;line-height:1;transform:translateZ(26px);filter:drop-shadow(0 4px 3px rgba(80,60,40,.25))}",
+    ".dp-holo-name{z-index:1;max-width:100%;font-size:10px;font-weight:900;color:#6b4a2a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dp-holo-stars{z-index:1;font-size:8px;letter-spacing:-1px;color:var(--c)}",
+    '.dp-holo[data-missing="true"] .dp-holo-doll{filter:brightness(0) opacity(.14)}.dp-holo[data-missing="true"] .dp-holo-face::after{opacity:0}.dp-holo[data-missing="true"] .dp-holo-name{color:var(--ac-text-2,#9f927d)}',
+    ".dp-holo-large{width:110px;flex:none}.dp-holo-large .dp-holo-doll{font-size:46px}.dp-holo-large .dp-holo-name{font-size:11px}",
+    ".dp-holo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}.dp-holo-tier{font-size:12px;color:var(--ac-text);margin:12px 2px 8px}",
+    ".dp-holo-detail{display:flex;gap:12px;align-items:center;padding:10px;margin:10px 0;border-radius:18px;background:var(--ac-bg-input);border:2px solid var(--ac-border-light)}",
+    ".dp-holo-copy{min-width:0;display:grid;gap:5px;color:var(--ac-text)}.dp-holo-copy b{font-size:14px}.dp-holo-rating{color:#ff7a2f}.dp-holo-copy p{margin:0;font-size:11px;line-height:1.5}",
+    '.dp-holo-potential{display:flex;gap:3px}.dp-holo-potential i{width:13px;height:8px;border-radius:3px;background:#e9dfca}.dp-holo-potential i[data-on="true"]{background:#ff9a58}',
+    "@keyframes dp-holo-shine{from{background-position:100% 100%}to{background-position:0 0}}",
+    "@media (prefers-reduced-motion:reduce){.dp-holo,.dp-holo-face::after{animation:none!important;transition:none!important;transform:none!important}}"
+  ].join("");
+
   // src/client/styles.js
-  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS;
+  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS + CSS_HOLO;
 
   // src/client/tabs/card.js
   var LIMITS = { catchphrase: 6, motto: 24, name: 16, owner: 12 };
@@ -3995,8 +4093,8 @@
       ui.content.appendChild(el("div", "dp-empty", "\u91CD\u542F dsh \u4E4B\u540E\u624D\u6709\u5C45\u6C11\u5361"));
       return;
     }
-    var card = el("div", "dp-vcard");
-    card.setAttribute("data-sex", p.sex !== null ? p.sex.key : "none");
+    var card2 = el("div", "dp-vcard");
+    card2.setAttribute("data-sex", p.sex !== null ? p.sex.key : "none");
     var top = el("div", "dp-vcard-top");
     var avatar = el("div", "dp-vcard-avatar");
     if (p.stage.art !== null) {
@@ -4016,25 +4114,25 @@
     who.appendChild(el("span", "dp-vcard-sub", "Lv." + p.level.level + " " + p.level.titleEmoji + p.level.titleLabel));
     who.appendChild(el("span", "dp-vcard-sub", p.stage.label));
     top.appendChild(who);
-    card.appendChild(top);
-    card.appendChild(field("\u751F\u65E5", profile.birthday));
-    if (profile.zodiac !== null) card.appendChild(field("\u661F\u5EA7", profile.zodiac.emoji + " " + profile.zodiac.label));
-    if (profile.personality !== null) card.appendChild(field("\u6027\u683C", profile.personality.emoji + " " + profile.personality.label));
+    card2.appendChild(top);
+    card2.appendChild(field("\u751F\u65E5", profile.birthday));
+    if (profile.zodiac !== null) card2.appendChild(field("\u661F\u5EA7", profile.zodiac.emoji + " " + profile.zodiac.label));
+    if (profile.personality !== null) card2.appendChild(field("\u6027\u683C", profile.personality.emoji + " " + profile.personality.label));
     var forms = ui.view.forms;
     var worn = forms === null ? null : forms.forms.find(function(f) {
       return f.current;
     }) || null;
-    if (worn !== null) card.appendChild(field("\u5F62\u6001", worn.emoji + " " + worn.label));
-    card.appendChild(editableField(ui, "owner", "\u53EB\u4F60", ui.view.dialogue.ownerName));
-    card.appendChild(editableField(ui, "catchphrase", "\u53E3\u5934\u7985", profile.catchphrase));
-    card.appendChild(editableField(ui, "motto", "\u7B7E\u540D", profile.motto));
+    if (worn !== null) card2.appendChild(field("\u5F62\u6001", worn.emoji + " " + worn.label));
+    card2.appendChild(editableField(ui, "owner", "\u53EB\u4F60", ui.view.dialogue.ownerName));
+    card2.appendChild(editableField(ui, "catchphrase", "\u53E3\u5934\u7985", profile.catchphrase));
+    card2.appendChild(editableField(ui, "motto", "\u7B7E\u540D", profile.motto));
     var c = profile.counts;
-    card.appendChild(el(
+    card2.appendChild(el(
       "div",
       "dp-vcard-foot",
       "\u517B\u4E86 " + c.days + " \u5929 \xB7 \u8BC1\u4E66 " + c.certificates + " \xB7 \u7EAA\u5FF5\u54C1 " + c.souvenirs + " \xB7 \u6BD5\u4E1A " + c.graduations
     ));
-    ui.content.appendChild(card);
+    ui.content.appendChild(card2);
   }
   function field(label, value) {
     var row = el("div", "dp-vcard-row");
@@ -4102,6 +4200,78 @@
     parent.appendChild(cancel);
   }
 
+  // src/client/tabs/dex-holo.js
+  var stars = (count) => "\u2605".repeat(Math.max(0, Number(count) || 0));
+  function card(entry, large, onPick) {
+    const acquired = entry.acquired === true;
+    const node = button("dp-holo" + (large ? " dp-holo-large" : ""), { "data-s": String(entry.stars), "data-missing": String(!acquired), "data-dex-entry": entry.key }, onPick);
+    const face = el("span", "dp-holo-face");
+    face.appendChild(el("span", "dp-holo-doll", entry.emoji));
+    face.appendChild(el("b", "dp-holo-name", acquired ? entry.label : "\uFF1F\uFF1F\uFF1F"));
+    face.appendChild(el("span", "dp-holo-stars", stars(entry.stars)));
+    node.appendChild(face);
+    if (acquired) tilt(node);
+    return node;
+  }
+  function tilt(node) {
+    node.addEventListener("pointermove", (event) => {
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+      const box = node.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (event.clientX - box.left) / Math.max(1, box.width)));
+      const y = Math.max(0, Math.min(1, (event.clientY - box.top) / Math.max(1, box.height)));
+      node.style.setProperty("--rx", ((0.5 - y) * 10).toFixed(1) + "deg");
+      node.style.setProperty("--ry", ((x - 0.5) * 14).toFixed(1) + "deg");
+      node.style.setProperty("--hx", Math.round(x * 100) + "%");
+      node.style.setProperty("--hy", Math.round(y * 100) + "%");
+    });
+    node.addEventListener("pointerleave", () => {
+      for (const name of ["--rx", "--ry", "--hx", "--hy"]) node.style.removeProperty(name);
+    });
+  }
+  function renderHoloSection(ui, section2) {
+    const entries = section2.entries ?? [];
+    const chosen = entries.find((entry) => entry.key === ui.drill.pick);
+    const title = section2.emoji + " " + section2.label;
+    if (chosen) {
+      drillHeader(ui, "dex", title, chosen.acquired ? "\u5DF2\u6536\u5F55" : "\u672A\u89E3\u9501");
+      const back = button("dp-mini dp-mini-plain", { "data-dex-detail-back": section2.key }, () => {
+        ui.drill.pick = null;
+        ui.renderContent();
+      });
+      back.textContent = "\u2039 \u8FD4\u56DE\u6446\u4EF6\u5899";
+      ui.content.appendChild(back);
+      const detail = el("div", "dp-holo-detail");
+      detail.setAttribute("data-dex-detail", chosen.key);
+      detail.appendChild(card(chosen, true, () => {
+      }));
+      const copy = el("div", "dp-holo-copy");
+      copy.appendChild(el("b", null, chosen.acquired ? chosen.label : "\uFF1F\uFF1F\uFF1F"));
+      copy.appendChild(el("span", "dp-holo-rating", stars(chosen.stars)));
+      const potential = el("div", "dp-holo-potential");
+      for (let i = 1; i <= 6; i += 1) {
+        const cell = el("i");
+        cell.setAttribute("data-on", String(chosen.acquired && i <= chosen.potential));
+        potential.appendChild(cell);
+      }
+      copy.appendChild(potential);
+      copy.appendChild(el("p", null, chosen.acquired ? chosen.blurb : "\u8FD8\u6CA1\u6709\u5BFB\u8BBF\u5230\u3002"));
+      detail.appendChild(copy);
+      ui.content.appendChild(detail);
+    } else drillHeader(ui, "dex", title, entries.filter((entry) => entry.acquired).length + "/" + entries.length);
+    for (const rarity of [6, 5, 4, 3]) {
+      const list = entries.filter((entry) => entry.stars === rarity);
+      if (list.length === 0) continue;
+      ui.content.appendChild(el("h4", "dp-holo-tier", rarity + " \u661F " + stars(rarity)));
+      const grid = el("div", "dp-holo-grid");
+      for (const entry of list) grid.appendChild(card(entry, false, () => {
+        ui.drill.pick = entry.key;
+        ui.renderContent();
+        ui.content.scrollTop = 0;
+      }));
+      ui.content.appendChild(grid);
+    }
+  }
+
   // src/client/tabs/dex.js
   var SECTIONS = [];
   var ITEM_KINDS = [
@@ -4129,9 +4299,32 @@
   function renderDexTab(ui) {
     const picked = ui.drill.dex;
     if (picked === null) return renderSections(ui);
+    const ext = (ui.view.extDex ?? []).find((entry) => picked === "ext:" + entry.extension + ":" + entry.key);
+    if (ext && ext.style === "holo") {
+      renderHoloSection(ui, ext);
+      return;
+    }
+    if (ext) {
+      renderExtPlain(ui, ext);
+      return;
+    }
     const section2 = SECTIONS.find((entry) => entry.key === picked);
     if (section2 === void 0) return drillTo(ui, "dex", null);
     const entries = ui.view.dex[section2.key] ?? [];
+    const detail = entries.find((entry) => entry.key === ui.drill.pick);
+    if (detail !== void 0) return renderDetail(ui, section2, detail);
+    renderEntries(ui, section2, entries);
+  }
+  function renderExtPlain(ui, ext) {
+    const section2 = { key: "ext:" + ext.extension + ":" + ext.key, label: ext.label, emoji: ext.emoji };
+    const entries = (ext.entries ?? []).map((entry) => ({
+      key: entry.key,
+      emoji: entry.emoji,
+      label: entry.label,
+      acquired: entry.acquired === true,
+      description: entry.blurb,
+      foot: ""
+    }));
     const detail = entries.find((entry) => entry.key === ui.drill.pick);
     if (detail !== void 0) return renderDetail(ui, section2, detail);
     renderEntries(ui, section2, entries);
@@ -4152,6 +4345,27 @@
         data: { "data-dex-section": section2.key },
         onPick: function() {
           drillTo(ui, "dex", section2.key);
+        }
+      });
+      const progress = el("span", "dp-dex-progress");
+      const fill = el("i");
+      fill.style.width = (entries.length === 0 ? 0 : Math.round(got / entries.length * 100)) + "%";
+      progress.appendChild(fill);
+      node.appendChild(progress);
+      grid.appendChild(node);
+    }
+    for (const section2 of ui.view.extDex ?? []) {
+      const entries = section2.entries ?? [];
+      const got = entries.filter((entry) => entry.acquired).length;
+      const key = "ext:" + section2.extension + ":" + section2.key;
+      const node = tile({
+        emoji: section2.emoji,
+        label: section2.label,
+        color: section2.color || "orange",
+        note: got + "/" + entries.length,
+        data: { "data-dex-section": key },
+        onPick: function() {
+          drillTo(ui, "dex", key);
         }
       });
       const progress = el("span", "dp-dex-progress");
@@ -4183,21 +4397,21 @@
     const classes = ["dp-dex-card"];
     if (entry.acquired) classes.push("dp-dex-card-foil");
     else classes.push("dp-dex-card-locked");
-    const card = button(classes.join(" "), { "data-dex-entry": entry.key }, function() {
+    const card2 = button(classes.join(" "), { "data-dex-entry": entry.key }, function() {
       openDetail(ui, entry.key);
     });
     const art = el("span", "dp-dex-artbox");
     appendArt(art, entry, true);
     if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
-    card.appendChild(art);
-    card.appendChild(el("span", "dp-dex-caption", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
-    if (entry.acquired) tilt(card);
-    return card;
+    card2.appendChild(art);
+    card2.appendChild(el("span", "dp-dex-caption", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
+    if (entry.acquired) tilt2(card2);
+    return card2;
   }
   function renderMuseum(ui, section2, entries) {
     const grid = el("div", "dp-dex-museum");
     for (const entry of entries) {
-      const card = button(
+      const card2 = button(
         "dp-dex-museum-item" + (entry.acquired ? "" : " dp-dex-museum-locked"),
         { "data-dex-entry": entry.key },
         function() {
@@ -4207,9 +4421,9 @@
       const art = el("span", "dp-dex-museum-art");
       appendArt(art, entry, false);
       if (!entry.acquired) art.appendChild(el("span", "dp-dex-museum-lock", "\u{1F512}"));
-      card.appendChild(art);
-      card.appendChild(el("span", "dp-dex-museum-name", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
-      grid.appendChild(card);
+      card2.appendChild(art);
+      card2.appendChild(el("span", "dp-dex-museum-name", entry.acquired ? entry.label : "\u672A\u77E5" + section2.label));
+      grid.appendChild(card2);
     }
     ui.content.appendChild(grid);
   }
@@ -4291,15 +4505,17 @@
     const flash = section2.key === "forms" || section2.key === "skins";
     const wrap = el("div", "dp-dex-detail");
     wrap.setAttribute("data-dex-detail", entry.key);
-    const card = el("div", flash ? "dp-dex-big" + (entry.acquired ? " dp-dex-big-foil" : " dp-dex-big-locked") : "dp-dex-info" + (entry.acquired ? "" : " dp-dex-info-locked"));
+    const card2 = el("div", flash ? "dp-dex-big" + (entry.acquired ? " dp-dex-big-foil" : " dp-dex-big-locked") : "dp-dex-info" + (entry.acquired ? "" : " dp-dex-info-locked"));
     const art = el("div", flash ? "dp-dex-big-art" : "dp-dex-info-art");
     appendArt(art, entry, flash);
     if (!entry.acquired) art.appendChild(el("span", "dp-dex-lock", "\u{1F512}"));
-    card.appendChild(art);
-    card.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + section2.label));
+    card2.appendChild(art);
+    card2.appendChild(el("div", "dp-dex-big-title", entry.acquired ? entry.emoji + " " + entry.label : "\u{1F512} \u672A\u77E5" + section2.label));
     if (entry.acquired) {
-      card.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
-      card.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
+      card2.appendChild(el("div", "dp-dex-story", entry.description || "\u8FD9\u6BB5\u6545\u4E8B\u8FD8\u6CA1\u6709\u5199\u8FDB\u56FE\u9274\u3002"));
+      if (typeof entry.foot === "string") {
+        if (entry.foot) card2.appendChild(el("div", "dp-dex-foot", entry.foot));
+      } else card2.appendChild(el("div", "dp-dex-foot", firstSeen(entry.firstAt) + " \xB7 \u83B7\u5F97 " + entry.count + " \u6B21" + (typeof entry.maxSizeCm === "number" ? " \xB7 \u6700\u5927 " + entry.maxSizeCm.toFixed(1) + " cm" : "")));
       if (section2.key === "skins") {
         const current = ui.view.skins.current === entry.key;
         const pick = button("dp-mini", { "data-dex-skin": entry.key }, function() {
@@ -4309,17 +4525,17 @@
         pick.disabled = current;
         const action = el("div", "dp-dex-skin-action");
         action.appendChild(pick);
-        card.appendChild(action);
+        card2.appendChild(action);
       }
     } else {
       const riddle = el("div", "dp-dex-riddle");
       riddle.appendChild(el("b", null, "\u89E3\u9501\u8C1C\u9762"));
       riddle.appendChild(el("span", null, entry.hint || "\u5B83\u85CF\u5728\u4E00\u6B21\u5C1A\u672A\u542F\u7A0B\u7684\u76F8\u9047\u91CC\u3002"));
-      card.appendChild(riddle);
+      card2.appendChild(riddle);
     }
-    wrap.appendChild(card);
+    wrap.appendChild(card2);
     ui.content.appendChild(wrap);
-    if (flash && entry.acquired) tilt(card);
+    if (flash && entry.acquired) tilt2(card2);
   }
   function openDetail(ui, key) {
     ui.drill.pick = key;
@@ -4343,7 +4559,7 @@
     if (typeof value !== "number") return "\u9996\u6B21\u53D1\u73B0\u65F6\u95F4\u672A\u77E5";
     return "\u9996\u6B21\u53D1\u73B0 " + new Date(value).toLocaleDateString("zh-CN");
   }
-  function tilt(node) {
+  function tilt2(node) {
     node.addEventListener("pointermove", function(event) {
       const box = node.getBoundingClientRect();
       const x = ((event.clientX ?? box.left + box.width / 2) - box.left) / Math.max(1, box.width) - 0.5;
@@ -4805,19 +5021,19 @@
   }
   var STARS = { common: 1, uncommon: 2, rare: 3, legend: 4 };
   function renderResult(ui, fish2) {
-    const card = el("div", "dp-fish-result");
-    card.appendChild(el("div", "dp-fish-result-emoji", fish2.emoji));
-    card.appendChild(el("b", null, "\u9493\u5230\u4E86 " + fish2.label + "\uFF01"));
-    const stars = STARS[fish2.rarity] ?? 1;
-    card.appendChild(el("span", "dp-fish-stars", "\u2605".repeat(stars) + "\u2606".repeat(4 - stars)));
+    const card2 = el("div", "dp-fish-result");
+    card2.appendChild(el("div", "dp-fish-result-emoji", fish2.emoji));
+    card2.appendChild(el("b", null, "\u9493\u5230\u4E86 " + fish2.label + "\uFF01"));
+    const stars2 = STARS[fish2.rarity] ?? 1;
+    card2.appendChild(el("span", "dp-fish-stars", "\u2605".repeat(stars2) + "\u2606".repeat(4 - stars2)));
     const record = fish2.maxCm > 0 && fish2.sizeCm >= fish2.maxCm * 0.85 ? " \xB7 \u5927\u4E2A\u7684\uFF01" : "";
-    card.appendChild(el("span", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price + record));
+    card2.appendChild(el("span", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price + record));
     const keep = button("dp-btn dp-btn-wide", { "data-fish": "keep" }, function() {
       ui.send("fishKeep");
     });
     keep.textContent = "\u{1F392} \u653E\u8FDB\u9C7C\u7BD3";
-    card.appendChild(keep);
-    ui.content.appendChild(card);
+    card2.appendChild(keep);
+    ui.content.appendChild(card2);
   }
   function renderAway(ui) {
     ui.content.appendChild(el("div", "dp-fish-away", "\u{1F3A3}"));
@@ -4860,6 +5076,246 @@
     return img;
   }
 
+  // src/client/ext-apps.js
+  var registry = {};
+  var requested = {};
+  var rerender = null;
+  function bridge() {
+    var host2 = (
+      /** @type {any} */
+      window
+    );
+    if (!host2.dshPiggyExtensions) {
+      host2.dshPiggyExtensions = {
+        register: function(key, impl) {
+          if (typeof key !== "string" || impl === null || typeof impl !== "object") return;
+          registry[key] = impl;
+          if (typeof rerender === "function") rerender();
+        }
+      };
+    }
+    return host2.dshPiggyExtensions;
+  }
+  function ensureScript(key, version) {
+    bridge();
+    var id = key + "@" + version;
+    if (requested[id] || typeof document === "undefined" || typeof document.createElement !== "function") return;
+    requested[id] = true;
+    var script = (
+      /** @type {HTMLScriptElement} */
+      document.createElement("script")
+    );
+    script.src = "/dsh-piggy/ext/" + encodeURIComponent(key) + "/client.js?v=" + encodeURIComponent(version);
+    script.async = true;
+    (document.head || document.body)?.appendChild(script);
+  }
+  function renderDownloadedApp(ui, key) {
+    var extension = (ui.view.extensions || []).find(function(entry) {
+      return entry.key === key;
+    });
+    if (!extension) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u5DF2\u7ECF\u5220\u6389\u4E86"));
+      return;
+    }
+    if (extension.error) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + extension.error));
+      return;
+    }
+    ensureScript(key, extension.version);
+    rerender = function() {
+      if (ui.tab === "ext:" + key) ui.renderContent();
+    };
+    var impl = registry[key];
+    if (!impl || typeof impl.render !== "function") {
+      ui.content.appendChild(el("div", "dp-empty", "\u6B63\u5728\u52A0\u8F7D\u2026\u2026"));
+      return;
+    }
+    var data = ui.view.extViews ? ui.view.extViews[key] : void 0;
+    try {
+      impl.render({
+        content: ui.content,
+        data: data === void 0 ? null : data,
+        send: function(op, payload) {
+          ui.send("ext", { key, op, data: payload || {} });
+        },
+        el,
+        button,
+        rerender: function() {
+          ui.renderContent();
+        },
+        openDex: function(section2) {
+          ui.select("dex");
+          ui.drill.dex = "ext:" + key + ":" + section2;
+          ui.renderContent();
+        }
+      });
+    } catch (error) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + (error instanceof Error ? error.message : String(error))));
+    }
+  }
+
+  // src/client/tabs/extensions.js
+  var confirming = null;
+  var online = { loading: false, loaded: false, error: "", entries: (
+    /** @type {any[]} */
+    []
+  ), stamp: "" };
+  function stampOf(view) {
+    return view.extensions.map(function(extension) {
+      return extension.key + "@" + extension.version + ":" + extension.installed;
+    }).join(",");
+  }
+  function closingNote(view, key) {
+    if (key === "pomodoro" && view.pomodoro !== null && view.pomodoro.active) return "\u6B63\u5728\u4E13\u6CE8\uFF1A\u5173\u6389\u4F1A\u653E\u5F03\u8FD9\u4E00\u4E2A\uFF0C\u4E0D\u7ED9\u5956\u52B1";
+    if (key === "fishing" && view.activity?.kind === "fishing") return "\u732A\u6B63\u5728\u5916\u9762\u9493\u9C7C\uFF1A\u5173\u6389\u4F1A\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u9C7C\u9975\u9000\u56DE";
+    return "";
+  }
+  var CLEARS = { pomodoro: "\u4ECA\u5929\u548C\u7D2F\u8BA1\u7684\u756A\u8304\u6570", fishing: "\u9C7C\u7BD3\u91CC\u7684\u9C7C\u3001\u56FE\u9274\u91CC\u7684\u9C7C\u3001\u80CC\u5305\u91CC\u7684\u9C7C\u9975" };
+  function loadOnline(ui, force) {
+    if (online.loading || typeof fetch !== "function") return;
+    online.loading = true;
+    fetch("/dsh-piggy/extensions/online" + (force ? "?force=1" : ""), { cache: "no-store" }).then(function(response) {
+      return response.json();
+    }).then(function(data) {
+      var body = obj(data);
+      online = { loading: false, loaded: true, error: str(body.error, ""), entries: arr(body.entries).filter(function(entry) {
+        return typeof obj(entry).key === "string";
+      }), stamp: stampOf(ui.view) };
+    }).catch(function() {
+      online = { loading: false, loaded: true, error: "\u8FDE\u4E0D\u4E0A", entries: online.entries, stamp: stampOf(ui.view) };
+    }).then(function() {
+      if (["home", "settings", "extensions"].includes(ui.tab)) ui.renderContent();
+    });
+  }
+  function extensionUpdateAvailable(ui) {
+    if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false);
+    return online.loaded && online.stamp === stampOf(ui.view) && online.entries.some(function(entry) {
+      return entry.update === true && ui.view.extensions.some(function(extension) {
+        return extension.key === entry.key && extension.installed;
+      });
+    });
+  }
+  function renderExtensionsTab(ui) {
+    if (String(ui.tab).startsWith("ext:")) {
+      renderDownloadedApp(ui, String(ui.tab).slice(4));
+      return;
+    }
+    if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false);
+    ui.content.appendChild(el("div", "dp-ext-intro", "\u7528\u4E0D\u4E0A\u7684\u73A9\u6CD5\u53EF\u4EE5\u5173\u6389\uFF0C\u6570\u636E\u7559\u7740\u968F\u65F6\u6062\u590D\uFF1B\u5220\u9664\u4F1A\u8FDE\u6570\u636E\u4E00\u8D77\u6E05\u6389\uFF0C\u4EE5\u540E\u53EF\u4EE5\u5728\u4E0B\u9762\u91CD\u65B0\u88C5\u3002"));
+    ui.content.appendChild(el("div", "dp-ext-section", "\u672C\u5730\u6269\u5C55"));
+    var local = ui.view.extensions.filter(function(extension) {
+      return extension.installed;
+    });
+    if (local.length === 0) ui.content.appendChild(el("div", "dp-ext-later", "\u4E00\u4E2A\u6269\u5C55\u90FD\u6CA1\u88C5"));
+    for (var i = 0; i < local.length; i += 1) ui.content.appendChild(localCard(ui, local[i]));
+    var head = el("div", "dp-ext-section dp-ext-online-head");
+    head.appendChild(el("span", null, "\u5728\u7EBF\u6269\u5C55"));
+    var refresh2 = button("dp-mini dp-mini-plain", { "data-ext-refresh": "true" }, function() {
+      loadOnline(ui, true);
+      ui.renderContent();
+    });
+    refresh2.textContent = online.loading ? "\u8BFB\u53D6\u4E2D\u2026" : "\u{1F504} \u5237\u65B0";
+    refresh2.disabled = online.loading;
+    head.appendChild(refresh2);
+    ui.content.appendChild(head);
+    renderOnline(ui);
+  }
+  function localCard(ui, extension) {
+    var card2 = el("div", "dp-set dp-ext-card");
+    card2.setAttribute("data-extension", extension.key);
+    var head = el("div", "dp-set-head");
+    head.appendChild(el("span", "dp-ext-emoji", extension.emoji));
+    head.appendChild(el("b", null, extension.label + (extension.builtin ? "" : " " + extension.version)));
+    if (extension.description) head.appendChild(el("small", "dp-dim", extension.description));
+    card2.appendChild(head);
+    var note = extension.on ? closingNote(ui.view, extension.key) : "";
+    if (note) card2.appendChild(el("div", "dp-ext-note", note));
+    if (extension.error) card2.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
+    var newer = online.entries.find(function(entry) {
+      return entry.key === extension.key && entry.update === true;
+    });
+    var row = el("div", "dp-ext-actions");
+    var toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
+      ui.send("setExtension", { key: extension.key, on: !extension.on });
+    });
+    toggle.appendChild(el("span", "dp-switch-knob"));
+    toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
+    row.appendChild(toggle);
+    if (newer) {
+      var update = button("dp-mini", { "data-ext-update": extension.key }, function() {
+        online.loaded = false;
+        ui.send("installExtension", { key: extension.key });
+      });
+      update.textContent = "\u66F4\u65B0\u5230 " + str(newer.version, "");
+      row.appendChild(update);
+    }
+    if (confirming === extension.key) {
+      row.appendChild(el("span", "dp-ext-warn", "\u5220\u6389\u4F1A\u6E05\u7A7A" + (CLEARS[extension.key] ?? "\u5B83\u7684\u6570\u636E") + "\uFF0C\u786E\u5B9A\u5417\uFF1F"));
+      var yes = button("dp-mini dp-ext-danger", { "data-ext-remove-yes": extension.key }, function() {
+        confirming = null;
+        online.loaded = false;
+        ui.send("removeExtension", { key: extension.key });
+      });
+      yes.textContent = "\u5220\u9664";
+      var no = button("dp-mini dp-mini-plain", { "data-ext-remove-no": extension.key }, function() {
+        confirming = null;
+        ui.renderContent();
+      });
+      no.textContent = "\u7B97\u4E86";
+      row.appendChild(yes);
+      row.appendChild(no);
+    } else {
+      var remove = button("dp-mini dp-mini-plain dp-ext-remove", { "data-ext-remove": extension.key }, function() {
+        confirming = extension.key;
+        ui.renderContent();
+      });
+      remove.textContent = "\u5220\u9664";
+      row.appendChild(remove);
+    }
+    card2.appendChild(row);
+    return card2;
+  }
+  function renderOnline(ui) {
+    if (!online.loaded) {
+      ui.content.appendChild(el("div", "dp-ext-later", "\u6B63\u5728\u8BFB\u53D6\u5728\u7EBF\u6269\u5C55\u2026\u2026"));
+      return;
+    }
+    var installed = {};
+    for (var i = 0; i < ui.view.extensions.length; i += 1) if (ui.view.extensions[i].installed) installed[ui.view.extensions[i].key] = true;
+    var entries = online.entries.filter(function(entry) {
+      return !installed[entry.key];
+    });
+    if (online.error && entries.length === 0) {
+      ui.content.appendChild(el("div", "dp-ext-later", "\u8BFB\u4E0D\u5230\u5728\u7EBF\u6269\u5C55\u76EE\u5F55\uFF08" + online.error + "\uFF09\uFF0C\u7A0D\u540E\u70B9\u5237\u65B0"));
+      return;
+    }
+    if (entries.length === 0) {
+      ui.content.appendChild(el("div", "dp-ext-later", "\u5728\u7EBF\u7684\u6269\u5C55\u90FD\u88C5\u597D\u4E86\uFF0C\u4EE5\u540E\u6709\u65B0\u7684\u4F1A\u51FA\u73B0\u5728\u8FD9\u91CC"));
+      return;
+    }
+    for (var k = 0; k < entries.length; k += 1) {
+      (function(entry) {
+        var card2 = el("div", "dp-set dp-ext-card");
+        card2.setAttribute("data-online-extension", entry.key);
+        var head = el("div", "dp-set-head");
+        head.appendChild(el("span", "dp-ext-emoji", str(entry.emoji, "\u{1F9E9}")));
+        head.appendChild(el("b", null, str(entry.label, entry.key) + (entry.builtin ? " \xB7 \u5185\u7F6E" : " " + str(entry.version, ""))));
+        var get = button("dp-mini", { "data-ext-install": entry.key }, function() {
+          online.loaded = false;
+          ui.send("installExtension", { key: entry.key });
+        });
+        get.textContent = entry.builtin ? "\u91CD\u65B0\u5B89\u88C5" : "\u4E0B\u8F7D";
+        get.disabled = entry.blocked !== null && entry.blocked !== void 0;
+        head.appendChild(get);
+        if (entry.description) head.appendChild(el("small", "dp-dim", str(entry.description, "")));
+        card2.appendChild(head);
+        if (entry.blocked === "game-too-old") card2.appendChild(el("div", "dp-ext-note", "\u9700\u8981\u6E38\u620F v" + str(entry.minGame, "") + "\uFF0C\u5148\u66F4\u65B0\u6E38\u620F"));
+        else if (entry.builtin) card2.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
+        ui.content.appendChild(card2);
+      })(entries[k]);
+    }
+  }
+
   // src/client/tabs/home.js
   var APP_COLOR = {
     status: "green",
@@ -4878,15 +5334,28 @@
     quit: "peach",
     dev: "brown"
   };
+  function orderHomeApps(apps) {
+    const rank = (key) => key === "quit" ? 4 : key === "dev" ? 3 : key === "settings" ? 2 : key.startsWith("ext:") ? 1 : 0;
+    return apps.slice().sort((a, b) => rank(a.key) - rank(b.key));
+  }
   function renderHome(ui, apps) {
     var p = ui.view.pig;
     var head = el("div", "dp-title");
     head.appendChild(el("b", null, p.name + (p.sex !== null ? " " + p.sex.symbol : "") + " Lv." + p.level.level));
     head.appendChild(el("span", null, "\u{1FA99} " + p.coins));
     ui.content.appendChild(head);
-    var grid = tileGrid();
-    for (var i = 0; i < apps.length; i += 1) {
-      (function(app) {
+    const pages = Math.max(1, Math.ceil(apps.length / 9));
+    ui.homePage = Math.max(0, Math.min(pages - 1, ui.homePage ?? 0));
+    const clip = el("div", "dp-home-clip");
+    clip.setAttribute("data-home-swipe", "true");
+    const track = el("div", "dp-home-track");
+    const grids = [];
+    const dots = [];
+    for (let page = 0; page < pages; page += 1) {
+      const grid = tileGrid();
+      grid.className += " dp-home-page";
+      grid.setAttribute("data-home-page", String(page));
+      for (const app of apps.slice(page * 9, page * 9 + 9)) {
         grid.appendChild(tile({
           emoji: app.emoji,
           icon: appIcon(app.key, app.emoji, "dp-tile-e"),
@@ -4894,15 +5363,99 @@
           color: APP_COLOR[app.key] ?? "blue",
           // 更新入口收进了设置：有新正式版时设置格子冒红点（G 批次）。
           tag: app.key === "update" || app.key === "settings" ? "" : alertFor(ui, app.key),
-          badge: app.key === "update" || app.key === "settings" ? alertFor(ui, "update") : "",
+          badge: app.key === "settings" ? alertFor(ui, "update") || (extensionUpdateAvailable(ui) ? "!" : "") : "",
           data: { "data-app": app.key },
           onPick: function() {
             ui.select(app.key);
           }
         }));
-      })(apps[i]);
+      }
+      grids.push(grid);
+      track.appendChild(grid);
     }
-    ui.content.appendChild(grid);
+    clip.appendChild(track);
+    ui.content.appendChild(clip);
+    let dotRow = null;
+    if (pages > 1) {
+      dotRow = el("div", "dp-home-dots");
+      for (let page = 0; page < pages; page += 1) {
+        const dot = button("dp-home-dot", { "data-home-dot": String(page), "aria-label": "\u7B2C " + (page + 1) + " \u9875" }, function() {
+          showPage(page);
+        });
+        dots.push(dot);
+        dotRow.appendChild(dot);
+      }
+      ui.content.appendChild(dotRow);
+    }
+    function showPage(page) {
+      const next = Math.max(0, Math.min(pages - 1, page));
+      ui.homePage = next;
+      track.style.transform = "translateX(-" + next * 100 + "%)";
+      grids.forEach((grid, index) => {
+        grid.setAttribute("data-active", String(index === next));
+        grid.setAttribute("aria-hidden", String(index !== next));
+        grid.inert = index !== next;
+      });
+      dots.forEach((dot, index) => dot.setAttribute("aria-pressed", String(index === next)));
+    }
+    showPage(ui.homePage);
+    let drag = null;
+    let swallowClick = false;
+    clip.addEventListener("pointerdown", (event) => {
+      if (pages < 2 || event.pointerType === "mouse" && event.button !== 0) return;
+      drag = { x: event.clientX, y: event.clientY, id: event.pointerId, moved: false };
+    });
+    clip.addEventListener("pointermove", (event) => {
+      if (drag === null || event.pointerId !== drag.id) return;
+      const dx = event.clientX - drag.x;
+      if (!drag.moved) {
+        if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(event.clientY - drag.y)) return;
+        drag.moved = true;
+        clip.setPointerCapture?.(event.pointerId);
+        track.style.transition = "none";
+      }
+      const atEdge = ui.homePage === 0 && dx > 0 || ui.homePage === pages - 1 && dx < 0;
+      track.style.transform = "translateX(calc(-" + ui.homePage * 100 + "% + " + (atEdge ? dx / 3 : dx) + "px))";
+    });
+    function endDrag(event) {
+      if (drag === null || event.pointerId !== drag.id) return;
+      const dx = event.clientX - drag.x;
+      const moved = drag.moved || Math.abs(dx) > 40;
+      drag = null;
+      track.style.transition = "";
+      if (!moved) return;
+      swallowClick = true;
+      setTimeout(() => {
+        swallowClick = false;
+      }, 0);
+      showPage(Math.abs(dx) > 40 ? ui.homePage + (dx < 0 ? 1 : -1) : ui.homePage);
+    }
+    clip.addEventListener("pointerup", endDrag);
+    clip.addEventListener("pointercancel", (event) => {
+      if (drag !== null) {
+        drag.moved = true;
+        endDrag(event);
+      }
+    });
+    clip.addEventListener("click", (event) => {
+      if (swallowClick) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    }, true);
+    let wheelLock = 0;
+    clip.addEventListener("wheel", (event) => {
+      if (pages < 2) return;
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      if (Math.abs(delta) < 4) return;
+      const next = ui.homePage + (delta > 0 ? 1 : -1);
+      if (next < 0 || next >= pages) return;
+      event.preventDefault();
+      const now = Date.now();
+      if (now < wheelLock) return;
+      wheelLock = now + 450;
+      showPage(next);
+    }, { passive: false });
     var version = el("div", "dp-version", "v" + (ui.view.version === "" ? "\u672A\u77E5" : ui.view.version));
     version.setAttribute("data-version", "true");
     version.addEventListener("click", function(event) {
@@ -4930,7 +5483,7 @@
     back.textContent = "\u2039";
     back.addEventListener("click", function(event) {
       if (event && typeof event.stopPropagation === "function") event.stopPropagation();
-      ui.select("home");
+      ui.select(app.key === "extensions" ? "settings" : "home");
     });
     row.appendChild(back);
     var title = el("b", "dp-drill-title dp-app-title");
@@ -5558,26 +6111,26 @@
     ui.content.appendChild(howto);
   }
   function skinCard(ui, skin) {
-    const card = el("div", "dp-item dp-skin-row" + (skin.current ? " dp-skin-current" : ""));
-    if (!skin.unlocked) card.setAttribute("data-locked", "true");
+    const card2 = el("div", "dp-item dp-skin-row" + (skin.current ? " dp-skin-current" : ""));
+    if (!skin.unlocked) card2.setAttribute("data-locked", "true");
     const img = (
       /** @type {HTMLImageElement} */
       el("img", "dp-skin-art")
     );
     img.src = ART_URL + skin.art + ".svg";
     img.alt = skin.label;
-    card.appendChild(img);
+    card2.appendChild(img);
     const copy = el("span", "dp-grow dp-skin-copy");
     copy.appendChild(el("b", null, (skin.unlocked ? skin.emoji : "\u{1F512}") + " " + (skin.unlockJob ? "\u804C\u4E1A \xB7 " : "") + skin.label));
     copy.appendChild(el("small", "dp-dim", skin.unlocked ? skin.description || "\u4F5C\u8005\uFF1A" + skin.author : "\u5B8C\u6210" + (ui.view.jobs.find((job) => job.key === skin.unlockJob)?.label ?? skin.label.replace(/猪$/, "")) + "\u5DE5\u4F5C\u540E\u89E3\u9501"));
-    card.appendChild(copy);
+    card2.appendChild(copy);
     const pick = button("dp-mini", { "data-skin": skin.key }, function() {
       if (skin.unlocked) ui.send("skin", { skin: skin.key });
     });
     pick.textContent = !skin.unlocked ? "\u672A\u89E3\u9501" : skin.current ? "\u4F7F\u7528\u4E2D" : "\u4F7F\u7528";
     pick.disabled = !skin.unlocked || skin.current;
-    card.appendChild(pick);
-    return card;
+    card2.appendChild(pick);
+    return card2;
   }
   function importCard(ui) {
     const wrap = el("label", "dp-pick dp-tile-card dp-skin-import");
@@ -5810,6 +6363,14 @@
     go.textContent = "\u{1F504} \u66F4\u65B0";
     if (fresh) go.appendChild(el("b", "dp-tile-badge dp-update-dot", "!"));
     update.head.appendChild(go);
+    const extFresh = extensionUpdateAvailable(ui);
+    const extensions = section(ui, "\u6269\u5C55", "\u672C\u5730\u73A9\u6CD5\u3001\u5F00\u5173\u4E0E\u5728\u7EBF\u6269\u5C55");
+    const openExtensions = button("dp-mini dp-update-entry", { "data-open-extensions": "true" }, function() {
+      ui.select("extensions");
+    });
+    openExtensions.textContent = "\u{1F9E9} \u6269\u5C55";
+    if (extFresh) openExtensions.appendChild(el("b", "dp-tile-badge dp-update-dot", "!"));
+    extensions.head.appendChild(openExtensions);
     const size = section(ui, "\u5C0F\u732A\u5927\u5C0F", "\u53EA\u6539\u8FD9\u53F0\u8BBE\u5907\u4E0A\u7684\u663E\u793A\u5927\u5C0F\uFF0C\u4E0D\u6539\u5B58\u6863");
     const sizeLabels = { small: "\u5C0F", standard: "\u6807\u51C6", large: "\u5927", extra: "\u7279\u5927" };
     segmented(size, "data-pig-size", PIG_SIZES.map((key) => ({ key, label: sizeLabels[key] })), pigSize(), function(key) {
@@ -5858,233 +6419,6 @@
       walkToggle.appendChild(el("span", "dp-switch-knob"));
       walkToggle.appendChild(el("span", "dp-switch-text", walking ? "\u5F00" : "\u5173"));
       walk.head.appendChild(walkToggle);
-    }
-  }
-
-  // src/client/ext-apps.js
-  var registry = {};
-  var requested = {};
-  var rerender = null;
-  function bridge() {
-    var host2 = (
-      /** @type {any} */
-      window
-    );
-    if (!host2.dshPiggyExtensions) {
-      host2.dshPiggyExtensions = {
-        register: function(key, impl) {
-          if (typeof key !== "string" || impl === null || typeof impl !== "object") return;
-          registry[key] = impl;
-          if (typeof rerender === "function") rerender();
-        }
-      };
-    }
-    return host2.dshPiggyExtensions;
-  }
-  function ensureScript(key, version) {
-    bridge();
-    var id = key + "@" + version;
-    if (requested[id] || typeof document === "undefined" || typeof document.createElement !== "function") return;
-    requested[id] = true;
-    var script = (
-      /** @type {HTMLScriptElement} */
-      document.createElement("script")
-    );
-    script.src = "/dsh-piggy/ext/" + encodeURIComponent(key) + "/client.js?v=" + encodeURIComponent(version);
-    script.async = true;
-    (document.head || document.body)?.appendChild(script);
-  }
-  function renderDownloadedApp(ui, key) {
-    var extension = (ui.view.extensions || []).find(function(entry) {
-      return entry.key === key;
-    });
-    if (!extension) {
-      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u5DF2\u7ECF\u5220\u6389\u4E86"));
-      return;
-    }
-    if (extension.error) {
-      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + extension.error));
-      return;
-    }
-    ensureScript(key, extension.version);
-    rerender = function() {
-      if (ui.tab === "ext:" + key) ui.renderContent();
-    };
-    var impl = registry[key];
-    if (!impl || typeof impl.render !== "function") {
-      ui.content.appendChild(el("div", "dp-empty", "\u6B63\u5728\u52A0\u8F7D\u2026\u2026"));
-      return;
-    }
-    var data = ui.view.extViews ? ui.view.extViews[key] : void 0;
-    try {
-      impl.render({
-        content: ui.content,
-        data: data === void 0 ? null : data,
-        send: function(op, payload) {
-          ui.send("ext", { key, op, data: payload || {} });
-        },
-        el,
-        button,
-        rerender: function() {
-          ui.renderContent();
-        }
-      });
-    } catch (error) {
-      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + (error instanceof Error ? error.message : String(error))));
-    }
-  }
-
-  // src/client/tabs/extensions.js
-  var confirming = null;
-  var online = { loading: false, loaded: false, error: "", entries: (
-    /** @type {any[]} */
-    []
-  ), stamp: "" };
-  function stampOf(view) {
-    return view.extensions.map(function(extension) {
-      return extension.key + "@" + extension.version + ":" + extension.installed;
-    }).join(",");
-  }
-  function closingNote(view, key) {
-    if (key === "pomodoro" && view.pomodoro !== null && view.pomodoro.active) return "\u6B63\u5728\u4E13\u6CE8\uFF1A\u5173\u6389\u4F1A\u653E\u5F03\u8FD9\u4E00\u4E2A\uFF0C\u4E0D\u7ED9\u5956\u52B1";
-    if (key === "fishing" && view.activity?.kind === "fishing") return "\u732A\u6B63\u5728\u5916\u9762\u9493\u9C7C\uFF1A\u5173\u6389\u4F1A\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u9C7C\u9975\u9000\u56DE";
-    return "";
-  }
-  var CLEARS = { pomodoro: "\u4ECA\u5929\u548C\u7D2F\u8BA1\u7684\u756A\u8304\u6570", fishing: "\u9C7C\u7BD3\u91CC\u7684\u9C7C\u3001\u56FE\u9274\u91CC\u7684\u9C7C\u3001\u80CC\u5305\u91CC\u7684\u9C7C\u9975" };
-  function loadOnline(ui, force) {
-    if (online.loading || typeof fetch !== "function") return;
-    online.loading = true;
-    fetch("/dsh-piggy/extensions/online" + (force ? "?force=1" : ""), { cache: "no-store" }).then(function(response) {
-      return response.json();
-    }).then(function(data) {
-      var body = obj(data);
-      online = { loading: false, loaded: true, error: str(body.error, ""), entries: arr(body.entries).filter(function(entry) {
-        return typeof obj(entry).key === "string";
-      }), stamp: stampOf(ui.view) };
-    }).catch(function() {
-      online = { loading: false, loaded: true, error: "\u8FDE\u4E0D\u4E0A", entries: online.entries, stamp: stampOf(ui.view) };
-    }).then(function() {
-      if (ui.tab === "extensions") ui.renderContent();
-    });
-  }
-  function renderExtensionsTab(ui) {
-    if (String(ui.tab).startsWith("ext:")) {
-      renderDownloadedApp(ui, String(ui.tab).slice(4));
-      return;
-    }
-    if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false);
-    ui.content.appendChild(el("div", "dp-ext-intro", "\u7528\u4E0D\u4E0A\u7684\u73A9\u6CD5\u53EF\u4EE5\u5173\u6389\uFF0C\u6570\u636E\u7559\u7740\u968F\u65F6\u6062\u590D\uFF1B\u5220\u9664\u4F1A\u8FDE\u6570\u636E\u4E00\u8D77\u6E05\u6389\uFF0C\u4EE5\u540E\u53EF\u4EE5\u5728\u4E0B\u9762\u91CD\u65B0\u88C5\u3002"));
-    ui.content.appendChild(el("div", "dp-ext-section", "\u672C\u5730\u6269\u5C55"));
-    var local = ui.view.extensions.filter(function(extension) {
-      return extension.installed;
-    });
-    if (local.length === 0) ui.content.appendChild(el("div", "dp-ext-later", "\u4E00\u4E2A\u6269\u5C55\u90FD\u6CA1\u88C5"));
-    for (var i = 0; i < local.length; i += 1) ui.content.appendChild(localCard(ui, local[i]));
-    var head = el("div", "dp-ext-section dp-ext-online-head");
-    head.appendChild(el("span", null, "\u5728\u7EBF\u6269\u5C55"));
-    var refresh2 = button("dp-mini dp-mini-plain", { "data-ext-refresh": "true" }, function() {
-      loadOnline(ui, true);
-      ui.renderContent();
-    });
-    refresh2.textContent = online.loading ? "\u8BFB\u53D6\u4E2D\u2026" : "\u{1F504} \u5237\u65B0";
-    refresh2.disabled = online.loading;
-    head.appendChild(refresh2);
-    ui.content.appendChild(head);
-    renderOnline(ui);
-  }
-  function localCard(ui, extension) {
-    var card = el("div", "dp-set dp-ext-card");
-    card.setAttribute("data-extension", extension.key);
-    var head = el("div", "dp-set-head");
-    head.appendChild(el("span", "dp-ext-emoji", extension.emoji));
-    head.appendChild(el("b", null, extension.label + (extension.builtin ? "" : " " + extension.version)));
-    if (extension.description) head.appendChild(el("small", "dp-dim", extension.description));
-    card.appendChild(head);
-    var note = extension.on ? closingNote(ui.view, extension.key) : "";
-    if (note) card.appendChild(el("div", "dp-ext-note", note));
-    if (extension.error) card.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
-    var newer = online.entries.find(function(entry) {
-      return entry.key === extension.key && entry.update === true;
-    });
-    var row = el("div", "dp-ext-actions");
-    var toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
-      ui.send("setExtension", { key: extension.key, on: !extension.on });
-    });
-    toggle.appendChild(el("span", "dp-switch-knob"));
-    toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
-    row.appendChild(toggle);
-    if (newer) {
-      var update = button("dp-mini", { "data-ext-update": extension.key }, function() {
-        online.loaded = false;
-        ui.send("installExtension", { key: extension.key });
-      });
-      update.textContent = "\u66F4\u65B0\u5230 " + str(newer.version, "");
-      row.appendChild(update);
-    }
-    if (confirming === extension.key) {
-      row.appendChild(el("span", "dp-ext-warn", "\u5220\u6389\u4F1A\u6E05\u7A7A" + (CLEARS[extension.key] ?? "\u5B83\u7684\u6570\u636E") + "\uFF0C\u786E\u5B9A\u5417\uFF1F"));
-      var yes = button("dp-mini dp-ext-danger", { "data-ext-remove-yes": extension.key }, function() {
-        confirming = null;
-        online.loaded = false;
-        ui.send("removeExtension", { key: extension.key });
-      });
-      yes.textContent = "\u5220\u9664";
-      var no = button("dp-mini dp-mini-plain", { "data-ext-remove-no": extension.key }, function() {
-        confirming = null;
-        ui.renderContent();
-      });
-      no.textContent = "\u7B97\u4E86";
-      row.appendChild(yes);
-      row.appendChild(no);
-    } else {
-      var remove = button("dp-mini dp-mini-plain dp-ext-remove", { "data-ext-remove": extension.key }, function() {
-        confirming = extension.key;
-        ui.renderContent();
-      });
-      remove.textContent = "\u5220\u9664";
-      row.appendChild(remove);
-    }
-    card.appendChild(row);
-    return card;
-  }
-  function renderOnline(ui) {
-    if (!online.loaded) {
-      ui.content.appendChild(el("div", "dp-ext-later", "\u6B63\u5728\u8BFB\u53D6\u5728\u7EBF\u6269\u5C55\u2026\u2026"));
-      return;
-    }
-    var installed = {};
-    for (var i = 0; i < ui.view.extensions.length; i += 1) if (ui.view.extensions[i].installed) installed[ui.view.extensions[i].key] = true;
-    var entries = online.entries.filter(function(entry) {
-      return !installed[entry.key];
-    });
-    if (online.error && entries.length === 0) {
-      ui.content.appendChild(el("div", "dp-ext-later", "\u8BFB\u4E0D\u5230\u5728\u7EBF\u6269\u5C55\u76EE\u5F55\uFF08" + online.error + "\uFF09\uFF0C\u7A0D\u540E\u70B9\u5237\u65B0"));
-      return;
-    }
-    if (entries.length === 0) {
-      ui.content.appendChild(el("div", "dp-ext-later", "\u5728\u7EBF\u7684\u6269\u5C55\u90FD\u88C5\u597D\u4E86\uFF0C\u4EE5\u540E\u6709\u65B0\u7684\u4F1A\u51FA\u73B0\u5728\u8FD9\u91CC"));
-      return;
-    }
-    for (var k = 0; k < entries.length; k += 1) {
-      (function(entry) {
-        var card = el("div", "dp-set dp-ext-card");
-        card.setAttribute("data-online-extension", entry.key);
-        var head = el("div", "dp-set-head");
-        head.appendChild(el("span", "dp-ext-emoji", str(entry.emoji, "\u{1F9E9}")));
-        head.appendChild(el("b", null, str(entry.label, entry.key) + (entry.builtin ? " \xB7 \u5185\u7F6E" : " " + str(entry.version, ""))));
-        var get = button("dp-mini", { "data-ext-install": entry.key }, function() {
-          online.loaded = false;
-          ui.send("installExtension", { key: entry.key });
-        });
-        get.textContent = entry.builtin ? "\u91CD\u65B0\u5B89\u88C5" : "\u4E0B\u8F7D";
-        get.disabled = entry.blocked !== null && entry.blocked !== void 0;
-        head.appendChild(get);
-        if (entry.description) head.appendChild(el("small", "dp-dim", str(entry.description, "")));
-        card.appendChild(head);
-        if (entry.blocked === "game-too-old") card.appendChild(el("div", "dp-ext-note", "\u9700\u8981\u6E38\u620F v" + str(entry.minGame, "") + "\uFF0C\u5148\u66F4\u65B0\u6E38\u620F"));
-        else if (entry.builtin) card.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
-        ui.content.appendChild(card);
-      })(entries[k]);
     }
   }
 
@@ -6194,10 +6528,10 @@
         return;
       }
       var shell = updatesBridge();
-      var apps = enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []);
+      var apps = orderHomeApps(enabledTabs(ctx, TABS).concat([UPDATE_TAB], shell !== null && shell.quit ? [QUIT_TAB] : [], ctx.devMode ? [DEV_TAB] : []));
       if (ctx.tab === "home") {
         renderHome(ctx, apps.filter(function(a) {
-          return a.key !== "update";
+          return a.key !== "update" && a.key !== "extensions";
         }));
         ctx.fitPanel();
         return;
@@ -6414,7 +6748,7 @@
     document.head.appendChild(style);
     var host2 = document.createElement("div");
     host2.setAttribute(MOUNTED, "");
-    var card = el("div", "dp-card");
+    var card2 = el("div", "dp-card");
     var scene3 = el("div", "dp-scene");
     var hud = el("div", "dp-hud");
     var hudName = el("div", null, "\u732A\u732A");
@@ -6467,10 +6801,10 @@
     var content = el("div", "dp-content");
     var footer = el("div", "dp-panel-footer");
     footer.hidden = true;
-    card.appendChild(content);
-    card.appendChild(footer);
-    card.appendChild(bar);
-    host2.appendChild(card);
+    card2.appendChild(content);
+    card2.appendChild(footer);
+    card2.appendChild(bar);
+    host2.appendChild(card2);
     host2.appendChild(scene3);
     if (document.body !== null && document.body !== void 0) {
       document.body.appendChild(host2);
@@ -6482,7 +6816,7 @@
         }
       }, { once: true });
     }
-    return { font, style, host: host2, card, scene: scene3, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
+    return { font, style, host: host2, card: card2, scene: scene3, hud, hudName, hudCoins, hudHealth, bubble, work, prop, progressWrap, progressFill, pokeHint, dailyHint, pomoHint, soul, pigArt, pigEmoji, pig, dressSlots, bar, content, footer };
   }
 
   // src/client/drag-heartbeat.js
@@ -6634,6 +6968,33 @@
   var SHAPE_SLACK = 6;
   var OPEN_BOX_KEY = "dsh-piggy:desktop-open-box";
   var SIDES_KEY = "dsh-piggy:desktop-sides";
+  function reservedOutline(outline, saved, pigBox, compact) {
+    if (compact || saved === void 0) return outline;
+    return outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }]);
+  }
+  function validOpenBox(openBoxes, vertical, horizontal, pigBox) {
+    const saved = openBoxes[vertical + "|" + horizontal + "|" + Math.round(pigBox.width)];
+    if (saved === null || saved === void 0 || ![saved.l, saved.t, saved.r, saved.b].every(Number.isFinite)) return void 0;
+    if (saved.l >= saved.r || saved.t >= saved.b) return void 0;
+    if (vertical === "bottom" && saved.t >= -pigBox.height) return void 0;
+    if (vertical === "top" && saved.b <= pigBox.height * 2) return void 0;
+    return saved;
+  }
+  function chooseCollapsedVertical(openBoxes, horizontal, width, height, pigTop, area, current) {
+    if (area === null || area === void 0) return current;
+    const pigBox = { width, height };
+    const above = validOpenBox(openBoxes, "bottom", horizontal, pigBox);
+    const below = validOpenBox(openBoxes, "top", horizontal, pigBox);
+    if (above !== void 0 && pigTop + above.t - PAD >= area.y) return "bottom";
+    if (below !== void 0 && pigTop + below.b + PAD <= area.y + area.height) return "top";
+    return current;
+  }
+  function panelSide(cardBox, pigBox) {
+    return {
+      vertical: cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? "bottom" : "top",
+      horizontal: cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? "right" : "left"
+    };
+  }
   function layoutBox(node) {
     let x = 0;
     let y = 0;
@@ -6656,7 +7017,7 @@
     } catch {
       openBoxes = {};
     }
-    const state2 = { vertical: "bottom", horizontal: "right", pinned: "" };
+    const state2 = { vertical: "bottom", horizontal: "right", pinned: "", compact: false };
     try {
       const sides2 = JSON.parse(localStorage.getItem(SIDES_KEY) || "null");
       if (sides2 && (sides2.vertical === "top" || sides2.vertical === "bottom")) state2.vertical = sides2.vertical;
@@ -6664,9 +7025,6 @@
     } catch {
     }
     const reserves = env.platform !== "darwin";
-    function openBoxKey(pigBox) {
-      return state2.vertical + "|" + state2.horizontal + "|" + Math.round(pigBox.width);
-    }
     function boxes(host2) {
       const nodes = [host2];
       const all = host2.querySelectorAll("*");
@@ -6717,21 +7075,22 @@
           }
         }
       }
-      const card = (
+      const card2 = (
         /** @type {any} */
         host2.querySelector(".dp-card")
       );
-      if (reserves && open && card !== null && card.hidden !== true) {
-        const cardBox = layoutBox(card);
-        const maxHeight = Math.min(PANEL_MAX_HEIGHT, parseFloat(card.style.maxHeight) || 0);
+      const cardBox = card2 === null ? null : layoutBox(card2);
+      if (reserves && open && cardBox !== null && card2.hidden !== true) {
+        const maxHeight = Math.min(PANEL_MAX_HEIGHT, parseFloat(card2.style.maxHeight) || 0);
         if (maxHeight > cardBox.height && cardBox.width > 0) {
           zone = cardBox.y > pigBox.y ? { x: cardBox.x, y: cardBox.y, r: cardBox.x + cardBox.width, b: cardBox.y + maxHeight } : { x: cardBox.x, y: cardBox.y + cardBox.height - maxHeight, r: cardBox.x + cardBox.width, b: cardBox.y + cardBox.height };
         }
       }
       let outline = rects.concat(zone === null ? [] : [zone], bubbleZone === null ? [] : [bubbleZone]);
       if (reserves && pigNode !== null) {
-        const key = openBoxKey(pigBox);
-        if (open && card !== null && card.hidden !== true) {
+        if (open && cardBox !== null && card2.hidden !== true && cardBox.width > 0 && cardBox.height > 0) {
+          const side = panelSide(cardBox, pigBox);
+          const key = side.vertical + "|" + side.horizontal + "|" + Math.round(pigBox.width);
           let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
           for (const o of outline) {
             l = Math.min(l, o.x);
@@ -6748,9 +7107,9 @@
             } catch {
             }
           }
-        } else if (openBoxes[key] !== void 0) {
-          const saved = openBoxes[key];
-          outline = outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }]);
+        } else if (!open) {
+          const saved = validOpenBox(openBoxes, state2.vertical, state2.horizontal, pigBox);
+          outline = reservedOutline(outline, saved, pigBox, state2.compact);
         }
       }
       let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
@@ -6779,17 +7138,16 @@
       return { content, shape, pig, hostBox, pigBox, contentBox: { left, top, right, bottom } };
     }
     function sides(host2) {
-      const card = (
+      const card2 = (
         /** @type {any} */
         host2.querySelector(".dp-card")
       );
       const pigNode = host2.querySelector(".dp-pig");
-      if (card === null || pigNode === null || card.hidden === true) return { vertical: state2.vertical, horizontal: state2.horizontal };
-      const cardBox = layoutBox(card);
+      if (card2 === null || pigNode === null || card2.hidden === true) return { vertical: state2.vertical, horizontal: state2.horizontal };
+      const cardBox = layoutBox(card2);
       const pigBox = layoutBox(pigNode);
       if (cardBox.width < 1 || cardBox.height < 1) return { vertical: state2.vertical, horizontal: state2.horizontal };
-      const vertical = cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? "bottom" : "top";
-      const horizontal = cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? "right" : "left";
+      const { vertical, horizontal } = panelSide(cardBox, pigBox);
       if (vertical !== state2.vertical || horizontal !== state2.horizontal) {
         try {
           localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical, horizontal }));
@@ -6799,6 +7157,17 @@
       state2.vertical = vertical;
       state2.horizontal = horizontal;
       return { vertical: state2.vertical, horizontal: state2.horizontal };
+    }
+    function collapsedSide(pigBox, info) {
+      if (info === null || info.window === void 0 || info.workArea === void 0) return;
+      const pigTop = info.window.y + pigBox.y;
+      const vertical = chooseCollapsedVertical(openBoxes, state2.horizontal, pigBox.width, pigBox.height, pigTop, info.workArea, state2.vertical);
+      if (vertical === state2.vertical) return;
+      state2.vertical = vertical;
+      try {
+        localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical, horizontal: state2.horizontal }));
+      } catch {
+      }
     }
     function pin(host2, side, hostBox, contentBox) {
       const want = { left: "auto", right: "auto", top: "auto", bottom: "auto" };
@@ -6827,7 +7196,7 @@
       for (const s of next.shape) tail.push(s.x, s.y, s.width, s.height);
       return head.concat(tail.map((n) => Math.floor(n / STEP))).join(",");
     }
-    return { boxes, sides, pin, keyOf, state: state2 };
+    return { boxes, sides, collapsedSide, pin, keyOf, state: state2 };
   }
 
   // src/client/desktop/place.js
@@ -6909,7 +7278,9 @@
     '[data-dsh-pig][data-open="false"] .dp-pig{filter:none!important}',
     "[data-dsh-pig] .dp-pig-img,[data-dsh-pig] .dp-pig-emoji{filter:none!important}",
     "[data-dsh-pig] .dp-card{box-shadow:inset 0 1px 2px rgba(61,52,40,.09)!important}",
-    "[data-dsh-pig] .dp-panel-footer{max-height:270px!important}"
+    "[data-dsh-pig] .dp-panel-footer{max-height:270px!important}",
+    // 收起时拖猪，窗口缩到只包住猪；头顶的签到/礼包小气泡会被窗口边裁成半块白色，拖的时候先藏起来。
+    '[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-daily,[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-poke-hint{visibility:hidden!important}'
   ].join("\n");
   var TOLERANCE = 2;
   var bridge2 = (
@@ -7050,6 +7421,17 @@
       },
       beginDrag: function() {
         placement.dragStarted();
+        const h = host();
+        if (h !== null && h.getAttribute("data-open") === "false") {
+          measure.state.compact = true;
+          tick();
+          const pigNode = h.querySelector(".dp-pig");
+          if (pigNode !== null) {
+            const pigBox = layoutBox(pigNode);
+            shell.beginDrag({ x: pigBox.x, y: pigBox.y, width: pigBox.width, height: pigBox.height });
+            return;
+          }
+        }
         const pig = placement.pigWindow();
         const size = placement.pigSize();
         shell.beginDrag(pig === null ? null : { x: pig.x, y: pig.y, width: size.width, height: size.height });
@@ -7059,6 +7441,13 @@
       },
       endDrag: function() {
         shell.endDrag();
+        if (!measure.state.compact) return;
+        measure.state.compact = false;
+        const h = host();
+        const pigNode = h?.querySelector(".dp-pig");
+        const info = shell.place({});
+        if (pigNode !== null && pigNode !== void 0) measure.collapsedSide(layoutBox(pigNode), info);
+        tick();
       },
       syncGeometry: function() {
         tick();
@@ -7129,7 +7518,7 @@
           font,
           style,
           host: host2,
-          card,
+          card: card2,
           scene: scene3,
           hud,
           hudName,
@@ -7182,7 +7571,7 @@
           scene: scene3,
           pig,
           pigArt,
-          card,
+          card: card2,
           bubble,
           pomoHint,
           isStopped: function() {
@@ -7195,7 +7584,7 @@
         var busy = false;
         var ctx = {
           host: host2,
-          card,
+          card: card2,
           content,
           footer,
           scene: scene3,
@@ -7327,6 +7716,7 @@
             busy = next;
           },
           justBought: null,
+          homePage: 0,
           get stopped() {
             return stopped;
           },

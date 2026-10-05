@@ -246,7 +246,7 @@ export function normalize(raw) {
     dex: normalizeDex(d.dex),
     skins: normalizeSkins(d.skins),
     fishing: normalizeFishing(d.fishing),
-    ...normalizeExtensionParts(d), // extensions + extViews（v0.30 下载扩展）
+    ...normalizeExtensionParts(d), // 下载扩展的 App、货架和图鉴入口
     daily: {
       canSignIn: obj(d.daily).canSignIn === true,
       signInDay: num(obj(d.daily).signInDay, 1),

@@ -1,4 +1,4 @@
-// 盲盒扩展 2.0 · 宿主部分：照明日方舟寻访的规矩（用户 2026-10-05）。
+// 盲盒扩展 2.1 · 宿主部分：照明日方舟寻访的规矩（用户 2026-10-05）。
 // 设计 docs/design/blindbox.md，数值 docs/tasks/numbers/X1-blindbox.md。
 // 只出摆件。星级 3★～6★；常驻寻访 + 限时寻访，每 14 天轮换 UP；50 抽后每抽 6★ +2%；
 // 重复的加潜能（最多 6 潜）并给资质凭证，凭证在商店换东西。只能改自己的数据，别的都走 api。
@@ -228,6 +228,7 @@ export default {
 
   view(data, api) {
     const d = normalize(structuredClone(data))
+    const catalog = CATALOG.map(entry => ({ ...entry, potential: d.owned[entry.key] ?? 0, acquired: (d.owned[entry.key] ?? 0) > 0 }))
     return {
       prices: { one: PRICE_ONE, ten: PRICE_TEN },
       tickets: api.count(TICKET),
@@ -239,8 +240,17 @@ export default {
         const since = d.pity[banner.key]
         return { ...banner, since, sixChance: sixChance(since), pityLeft: Math.max(0, PITY_FROM - since) }
       }),
-      catalog: CATALOG.map(entry => ({ ...entry, potential: d.owned[entry.key] ?? 0 })),
+      catalog,
       shop: SHOP,
+      shelf: { key: 'blindbox', label: '盲盒', emoji: '🎁', color: 'orange',
+        currency: { label: '资质凭证', emoji: '📜', balance: d.certs },
+        items: SHOP.map(item => {
+          const stars = item.key === 'pick5' ? 5 : item.key === 'pick6' ? 6 : 0
+          const pick = stars ? catalog.filter(entry => entry.stars === stars && !entry.acquired).map(({ key, emoji, label }) => ({ key, emoji, label })) : null
+          return { key: item.key, emoji: item.emoji, label: item.label, note: item.note, price: item.cost,
+            disabled: d.certs < item.cost || (pick !== null && pick.length === 0), pick }
+        }) },
+      dex: { key: 'figures', label: '摆件', emoji: '🧸', color: 'orange', style: 'holo', entries: catalog },
     }
   },
 }
