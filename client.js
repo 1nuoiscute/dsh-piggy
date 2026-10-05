@@ -6638,14 +6638,28 @@
     if (compact || saved === void 0) return outline;
     return outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }]);
   }
-  function chooseCollapsedVertical(openBoxes, horizontal, width, pigTop, area, current) {
+  function validOpenBox(openBoxes, vertical, horizontal, pigBox) {
+    const saved = openBoxes[vertical + "|" + horizontal + "|" + Math.round(pigBox.width)];
+    if (saved === null || saved === void 0 || ![saved.l, saved.t, saved.r, saved.b].every(Number.isFinite)) return void 0;
+    if (saved.l >= saved.r || saved.t >= saved.b) return void 0;
+    if (vertical === "bottom" && saved.t >= -pigBox.height) return void 0;
+    if (vertical === "top" && saved.b <= pigBox.height * 2) return void 0;
+    return saved;
+  }
+  function chooseCollapsedVertical(openBoxes, horizontal, width, height, pigTop, area, current) {
     if (area === null || area === void 0) return current;
-    const suffix = "|" + horizontal + "|" + Math.round(width);
-    const above = openBoxes["bottom" + suffix];
-    const below = openBoxes["top" + suffix];
+    const pigBox = { width, height };
+    const above = validOpenBox(openBoxes, "bottom", horizontal, pigBox);
+    const below = validOpenBox(openBoxes, "top", horizontal, pigBox);
     if (above !== void 0 && pigTop + above.t - PAD >= area.y) return "bottom";
     if (below !== void 0 && pigTop + below.b + PAD <= area.y + area.height) return "top";
     return current;
+  }
+  function panelSide(cardBox, pigBox) {
+    return {
+      vertical: cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? "bottom" : "top",
+      horizontal: cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? "right" : "left"
+    };
   }
   function layoutBox(node) {
     let x = 0;
@@ -6677,9 +6691,6 @@
     } catch {
     }
     const reserves = env.platform !== "darwin";
-    function openBoxKey(pigBox) {
-      return state2.vertical + "|" + state2.horizontal + "|" + Math.round(pigBox.width);
-    }
     function boxes(host2) {
       const nodes = [host2];
       const all = host2.querySelectorAll("*");
@@ -6734,8 +6745,8 @@
         /** @type {any} */
         host2.querySelector(".dp-card")
       );
-      if (reserves && open && card !== null && card.hidden !== true) {
-        const cardBox = layoutBox(card);
+      const cardBox = card === null ? null : layoutBox(card);
+      if (reserves && open && cardBox !== null && card.hidden !== true) {
         const maxHeight = Math.min(PANEL_MAX_HEIGHT, parseFloat(card.style.maxHeight) || 0);
         if (maxHeight > cardBox.height && cardBox.width > 0) {
           zone = cardBox.y > pigBox.y ? { x: cardBox.x, y: cardBox.y, r: cardBox.x + cardBox.width, b: cardBox.y + maxHeight } : { x: cardBox.x, y: cardBox.y + cardBox.height - maxHeight, r: cardBox.x + cardBox.width, b: cardBox.y + cardBox.height };
@@ -6743,8 +6754,9 @@
       }
       let outline = rects.concat(zone === null ? [] : [zone], bubbleZone === null ? [] : [bubbleZone]);
       if (reserves && pigNode !== null) {
-        const key = openBoxKey(pigBox);
-        if (open && card !== null && card.hidden !== true) {
+        if (open && cardBox !== null && card.hidden !== true && cardBox.width > 0 && cardBox.height > 0) {
+          const side = panelSide(cardBox, pigBox);
+          const key = side.vertical + "|" + side.horizontal + "|" + Math.round(pigBox.width);
           let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
           for (const o of outline) {
             l = Math.min(l, o.x);
@@ -6762,7 +6774,8 @@
             }
           }
         } else if (!open) {
-          outline = reservedOutline(outline, openBoxes[key], pigBox, state2.compact);
+          const saved = validOpenBox(openBoxes, state2.vertical, state2.horizontal, pigBox);
+          outline = reservedOutline(outline, saved, pigBox, state2.compact);
         }
       }
       let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
@@ -6800,8 +6813,7 @@
       const cardBox = layoutBox(card);
       const pigBox = layoutBox(pigNode);
       if (cardBox.width < 1 || cardBox.height < 1) return { vertical: state2.vertical, horizontal: state2.horizontal };
-      const vertical = cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? "bottom" : "top";
-      const horizontal = cardBox.x + cardBox.width / 2 < pigBox.x + pigBox.width / 2 ? "right" : "left";
+      const { vertical, horizontal } = panelSide(cardBox, pigBox);
       if (vertical !== state2.vertical || horizontal !== state2.horizontal) {
         try {
           localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical, horizontal }));
@@ -6815,7 +6827,7 @@
     function collapsedSide(pigBox, info) {
       if (info === null || info.window === void 0 || info.workArea === void 0) return;
       const pigTop = info.window.y + pigBox.y;
-      const vertical = chooseCollapsedVertical(openBoxes, state2.horizontal, pigBox.width, pigTop, info.workArea, state2.vertical);
+      const vertical = chooseCollapsedVertical(openBoxes, state2.horizontal, pigBox.width, pigBox.height, pigTop, info.workArea, state2.vertical);
       if (vertical === state2.vertical) return;
       state2.vertical = vertical;
       try {
