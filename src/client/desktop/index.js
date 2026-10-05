@@ -134,7 +134,8 @@ export function install(shell) {
   placement = createPlacement()
   const style = document.createElement('style')
   style.setAttribute('data-piggy-desktop-style', '')
-  style.textContent = DESKTOP_CSS
+  // Linux（尤其 XWayland 高分屏）上「抓手」指针常画成一大块白色，按住猪时正好盖住猪前面；换成普通箭头。
+  style.textContent = DESKTOP_CSS + (shell.platform === 'linux' ? '\n[data-dsh-pig] .dp-scene,[data-dsh-pig] .dp-scene[data-dragging="true"]{cursor:default!important}' : '')
   document.head.appendChild(style)
   if (typeof shell.onGeometry === 'function') shell.onGeometry(function (info) {
     if (info && info.window && !dragging()) placement.remember(info.window)
