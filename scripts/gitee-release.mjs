@@ -19,10 +19,19 @@ if (!TOKEN) { console.error('缺少环境变量 GITEE_TOKEN'); process.exit(2) }
 async function call(path, init = {}) {
   const url = new URL(API + path)
   if (!(init.body instanceof FormData)) url.searchParams.set('access_token', TOKEN ?? '')
-  const res = await fetch(url, init)
-  const text = await res.text()
-  if (!res.ok) throw new Error(`${init.method ?? 'GET'} ${path} → ${res.status} ${text.slice(0, 300)}`)
-  return text ? JSON.parse(text) : null
+  // 海外 CI 连 Gitee 偶尔断线（ECONNABORTED）：网络错误和 5xx 重试 3 次。
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const res = await fetch(url, init)
+      const text = await res.text()
+      if (res.status >= 500 && attempt < 4) throw new Error('retry ' + res.status)
+      if (!res.ok) throw Object.assign(new Error(`${init.method ?? 'GET'} ${path} → ${res.status} ${text.slice(0, 300)}`), { fatal: true })
+      return text ? JSON.parse(text) : null
+    } catch (error) {
+      if (/** @type {any} */ (error).fatal || attempt >= 4) throw error
+      await new Promise(resolve => setTimeout(resolve, attempt * 5000))
+    }
+  }
 }
 
 async function releases() {
