@@ -2257,7 +2257,15 @@
             "not-owned": "\u8FD8\u6CA1\u6709\u8FD9\u4EF6\u4E1C\u897F",
             "not-consumable": "\u8FD9\u4E2A\u662F\u7A7F\u7684\uFF0C\u4E0D\u662F\u7528\u7684",
             "wrong-stage": "\u8FD9\u4E2A\u5B66\u6BB5\u6CA1\u6709\u8FD9\u95E8\u8BFE",
-            underqualified: "\u5B83\u8FD8\u6CA1\u8FD9\u4E2A\u672C\u4E8B\uFF0C\u5148\u53BB\u4E0A\u8BFE"
+            underqualified: "\u5B83\u8FD8\u6CA1\u8FD9\u4E2A\u672C\u4E8B\uFF0C\u5148\u53BB\u4E0A\u8BFE",
+            // v0.30 扩展下载 / 删除
+            "download-failed": "\u6269\u5C55\u6CA1\u88C5\u4E0A" + (next.message ? "\uFF1A" + str(next.message, "") : ""),
+            "game-too-old": "\u8981\u5148\u628A\u6E38\u620F\u66F4\u65B0\u5230 v" + str(next.need, ""),
+            "broken-extension": "\u8FD9\u4E2A\u6269\u5C55\u574F\u4E86\uFF0C\u88C5\u4E0D\u4E0A",
+            "not-installed": "\u8FD9\u4E2A\u6269\u5C55\u8FD8\u6CA1\u88C5",
+            "extension-off": "\u8FD9\u4E2A\u6269\u5C55\u5173\u7740",
+            "extension-error": "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86",
+            "unknown-extension": "\u6CA1\u6709\u8FD9\u4E2A\u6269\u5C55"
           };
           ctx.showBubble(reasons[next.reason] ?? "\u8FD9\u4E2A\u64CD\u4F5C\u6CA1\u6210", 2400);
         }
@@ -2308,8 +2316,8 @@
 
   // src/client/extensions.js
   var DEFAULTS = [
-    { key: "pomodoro", label: "\u756A\u8304\u949F", emoji: "\u{1F345}", description: "", on: true, apps: ["pomodoro"], dexSections: [], shopKinds: [] },
-    { key: "fishing", label: "\u9493\u9C7C", emoji: "\u{1F3A3}", description: "", on: true, apps: ["fishing"], dexSections: ["fish"], shopKinds: ["bait"] }
+    { key: "pomodoro", label: "\u756A\u8304\u949F", emoji: "\u{1F345}", description: "", on: true, apps: ["pomodoro"], dexSections: [], shopKinds: [], installed: true, builtin: true, version: "", app: null, error: null },
+    { key: "fishing", label: "\u9493\u9C7C", emoji: "\u{1F3A3}", description: "", on: true, apps: ["fishing"], dexSections: ["fish"], shopKinds: ["bait"], installed: true, builtin: true, version: "", app: null, error: null }
   ];
   function normalizeExtensions(raw) {
     const list = arr(raw);
@@ -2317,6 +2325,7 @@
     return list.map(function(value) {
       const entry = obj(value);
       const strings = (key) => arr(entry[key]).filter((item) => typeof item === "string");
+      const app = obj(entry.app);
       return {
         key: str(entry.key, ""),
         label: str(entry.label, ""),
@@ -2325,9 +2334,18 @@
         on: entry.on !== false,
         apps: strings("apps"),
         dexSections: strings("dexSections"),
-        shopKinds: strings("shopKinds")
+        shopKinds: strings("shopKinds"),
+        // v0.30：装没装、是不是内置、下载扩展的版本和主菜单格子、加载出错。
+        installed: entry.installed !== false,
+        builtin: entry.builtin !== false,
+        version: str(entry.version, ""),
+        app: entry.app ? { emoji: str(app.emoji, "\u{1F9E9}"), label: str(app.label, str(entry.label, "")) } : null,
+        error: typeof entry.error === "string" ? entry.error : null
       };
     }).filter((entry) => entry.key !== "");
+  }
+  function normalizeExtensionParts(d) {
+    return { extensions: normalizeExtensions(d.extensions), extViews: obj(d.extViews) };
   }
   function offParts(view) {
     const apps = /* @__PURE__ */ new Set();
@@ -2346,8 +2364,9 @@
   }
   function enabledTabs(ctx, tabs) {
     const off = offParts(ctx.view);
-    if (off.apps.has(ctx.tab)) ctx.tab = "home";
-    return tabs.filter((tab) => !off.apps.has(tab.key));
+    const downloaded = arr(ctx.view?.extensions).filter((extension) => !extension.builtin && extension.installed && extension.on && extension.app !== null).map((extension) => ({ key: "ext:" + extension.key, label: extension.app.label, emoji: extension.app.emoji }));
+    if (off.apps.has(ctx.tab) || String(ctx.tab).startsWith("ext:") && !downloaded.some((tab) => tab.key === ctx.tab)) ctx.tab = "home";
+    return tabs.filter((tab) => !off.apps.has(tab.key)).concat(downloaded);
   }
 
   // src/client/layout.js
@@ -2766,7 +2785,8 @@
       dex: normalizeDex(d.dex),
       skins: normalizeSkins(d.skins),
       fishing: normalizeFishing(d.fishing),
-      extensions: normalizeExtensions(d.extensions),
+      ...normalizeExtensionParts(d),
+      // extensions + extViews（v0.30 下载扩展）
       daily: {
         canSignIn: obj(d.daily).canSignIn === true,
         signInDay: num(obj(d.daily).signInDay, 1),
@@ -3600,6 +3620,10 @@
     ".dp-ext-emoji{font-size:20px;line-height:1;margin-right:2px}",
     ".dp-ext-note{margin-top:6px;font-size:10px;font-weight:700;color:#c7781a}",
     ".dp-ext-later{margin-top:12px;text-align:center;font-size:10px;color:var(--ac-text-2)}",
+    ".dp-ext-section{display:flex;align-items:center;justify-content:space-between;margin:12px 2px 6px;font-size:11px;font-weight:800;color:var(--ac-text-2);letter-spacing:.04em}",
+    ".dp-ext-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:8px;flex-wrap:wrap}",
+    ".dp-ext-warn{flex:1;min-width:0;font-size:10px;font-weight:700;color:#c0503f}",
+    ".dp-mini.dp-ext-danger{background:#e05a5a;box-shadow:none}",
     ".dp-set:first-child{padding-top:2px}.dp-set:last-child{border-bottom:0}",
     ".dp-set-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}",
     ".dp-set-head b{font-size:12px;color:var(--ac-text)}",
@@ -5740,35 +5764,212 @@
     }
   }
 
+  // src/client/ext-apps.js
+  var registry = {};
+  var requested = {};
+  var rerender = null;
+  function bridge() {
+    var host2 = (
+      /** @type {any} */
+      window
+    );
+    if (!host2.dshPiggyExtensions) {
+      host2.dshPiggyExtensions = {
+        register: function(key, impl) {
+          if (typeof key !== "string" || impl === null || typeof impl !== "object") return;
+          registry[key] = impl;
+          if (typeof rerender === "function") rerender();
+        }
+      };
+    }
+    return host2.dshPiggyExtensions;
+  }
+  function ensureScript(key, version) {
+    bridge();
+    var id = key + "@" + version;
+    if (requested[id] || typeof document === "undefined" || typeof document.createElement !== "function") return;
+    requested[id] = true;
+    var script = (
+      /** @type {HTMLScriptElement} */
+      document.createElement("script")
+    );
+    script.src = "/dsh-piggy/ext/" + encodeURIComponent(key) + "/client.js?v=" + encodeURIComponent(version);
+    script.async = true;
+    (document.head || document.body)?.appendChild(script);
+  }
+  function renderDownloadedApp(ui, key) {
+    var extension = (ui.view.extensions || []).find(function(entry) {
+      return entry.key === key;
+    });
+    if (!extension) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u5DF2\u7ECF\u5220\u6389\u4E86"));
+      return;
+    }
+    if (extension.error) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + extension.error));
+      return;
+    }
+    ensureScript(key, extension.version);
+    rerender = function() {
+      if (ui.tab === "ext:" + key) ui.renderContent();
+    };
+    var impl = registry[key];
+    if (!impl || typeof impl.render !== "function") {
+      ui.content.appendChild(el("div", "dp-empty", "\u6B63\u5728\u52A0\u8F7D\u2026\u2026"));
+      return;
+    }
+    var data = ui.view.extViews ? ui.view.extViews[key] : void 0;
+    try {
+      impl.render({
+        content: ui.content,
+        data: data === void 0 ? null : data,
+        send: function(op, payload) {
+          ui.send("ext", { key, op, data: payload || {} });
+        },
+        el,
+        button
+      });
+    } catch (error) {
+      ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E2A\u6269\u5C55\u51FA\u9519\u4E86\uFF1A" + (error instanceof Error ? error.message : String(error))));
+    }
+  }
+
   // src/client/tabs/extensions.js
+  var confirming = null;
+  var online = { loading: false, loaded: false, error: "", entries: (
+    /** @type {any[]} */
+    []
+  ) };
   function closingNote(view, key) {
     if (key === "pomodoro" && view.pomodoro !== null && view.pomodoro.active) return "\u6B63\u5728\u4E13\u6CE8\uFF1A\u5173\u6389\u4F1A\u653E\u5F03\u8FD9\u4E00\u4E2A\uFF0C\u4E0D\u7ED9\u5956\u52B1";
     if (key === "fishing" && view.activity?.kind === "fishing") return "\u732A\u6B63\u5728\u5916\u9762\u9493\u9C7C\uFF1A\u5173\u6389\u4F1A\u628A\u5B83\u53EB\u56DE\u6765\uFF0C\u9C7C\u9975\u9000\u56DE";
     return "";
   }
+  var CLEARS = { pomodoro: "\u4ECA\u5929\u548C\u7D2F\u8BA1\u7684\u756A\u8304\u6570", fishing: "\u9C7C\u7BD3\u91CC\u7684\u9C7C\u3001\u56FE\u9274\u91CC\u7684\u9C7C\u3001\u80CC\u5305\u91CC\u7684\u9C7C\u9975" };
+  function loadOnline(ui, force) {
+    if (online.loading || typeof fetch !== "function") return;
+    online.loading = true;
+    fetch("/dsh-piggy/extensions/online" + (force ? "?force=1" : ""), { cache: "no-store" }).then(function(response) {
+      return response.json();
+    }).then(function(data) {
+      var body = obj(data);
+      online = { loading: false, loaded: true, error: str(body.error, ""), entries: arr(body.entries).filter(function(entry) {
+        return typeof obj(entry).key === "string";
+      }) };
+    }).catch(function() {
+      online = { loading: false, loaded: true, error: "\u8FDE\u4E0D\u4E0A", entries: online.entries };
+    }).then(function() {
+      if (ui.tab === "extensions") ui.renderContent();
+    });
+  }
   function renderExtensionsTab(ui) {
-    const intro = el("div", "dp-ext-intro");
-    intro.appendChild(el("span", null, "\u7528\u4E0D\u4E0A\u7684\u73A9\u6CD5\u53EF\u4EE5\u5173\u6389\uFF1A\u4E3B\u83DC\u5355\u3001\u5546\u5E97\u3001\u56FE\u9274\u91CC\u90FD\u4E0D\u518D\u51FA\u73B0\uFF0C\u6570\u636E\u4F1A\u7559\u7740\uFF0C\u968F\u65F6\u6253\u5F00\u6062\u590D\u3002"));
-    ui.content.appendChild(intro);
-    for (const extension of ui.view.extensions) {
-      const card = el("div", "dp-set dp-ext-card");
-      card.setAttribute("data-extension", extension.key);
-      const head = el("div", "dp-set-head");
-      head.appendChild(el("span", "dp-ext-emoji", extension.emoji));
-      head.appendChild(el("b", null, extension.label));
-      const toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
-        ui.send("setExtension", { key: extension.key, on: !extension.on });
-      });
-      toggle.appendChild(el("span", "dp-switch-knob"));
-      toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
-      head.appendChild(toggle);
-      if (extension.description) head.appendChild(el("small", "dp-dim", extension.description));
-      card.appendChild(head);
-      const note = extension.on ? closingNote(ui.view, extension.key) : "";
-      if (note) card.appendChild(el("div", "dp-ext-note", note));
-      ui.content.appendChild(card);
+    if (String(ui.tab).startsWith("ext:")) {
+      renderDownloadedApp(ui, String(ui.tab).slice(4));
+      return;
     }
-    ui.content.appendChild(el("div", "dp-ext-later", "\u4EE5\u540E\u4F1A\u5728\u8FD9\u91CC\u6DFB\u52A0\u66F4\u591A\u6269\u5C55"));
+    if (!online.loaded) loadOnline(ui, false);
+    ui.content.appendChild(el("div", "dp-ext-intro", "\u7528\u4E0D\u4E0A\u7684\u73A9\u6CD5\u53EF\u4EE5\u5173\u6389\uFF0C\u6570\u636E\u7559\u7740\u968F\u65F6\u6062\u590D\uFF1B\u5220\u9664\u4F1A\u8FDE\u6570\u636E\u4E00\u8D77\u6E05\u6389\uFF0C\u4EE5\u540E\u53EF\u4EE5\u5728\u4E0B\u9762\u91CD\u65B0\u88C5\u3002"));
+    ui.content.appendChild(el("div", "dp-ext-section", "\u672C\u5730\u6269\u5C55"));
+    var local = ui.view.extensions.filter(function(extension) {
+      return extension.installed;
+    });
+    if (local.length === 0) ui.content.appendChild(el("div", "dp-ext-later", "\u4E00\u4E2A\u6269\u5C55\u90FD\u6CA1\u88C5"));
+    for (var i = 0; i < local.length; i += 1) ui.content.appendChild(localCard(ui, local[i]));
+    var head = el("div", "dp-ext-section dp-ext-online-head");
+    head.appendChild(el("span", null, "\u5728\u7EBF\u6269\u5C55"));
+    var refresh2 = button("dp-mini dp-mini-plain", { "data-ext-refresh": "true" }, function() {
+      loadOnline(ui, true);
+      ui.renderContent();
+    });
+    refresh2.textContent = online.loading ? "\u8BFB\u53D6\u4E2D\u2026" : "\u{1F504} \u5237\u65B0";
+    refresh2.disabled = online.loading;
+    head.appendChild(refresh2);
+    ui.content.appendChild(head);
+    renderOnline(ui);
+  }
+  function localCard(ui, extension) {
+    var card = el("div", "dp-set dp-ext-card");
+    card.setAttribute("data-extension", extension.key);
+    var head = el("div", "dp-set-head");
+    head.appendChild(el("span", "dp-ext-emoji", extension.emoji));
+    head.appendChild(el("b", null, extension.label + (extension.builtin ? "" : " " + extension.version)));
+    var toggle = button("dp-switch", { "data-extension-toggle": extension.key, "aria-pressed": String(extension.on) }, function() {
+      ui.send("setExtension", { key: extension.key, on: !extension.on });
+    });
+    toggle.appendChild(el("span", "dp-switch-knob"));
+    toggle.appendChild(el("span", "dp-switch-text", extension.on ? "\u5F00" : "\u5173"));
+    head.appendChild(toggle);
+    if (extension.description) head.appendChild(el("small", "dp-dim", extension.description));
+    card.appendChild(head);
+    var note = extension.on ? closingNote(ui.view, extension.key) : "";
+    if (note) card.appendChild(el("div", "dp-ext-note", note));
+    if (extension.error) card.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
+    var row = el("div", "dp-ext-actions");
+    if (confirming === extension.key) {
+      row.appendChild(el("span", "dp-ext-warn", "\u5220\u6389\u4F1A\u6E05\u7A7A" + (CLEARS[extension.key] ?? "\u5B83\u7684\u6570\u636E") + "\uFF0C\u786E\u5B9A\u5417\uFF1F"));
+      var yes = button("dp-mini dp-ext-danger", { "data-ext-remove-yes": extension.key }, function() {
+        confirming = null;
+        online.loaded = false;
+        ui.send("removeExtension", { key: extension.key });
+      });
+      yes.textContent = "\u5220\u9664";
+      var no = button("dp-mini dp-mini-plain", { "data-ext-remove-no": extension.key }, function() {
+        confirming = null;
+        ui.renderContent();
+      });
+      no.textContent = "\u7B97\u4E86";
+      row.appendChild(yes);
+      row.appendChild(no);
+    } else {
+      var remove = button("dp-mini dp-mini-plain", { "data-ext-remove": extension.key }, function() {
+        confirming = extension.key;
+        ui.renderContent();
+      });
+      remove.textContent = "\u5220\u9664";
+      row.appendChild(remove);
+    }
+    card.appendChild(row);
+    return card;
+  }
+  function renderOnline(ui) {
+    if (!online.loaded) {
+      ui.content.appendChild(el("div", "dp-ext-later", "\u6B63\u5728\u8BFB\u53D6\u5728\u7EBF\u6269\u5C55\u2026\u2026"));
+      return;
+    }
+    var installed = {};
+    for (var i = 0; i < ui.view.extensions.length; i += 1) if (ui.view.extensions[i].installed) installed[ui.view.extensions[i].key] = true;
+    var entries = online.entries.filter(function(entry) {
+      return !installed[entry.key];
+    });
+    if (online.error && entries.length === 0) {
+      ui.content.appendChild(el("div", "dp-ext-later", "\u8FDE\u4E0D\u4E0A GitHub\uFF0C\u7A0D\u540E\u70B9\u5237\u65B0"));
+      return;
+    }
+    if (entries.length === 0) {
+      ui.content.appendChild(el("div", "dp-ext-later", "\u5728\u7EBF\u7684\u6269\u5C55\u90FD\u88C5\u597D\u4E86\uFF0C\u4EE5\u540E\u6709\u65B0\u7684\u4F1A\u51FA\u73B0\u5728\u8FD9\u91CC"));
+      return;
+    }
+    for (var k = 0; k < entries.length; k += 1) {
+      (function(entry) {
+        var card = el("div", "dp-set dp-ext-card");
+        card.setAttribute("data-online-extension", entry.key);
+        var head = el("div", "dp-set-head");
+        head.appendChild(el("span", "dp-ext-emoji", str(entry.emoji, "\u{1F9E9}")));
+        head.appendChild(el("b", null, str(entry.label, entry.key) + (entry.builtin ? " \xB7 \u5185\u7F6E" : " " + str(entry.version, ""))));
+        var get = button("dp-mini", { "data-ext-install": entry.key }, function() {
+          online.loaded = false;
+          ui.send("installExtension", { key: entry.key });
+        });
+        get.textContent = entry.builtin ? "\u91CD\u65B0\u5B89\u88C5" : "\u4E0B\u8F7D";
+        get.disabled = entry.blocked !== null && entry.blocked !== void 0;
+        head.appendChild(get);
+        if (entry.description) head.appendChild(el("small", "dp-dim", str(entry.description, "")));
+        card.appendChild(head);
+        if (entry.blocked === "game-too-old") card.appendChild(el("div", "dp-ext-note", "\u9700\u8981\u6E38\u620F v" + str(entry.minGame, "") + "\uFF0C\u5148\u66F4\u65B0\u6E38\u620F"));
+        else if (entry.builtin) card.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
+        ui.content.appendChild(card);
+      })(entries[k]);
+    }
   }
 
   // src/client/panel.js
@@ -5905,7 +6106,7 @@
       } else if (ctx.tab === "dev") renderDevTab(ctx);
       else if (ctx.tab === "update") renderUpdateTab(ctx);
       else if (ctx.tab === "settings") renderSettingsTab(ctx);
-      else if (ctx.tab === "extensions") renderExtensionsTab(ctx);
+      else if (ctx.tab === "extensions" || String(ctx.tab).startsWith("ext:")) renderExtensionsTab(ctx);
       else renderBagTab(ctx);
       ctx.fitPanel();
     }
@@ -6595,7 +6796,7 @@
     "[data-dsh-pig] .dp-panel-footer{max-height:270px!important}"
   ].join("\n");
   var TOLERANCE = 2;
-  var bridge = (
+  var bridge2 = (
     /** @type {any} */
     null
   );
@@ -6620,7 +6821,7 @@
     );
   }
   function geometry() {
-    return typeof bridge.geometry === "function" ? bridge.geometry() : null;
+    return typeof bridge2.geometry === "function" ? bridge2.geometry() : null;
   }
   function dragging() {
     const scene3 = document.querySelector("[data-dsh-pig] .dp-scene");
@@ -6649,7 +6850,7 @@
   }
   function updateHit(x, y) {
     mouse = { x, y };
-    if (typeof bridge.setHit !== "function") return;
+    if (typeof bridge2.setHit !== "function") return;
     let inside = dragging();
     for (let i = 0; !inside && i < hitRects.length; i += 1) {
       const r = hitRects[i];
@@ -6657,7 +6858,7 @@
     }
     if (inside === lastHit) return;
     lastHit = inside;
-    bridge.setHit(inside);
+    bridge2.setHit(inside);
   }
   function tick() {
     const h = host();
@@ -6702,7 +6903,7 @@
         ghosts: h.querySelectorAll("[data-ghost]").length
       }));
     }
-    const after = bridge.place(request);
+    const after = bridge2.place(request);
     if (after && after.window) placement.remember(after.window);
   }
   function schedule() {
@@ -6714,7 +6915,7 @@
     });
   }
   function install2(shell) {
-    bridge = shell;
+    bridge2 = shell;
     measure = createMeasure({ platform: shell.platform || "", geometry });
     placement = createPlacement();
     const style = document.createElement("style");

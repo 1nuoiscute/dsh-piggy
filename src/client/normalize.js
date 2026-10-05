@@ -9,7 +9,7 @@ import { MODES } from './constants.js'
 import { arr, isObj, num, obj, str } from './values.js'
 import { normalizeFishing } from './normalize-fishing.js'
 import { normalizeSkins } from './normalize-skins.js'
-import { normalizeExtensions } from './extensions.js'
+import { normalizeExtensionParts } from './extensions.js'
 export function normalize(raw) {
   var d = obj(raw)
   var pig = isObj(d.pig) ? d.pig : null
@@ -246,7 +246,7 @@ export function normalize(raw) {
     dex: normalizeDex(d.dex),
     skins: normalizeSkins(d.skins),
     fishing: normalizeFishing(d.fishing),
-    extensions: normalizeExtensions(d.extensions),
+    ...normalizeExtensionParts(d), // extensions + extViews（v0.30 下载扩展）
     daily: {
       canSignIn: obj(d.daily).canSignIn === true,
       signInDay: num(obj(d.daily).signInDay, 1),

@@ -7,9 +7,10 @@
  */
 import { readFileSync } from 'node:fs'
 
-import { snapshot } from './snapshot.js'
+import { PACKAGE_VERSION, snapshot } from './snapshot.js'
 import { extensionForAction } from './core.js'
 import { customSkinArt, installSkinPack } from './store/skin-pack.js'
+import { createExtRuntime } from './store/ext-runtime.js'
 
 const STATE_ROUTE = '/dsh-piggy/state'
 const ACT_ROUTE = '/dsh-piggy/act'
@@ -76,6 +77,10 @@ const OPERATIONS = {
   pomodoroAbandon: store => store.abandonPomodoro(),
   openGift: store => store.openGift(),
   // 扩展中心：打开 / 关闭一个扩展。
+  // v0.30：删除 / 安装扩展、下载扩展自己的动作（见 docs/design/extension-download.md）。
+  removeExtension: (store, body) => store.ext.remove(str(body.key)),
+  installExtension: (store, body) => store.ext.install(str(body.key)),
+  ext: (store, body) => store.ext.act(str(body.key), str(body.op), body.data !== null && typeof body.data === 'object' ? body.data : {}),
   setExtension: (store, body) => store.setExtension(str(body.key), body.on === true),
   // The panel's timers ask the pig to speak up; the pig decides whether to.
   chat: (store, body) => store.chat(str(body.reason)),
@@ -212,7 +217,7 @@ function registerActRoute(webServer, store) {
       // A throwing operation must answer, not take the route down with it: an
       // unhandled error here would leave the panel polling a dead handler.
       try {
-        const result = run(store, body)
+        const result = await run(store, body)
         sendJson(res, 200, {
           ...snapshot(store),
           ok: result.ok !== false,
@@ -224,6 +229,7 @@ function registerActRoute(webServer, store) {
           sold: result.sold,
           need: result.need,
           have: result.have,
+          message: result.message,
         }, { 'cache-control': 'no-store' })
       } catch (error) {
         console.warn(`[dsh-piggy] action failed: action="${operation}" reason="${error instanceof Error ? error.message : String(error)}"`)
@@ -231,6 +237,36 @@ function registerActRoute(webServer, store) {
       }
     },
   })
+}
+
+/**
+ * 扩展的两个 GET：在线目录（?force=1 重新读）和下载扩展的面板脚本。
+ *   GET /dsh-piggy/extensions/online
+ *   GET /dsh-piggy/ext/<key>/client.js
+ */
+function registerExtRoutes(webServer, store) {
+  const offOnline = webServer.register({
+    kind: 'exact', path: '/dsh-piggy/extensions/online',
+    handler: async (req, res) => {
+      try {
+        const force = String(req.url ?? '').includes('force=1')
+        sendJson(res, 200, await store.ext.onlineView(force), { 'cache-control': 'no-store' })
+      } catch (error) {
+        sendJson(res, 200, { error: error instanceof Error ? error.message : String(error), entries: [] })
+      }
+    },
+  })
+  const offScript = webServer.register({
+    kind: 'prefix', path: '/dsh-piggy/ext',
+    handler: async (req, res) => {
+      const match = /^\/dsh-piggy\/ext\/([a-z0-9-]+)\/client\.js$/.exec(String(req.url ?? '').split('?')[0])
+      const script = match === null ? null : store.ext.clientScript(match[1])
+      if (script === null) { res.writeHead(404, { 'content-type': 'text/plain' }); return res.end('not found') }
+      res.writeHead(200, { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(script)
+    },
+  })
+  return () => { offOnline(); offScript() }
 }
 
 /**
@@ -245,6 +281,7 @@ function registerActRoute(webServer, store) {
  * actually been waited for.
  */
 export function registerRoutes(ctx, store) {
+  if (store.ext === undefined) store.ext = createExtRuntime(store, { gameVersion: PACKAGE_VERSION })
   ctx.inject(['webServer'], (webCtx) => {
     const webServer = webCtx.webServer
     if (webServer === undefined) return () => {}
@@ -254,6 +291,7 @@ export function registerRoutes(ctx, store) {
       disposers.push(registerArtRoute(webServer, store))
       disposers.push(registerSkinRoute(webServer, store))
       disposers.push(registerActRoute(webServer, store))
+      disposers.push(registerExtRoutes(webServer, store))
     } catch (error) {
       // A route already taken: the pig stays command-only rather than breaking
       // activation, but this is a real failure and should be visible.

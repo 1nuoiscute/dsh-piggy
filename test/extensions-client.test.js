@@ -57,3 +57,31 @@ test('正开着钓鱼页时钓鱼被关掉：退回主菜单', async () => {
   assert.equal(ctx.tab, 'home')
   assert.deepEqual(tabs.map(t => t.key), ['status', 'pomodoro'])
 })
+
+test('v0.30 delete asks once in the card, then sends removeExtension', async () => {
+  const { dom, calls } = await mount({ status: SNAPSHOT })
+  openPanel(dom, 'extensions')
+  findByAttr(contentOf(dom), 'data-ext-remove', 'fishing').fire('click')
+  assert.match(contentOf(dom).allText(), /删掉会清空鱼篓里的鱼/)
+  findByAttr(contentOf(dom), 'data-ext-remove-no', 'fishing').fire('click')
+  assert.equal(findByAttr(contentOf(dom), 'data-ext-remove-yes', 'fishing'), undefined)
+  findByAttr(contentOf(dom), 'data-ext-remove', 'fishing').fire('click')
+  findByAttr(contentOf(dom), 'data-ext-remove-yes', 'fishing').fire('click')
+  await settle()
+  assert.deepEqual(JSON.parse(calls.filter(call => call.method === 'POST').at(-1).body), { action: 'removeExtension', key: 'fishing' })
+})
+
+test('v0.30 a removed built-in leaves the local list; a downloaded one gets its own app', async () => {
+  const extensions = [
+    { key: 'pomodoro', label: '番茄钟', emoji: '🍅', on: true, installed: true, builtin: true, apps: ['pomodoro'], dexSections: [], shopKinds: [] },
+    { key: 'fishing', label: '钓鱼', emoji: '🎣', on: false, installed: false, builtin: true, apps: ['fishing'], dexSections: ['fish'], shopKinds: ['bait'] },
+    { key: 'piggybank', label: '存钱罐', emoji: '🏺', on: true, installed: true, builtin: false, version: '1.0.0', app: { emoji: '🏺', label: '存钱罐' }, apps: [], dexSections: [], shopKinds: [] },
+  ]
+  const { dom } = await mount({ status: { ...SNAPSHOT, extensions, extViews: { piggybank: { saved: 10 } } } })
+  openPanel(dom)
+  assert.notEqual(findByAttr(contentOf(dom), 'data-app', 'ext:piggybank'), undefined, 'downloaded app on the home grid')
+  assert.equal(findByAttr(contentOf(dom), 'data-app', 'fishing'), undefined)
+  findByAttr(contentOf(dom), 'data-app', 'extensions').fire('click')
+  assert.equal(findByAttr(contentOf(dom), 'data-extension', 'fishing'), undefined, 'removed: not in the local list')
+  assert.notEqual(findByAttr(contentOf(dom), 'data-extension', 'piggybank'), undefined)
+})

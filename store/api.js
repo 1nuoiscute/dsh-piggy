@@ -93,6 +93,9 @@ export function createApi(control) {
     /** Where this pig is saved. */
     get filePath() { return filePath },
 
+    /** 跑一个改存档的函数（下载来的扩展用，见 store/ext-runtime.js）；抛错会回滚。 */
+    mutate: fn => mutate(fn),
+
     /** Digest one observed harness event; silently ignored before hatching. */
     feed(event) {
       const state = getState()

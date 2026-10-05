@@ -30,7 +30,7 @@ function readPackageVersion() {
   }
 }
 
-const PACKAGE_VERSION = readPackageVersion()
+export const PACKAGE_VERSION = readPackageVersion()
 
 function boxStageView() {
   const box = LIFE_STAGES.find(stage => stage.key === 'box') ?? LIFE_STAGES[0]
@@ -183,7 +183,9 @@ export function snapshot(store, options = {}) {
     trips: tripsFor(state),
     // 关掉的扩展的商品从商店撤下（背包里已有的照常保留）。
     shop: shopFor(state).filter(item => !disabledParts(state).shopKinds.has(item.kind)),
-    extensions: extensionsView(state),
+    // 内置扩展 + 下载来的扩展（store.ext 由 routes.js 建，见 store/ext-runtime.js）。
+    extensions: [...extensionsView(state), ...(store.ext?.list(state) ?? [])],
+    extViews: store.ext?.views(state) ?? {},
     dress: dressView(state),
     inventory: inventoryView(state),
     care: careView(state),

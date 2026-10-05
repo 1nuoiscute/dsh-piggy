@@ -68,7 +68,7 @@ import {
 } from './data.js'
 
 export { ACTIONS, ACTION_ORDER, STATE_VERSION } from './core/constants.js'
-export { drainPending } from './core/effects.js'
+export { announce, drainPending } from './core/effects.js'
 export { DEX_SECTIONS, dexView, emptyDex, ensureDex, recordDex } from './core/dex.js'
 export { ageDays, ageMonths, dayKeyFor, daysToNextStage, hasSoul, levelFor, levelProgress, levelTitle, lifeStageFor, nextLifeStage } from './core/clock.js'
 export { careFactor, grow, growFromRealWork, outingGrowth } from './core/growth.js'
@@ -100,7 +100,7 @@ export { abandonPomodoro, awayFromPomodoro, emptyPomodoro, ensurePomodoro, pomod
 export { bodyWeightClass, bodyWeightView, ensureBodyWeight, idealWeightG, reduceFishingWeight, reducePlayWeight, reduceWorkWeight, setBodyWeightClass, settleWeight, weightStageView } from './core/weight.js'
 export { castFishing, emptyFishing, ensureFishing, feedFish, finishAutoFishing, fishingPeriod, fishingView, grantFish, hookFishing, keepFish, resolveFishing, sellFish, skipFishingWait, startAutoFishing } from './core/fishing.js'
 export { FISH, fishByKey } from './data.js'
-export { disabledParts, ensureExtensions, extensionOn, extensionsView, setExtension } from './core/extensions.js'
+export { disabledParts, ensureExtensions, extensionInstalled, extensionOn, extensionsView, installExtension, removeExtension, setExtension } from './core/extensions.js'
 export { EXTENSIONS, extensionByKey, extensionForAction } from './data.js'
 export { SKINS, SKIN_SCENES, REQUIRED_SKIN_SCENES, skinByKey } from './data.js'
 export { allSkins, ensureSkins, registerCustomSkin, selectSkin, skinStageView, skinView } from './core/skins.js'

@@ -4,8 +4,10 @@
  * 老存档补成全部打开；认不出的 key 原样保留（以后降级再升级不丢开关）。不升存档版本。
  */
 import { EXTENSIONS, extensionByKey } from '../data/extensions.js'
-import { abandonPomodoro, ensurePomodoro } from './pomodoro.js'
-import { ensureFishing, keepFish } from './fishing.js'
+import { itemByKey } from '../data.js'
+import { abandonPomodoro, emptyPomodoro, ensurePomodoro } from './pomodoro.js'
+import { emptyFishing, ensureFishing, keepFish } from './fishing.js'
+import { ensureDex } from './dex.js'
 import { callOffActivity } from './activity.js'
 
 /** @param {any} state */
@@ -16,12 +18,24 @@ export function ensureExtensions(state) {
     if (typeof next[extension.key] !== 'boolean') next[extension.key] = extension.defaultOn
   }
   state.extensions = next
+  // 删掉的内置扩展、下载来的扩展的数据（v0.30，见 docs/design/extension-download.md）。
+  if (!Array.isArray(state.extensionsRemoved)) state.extensionsRemoved = []
+  state.extensionsRemoved = state.extensionsRemoved.filter(key => typeof key === 'string')
+  if (state.extData === null || typeof state.extData !== 'object' || Array.isArray(state.extData)) state.extData = {}
   return next
+}
+
+/** 这个扩展装没装：内置的看有没有被删，下载的看有没有数据（宿主装的时候建好）。 @param {any} state @param {string} key */
+export function extensionInstalled(state, key) {
+  if (state === null || state === undefined) return true
+  if (extensionByKey(key) !== null) return !(state.extensionsRemoved ?? []).includes(key)
+  return state.extData?.[key] !== undefined
 }
 
 /** @param {any} state @param {string} key */
 export function extensionOn(state, key) {
   if (state === null || state === undefined) return true
+  if (!extensionInstalled(state, key)) return false
   const value = state.extensions?.[key]
   if (typeof value === 'boolean') return value
   return extensionByKey(key)?.defaultOn ?? true
@@ -36,8 +50,9 @@ export function extensionOn(state, key) {
 export function setExtension(state, key, on, nowMs) {
   if (state === null) return { ok: false, reason: 'absent' }
   const extension = extensionByKey(key)
-  if (extension === null) return { ok: false, reason: 'unknown-extension' }
   const flags = ensureExtensions(state)
+  if (extension === null && state.extData[key] === undefined) return { ok: false, reason: 'unknown-extension' }
+  if (!extensionInstalled(state, key)) return { ok: false, reason: 'not-installed' }
   const wanted = on === true
   if (flags[key] === wanted) return { ok: true, key, on: wanted, changed: false }
   const wrapped = []
@@ -59,6 +74,49 @@ export function setExtension(state, key, on, nowMs) {
 }
 
 /**
+ * 删除一个扩展：先按「关掉」收尾，再清掉它的存档数据（用户 2026-10-05：删除 = 卸载并清数据）。
+ * 下载来的扩展这里只清 `extData`，文件由宿主删。
+ * @param {any} state @param {string} key @param {number} nowMs
+ */
+export function removeExtension(state, key, nowMs) {
+  if (state === null) return { ok: false, reason: 'absent' }
+  ensureExtensions(state)
+  if (!extensionInstalled(state, key)) return { ok: false, reason: 'not-installed' }
+  const builtin = extensionByKey(key)
+  if (builtin === null && state.extData[key] === undefined) return { ok: false, reason: 'unknown-extension' }
+  const closed = setExtension(state, key, false, nowMs)
+  if (key === 'pomodoro') state.pomodoro = emptyPomodoro()
+  if (key === 'fishing') {
+    state.fishing = emptyFishing()
+    ensureDex(state, nowMs).fish = {}
+    const inventory = { ...(state.inventory ?? {}) }
+    for (const itemKey of Object.keys(inventory)) if (itemByKey(itemKey)?.kind === 'bait') delete inventory[itemKey]
+    state.inventory = inventory
+  }
+  if (builtin !== null) state.extensionsRemoved = [...state.extensionsRemoved, key]
+  else delete state.extData[key]
+  delete state.extensions[key]
+  return { ok: true, key, removed: true, wrapped: closed.ok ? closed.wrapped ?? [] : [] }
+}
+
+/**
+ * 安装一个扩展：内置的直接装回（从零开始）；下载的由宿主放好文件后调用，`initial` 是它的初始数据。
+ * @param {any} state @param {string} key @param {object} [initial]
+ */
+export function installExtension(state, key, initial) {
+  if (state === null) return { ok: false, reason: 'absent' }
+  ensureExtensions(state)
+  if (extensionByKey(key) !== null) {
+    state.extensionsRemoved = state.extensionsRemoved.filter(entry => entry !== key)
+  } else {
+    if (typeof key !== 'string' || !/^[a-z0-9-]{2,24}$/.test(key)) return { ok: false, reason: 'unknown-extension' }
+    if (state.extData[key] === undefined) state.extData[key] = initial !== null && typeof initial === 'object' ? initial : {}
+  }
+  state.extensions[key] = true
+  return { ok: true, key, installed: true }
+}
+
+/**
  * 扩展中心要显示的：每个扩展的名称、说明、开没开。
  * @param {any} state
  */
@@ -69,6 +127,8 @@ export function extensionsView(state) {
     emoji: extension.emoji,
     description: extension.description,
     on: extensionOn(state, extension.key),
+    installed: extensionInstalled(state, extension.key),
+    builtin: true,
     apps: [...extension.apps],
     dexSections: [...extension.dexSections],
     shopKinds: [...extension.shopKinds],

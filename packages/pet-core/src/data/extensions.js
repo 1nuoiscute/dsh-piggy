@@ -7,6 +7,7 @@
  *   actions     路由动作（关闭后一律拒绝）
  *   dexSections 图鉴分区
  *   shopKinds   商店里的商品种类（关闭后从商店撤下；背包里已有的照常保留）
+ *   builtin     代码在游戏里：删掉后「重新安装」不用下载（见 docs/design/extension-download.md）
  * 以后种菜、盲盒、小游戏照这个格式加一条。
  */
 export const EXTENSIONS = Object.freeze([
@@ -16,6 +17,7 @@ export const EXTENSIONS = Object.freeze([
     emoji: '🍅',
     description: '专注 15 / 25 / 45 分钟，猪安静陪着你，每天前几个有奖励。',
     defaultOn: true,
+    builtin: true,
     apps: Object.freeze(['pomodoro']),
     actions: Object.freeze(['pomodoro', 'pomodoroAbandon']),
     dexSections: Object.freeze([]),
@@ -27,6 +29,7 @@ export const EXTENSIONS = Object.freeze([
     emoji: '🎣',
     description: '抛竿、看准时机提竿，钓到的鱼进鱼篓，可以喂猪或卖钱；也能让猪自己出门钓。',
     defaultOn: true,
+    builtin: true,
     apps: Object.freeze(['fishing']),
     actions: Object.freeze(['fishCast', 'fishHook', 'fishResolve', 'fishKeep', 'fishAuto', 'fishGive', 'fishSkip']),
     dexSections: Object.freeze(['fish']),

@@ -181,7 +181,7 @@ export function createPanel(ctx) {
         else if (ctx.tab === 'dev') renderDevTab(ctx)
         else if (ctx.tab === 'update') renderUpdateTab(ctx)
         else if (ctx.tab === 'settings') renderSettingsTab(ctx)
-        else if (ctx.tab === 'extensions') renderExtensionsTab(ctx)
+        else if (ctx.tab === 'extensions' || String(ctx.tab).startsWith('ext:')) renderExtensionsTab(ctx) // ext:<key> 是下载扩展的 App
         else renderBagTab(ctx)
 
         // Every tab is a different height: refit after each render, not only on open.
