@@ -7,6 +7,7 @@
  */
 import { MODES } from './constants.js'
 import { arr, isObj, num, obj, str } from './values.js'
+import { normalizeDex } from './normalize-dex.js'
 import { normalizeFishing } from './normalize-fishing.js'
 import { normalizeSkins } from './normalize-skins.js'
 import { normalizeExtensionParts } from './extensions.js'
@@ -359,29 +360,6 @@ export function normalize(raw) {
     })),
     maxHealth: num(d.maxHealth, 5),
   }
-}
-function normalizeDex(raw) {
-  const source = obj(raw)
-  const out = {}
-  for (const section of ['forms', 'skins', 'fish', 'items', 'souvenirs']) {
-    out[section] = arr(source[section]).map(function (value) {
-      const entry = obj(value)
-      return {
-        key: str(entry.key, ''), label: str(entry.label, ''), emoji: str(entry.emoji, '📦'),
-        art: str(entry.art, ''), description: str(entry.description, ''), hint: str(entry.hint, ''),
-        kind: str(entry.kind, ''), kindLabel: str(entry.kindLabel, ''),
-        acquired: entry.acquired === true,
-        firstAt: typeof entry.firstAt === 'number' ? entry.firstAt : null,
-        count: num(entry.count, 0), condition: str(entry.condition, ''),
-        maxSizeCm: typeof entry.maxSizeCm === 'number' ? entry.maxSizeCm : null,
-        requirements: arr(entry.requirements).map(function (value) {
-          const requirement = obj(value)
-          return { key: str(requirement.key, ''), label: str(requirement.label, ''), have: num(requirement.have, 0), need: num(requirement.need, 0), met: requirement.met === true }
-        }),
-      }
-    }).filter(entry => entry.key !== '')
-  }
-  return out
 }
 
 export function normalizeActions(raw) {

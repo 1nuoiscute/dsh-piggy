@@ -104,3 +104,5 @@ export { disabledParts, ensureExtensions, extensionInstalled, extensionOn, exten
 export { EXTENSIONS, extensionByKey, extensionForAction } from './data.js'
 export { SKINS, SKIN_SCENES, REQUIRED_SKIN_SCENES, skinByKey } from './data.js'
 export { allSkins, ensureSkins, registerCustomSkin, selectSkin, skinStageView, skinView } from './core/skins.js'
+
+export { ensureAchievements, settleAchievements, achievementsView } from './core/achievements.js'

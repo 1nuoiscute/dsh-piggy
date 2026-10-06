@@ -1,4 +1,5 @@
 // @ts-check
+import { achievementsView } from './core.js'
 /**
  * 面板快照：把状态序列化成界面读的那一份形状。
  *
@@ -97,7 +98,7 @@ export function snapshot(store, options = {}) {
       shop: shopFor(null),
       extensions: extensionsView(null),
       dress: [],
-      dex: { forms: [], skins: [], fish: [], items: [], souvenirs: [] },
+      dex: { forms: [], skins: [], fish: [], items: [], souvenirs: [], achievements: achievementsView(null) },
       skins: { current: 'default', entries: [] },
       inventory: inventoryView({ inventory: {} }),
       activity: null, canGoOut: false, awayBlocked: 'absent',
@@ -136,7 +137,7 @@ export function snapshot(store, options = {}) {
     // 加冕: every form and how close the pig is to it.
     forms,
     skins: skinView(state),
-    dex: dexView(state, forms, nowMs),
+    dex: { ...dexView(state, forms, nowMs), achievements: achievementsView(state) },
     timeScale: Number.isFinite(state.timeScale) ? state.timeScale : 1,
     pig: {
       name: state.name,
