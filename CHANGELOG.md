@@ -5,7 +5,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
-## [Unreleased] · 小猪成就初稿
+## [Unreleased] · 小猪成就系统
 
 - 图鉴新增成就分类，十六枚以小猪为主图案的透明 SVG 徽章，展示目标、进度和获得记录。
 - 成功照顾与实际完成学习、工作、旅行，以及钓鱼收藏和晋升记录驱动解锁；合并同时获得的徽章提示。
