@@ -49,6 +49,58 @@ test('启动时按存下的猪位置摆（不按窗口），记住的位置跟�
   assert.deepEqual(JSON.parse(memory.get('dsh-piggy:desktop-pig')), { x: 1700, y: 900 })
 })
 
+test('开面板时的猪原位取「钉边之前」的实测值', () => {
+  memory.clear()
+  const place = createPlacement({ now: () => 0 })
+  const win = { x: 1400, y: 300, width: 324, height: 692 }
+  place.decide(report(), win, AREA)
+  // 开面板：钉边（pin）会把猪在窗口里的 left/top 改掉，所以 pigNow 是钉边之后的。
+  // 原位必须用钉边之前的 (250,610)，而不是钉边之后的 (262,604)——用后者记下来的原位
+  // 天生差几像素，实测就是「开面板时猪稳定跳 3~4px」。
+  const opened = place.decide(report({
+    panelOpen: true, height: 900,
+    pigBeforePin: { x: 250, y: 610 }, pigNow: { x: 262, y: 604 }, pigWindow: { x: 262, y: 604 },
+  }), win, AREA)
+  assert.notEqual(opened, null, '面板变大，窗口要跟着摆')
+  assert.deepEqual(place.target(), { x: 1400 + 250, y: 300 + 610 }, '原位按钉边之前的实测值')
+})
+
+test('钉边之后的实测值不能污染原位（3~4px 跳动的回归）', () => {
+  memory.clear()
+  const place = createPlacement({ now: () => 0 })
+  const win = { x: 1400, y: 300, width: 324, height: 692 }
+  place.decide(report(), win, AREA)
+  const anchor = { x: 250, y: 610 }
+  const openWith = after => place.decide(report({
+    panelOpen: true, height: 900, pigBeforePin: anchor, pigNow: after, pigWindow: after,
+  }), win, AREA) && place.target()
+  const first = openWith({ x: 262, y: 604 })
+  place.dragStarted()
+  place.decide(report(), win, AREA)
+  const second = openWith({ x: 253, y: 613 })
+  assert.deepEqual(first, second, '钉边之后量到多少都不影响原位')
+  assert.deepEqual(first, { x: 1400 + anchor.x, y: 300 + anchor.y })
+})
+
+test('摆放的目标点可以被核对方取走并清掉', () => {
+  memory.clear()
+  const place = createPlacement({ now: () => 0 })
+  assert.equal(place.target(), null, '还没摆过就没有目标')
+  place.decide(report({ width: 400 }), { x: 1400, y: 300, width: 324, height: 692 }, AREA)
+  assert.notEqual(place.target(), null)
+  place.targetDone()
+  assert.equal(place.target(), null, '核对过就清掉，避免重复修')
+})
+
+test('拖动开始会作废目标点（拖动由主进程摆，页面不再核对旧目标）', () => {
+  memory.clear()
+  const place = createPlacement({ now: () => 0 })
+  place.decide(report({ width: 400 }), { x: 1400, y: 300, width: 324, height: 692 }, AREA)
+  assert.notEqual(place.target(), null)
+  place.dragStarted()
+  assert.equal(place.target(), null)
+})
+
 test('游戏包导出桌面模块；更新页只推荐正式版、测试版折叠，可选的外壳更新不再红字', () => {
   const index = readFileSync(new URL('../src/client/index.js', import.meta.url), 'utf8')
   assert.match(index, /exports\.desktop = desktop/)

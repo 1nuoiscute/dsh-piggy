@@ -23,6 +23,8 @@ export function createPlacement(options = {}) {
   let lastPigSize = { width: 56, height: 56 }
   let resting = null
   let saved = null
+  /** 这次摆放想让猪落在的屏幕点：摆完用它核对（见 geometry.js 的 pigCorrection）。 */
+  let lastTarget = null
   try {
     const raw = JSON.parse(localStorage.getItem(PIG_SCREEN_KEY) || 'null')
     if (raw !== null && Number.isFinite(raw.x) && Number.isFinite(raw.y)) saved = { x: raw.x, y: raw.y }
@@ -51,19 +53,27 @@ export function createPlacement(options = {}) {
       || sizeChanged
       || (lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y))
 
+    // 「猪现在在哪」一律用实测值（这一轮钉边之前量到的本地框），不用上一次的预测值。
+    // 预测值（lastPigWindow）是「按新的窗口尺寸推出来的」，和真实布局差 3~4px；
+    // 开关面板两个方向各用一个基准，就会看到猪稳定跳一下（2026-10-06 实测）。
+    const measuredPig = Number.isFinite(report.pigBeforePin?.x) && Number.isFinite(report.pigBeforePin?.y)
+      ? report.pigBeforePin : null
+
     if (saved !== null) {
+      const nowPig = measuredPig ?? pigNow
       const settled = bounds.width === Math.max(MIN_WINDOW.width, Math.round(width))
         && bounds.height === Math.max(MIN_WINDOW.height, Math.round(height))
-        && Math.abs(bounds.x + pigNow.x - saved.x) <= 1 && Math.abs(bounds.y + pigNow.y - saved.y) <= 1
+        && Math.abs(bounds.x + nowPig.x - saved.x) <= 1 && Math.abs(bounds.y + nowPig.y - saved.y) <= 1
       if (settled || panelOpen || now() - startedAt > STARTUP_MS) saved = null
     }
     if (panelOpen && lastContent?.panelOpen !== true) {
-      const base = lastPigWindow ?? pigWindow
+      // 开面板那一刻记下猪的原位：用钉边之前的实测值，面板开着期间不再变。
+      const base = measuredPig ?? lastPigWindow ?? pigWindow
       resting = saved ?? { x: bounds.x + base.x, y: bounds.y + base.y }
     }
     let next = null
     if (changed) {
-      const before = lastPigWindow ?? pigNow
+      const before = measuredPig ?? lastPigWindow ?? pigNow
       const pigBefore = saved ?? { x: bounds.x + before.x, y: bounds.y + before.y }
       // 启动时先画的是占位纸盒，换成真猪的尺寸变化不按脚底中心挪，直接摆回存下的位置。
       const target = saved !== null ? saved
@@ -71,6 +81,7 @@ export function createPlacement(options = {}) {
       if (sizeChanged && resting !== null) resting = target
       const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
       next = contentBoundsForPig({ width, height, pigWindow: { ...pigWindow, ...pigSize }, panelOpen, allowPanelOverflow: sizeChanged }, target, area)
+      lastTarget = target
     }
     if (!panelOpen) resting = null
     lastContent = { width, height, anchor, panelOpen }
@@ -83,6 +94,7 @@ export function createPlacement(options = {}) {
   function dragStarted() {
     resting = null
     saved = null
+    lastTarget = null
   }
 
   /** 记下猪在屏幕上的位置，下次启动按它摆。 */
@@ -97,5 +109,13 @@ export function createPlacement(options = {}) {
     try { localStorage.setItem(PIG_SCREEN_KEY, JSON.stringify({ x, y })) } catch { /* 存不下就按窗口位置恢复 */ }
   }
 
-  return { decide, dragStarted, remember, pigWindow: () => lastPigWindow, pigSize: () => lastPigSize }
+  return {
+    decide, dragStarted, remember,
+    pigWindow: () => lastPigWindow,
+    pigSize: () => lastPigSize,
+    /** 上一次 decide 想让猪落在哪；没有待核对的摆放时是 null。 */
+    target: () => lastTarget,
+    /** 核对通过（或放弃）以后清掉，避免重复修。 */
+    targetDone: () => { lastTarget = null },
+  }
 }

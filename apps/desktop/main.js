@@ -411,6 +411,9 @@ ipcMain.on('piggy:drag:start', (event, given) => {
   // 会把窗口拽回原位 —— 用户看到的「瞬移」「拖着拖着卡在原地」。
   restingPigScreen = null
   savedPigScreen = null
+  // 拖动期间每一帧都不写日志（60Hz 会刷爆），但起止各记一行：出问题时能看出拖了多远、
+  // 起始窗口和猪的位置对不对得上（2026-10-06 的偏移排查就是缺这一段）。
+  log('drag start', JSON.stringify({ bounds, pigScreen: dragSession.pigScreen, pigFromPage: pigFromPage !== null }))
   dragTimer = setInterval(dragTick, 1000 / 60)
 })
 ipcMain.on('piggy:drag:heartbeat', event => {
@@ -423,6 +426,14 @@ ipcMain.on('piggy:drag:heartbeat', event => {
 ipcMain.on('piggy:drag:end', event => {
   if (!fromPage(event)) return
   dragTick()
+  if (dragSession !== null) {
+    const bounds = win === null || win.isDestroyed() ? null : win.getBounds()
+    // 猪在窗口里的位置：页面给了就用它，没给就用上次量到的（和 dragTick 同一套兜底）。
+    const pig = dragSession.pig ?? lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }
+    const startWindow = { x: dragSession.pigScreen.x - pig.x, y: dragSession.pigScreen.y - pig.y }
+    log('drag end', JSON.stringify({ bounds, from: startWindow, movedBy: bounds === null ? null
+      : { x: bounds.x - startWindow.x, y: bounds.y - startWindow.y } }))
+  }
   stopDrag()
   restingPigScreen = null
 })

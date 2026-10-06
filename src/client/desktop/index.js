@@ -6,7 +6,7 @@
  * 现在桌面程序只提供基础动作（piggyShell.place / setHit / beginDrag …），量尺寸、钉位置、
  * 窗口摆哪、哪里可点都在这里，跟着游戏包热更新。
  */
-import { sameBounds } from './geometry.js'
+import { pigCorrection, sameBounds } from './geometry.js'
 import { createMeasure, layoutBox } from './measure.js'
 import { createPlacement } from './place.js'
 
@@ -29,6 +29,8 @@ const DESKTOP_CSS = [
 
 /** 非拖动时窗口差这么多以内就不改（Windows 分数缩放下读回来常差 1px）。 */
 const TOLERANCE = 2
+/** 摆完核对猪的屏幕坐标时容忍多少像素：超过就补一次。 */
+const VERIFY_TOLERANCE = 1
 
 let bridge = /** @type {any} */ (null)
 let measure = /** @type {any} */ (null)
@@ -39,6 +41,8 @@ let hitRects = []
 let lastHit = null
 let mouse = { x: -1, y: -1 }
 let scheduled = false
+/** 待核对的摆放：{target, budget}。摆完一轮设上，核对过就清掉。 */
+let pendingVerify = /** @type {{target:{x:number,y:number}, budget:number}|null} */ (null)
 
 function host() { return /** @type {any} */ (document.querySelector('[data-dsh-pig]')) }
 function geometry() { return typeof bridge.geometry === 'function' ? bridge.geometry() : null }
@@ -88,6 +92,10 @@ function tick() {
   if (h === null) return
   let next = measure.boxes(h)
   if (next === null) return
+  // 钉边之前量到的猪本地框：开面板那一刻记「猪的原位」必须用它。
+  // 钉边（pin）会改猪在窗口里的 left/top，用钉边之后的值配上还没挪的窗口，
+  // 记下来的「原位」天生差几像素（2026-10-06 实测：开面板时猪稳定跳 3~4px）。
+  const pigBoxBeforePin = { x: next.pigBox.x, y: next.pigBox.y }
   const side = measure.sides(h)
   measure.pin(h, side, next.hostBox, next.contentBox)
   next = measure.boxes(h)
@@ -95,10 +103,16 @@ function tick() {
 
   hitRects = next.shape
   if (mouse.x >= 0) updateHit(mouse.x, mouse.y)
+
+  // 先核对上一次摆放：窗口真的落到位了、猪也画出来了，这时量到的才是真的。
+  // 只有真的超差才补一次 setBounds，补完这一轮就结束（下一轮再处理内容变化）。
+  if (verifyPending()) return
+
   const key = measure.keyOf(next)
   if (key === lastKey) return
   lastKey = key
-  const info = geometry()
+  // 决策用「同步回读」的窗口，不用可能过期的缓存：面板开着拖完再点，缓存里还是拖动前的位置。
+  const info = readGeometry()
   // 还没拿到窗口在哪：先不摆（以前按 (0,0) 算，启动时会把窗口摆错一次）。几何一到会再量。
   if (info === null || !info.window) { lastKey = null; return }
   const bounds = info.window
@@ -108,6 +122,7 @@ function tick() {
     width: next.content.width, height: next.content.height, anchor: side, pig: next.pig,
     pigWindow: { x: next.pigBox.x + grownX, y: next.pigBox.y + grownY },
     pigNow: { x: next.pigBox.x, y: next.pigBox.y },
+    pigBeforePin: pigBoxBeforePin,
     panelOpen: h.getAttribute('data-open') === 'true',
   }, bounds, info?.workAreas ?? (info ? [info.workArea] : []))
   const request = { shape: next.shape, bounds: want !== null && !sameBounds(want, bounds, TOLERANCE) ? want : undefined }
@@ -118,7 +133,48 @@ function tick() {
       content: { w: next.content.width, h: next.content.height }, pigBox: next.pigBox, ghosts: h.querySelectorAll('[data-ghost]').length }))
   }
   const after = bridge.place(request)
-  if (after && after.window) placement.remember(after.window)
+  if (after && after.window) {
+    // 记下这次想让猪落在哪：下一轮（窗口 resize 生效后）用它核对。
+    pendingVerify = placement.target() === null ? null : { target: placement.target(), budget: 1 }
+    placement.remember(after.window)
+  }
+}
+
+/**
+ * 摆放之后核对一次：用回读的窗口 + 实测的猪本地框算猪的屏幕点。
+ * 超差就补一次（budget 用完只记账不再动，避免来回抖）。
+ * @returns {boolean} 这一轮是否已经补正过（补了就不再往下走）
+ */
+function verifyPending() {
+  if (pendingVerify === null || dragging()) return false
+  const h = host()
+  const { target, budget } = pendingVerify
+  const info = readGeometry()
+  if (h === null || info === null || !info.window) return false
+  const pigNode = h.querySelector('.dp-pig')
+  if (pigNode === null) return false
+  pendingVerify = null
+  const pig = layoutBox(pigNode)
+  const fix = pigCorrection(info.window, pig, target, VERIFY_TOLERANCE)
+  if (fix === null) return false
+  if (budget <= 0) {
+    // 补过还是差：只记账，不再动窗口（宁可差一点，也不要抖）。
+    console.warn('[piggy-desktop] verify still off ' + JSON.stringify({ dx: fix.dx, dy: fix.dy, window: info.window }))
+    return false
+  }
+  console.warn('[piggy-desktop] verify correcting ' + JSON.stringify({ dx: fix.dx, dy: fix.dy, from: info.window, to: fix.bounds }))
+  const after = bridge.place({ bounds: fix.bounds })
+  if (after && after.window) pendingVerify = { target, budget: budget - 1 }
+  return true
+}
+
+/** 同步回读真实窗口几何；外壳给不了就退回缓存（老外壳没有同步 place）。 */
+function readGeometry() {
+  if (typeof bridge.place === 'function') {
+    const fresh = bridge.place({})
+    if (fresh !== null && fresh !== undefined && fresh.window) return fresh
+  }
+  return geometry()
 }
 
 function schedule() {
@@ -133,6 +189,14 @@ function schedule() {
 /** loader.js 在挂载游戏之前调用：挂上 __dshPiggyShell，客户端挂载时就按桌面版走。 */
 export function install(shell) {
   bridge = shell
+  // 外壳能力探测（2026-10-06）：几何逻辑在游戏包里、执行在外壳里，两边版本错配时
+  // 以前完全看不出来（minShell 一直是 0.1.0，data-piggy-desktop 也没人读）。
+  // 缺关键动作就明确说出来，并且不去做兑现不了的摆放。
+  const missing = ['place', 'beginDrag', 'endDrag'].filter(name => typeof shell[name] !== 'function')
+  if (missing.length > 0) {
+    console.warn('[piggy-desktop] shell is too old, missing: ' + missing.join(', ') + '（请更新桌面程序）')
+    ;/** @type {any} */ (window).__dshPiggyShellOutdated = true
+  }
   measure = createMeasure({ platform: shell.platform || '', geometry })
   placement = createPlacement()
   const style = document.createElement('style')
@@ -167,13 +231,18 @@ export function install(shell) {
     dragHeartbeat: function () { if (typeof shell.dragHeartbeat === 'function') shell.dragHeartbeat() },
     endDrag: function () {
       shell.endDrag()
-      if (!measure.state.compact) return
+      const compact = measure.state.compact
       measure.state.compact = false
       const h = host()
       const pigNode = h?.querySelector('.dp-pig')
       // 拖动结束和同步读几何按 IPC 顺序处理，避免用到最后一帧之前的窗口位置。
-      const info = shell.place({})
-      if (pigNode !== null && pigNode !== undefined) measure.collapsedSide(layoutBox(pigNode), info)
+      const info = typeof shell.place === 'function' ? shell.place({}) : null
+      if (compact && pigNode !== null && pigNode !== undefined && info !== null) measure.collapsedSide(layoutBox(pigNode), info)
+      // 拖动期间窗口被主进程挪了几十上百次，页面一次都没跟上（拖动中不 tick）。
+      // 以前只有收起态才在这里重新标定，面板开着拖完，缓存里留着的是拖动前的位置，
+      // 下一次内容变化就把这段落差当成真实位移用掉（用户 2026-10-06 报的偏移来源之一）。
+      lastKey = null
+      pendingVerify = null
       tick()
     },
     syncGeometry: function () { tick() },
