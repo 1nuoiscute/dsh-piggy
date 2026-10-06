@@ -1860,14 +1860,14 @@
     for (var n = 0; n < ui.view.interests.length; n += 1) {
       (function(entry) {
         var note = entry.cost + " \u{1FA99} \xB7 \u7EA6 " + entry.minutes + " \u5206\u949F\u540E " + entry.traitLabel + " +" + entry.gain;
-        var badge = entry.certificate === "" ? "" : entry.certified ? "\u{1F4DC}" : entry.times + "/" + entry.certificateAfter;
+        var badge2 = entry.certificate === "" ? "" : entry.certified ? "\u{1F4DC}" : entry.times + "/" + entry.certificateAfter;
         grid.appendChild(tile({
           emoji: entry.emoji,
           label: entry.label,
           color: INTEREST_COLOR,
           soft: true,
           note,
-          badge,
+          badge: badge2,
           disabled: !canStart(ui),
           dim: !entry.affordable,
           data: { "data-interest": entry.key },
@@ -2619,6 +2619,56 @@
     return { clampPig, fitPanel, visibleTabs, paintBar, buildIcon, attachResize };
   }
 
+  // src/client/milestone-notice.js
+  function showMilestoneNotice(ctx, event) {
+    if (event.kind === "achievement") {
+      ctx.showBubble(str(event.text, "\u83B7\u5F97\u5C0F\u732A\u5FBD\u7AE0"), 4500);
+      return true;
+    }
+    if (event.kind === "interest") {
+      ctx.showBubble(str(event.text, "\u5174\u8DA3\u8BFE\u5B66\u5B8C\u5566"), 4e3);
+      ctx.react("away", 900);
+      return true;
+    }
+    return false;
+  }
+
+  // src/client/normalize-dex.js
+  function normalizeDex(raw) {
+    const source = obj(raw);
+    const out = {};
+    for (const section2 of ["forms", "skins", "fish", "items", "souvenirs", "achievements"]) {
+      out[section2] = arr(source[section2]).map(function(value) {
+        const entry = obj(value);
+        return {
+          key: str(entry.key, ""),
+          label: str(entry.label, ""),
+          emoji: str(entry.emoji, "\u{1F4E6}"),
+          art: str(entry.art, ""),
+          description: str(entry.description, ""),
+          hint: str(entry.hint, ""),
+          kind: str(entry.kind, ""),
+          kindLabel: str(entry.kindLabel, ""),
+          acquired: entry.acquired === true,
+          firstAt: typeof entry.firstAt === "number" ? entry.firstAt : null,
+          count: num(entry.count, 0),
+          condition: str(entry.condition, ""),
+          group: str(entry.group, ""),
+          progress: Math.max(0, num(entry.progress, 0)),
+          target: Math.max(1, num(entry.target, 1)),
+          unit: str(entry.unit, ""),
+          recovered: entry.recovered === true,
+          maxSizeCm: typeof entry.maxSizeCm === "number" ? entry.maxSizeCm : null,
+          requirements: arr(entry.requirements).map(function(value2) {
+            const requirement = obj(value2);
+            return { key: str(requirement.key, ""), label: str(requirement.label, ""), have: num(requirement.have, 0), need: num(requirement.need, 0), met: requirement.met === true };
+          })
+        };
+      }).filter((entry) => entry.key !== "");
+    }
+    return out;
+  }
+
   // src/client/normalize-fishing.js
   function fish(value) {
     const entry = obj(value);
@@ -3045,35 +3095,6 @@
       maxHealth: num(d.maxHealth, 5)
     };
   }
-  function normalizeDex(raw) {
-    const source = obj(raw);
-    const out = {};
-    for (const section2 of ["forms", "skins", "fish", "items", "souvenirs"]) {
-      out[section2] = arr(source[section2]).map(function(value) {
-        const entry = obj(value);
-        return {
-          key: str(entry.key, ""),
-          label: str(entry.label, ""),
-          emoji: str(entry.emoji, "\u{1F4E6}"),
-          art: str(entry.art, ""),
-          description: str(entry.description, ""),
-          hint: str(entry.hint, ""),
-          kind: str(entry.kind, ""),
-          kindLabel: str(entry.kindLabel, ""),
-          acquired: entry.acquired === true,
-          firstAt: typeof entry.firstAt === "number" ? entry.firstAt : null,
-          count: num(entry.count, 0),
-          condition: str(entry.condition, ""),
-          maxSizeCm: typeof entry.maxSizeCm === "number" ? entry.maxSizeCm : null,
-          requirements: arr(entry.requirements).map(function(value2) {
-            const requirement = obj(value2);
-            return { key: str(requirement.key, ""), label: str(requirement.label, ""), have: num(requirement.have, 0), need: num(requirement.need, 0), met: requirement.met === true };
-          })
-        };
-      }).filter((entry) => entry.key !== "");
-    }
-    return out;
-  }
   function normalizeActions(raw) {
     var source = obj(raw);
     var out = {};
@@ -3197,6 +3218,23 @@
     host2.setAttribute("data-emoji", emojiStyle());
     applyPatCursor(host2);
   }
+
+  // src/client/css-achievements.js
+  var CSS_ACHIEVEMENTS = `
+.dp-ach-intro{font-size:12px;line-height:1.7;color:var(--ac-ink-soft,#756c60);padding:3px 0 12px}
+.dp-ach-group{font-size:12px;font-weight:800;margin:16px 0 8px;color:var(--ac-ink,#514341)}
+.dp-ach-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.dp-ach-card{border:1px solid #e8e2d5;background:#fffdf7;border-radius:18px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;color:#514341;cursor:pointer;font:inherit}
+.dp-ach-card b{font-size:12px}.dp-ach-card small{font-size:11px;color:#81786d}
+.dp-ach-badge{width:74px;height:74px;object-fit:contain;pointer-events:none}
+[data-earned="false"]>.dp-ach-badge{filter:grayscale(1);opacity:.48}
+.dp-ach-card[data-earned="true"]{background:#f3faf0;border-color:#c5ddba}
+.dp-ach-card:hover{border-color:#81b5a6}.dp-ach-card:focus-visible,.dp-ach-back:focus-visible{outline:2px solid #68a995;outline-offset:2px}
+.dp-ach-detail{text-align:center;background:#fffdf7;border:1px solid #e8e2d5;border-radius:22px;padding:24px 16px;margin-top:12px}
+.dp-ach-detail .dp-ach-badge{width:132px;height:132px}.dp-ach-detail h3{font-size:18px;margin:12px 0}
+.dp-ach-detail p{font-size:13px;line-height:1.8;margin:12px 0}.dp-ach-detail small{display:block;margin-top:16px;font-size:11px;color:#81786d}
+.dp-ach-back{background:transparent;border:0;color:#578d7f;padding:8px 0;font:inherit;font-size:12px;cursor:pointer}
+`;
 
   // src/client/css-base.js
   var CSS_BASE = [
@@ -4081,7 +4119,7 @@
   ].join("");
 
   // src/client/styles.js
-  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS + CSS_HOLO;
+  var CSS = CSS_BASE + CSS_TABS + CSS_TILES + CSS_CARD + CSS_DEX + CSS_FISHING + CSS_SKINS + CSS_HOLO + CSS_ACHIEVEMENTS;
 
   // src/client/tabs/card.js
   var LIMITS = { catchphrase: 6, motto: 24, name: 16, owner: 12 };
@@ -4200,6 +4238,62 @@
     parent.appendChild(cancel);
   }
 
+  // src/client/tabs/achievements.js
+  function renderAchievements(ui, entries) {
+    const selected = entries.find((entry) => entry.key === ui.drill.pick);
+    drillHeader(ui, "dex", "\u{1F3C6} \u5C0F\u732A\u6210\u5C31", entries.filter((entry) => entry.acquired).length + "/" + entries.length);
+    if (selected) return renderAchievementDetail(ui, selected);
+    const intro = el("div", "dp-ach-intro", "\u6BCF\u4E00\u679A\u5C0F\u732A\u5FBD\u7AE0\uFF0C\u90FD\u8BB0\u7740\u4E00\u6BB5\u4E00\u8D77\u7ECF\u5386\u7684\u65E5\u5E38\u3002");
+    ui.content.appendChild(intro);
+    for (const group of [...new Set(entries.map((entry) => entry.group))]) {
+      ui.content.appendChild(el("div", "dp-ach-group", group));
+      const grid = el("div", "dp-ach-grid");
+      for (const entry of entries.filter((item) => item.group === group)) {
+        const card2 = button("dp-ach-card", { "data-achievement": entry.key, "data-earned": String(entry.acquired) }, function() {
+          ui.drill.pick = entry.key;
+          ui.renderContent();
+          ui.content.scrollTop = 0;
+        });
+        card2.appendChild(badge(entry));
+        card2.appendChild(el("b", null, entry.label));
+        card2.appendChild(el("small", null, entry.acquired ? "\u5DF2\u83B7\u5F97" : entry.progress + "/" + entry.target + " " + entry.unit));
+        grid.appendChild(card2);
+      }
+      ui.content.appendChild(grid);
+    }
+  }
+  function badge(entry) {
+    const image = (
+      /** @type {HTMLImageElement} */
+      el("img", "dp-ach-badge")
+    );
+    image.src = ART_URL + entry.art + ".svg";
+    image.alt = entry.label + " \xB7 \u5C0F\u732A\u5FBD\u7AE0";
+    return image;
+  }
+  function dateLabel(entry) {
+    if (entry.recovered || entry.firstAt === null) return "\u65E7\u5B58\u6863\u8865\u5F55 \xB7 \u5B8C\u6210\u65E5\u671F\u672A\u77E5";
+    return "\u83B7\u5F97\u4E8E " + new Date(entry.firstAt).toLocaleDateString("zh-CN");
+  }
+  function renderAchievementDetail(ui, entry) {
+    const back = button("dp-ach-back", { "data-achievement-back": "true" }, function() {
+      ui.drill.pick = null;
+      ui.renderContent();
+      ui.content.scrollTop = 0;
+    });
+    back.textContent = "\u2039 \u5168\u90E8\u6210\u5C31";
+    ui.content.appendChild(back);
+    const card2 = el("div", "dp-ach-detail");
+    card2.setAttribute("data-earned", String(entry.acquired));
+    card2.setAttribute("data-achievement-detail", entry.key);
+    card2.appendChild(badge(entry));
+    card2.appendChild(el("h3", null, entry.label));
+    card2.appendChild(el("p", null, entry.description));
+    card2.appendChild(el("b", null, entry.acquired ? "\u5DF2\u83B7\u5F97" : entry.progress + " / " + entry.target + " " + entry.unit));
+    card2.appendChild(el("small", null, entry.acquired ? dateLabel(entry) : "\u89E3\u9501\u540E\u6C38\u4E45\u4FDD\u7559\u8FD9\u679A\u5C0F\u732A\u5FBD\u7AE0"));
+    ui.content.appendChild(card2);
+  }
+
   // src/client/tabs/dex-holo.js
   var stars = (count) => "\u2605".repeat(Math.max(0, Number(count) || 0));
   function card(entry, large, onPick) {
@@ -4290,6 +4384,7 @@
     else SECTIONS.push(section2);
   }
   for (const section2 of [
+    { key: "achievements", label: "\u6210\u5C31", emoji: "\u{1F3C6}", color: "teal" },
     { key: "forms", label: "\u5F62\u6001", emoji: "\u{1F437}", color: "pink" },
     { key: "skins", label: "\u76AE\u80A4", emoji: "\u{1F3A8}", color: "purple" },
     { key: "fish", label: "\u9C7C\u7C7B", emoji: "\u{1F41F}", color: "blue" },
@@ -4311,6 +4406,7 @@
     const section2 = SECTIONS.find((entry) => entry.key === picked);
     if (section2 === void 0) return drillTo(ui, "dex", null);
     const entries = ui.view.dex[section2.key] ?? [];
+    if (section2.key === "achievements") return renderAchievements(ui, entries);
     const detail = entries.find((entry) => entry.key === ui.drill.pick);
     if (detail !== void 0) return renderDetail(ui, section2, detail);
     renderEntries(ui, section2, entries);
@@ -6707,11 +6803,7 @@
           continue;
         }
         if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue;
-        if (event.kind === "interest") {
-          ctx.showBubble(str(event.text, "\u5174\u8DA3\u8BFE\u5B66\u5B8C\u5566"), 4e3);
-          ctx.react("away", 900);
-          continue;
-        }
+        if (showMilestoneNotice(ctx, event)) continue;
         if (event.kind === "gift") continue;
         ctx.toast(str(event.text, "\u732A\u6709\u65B0\u6D88\u606F"));
         if (event.kind === "coronation") {

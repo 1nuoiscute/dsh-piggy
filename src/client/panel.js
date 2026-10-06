@@ -4,6 +4,7 @@
  * 只通过 ctx 读写外壳的状态与元素（getter/setter 转发），不直接碰全局。
  * @module dsh-piggy/client/panel
  */
+import { showMilestoneNotice } from './milestone-notice.js'
 import { syncPigArt } from './art.js'
 import { DEV_TAB, OPEN_KEY, QUIT_TAB, TABS, UPDATE_TAB } from './constants.js'
 import { button, el } from './dom.js'
@@ -356,11 +357,7 @@ export function createPanel(ctx) {
           }
           // 免打扰: routine news stays quiet; illness and death still speak.
           if (ctx.view.dialogue.quiet && URGENT_KINDS.indexOf(event.kind) < 0) continue
-          if (event.kind === 'interest') {
-            ctx.showBubble(str(event.text, '兴趣课学完啦'), 4000)
-            ctx.react('away', 900)
-            continue
-          }
+          if (showMilestoneNotice(ctx, event)) continue
           if (event.kind === 'gift') continue // 签到/礼包的结果由猪头气泡说（io.js），不重复弹提示条
           ctx.toast(str(event.text, '猪有新消息'))
           if (event.kind === 'coronation') { ctx.react('levelup', 950); ctx.transform('crown') }

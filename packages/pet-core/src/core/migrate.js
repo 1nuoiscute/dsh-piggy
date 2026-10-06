@@ -1,4 +1,5 @@
 // @ts-check
+import { settleAchievements } from './achievements.js'
 /**
  * 存档迁移与字段清洗。
  *
@@ -93,6 +94,7 @@ export function migrate(input, nowMs) {
   ensureFishing(state)
   ensureSkins(state)
   ensureExtensions(state)
+  settleAchievements(state, nowMs, { silent: true })
   return state
 }
 

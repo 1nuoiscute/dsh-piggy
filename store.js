@@ -8,6 +8,7 @@
  *
  * @module dsh-piggy/store
  */
+import { settleAchievements } from './core.js'
 import { createApi } from './store/api.js'
 import { defaultStatePath, dshHome, moveLegacySaveDir, readStateFile, writeStateFile } from './store/state-file.js'
 
@@ -33,6 +34,7 @@ export function createStore(filePath = defaultStatePath(), options = {}) {
   let state = null
 
   function scheduleSave() {
+    if (state !== null) settleAchievements(state, now())
     dirty = true
     if (timer !== null) return
     timer = setTimer(() => {

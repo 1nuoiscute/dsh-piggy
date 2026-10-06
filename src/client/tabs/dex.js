@@ -5,6 +5,7 @@ import { offParts } from '../extensions.js'
 import { ART_URL, shelfOf } from '../constants.js'
 import { button, el, sideScroller } from '../dom.js'
 import { drillHeader, drillTo, tile, tileGrid } from '../widgets.js'
+import { renderAchievements } from './achievements.js'
 import { renderHoloSection } from './dex-holo.js'
 
 const SECTIONS = []
@@ -22,6 +23,7 @@ export function registerDexSection(section) {
 }
 
 for (const section of [
+  { key: 'achievements', label: '成就', emoji: '🏆', color: 'teal' },
   { key: 'forms', label: '形态', emoji: '🐷', color: 'pink' },
   { key: 'skins', label: '皮肤', emoji: '🎨', color: 'purple' },
   { key: 'fish', label: '鱼类', emoji: '🐟', color: 'blue' },
@@ -38,6 +40,7 @@ export function renderDexTab(ui) {
   const section = SECTIONS.find(entry => entry.key === picked)
   if (section === undefined) return drillTo(ui, 'dex', null)
   const entries = ui.view.dex[section.key] ?? []
+  if (section.key === 'achievements') return renderAchievements(ui, entries)
   const detail = entries.find(entry => entry.key === ui.drill.pick)
   if (detail !== undefined) return renderDetail(ui, section, detail)
   renderEntries(ui, section, entries)
