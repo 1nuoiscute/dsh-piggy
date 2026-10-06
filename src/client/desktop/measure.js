@@ -93,7 +93,7 @@ export function createMeasure(env) {
       ? raw.boxes ?? {} : (raw !== null && typeof raw === 'object' && raw.v === undefined ? raw : {})
     if (raw !== null && typeof raw === 'object' && raw.v !== undefined && raw.v !== OPEN_BOX_VERSION) openBoxes = {}
   } catch { openBoxes = {} }
-  const state = { vertical: 'bottom', horizontal: 'right', pinned: '', compact: false }
+  const state = { vertical: 'bottom', horizontal: 'right', pinned: '', compact: false, bubbleHeight: null }
   try {
     const sides = JSON.parse(localStorage.getItem(SIDES_KEY) || 'null')
     if (sides && (sides.vertical === 'top' || sides.vertical === 'bottom')) state.vertical = sides.vertical
@@ -135,7 +135,14 @@ export function createMeasure(env) {
     let bubbleZone = null
     if (reserves && pigNode !== null) {
       const above = geometry === null ? BUBBLE_ZONE.height : geometry.window.y + pigBox.y - geometry.workArea.y - PAD
-      const height = Math.max(0, Math.min(BUBBLE_ZONE.height, Math.round(above)))
+      // 滞回：预留区高度是「窗口当前在哪」的函数，而窗口位置又是「内容框（含这个预留区）」的函数，
+      // 结构上是一个反馈环（量化到 4px 后可能变成极限环）。预留区只是「留多少位置」的估计，
+      // 差不到两档就不改，环就断了。
+      // 注意：2026-10-06 查的那 3~4px 抖动**不是**这条环造成的，是猪自己的待机动画（见 I-round.md），
+      // 这里保留只是因为依赖方向确实成环，且代价为零。
+      const want = Math.max(0, Math.min(BUBBLE_ZONE.height, Math.round(above)))
+      if (state.bubbleHeight === null || Math.abs(want - state.bubbleHeight) >= STEP * 2) state.bubbleHeight = want
+      const height = state.bubbleHeight
       const zoneLeft = host.getAttribute('data-panel-side') === 'right' ? hostBox.x : hostBox.x + hostBox.width - BUBBLE_ZONE.width
       if (height > 0) bubbleZone = { x: zoneLeft, y: pigBox.y - height, r: zoneLeft + BUBBLE_ZONE.width, b: pigBox.y }
     }
@@ -189,6 +196,8 @@ export function createMeasure(env) {
     for (const o of outline) { left = Math.min(left, o.x); top = Math.min(top, o.y); right = Math.max(right, o.r); bottom = Math.max(bottom, o.b) }
     const content = { x: left - PAD, y: top - PAD,
       width: Math.ceil((right - left + PAD * 2) / STEP) * STEP, height: Math.ceil((bottom - top + PAD * 2) / STEP) * STEP }
+    // 实测：给内容尺寸也加滞回并不能消掉那 3~4px（2026-10-06），所以没留——
+    // 它影响面更大（会推迟真变化），没有证据就不该在代码里。
     const pig = { x: pigBox.x - content.x, y: pigBox.y - content.y, width: pigBox.width, height: pigBox.height }
     const shape = rects.concat(bubbleRects).map(function (rect) {
       const x = Math.max(0, Math.floor(rect.x) - SHAPE_SLACK)

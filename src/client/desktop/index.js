@@ -45,7 +45,7 @@ let lastHit = null
 let mouse = { x: -1, y: -1 }
 let scheduled = false
 /** 待核对的摆放：{target, budget}。摆完一轮设上，核对过就清掉。 */
-let pendingVerify = /** @type {{target:{x:number,y:number}, budget:number}|null} */ (null)
+let pendingVerify = /** @type {{target:{x:number,y:number}, budget:number, waits:number}|null} */ (null)
 
 function host() { return /** @type {any} */ (document.querySelector('[data-dsh-pig]')) }
 function geometry() { return typeof bridge.geometry === 'function' ? bridge.geometry() : null }
@@ -139,7 +139,7 @@ function tick() {
   const after = bridge.place(request)
   if (after && after.window) {
     // 记下这次想让猪落在哪：下一轮（窗口 resize 生效后）用它核对。
-    pendingVerify = placement.target() === null ? null : { target: placement.target(), budget: 1 }
+    pendingVerify = placement.target() === null ? null : { target: placement.target(), budget: 1, waits: 4 }
     placement.remember(after.window, info?.workAreas ?? [])
   }
 }
@@ -152,11 +152,19 @@ function tick() {
 function verifyPending() {
   if (pendingVerify === null || dragging()) return false
   const h = host()
-  const { target, budget } = pendingVerify
+  const { target, budget, waits } = pendingVerify
   const info = readGeometry()
   if (h === null || info === null || !info.window) return false
   const pigNode = h.querySelector('.dp-pig')
   if (pigNode === null) return false
+  // 窗口还在动的时候不核对：X11 下外壳的 getBounds() 和渲染端的 window.screenX 不是同一时刻的值
+  //（实测追踪里 screenX 整整落后一步），拿一个正在移动的窗口去核对，算出来的是假偏差，
+  // 照着它 setBounds 只会越修越抖。等两边对上了再核，最多等几轮。
+  if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1) {
+    if (waits <= 0) { pendingVerify = null; return false }
+    pendingVerify = { target, budget, waits: waits - 1 }
+    return false
+  }
   pendingVerify = null
   const pig = layoutBox(pigNode)
   const fix = pigCorrection(info.window, pig, target, VERIFY_TOLERANCE)
@@ -168,7 +176,7 @@ function verifyPending() {
   }
   console.warn('[piggy-desktop] verify correcting ' + JSON.stringify({ dx: fix.dx, dy: fix.dy, from: info.window, to: fix.bounds, display: displayNote(info) }))
   const after = bridge.place({ bounds: fix.bounds })
-  if (after && after.window) pendingVerify = { target, budget: budget - 1 }
+  if (after && after.window) pendingVerify = { target, budget: budget - 1, waits: 4 }
   return true
 }
 

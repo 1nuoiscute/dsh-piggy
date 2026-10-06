@@ -7365,7 +7365,7 @@
     } catch {
       openBoxes = {};
     }
-    const state2 = { vertical: "bottom", horizontal: "right", pinned: "", compact: false };
+    const state2 = { vertical: "bottom", horizontal: "right", pinned: "", compact: false, bubbleHeight: null };
     try {
       const sides2 = JSON.parse(localStorage.getItem(SIDES_KEY) || "null");
       if (sides2 && (sides2.vertical === "top" || sides2.vertical === "bottom")) state2.vertical = sides2.vertical;
@@ -7402,7 +7402,9 @@
       let bubbleZone = null;
       if (reserves && pigNode !== null) {
         const above = geometry2 === null ? BUBBLE_ZONE.height : geometry2.window.y + pigBox.y - geometry2.workArea.y - PAD;
-        const height = Math.max(0, Math.min(BUBBLE_ZONE.height, Math.round(above)));
+        const want = Math.max(0, Math.min(BUBBLE_ZONE.height, Math.round(above)));
+        if (state2.bubbleHeight === null || Math.abs(want - state2.bubbleHeight) >= STEP * 2) state2.bubbleHeight = want;
+        const height = state2.bubbleHeight;
         const zoneLeft = host2.getAttribute("data-panel-side") === "right" ? hostBox.x : hostBox.x + hostBox.width - BUBBLE_ZONE.width;
         if (height > 0) bubbleZone = { x: zoneLeft, y: pigBox.y - height, r: zoneLeft + BUBBLE_ZONE.width, b: pigBox.y };
       }
@@ -7705,7 +7707,7 @@
   var mouse = { x: -1, y: -1 };
   var scheduled = false;
   var pendingVerify = (
-    /** @type {{target:{x:number,y:number}, budget:number}|null} */
+    /** @type {{target:{x:number,y:number}, budget:number, waits:number}|null} */
     null
   );
   function host() {
@@ -7803,18 +7805,26 @@
     }
     const after = bridge2.place(request);
     if (after && after.window) {
-      pendingVerify = placement.target() === null ? null : { target: placement.target(), budget: 1 };
+      pendingVerify = placement.target() === null ? null : { target: placement.target(), budget: 1, waits: 4 };
       placement.remember(after.window, info?.workAreas ?? []);
     }
   }
   function verifyPending() {
     if (pendingVerify === null || dragging()) return false;
     const h = host();
-    const { target, budget } = pendingVerify;
+    const { target, budget, waits } = pendingVerify;
     const info = readGeometry();
     if (h === null || info === null || !info.window) return false;
     const pigNode = h.querySelector(".dp-pig");
     if (pigNode === null) return false;
+    if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1) {
+      if (waits <= 0) {
+        pendingVerify = null;
+        return false;
+      }
+      pendingVerify = { target, budget, waits: waits - 1 };
+      return false;
+    }
     pendingVerify = null;
     const pig = layoutBox(pigNode);
     const fix = pigCorrection(info.window, pig, target, VERIFY_TOLERANCE);
@@ -7825,7 +7835,7 @@
     }
     console.warn("[piggy-desktop] verify correcting " + JSON.stringify({ dx: fix.dx, dy: fix.dy, from: info.window, to: fix.bounds, display: displayNote(info) }));
     const after = bridge2.place({ bounds: fix.bounds });
-    if (after && after.window) pendingVerify = { target, budget: budget - 1 };
+    if (after && after.window) pendingVerify = { target, budget: budget - 1, waits: 4 };
     return true;
   }
   function displayNote(info) {

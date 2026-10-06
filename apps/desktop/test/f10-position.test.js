@@ -112,3 +112,13 @@ test('核对容差不贴着 Electron 的 ±1px 噪声（容差 1 会来回纠正
   assert.match(index, /const VERIFY_TOLERANCE = 2/)
   assert.match(index, /~1 ?像素误差|约 1px 误差|1px 误差/)
 })
+
+test('量几何稳定性不能量精灵本身：它一直在做待机动画（dp-bob）', () => {
+  const css = readFileSync(new URL('../../../src/client/css-base.js', import.meta.url), 'utf8')
+  // 这条测试是提醒：F10/I 批次都踩过——拿 .dp-pig 的 getBoundingClientRect() 当「猪的屏幕坐标」，
+  // 量到的是动画（±2px 平滑周期），会误判成窗口几何在漂。要量就量 window.screenX/screenY
+  // 或 geometry().window。
+  assert.match(css, /animation:dp-bob 1\.8s ease-in-out infinite/, '猪有待机上下晃的动画')
+  const doc = readFileSync(new URL('../../../docs/tasks/I-round.md', import.meta.url), 'utf8')
+  assert.match(doc, /量几何稳定性\*\*不能量精灵自己/, '任务卡里写明正确的测量方法')
+})
