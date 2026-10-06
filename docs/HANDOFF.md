@@ -31,7 +31,7 @@
 
 ## 3. 仓库与目录
 
-本机总目录 `/zyx/DSH/workspaces/dsh-piggy/`（见同目录 README）：`code/` 代码、`skins-source/` 皮肤原稿、`feedback/` 用户报错截图录屏、`videos/` 宣传片工程、`archive/` 旧分支备份。
+本机总目录 `/zyx/DSH/workspaces/dsh-piggy/`（见同目录 README）：`code/` 代码、`skins-source/` 皮肤原稿、`feedback/` 用户报错截图录屏、`videos/` 宣传片工程、`design-refs/qqpet-ref/` QQ 宠物参考图（数值和疾病链的设计来源）、`archive/` 旧分支备份和历史快照。
 
 > ⚠️ `/zyx/DSH/workspaces/dsh-pig` 是指向 `code/` 的旧链接，本机 DSH 已改成直接加载 `code/`（`~/.dsh/profiles/web/package.json` 里 `"dsh-piggy": "link:/zyx/DSH/workspaces/dsh-piggy/code"`）。
 
