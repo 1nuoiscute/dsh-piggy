@@ -94,8 +94,6 @@ export const CSS_TILES = [
   '.dp-ext-intro{font-size:10.5px;line-height:1.5;color:var(--ac-text-2);margin:0 0 4px}',
   '.dp-ext-emoji{font-size:20px;line-height:1;margin-right:2px}',
   '.dp-ext-note{margin-top:6px;font-size:10px;font-weight:700;color:#c7781a}',
-  // 下载失败留在卡片上：左边原因、右边「重试」，别只闪一下气泡。
-  '.dp-ext-failed{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#b4462a}',
   '.dp-ext-later{margin-top:12px;text-align:center;font-size:10px;color:var(--ac-text-2)}',
   '.dp-ext-section{display:flex;align-items:center;justify-content:space-between;margin:12px 2px 6px;font-size:11px;font-weight:800;color:var(--ac-text-2);letter-spacing:.04em}',
   '.dp-ext-actions{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-top:8px;flex-wrap:wrap}',
@@ -108,6 +106,8 @@ export const CSS_TILES = [
   '.dp-set:first-child{padding-top:2px}.dp-set:last-child{border-bottom:0}',
   '.dp-set-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}',
   '.dp-set-head b{font-size:12px;color:var(--ac-text)}',
+  // 设置行里的按钮一律挂在最右边：标题和小字占左边，右边的操作顶到卡片边缘。
+  '.dp-set-head>.dp-mini{margin-left:auto;flex:none}',
   '.dp-set-head small{flex-basis:100%;order:3;font-size:10px;line-height:1.45}',
   '.dp-seg{display:flex;gap:4px;margin-top:8px;padding:3px;border-radius:var(--ac-pill);background:var(--ac-bg-content);',
   'border:2px solid var(--ac-border-light)}',

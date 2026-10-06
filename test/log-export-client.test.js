@@ -74,7 +74,7 @@ test('用户取消另存为时不报错，界面当没事发生', async () => {
   // 面板重画过，要重新找那个按钮。
   const after = findByAttr(contentOf(dom), 'data-export-logs', 'true')
   assert.equal(after.disabled, false, 'the button comes back after a cancel')
-  assert.equal(after.textContent, '📄 导出日志')
+  assert.equal(after.textContent, '📄 导出')
 })
 
 test('没有另存为可用时退回下载，不让用户什么都拿不到', async () => {

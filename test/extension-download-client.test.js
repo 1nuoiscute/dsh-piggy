@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { SNAPSHOT, contentOf, findByAttr, findByClass, mount, openPanel, settle } from './helpers/bundle.js'
+import { SNAPSHOT, contentOf, findByAttr, mount, openPanel, settle } from './helpers/bundle.js'
 
 const LOCAL = [
   { key: 'pomodoro', label: '番茄钟', on: true, installed: true, builtin: true, apps: ['pomodoro'], dexSections: [], shopKinds: [] },
@@ -46,7 +46,7 @@ test('点下载立刻显示「下载中…」并挡住重复点击', async () =>
   assert.equal(during.disabled, true)
 })
 
-test('下载失败留在卡片上，说清原因，并且能重试', async () => {
+test('下载失败留在卡片上，说清原因，按钮变成「重试」', async () => {
   const { dom, calls } = await openExtensions({
     status: { ...SNAPSHOT, extensions: LOCAL },
     onlineResponse: ONLINE,
@@ -54,11 +54,12 @@ test('下载失败留在卡片上，说清原因，并且能重试', async () =>
   })
   findByAttr(contentOf(dom), 'data-ext-install', 'farm').fire('click')
   await settle()
-  const note = findByClass(contentOf(dom), 'dp-ext-failed')
-  assert.ok(note, 'the failure must stay on the card, not only flash in a bubble')
-  assert.match(note.allText(), /连接 github\.com 超时/)
-  const retry = findByAttr(contentOf(dom), 'data-ext-retry', 'farm')
-  assert.ok(retry, 'a retry button must be there')
+  // 失败原因留在卡片上（不只是一闪而过的气泡），跟「加载出错」同一个样式。
+  const card = findByAttr(contentOf(dom), 'data-online-extension', 'farm')
+  assert.match(card.allText(), /没装上：server\.js 下载失败：连接 github\.com 超时/)
+  // 卡片上还是那一个按钮，只是改叫「重试」——不去另造一个按钮。
+  const retry = findByAttr(contentOf(dom), 'data-ext-install', 'farm')
+  assert.equal(retry.textContent, '重试')
   assert.equal(installCalls(calls).length, 1)
 
   retry.fire('click')
@@ -74,7 +75,7 @@ test('装上以后卡片消失，不再留失败提示', async () => {
   })
   findByAttr(contentOf(dom), 'data-ext-install', 'farm').fire('click')
   await settle()
-  assert.equal(findByClass(contentOf(dom), 'dp-ext-failed'), undefined, 'no failure note left behind')
+  assert.equal(findByAttr(contentOf(dom), 'data-online-extension', 'farm'), undefined, 'no card, no failure note')
   assert.equal(findByAttr(contentOf(dom), 'data-extension', 'farm') !== null, true, 'now listed as a local extension')
   assert.match(String(installCalls(calls)[0].body), /"key":"farm"/)
 })

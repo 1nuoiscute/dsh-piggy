@@ -113,7 +113,7 @@ export function renderSettingsTab(ui) {
   // 日志：猪出问题时导出这一份，里面记着做了什么、哪一步失败了。
   const logs = section(ui, '日志', '遇到问题导出这一份，里面有版本、动作和报错')
   const exportButton = button('dp-mini', { 'data-export-logs': 'true' }, function () { runExport(ui, exportButton) })
-  exportButton.textContent = '📄 导出日志'
+  exportButton.textContent = '📄 导出'
   logs.head.appendChild(exportButton)
   if (exporting) exportButton.disabled = true
 }

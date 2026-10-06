@@ -3896,8 +3896,6 @@
     ".dp-ext-intro{font-size:10.5px;line-height:1.5;color:var(--ac-text-2);margin:0 0 4px}",
     ".dp-ext-emoji{font-size:20px;line-height:1;margin-right:2px}",
     ".dp-ext-note{margin-top:6px;font-size:10px;font-weight:700;color:#c7781a}",
-    // 下载失败留在卡片上：左边原因、右边「重试」，别只闪一下气泡。
-    ".dp-ext-failed{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#b4462a}",
     ".dp-ext-later{margin-top:12px;text-align:center;font-size:10px;color:var(--ac-text-2)}",
     ".dp-ext-section{display:flex;align-items:center;justify-content:space-between;margin:12px 2px 6px;font-size:11px;font-weight:800;color:var(--ac-text-2);letter-spacing:.04em}",
     ".dp-ext-actions{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-top:8px;flex-wrap:wrap}",
@@ -3910,6 +3908,8 @@
     ".dp-set:first-child{padding-top:2px}.dp-set:last-child{border-bottom:0}",
     ".dp-set-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}",
     ".dp-set-head b{font-size:12px;color:var(--ac-text)}",
+    // 设置行里的按钮一律挂在最右边：标题和小字占左边，右边的操作顶到卡片边缘。
+    ".dp-set-head>.dp-mini{margin-left:auto;flex:none}",
     ".dp-set-head small{flex-basis:100%;order:3;font-size:10px;line-height:1.45}",
     ".dp-seg{display:flex;gap:4px;margin-top:8px;padding:3px;border-radius:var(--ac-pill);background:var(--ac-bg-content);",
     "border:2px solid var(--ac-border-light)}",
@@ -5398,16 +5398,9 @@
     });
   }
   var downloading = (key) => download.key === key;
-  function failedNote(ui, key) {
-    const note = el("div", "dp-ext-note dp-ext-failed");
-    note.appendChild(el("span", null, "\u6CA1\u88C5\u4E0A\uFF1A" + download.error));
-    const retry = button("dp-mini", { "data-ext-retry": key }, function() {
-      startInstall(ui, key);
-    });
-    retry.textContent = "\u91CD\u8BD5";
-    retry.disabled = download.key !== "";
-    note.appendChild(retry);
-    return note;
+  function installLabel(key, normal) {
+    if (downloading(key)) return "\u4E0B\u8F7D\u4E2D\u2026";
+    return download.failed === key ? "\u91CD\u8BD5" : normal;
   }
   function extensionUpdateAvailable(ui) {
     if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false);
@@ -5453,7 +5446,7 @@
     var note = extension.on ? closingNote(ui.view, extension.key) : "";
     if (note) card2.appendChild(el("div", "dp-ext-note", note));
     if (extension.error) card2.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
-    if (download.failed === extension.key) card2.appendChild(failedNote(ui, extension.key));
+    if (download.failed === extension.key) card2.appendChild(el("div", "dp-ext-note", "\u6CA1\u88C5\u4E0A\uFF1A" + download.error));
     var newer = online.entries.find(function(entry) {
       return entry.key === extension.key && entry.update === true;
     });
@@ -5468,7 +5461,7 @@
       var update = button("dp-mini", { "data-ext-update": extension.key }, function() {
         startInstall(ui, extension.key);
       });
-      update.textContent = downloading(extension.key) ? "\u66F4\u65B0\u4E2D\u2026" : "\u66F4\u65B0\u5230 " + str(newer.version, "");
+      update.textContent = installLabel(extension.key, "\u66F4\u65B0\u5230 " + str(newer.version, ""));
       update.disabled = download.key !== "";
       row.appendChild(update);
     }
@@ -5526,12 +5519,12 @@
         var get = button("dp-mini", { "data-ext-install": entry.key }, function() {
           startInstall(ui, entry.key);
         });
-        get.textContent = downloading(entry.key) ? "\u4E0B\u8F7D\u4E2D\u2026" : entry.builtin ? "\u91CD\u65B0\u5B89\u88C5" : "\u4E0B\u8F7D";
+        get.textContent = installLabel(entry.key, entry.builtin ? "\u91CD\u65B0\u5B89\u88C5" : "\u4E0B\u8F7D");
         get.disabled = downloading(entry.key) || download.key !== "" || entry.blocked !== null && entry.blocked !== void 0;
         head.appendChild(get);
         if (entry.description) head.appendChild(el("small", "dp-dim", str(entry.description, "")));
         card2.appendChild(head);
-        if (download.failed === entry.key) card2.appendChild(failedNote(ui, entry.key));
+        if (download.failed === entry.key) card2.appendChild(el("div", "dp-ext-note", "\u6CA1\u88C5\u4E0A\uFF1A" + download.error));
         if (entry.blocked === "game-too-old") card2.appendChild(el("div", "dp-ext-note", "\u9700\u8981\u6E38\u620F v" + str(entry.minGame, "") + "\uFF0C\u5148\u66F4\u65B0\u6E38\u620F"));
         else if (entry.builtin) card2.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
         else if (downloading(entry.key)) card2.appendChild(el("div", "dp-ext-note", "\u6B63\u5728\u4E0B\u8F7D\uFF0C\u7F51\u7EDC\u6162\u7684\u65F6\u5019\u8981\u7B49\u4E00\u4F1A\u513F"));
@@ -6735,7 +6728,7 @@
     const exportButton = button("dp-mini", { "data-export-logs": "true" }, function() {
       runExport(ui, exportButton);
     });
-    exportButton.textContent = "\u{1F4C4} \u5BFC\u51FA\u65E5\u5FD7";
+    exportButton.textContent = "\u{1F4C4} \u5BFC\u51FA";
     logs.head.appendChild(exportButton);
     if (exporting) exportButton.disabled = true;
   }
