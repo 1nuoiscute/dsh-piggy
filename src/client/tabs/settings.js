@@ -10,6 +10,8 @@ import { desktopShell } from '../desktop-shell.js'
 import { emojiStyle, hasBundledEmoji, setEmojiStyle, applyEmojiStyle } from '../emoji-style.js'
 import { PIG_SIZES, displayedPigSize, pigSize, setPigSize } from '../pig-size.js'
 import { setWalk, walkEnabled } from '../life.js'
+import { exportLogs } from '../log-export.js'
+import { str } from '../values.js'
 import { extensionUpdateAvailable } from './extensions.js'
 
 /** 一项设置：标题、说明，下面放控件。 */
@@ -107,4 +109,32 @@ export function renderSettingsTab(ui) {
     walkToggle.appendChild(el('span', 'dp-switch-text', walking ? '开' : '关'))
     walk.head.appendChild(walkToggle)
   }
+
+  // 日志：猪出问题时导出这一份，里面记着做了什么、哪一步失败了。
+  const logs = section(ui, '日志', '遇到问题导出这一份，里面有版本、动作和报错')
+  const exportButton = button('dp-mini', { 'data-export-logs': 'true' }, function () { runExport(ui, exportButton) })
+  exportButton.textContent = '📄 导出日志'
+  logs.head.appendChild(exportButton)
+  if (exporting) exportButton.disabled = true
+}
+
+/** 导出期间按钮不再响应，免得点出好几份。 */
+let exporting = false
+
+function runExport(ui, exportButton) {
+  if (exporting) return
+  exporting = true
+  exportButton.disabled = true
+  exportButton.textContent = '导出中…'
+  exportLogs().then(function (result) {
+    exporting = false
+    if (result.canceled === true) ui.renderContent()
+    else if (result.ok === true) ui.showBubble(result.downloaded === true ? '日志已下载' : '日志已保存', 3200)
+    else ui.showBubble('日志没导出：' + str(result.reason, '未知原因'), 4000)
+    if (typeof ui.renderContent === 'function') ui.renderContent()
+  }).catch(function (error) {
+    exporting = false
+    ui.showBubble('日志没导出：' + (error instanceof Error ? error.message : String(error)), 4000)
+    ui.renderContent()
+  })
 }

@@ -10,8 +10,9 @@ import { sameBounds } from './geometry.js'
 import { createMeasure, layoutBox } from './measure.js'
 import { createPlacement } from './place.js'
 
-/** 页面 ↔ 桌面程序的约定版本：以后桌面程序加新的基础动作时加一。 */
-export const DESKTOP_VERSION = 2
+/** 页面 ↔ 桌面程序的约定版本：以后桌面程序加新的基础动作时加一。
+ * v3：外壳支持 piggyShell.logs.save（导出日志时弹系统「另存为」）。 */
+export const DESKTOP_VERSION = 3
 
 const FONT_STACK = 'Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif'
 /** 桌面版专用样式：内置 emoji 字体栈；投影不越出可见区域；面板底栏限高。 */

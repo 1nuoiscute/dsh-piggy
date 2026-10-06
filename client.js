@@ -1179,13 +1179,13 @@
       var body = el("div", "dp-dev-page");
       body.setAttribute("data-dev-page-body", key);
       pages.push({ key, label, body });
-      return function group(title, entries, note) {
+      return function group(title, entries2, note) {
         var head = el("div", "dp-title");
         head.appendChild(el("b", null, title));
         body.appendChild(head);
         if (note !== void 0 && note !== "") body.appendChild(el("div", "dp-dev-note", note));
         var wrap = el("div", "dp-dev-list");
-        for (var i = 0; i < entries.length; i += 1) {
+        for (var i = 0; i < entries2.length; i += 1) {
           (function(entry) {
             var item = el("div", "dp-dev-item");
             var btn = button("dp-mini dp-dev-btn", { "data-dev": entry.key }, function() {
@@ -1196,7 +1196,7 @@
             item.appendChild(btn);
             if (entry.desc) item.appendChild(el("small", "dp-dev-desc", entry.desc));
             wrap.appendChild(item);
-          })(entries[i]);
+          })(entries2[i]);
         }
         body.appendChild(wrap);
       };
@@ -2291,7 +2291,7 @@
     }
     function tick2() {
       if (isStopped()) {
-        window.clearInterval(timer);
+        window.clearInterval(timer2);
         return;
       }
       var p = getView().pomodoro;
@@ -2319,15 +2319,97 @@
         if (rest === 0) breakEndsAt = 0;
       }
     }
-    var timer = window.setInterval(tick2, 1e3);
+    var timer2 = window.setInterval(tick2, 1e3);
     return { tick: tick2, dispose: function() {
-      window.clearInterval(timer);
+      window.clearInterval(timer2);
     } };
+  }
+
+  // src/client/journal.js
+  var LOG_URL = "/dsh-piggy/logs/client";
+  var LIMIT = 200;
+  var FLUSH_DELAY_MS = 2e4;
+  var MAX_TEXT = 2e3;
+  var entries = [];
+  var seq = 0;
+  var sent = 0;
+  var timer = null;
+  var installed = false;
+  var clip = (value, limit) => {
+    const text = String(value ?? "");
+    return text.length > limit ? text.slice(0, limit) + "\u2026" : text;
+  };
+  function record(level, scope, message, fields = {}) {
+    seq += 1;
+    entries.push({
+      id: "c" + seq,
+      at: Date.now(),
+      level: ["debug", "info", "warn", "error"].includes(level) ? level : "info",
+      scope: clip(scope, 32),
+      message: clip(message, MAX_TEXT),
+      fields: fields !== null && typeof fields === "object" ? fields : {}
+    });
+    if (entries.length > LIMIT) entries.splice(0, entries.length - LIMIT);
+    schedule();
+    return entries[entries.length - 1];
+  }
+  function schedule() {
+    if (timer !== null || typeof window === "undefined" || typeof window.setTimeout !== "function") return;
+    timer = window.setTimeout(() => {
+      timer = null;
+      flush();
+    }, FLUSH_DELAY_MS);
+  }
+  var unsent = () => entries.slice(sent);
+  async function flush() {
+    const batch = unsent();
+    if (batch.length === 0) return true;
+    sent = entries.length;
+    try {
+      const response = await fetch(LOG_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ entries: batch })
+      });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return true;
+    } catch {
+      sent = Math.max(0, sent - batch.length);
+      return false;
+    }
+  }
+  function flushSoon() {
+    Promise.resolve(flush()).catch(() => {
+    });
+  }
+  function installCapture() {
+    if (installed || typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+    installed = true;
+    window.addEventListener("error", (event) => {
+      const error = event?.error;
+      record("error", "client", "uncaught: " + clip(error?.message ?? event?.message ?? "\u672A\u77E5\u9519\u8BEF", 500), {
+        source: clip(event?.filename, 200),
+        line: event?.lineno ?? null,
+        stack: clip(error?.stack, 1200)
+      });
+      flushSoon();
+    });
+    window.addEventListener("unhandledrejection", (event) => {
+      const reason = event?.reason;
+      record("error", "client", "unhandled rejection: " + clip(reason?.message ?? reason ?? "\u672A\u77E5\u539F\u56E0", 500), {
+        stack: clip(reason?.stack, 1200)
+      });
+      flushSoon();
+    });
+  }
+  async function flushBeforeExport() {
+    await flush();
   }
 
   // src/client/io.js
   function createIo(ctx) {
     var actionSeq = 0;
+    var hostDown = false;
     async function send(action, extra) {
       if (ctx.busy || ctx.stopped) return null;
       if (ctx.view.pig === null && action !== "hatch") return null;
@@ -2410,6 +2492,7 @@
       } catch (error) {
         ctx.showBubble("\u64CD\u4F5C\u6CA1\u9001\u5230\u5BBF\u4E3B", 2600);
         ctx.react("refuse", 520);
+        record("warn", "act", "\u52A8\u4F5C\u6CA1\u9001\u5230\u5BBF\u4E3B\uFF1A" + action, { reason: error instanceof Error ? error.message : String(error) });
         return null;
       } finally {
         ctx.busy = false;
@@ -2425,9 +2508,17 @@
         var next = await res.json();
         if (startedAt !== actionSeq) return;
         ctx.render(next);
+        if (hostDown) {
+          hostDown = false;
+          record("info", "poll", "\u5BBF\u4E3B\u6062\u590D\u54CD\u5E94");
+        }
       } catch (error) {
         if (ctx.stopped) return;
         ctx.showBubble("\u8FDE\u63A5\u4E0D\u4E0A\u5BBF\u4E3B", 4e3);
+        if (!hostDown) {
+          hostDown = true;
+          record("warn", "poll", "\u8FDE\u4E0D\u4E0A\u5BBF\u4E3B", { url: STATE_URL, reason: error instanceof Error ? error.message : String(error) });
+        }
       }
     }
     ctx.pomoTick = createPomodoroClock(
@@ -4243,16 +4334,16 @@
   }
 
   // src/client/tabs/achievements.js
-  function renderAchievements(ui, entries) {
-    const selected = entries.find((entry) => entry.key === ui.drill.pick);
-    const earned = entries.filter((entry) => entry.acquired).length;
-    drillHeader(ui, "dex", "\u{1F3C6} \u5C0F\u732A\u6210\u5C31", earned + "/" + entries.length);
+  function renderAchievements(ui, entries2) {
+    const selected = entries2.find((entry) => entry.key === ui.drill.pick);
+    const earned = entries2.filter((entry) => entry.acquired).length;
+    drillHeader(ui, "dex", "\u{1F3C6} \u5C0F\u732A\u6210\u5C31", earned + "/" + entries2.length);
     if (selected !== void 0) return renderAchievementDetail(ui, selected);
     ui.content.appendChild(el("div", "dp-ach-intro", "\u6BCF\u4E00\u679A\u5C0F\u732A\u5FBD\u7AE0\uFF0C\u90FD\u8BB0\u7740\u4E00\u6BB5\u4E00\u8D77\u7ECF\u5386\u7684\u65E5\u5E38\u3002"));
-    for (const group of [...new Set(entries.map((entry) => entry.group))]) {
+    for (const group of [...new Set(entries2.map((entry) => entry.group))]) {
       ui.content.appendChild(el("div", "dp-ach-group", group));
       const grid = el("div", "dp-ach-grid");
-      for (const entry of entries.filter((item) => item.group === group)) grid.appendChild(achievementCard(ui, entry));
+      for (const entry of entries2.filter((item) => item.group === group)) grid.appendChild(achievementCard(ui, entry));
       ui.content.appendChild(grid);
     }
   }
@@ -4328,8 +4419,8 @@
     });
   }
   function renderHoloSection(ui, section2) {
-    const entries = section2.entries ?? [];
-    const chosen = entries.find((entry) => entry.key === ui.drill.pick);
+    const entries2 = section2.entries ?? [];
+    const chosen = entries2.find((entry) => entry.key === ui.drill.pick);
     const title = section2.emoji + " " + section2.label;
     if (chosen) {
       drillHeader(ui, "dex", title, chosen.acquired ? "\u5DF2\u6536\u5F55" : "\u672A\u89E3\u9501");
@@ -4356,9 +4447,9 @@
       copy.appendChild(el("p", null, chosen.acquired ? chosen.blurb : "\u8FD8\u6CA1\u6709\u5BFB\u8BBF\u5230\u3002"));
       detail.appendChild(copy);
       ui.content.appendChild(detail);
-    } else drillHeader(ui, "dex", title, entries.filter((entry) => entry.acquired).length + "/" + entries.length);
+    } else drillHeader(ui, "dex", title, entries2.filter((entry) => entry.acquired).length + "/" + entries2.length);
     for (const rarity of [6, 5, 4, 3]) {
-      const list = entries.filter((entry) => entry.stars === rarity);
+      const list = entries2.filter((entry) => entry.stars === rarity);
       if (list.length === 0) continue;
       ui.content.appendChild(el("h4", "dp-holo-tier", rarity + " \u661F " + stars(rarity)));
       const grid = el("div", "dp-holo-grid");
@@ -4410,15 +4501,15 @@
     }
     const section2 = SECTIONS.find((entry) => entry.key === picked);
     if (section2 === void 0) return drillTo(ui, "dex", null);
-    const entries = ui.view.dex[section2.key] ?? [];
-    if (section2.key === "achievements") return renderAchievements(ui, entries);
-    const detail = entries.find((entry) => entry.key === ui.drill.pick);
+    const entries2 = ui.view.dex[section2.key] ?? [];
+    if (section2.key === "achievements") return renderAchievements(ui, entries2);
+    const detail = entries2.find((entry) => entry.key === ui.drill.pick);
     if (detail !== void 0) return renderDetail(ui, section2, detail);
-    renderEntries(ui, section2, entries);
+    renderEntries(ui, section2, entries2);
   }
   function renderExtPlain(ui, ext) {
     const section2 = { key: "ext:" + ext.extension + ":" + ext.key, label: ext.label, emoji: ext.emoji };
-    const entries = (ext.entries ?? []).map((entry) => ({
+    const entries2 = (ext.entries ?? []).map((entry) => ({
       key: entry.key,
       emoji: entry.emoji,
       label: entry.label,
@@ -4426,9 +4517,9 @@
       description: entry.blurb,
       foot: ""
     }));
-    const detail = entries.find((entry) => entry.key === ui.drill.pick);
+    const detail = entries2.find((entry) => entry.key === ui.drill.pick);
     if (detail !== void 0) return renderDetail(ui, section2, detail);
-    renderEntries(ui, section2, entries);
+    renderEntries(ui, section2, entries2);
   }
   function renderSections(ui) {
     const grid = tileGrid();
@@ -4436,13 +4527,13 @@
     const off = offParts(ui.view).dexSections;
     for (const section2 of SECTIONS) {
       if (off.has(section2.key)) continue;
-      const entries = ui.view.dex[section2.key] ?? [];
-      const got = entries.filter((entry) => entry.acquired).length;
+      const entries2 = ui.view.dex[section2.key] ?? [];
+      const got = entries2.filter((entry) => entry.acquired).length;
       const node = tile({
         emoji: section2.emoji,
         label: section2.label,
         color: section2.color,
-        note: entries.length === 0 ? "\u7B49\u5F85\u6536\u5F55" : got + "/" + entries.length,
+        note: entries2.length === 0 ? "\u7B49\u5F85\u6536\u5F55" : got + "/" + entries2.length,
         data: { "data-dex-section": section2.key },
         onPick: function() {
           drillTo(ui, "dex", section2.key);
@@ -4450,20 +4541,20 @@
       });
       const progress = el("span", "dp-dex-progress");
       const fill = el("i");
-      fill.style.width = (entries.length === 0 ? 0 : Math.round(got / entries.length * 100)) + "%";
+      fill.style.width = (entries2.length === 0 ? 0 : Math.round(got / entries2.length * 100)) + "%";
       progress.appendChild(fill);
       node.appendChild(progress);
       grid.appendChild(node);
     }
     for (const section2 of ui.view.extDex ?? []) {
-      const entries = section2.entries ?? [];
-      const got = entries.filter((entry) => entry.acquired).length;
+      const entries2 = section2.entries ?? [];
+      const got = entries2.filter((entry) => entry.acquired).length;
       const key = "ext:" + section2.extension + ":" + section2.key;
       const node = tile({
         emoji: section2.emoji,
         label: section2.label,
         color: section2.color || "orange",
-        note: got + "/" + entries.length,
+        note: got + "/" + entries2.length,
         data: { "data-dex-section": key },
         onPick: function() {
           drillTo(ui, "dex", key);
@@ -4471,27 +4562,27 @@
       });
       const progress = el("span", "dp-dex-progress");
       const fill = el("i");
-      fill.style.width = (entries.length === 0 ? 0 : Math.round(got / entries.length * 100)) + "%";
+      fill.style.width = (entries2.length === 0 ? 0 : Math.round(got / entries2.length * 100)) + "%";
       progress.appendChild(fill);
       node.appendChild(progress);
       grid.appendChild(node);
     }
     ui.content.appendChild(grid);
   }
-  function renderEntries(ui, section2, entries) {
-    const acquired = entries.filter((entry) => entry.acquired).length;
-    drillHeader(ui, "dex", section2.emoji + " " + section2.label, acquired + "/" + entries.length);
-    if (entries.length === 0) {
+  function renderEntries(ui, section2, entries2) {
+    const acquired = entries2.filter((entry) => entry.acquired).length;
+    drillHeader(ui, "dex", section2.emoji + " " + section2.label, acquired + "/" + entries2.length);
+    if (entries2.length === 0) {
       ui.content.appendChild(el("div", "dp-empty", "\u8FD9\u4E00\u9875\u8FD8\u6CA1\u6709\u6536\u5F55\u5185\u5BB9"));
       return;
     }
-    if (section2.key === "forms" || section2.key === "skins") renderFlashShelf(ui, section2, entries);
-    else if (section2.key === "items") renderCatalogue(ui, entries);
-    else renderMuseum(ui, section2, entries);
+    if (section2.key === "forms" || section2.key === "skins") renderFlashShelf(ui, section2, entries2);
+    else if (section2.key === "items") renderCatalogue(ui, entries2);
+    else renderMuseum(ui, section2, entries2);
   }
-  function renderFlashShelf(ui, section2, entries) {
+  function renderFlashShelf(ui, section2, entries2) {
     const grid = el("div", "dp-dex-flash-grid");
-    for (const entry of entries) grid.appendChild(flashCard(ui, section2, entry));
+    for (const entry of entries2) grid.appendChild(flashCard(ui, section2, entry));
     ui.content.appendChild(grid);
   }
   function flashCard(ui, section2, entry) {
@@ -4509,9 +4600,9 @@
     if (entry.acquired) tilt2(card2);
     return card2;
   }
-  function renderMuseum(ui, section2, entries) {
+  function renderMuseum(ui, section2, entries2) {
     const grid = el("div", "dp-dex-museum");
-    for (const entry of entries) {
+    for (const entry of entries2) {
       const card2 = button(
         "dp-dex-museum-item" + (entry.acquired ? "" : " dp-dex-museum-locked"),
         { "data-dex-entry": entry.key },
@@ -4528,7 +4619,7 @@
     }
     ui.content.appendChild(grid);
   }
-  function renderCatalogue(ui, entries) {
+  function renderCatalogue(ui, entries2) {
     const controls = el("div", "dp-dex-catalog-tools");
     const search = (
       /** @type {HTMLInputElement} */
@@ -4541,7 +4632,7 @@
     controls.appendChild(search);
     const filters = el("div", "dp-dex-filters");
     const active = ui.drill.dexFilter ?? "all";
-    const available = new Set(entries.map((entry) => shelfOf(entry.kind)));
+    const available = new Set(entries2.map((entry) => shelfOf(entry.kind)));
     for (const [key, label] of ITEM_KINDS) {
       if (key !== "all" && !available.has(key)) continue;
       const filter = button("dp-dex-filter", { "data-dex-filter": key }, function() {
@@ -4558,7 +4649,7 @@
     sideScroller(filters, filters.querySelector ? filters.querySelector('[data-active="true"]') : null);
     const query = String(ui.drill.dexQuery ?? "").trim().toLowerCase();
     const list = el("div", "dp-dex-catalog");
-    for (const entry of entries) {
+    for (const entry of entries2) {
       if (active !== "all" && shelfOf(entry.kind) !== active) continue;
       const searchable = entry.acquired ? entry.label.toLowerCase() : ("\u672A\u77E5" + entry.kindLabel).toLowerCase();
       if (query !== "" && !searchable.includes(query)) continue;
@@ -5127,8 +5218,8 @@
     card2.appendChild(el("b", null, "\u9493\u5230\u4E86 " + fish2.label + "\uFF01"));
     const stars2 = STARS[fish2.rarity] ?? 1;
     card2.appendChild(el("span", "dp-fish-stars", "\u2605".repeat(stars2) + "\u2606".repeat(4 - stars2)));
-    const record = fish2.maxCm > 0 && fish2.sizeCm >= fish2.maxCm * 0.85 ? " \xB7 \u5927\u4E2A\u7684\uFF01" : "";
-    card2.appendChild(el("span", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price + record));
+    const record2 = fish2.maxCm > 0 && fish2.sizeCm >= fish2.maxCm * 0.85 ? " \xB7 \u5927\u4E2A\u7684\uFF01" : "";
+    card2.appendChild(el("span", null, fish2.sizeCm.toFixed(1) + " cm \xB7 \u{1FA99} " + fish2.price + record2));
     const keep = button("dp-btn dp-btn-wide", { "data-fish": "keep" }, function() {
       ui.send("fishKeep");
     });
@@ -5412,20 +5503,20 @@
       ui.content.appendChild(el("div", "dp-ext-later", "\u6B63\u5728\u8BFB\u53D6\u5728\u7EBF\u6269\u5C55\u2026\u2026"));
       return;
     }
-    var installed = {};
-    for (var i = 0; i < ui.view.extensions.length; i += 1) if (ui.view.extensions[i].installed) installed[ui.view.extensions[i].key] = true;
-    var entries = online.entries.filter(function(entry) {
-      return !installed[entry.key];
+    var installed2 = {};
+    for (var i = 0; i < ui.view.extensions.length; i += 1) if (ui.view.extensions[i].installed) installed2[ui.view.extensions[i].key] = true;
+    var entries2 = online.entries.filter(function(entry) {
+      return !installed2[entry.key];
     });
-    if (online.error && entries.length === 0) {
+    if (online.error && entries2.length === 0) {
       ui.content.appendChild(el("div", "dp-ext-later", "\u8BFB\u4E0D\u5230\u5728\u7EBF\u6269\u5C55\u76EE\u5F55\uFF08" + online.error + "\uFF09\uFF0C\u7A0D\u540E\u70B9\u5237\u65B0"));
       return;
     }
-    if (entries.length === 0) {
+    if (entries2.length === 0) {
       ui.content.appendChild(el("div", "dp-ext-later", "\u5728\u7EBF\u7684\u6269\u5C55\u90FD\u88C5\u597D\u4E86\uFF0C\u4EE5\u540E\u6709\u65B0\u7684\u4F1A\u51FA\u73B0\u5728\u8FD9\u91CC"));
       return;
     }
-    for (var k = 0; k < entries.length; k += 1) {
+    for (var k = 0; k < entries2.length; k += 1) {
       (function(entry) {
         var card2 = el("div", "dp-set dp-ext-card");
         card2.setAttribute("data-online-extension", entry.key);
@@ -5445,7 +5536,7 @@
         else if (entry.builtin) card2.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
         else if (downloading(entry.key)) card2.appendChild(el("div", "dp-ext-note", "\u6B63\u5728\u4E0B\u8F7D\uFF0C\u7F51\u7EDC\u6162\u7684\u65F6\u5019\u8981\u7B49\u4E00\u4F1A\u513F"));
         ui.content.appendChild(card2);
-      })(entries[k]);
+      })(entries2[k]);
     }
   }
 
@@ -5479,8 +5570,8 @@
     ui.content.appendChild(head);
     const pages = Math.max(1, Math.ceil(apps.length / 9));
     ui.homePage = Math.max(0, Math.min(pages - 1, ui.homePage ?? 0));
-    const clip = el("div", "dp-home-clip");
-    clip.setAttribute("data-home-swipe", "true");
+    const clip2 = el("div", "dp-home-clip");
+    clip2.setAttribute("data-home-swipe", "true");
     const track = el("div", "dp-home-track");
     const grids = [];
     const dots = [];
@@ -5506,8 +5597,8 @@
       grids.push(grid);
       track.appendChild(grid);
     }
-    clip.appendChild(track);
-    ui.content.appendChild(clip);
+    clip2.appendChild(track);
+    ui.content.appendChild(clip2);
     let dotRow = null;
     if (pages > 1) {
       dotRow = el("div", "dp-home-dots");
@@ -5534,17 +5625,17 @@
     showPage(ui.homePage);
     let drag = null;
     let swallowClick = false;
-    clip.addEventListener("pointerdown", (event) => {
+    clip2.addEventListener("pointerdown", (event) => {
       if (pages < 2 || event.pointerType === "mouse" && event.button !== 0) return;
       drag = { x: event.clientX, y: event.clientY, id: event.pointerId, moved: false };
     });
-    clip.addEventListener("pointermove", (event) => {
+    clip2.addEventListener("pointermove", (event) => {
       if (drag === null || event.pointerId !== drag.id) return;
       const dx = event.clientX - drag.x;
       if (!drag.moved) {
         if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(event.clientY - drag.y)) return;
         drag.moved = true;
-        clip.setPointerCapture?.(event.pointerId);
+        clip2.setPointerCapture?.(event.pointerId);
         track.style.transition = "none";
       }
       const atEdge = ui.homePage === 0 && dx > 0 || ui.homePage === pages - 1 && dx < 0;
@@ -5563,21 +5654,21 @@
       }, 0);
       showPage(Math.abs(dx) > 40 ? ui.homePage + (dx < 0 ? 1 : -1) : ui.homePage);
     }
-    clip.addEventListener("pointerup", endDrag);
-    clip.addEventListener("pointercancel", (event) => {
+    clip2.addEventListener("pointerup", endDrag);
+    clip2.addEventListener("pointercancel", (event) => {
       if (drag !== null) {
         drag.moved = true;
         endDrag(event);
       }
     });
-    clip.addEventListener("click", (event) => {
+    clip2.addEventListener("click", (event) => {
       if (swallowClick) {
         event.stopPropagation();
         event.preventDefault();
       }
     }, true);
     let wheelLock = 0;
-    clip.addEventListener("wheel", (event) => {
+    clip2.addEventListener("wheel", (event) => {
       if (pages < 2) return;
       const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
       if (Math.abs(delta) < 4) return;
@@ -5694,7 +5785,7 @@
     let checking = false;
     let checked = false;
     let error = null;
-    let timer = null;
+    let timer2 = null;
     let interval = null;
     function signalId(candidate) {
       if (candidate === null) return "";
@@ -5762,13 +5853,13 @@
       options.changed();
     }
     function start2() {
-      timer = window.setTimeout(check, 1e4);
+      timer2 = window.setTimeout(check, 1e4);
       interval = window.setInterval(check, 6 * 60 * 60 * 1e3);
     }
     function stop() {
-      if (timer !== null) window.clearTimeout(timer);
+      if (timer2 !== null) window.clearTimeout(timer2);
       if (interval !== null) window.clearInterval(interval);
-      timer = null;
+      timer2 = null;
       interval = null;
     }
     return {
@@ -6443,7 +6534,7 @@
       c.pig.setAttribute("data-idle", "walk");
       c.pig.setAttribute("data-walk", toLeft ? "left" : "right");
       if (!quiet() && Math.random() < 0.5) c.showBubble("\u6211\u53BB\u5DE1\u903B\u4E00\u4E0B", 2e3);
-      var timer = window.setInterval(function() {
+      var timer2 = window.setInterval(function() {
         if (c.isStopped() || c.isOpen() || c.isDragging()) return stop();
         shell.moveBy(back ? -step : step, 0);
         walked += 2;
@@ -6453,9 +6544,9 @@
           c.pig.setAttribute("data-walk", toLeft ? "right" : "left");
         } else if (back && walked >= distance) stop();
       }, 16);
-      timers.push(timer);
+      timers.push(timer2);
       function stop() {
-        window.clearInterval(timer);
+        window.clearInterval(timer2);
         c.pig.removeAttribute("data-idle");
         c.pig.removeAttribute("data-walk");
       }
@@ -6480,6 +6571,75 @@
         timers = [];
       }
     };
+  }
+
+  // src/client/log-export.js
+  var EXPORT_URL = "/dsh-piggy/logs/export";
+  function fileName(now = /* @__PURE__ */ new Date()) {
+    const pad = (value, width) => String(value).padStart(width, "0");
+    return `dsh-piggy-log-${now.getFullYear()}${pad(now.getMonth() + 1, 2)}${pad(now.getDate(), 2)}-${pad(now.getHours(), 2)}${pad(now.getMinutes(), 2)}.txt`;
+  }
+  var isCancel = (error) => error?.name === "AbortError" || error?.name === "NotAllowedError";
+  async function saveViaShell(name, text) {
+    const shell = typeof window === "object" ? (
+      /** @type {any} */
+      window.piggyShell
+    ) : void 0;
+    const bridge3 = shell?.logs;
+    if (bridge3 === void 0 || typeof bridge3.save !== "function") return null;
+    const result = await bridge3.save(name, text);
+    if (result?.ok === true) return { ok: true, path: String(result.path ?? "") };
+    if (result?.canceled === true) return { ok: false, canceled: true };
+    return { ok: false, reason: String(result?.reason ?? "\u5916\u58F3\u6CA1\u80FD\u4FDD\u5B58") };
+  }
+  async function saveViaPicker(name, text) {
+    const picker = typeof window === "object" ? (
+      /** @type {any} */
+      window.showSaveFilePicker
+    ) : void 0;
+    if (typeof picker !== "function") return null;
+    try {
+      const handle = await picker({
+        suggestedName: name,
+        types: [{ description: "\u65E5\u5FD7\u6587\u672C", accept: { "text/plain": [".txt"] } }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      return { ok: true, path: "" };
+    } catch (error) {
+      if (isCancel(error)) return { ok: false, canceled: true };
+      return null;
+    }
+  }
+  function saveViaDownload(name, text) {
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1e4);
+      return { ok: true, path: "", downloaded: true };
+    } catch (error) {
+      return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+    }
+  }
+  async function exportLogs() {
+    await flushBeforeExport();
+    let text;
+    try {
+      const response = await fetch(EXPORT_URL, { cache: "no-store" });
+      if (!response.ok) return { ok: false, reason: "\u5BBF\u4E3B\u8FD4\u56DE HTTP " + response.status };
+      text = await response.text();
+    } catch (error) {
+      return { ok: false, reason: "\u62FF\u4E0D\u5230\u65E5\u5FD7\uFF1A" + (error instanceof Error ? error.message : String(error)) };
+    }
+    const name = fileName();
+    const saved = await saveViaShell(name, text) ?? await saveViaPicker(name, text) ?? saveViaDownload(name, text);
+    return { ...saved, bytes: text.length };
   }
 
   // src/client/tabs/settings.js
@@ -6571,6 +6731,31 @@
       walkToggle.appendChild(el("span", "dp-switch-text", walking ? "\u5F00" : "\u5173"));
       walk.head.appendChild(walkToggle);
     }
+    const logs = section(ui, "\u65E5\u5FD7", "\u9047\u5230\u95EE\u9898\u5BFC\u51FA\u8FD9\u4E00\u4EFD\uFF0C\u91CC\u9762\u6709\u7248\u672C\u3001\u52A8\u4F5C\u548C\u62A5\u9519");
+    const exportButton = button("dp-mini", { "data-export-logs": "true" }, function() {
+      runExport(ui, exportButton);
+    });
+    exportButton.textContent = "\u{1F4C4} \u5BFC\u51FA\u65E5\u5FD7";
+    logs.head.appendChild(exportButton);
+    if (exporting) exportButton.disabled = true;
+  }
+  var exporting = false;
+  function runExport(ui, exportButton) {
+    if (exporting) return;
+    exporting = true;
+    exportButton.disabled = true;
+    exportButton.textContent = "\u5BFC\u51FA\u4E2D\u2026";
+    exportLogs().then(function(result) {
+      exporting = false;
+      if (result.canceled === true) ui.renderContent();
+      else if (result.ok === true) ui.showBubble(result.downloaded === true ? "\u65E5\u5FD7\u5DF2\u4E0B\u8F7D" : "\u65E5\u5FD7\u5DF2\u4FDD\u5B58", 3200);
+      else ui.showBubble("\u65E5\u5FD7\u6CA1\u5BFC\u51FA\uFF1A" + str(result.reason, "\u672A\u77E5\u539F\u56E0"), 4e3);
+      if (typeof ui.renderContent === "function") ui.renderContent();
+    }).catch(function(error) {
+      exporting = false;
+      ui.showBubble("\u65E5\u5FD7\u6CA1\u5BFC\u51FA\uFF1A" + (error instanceof Error ? error.message : String(error)), 4e3);
+      ui.renderContent();
+    });
   }
 
   // src/client/panel.js
@@ -6970,10 +7155,10 @@
   function startDragHeartbeat(shell, isDragging) {
     if (typeof shell?.dragHeartbeat !== "function") return () => {
     };
-    const timer = window.setInterval(() => {
+    const timer2 = window.setInterval(() => {
       if (isDragging()) shell.dragHeartbeat();
     }, 250);
-    return () => window.clearInterval(timer);
+    return () => window.clearInterval(timer2);
   }
 
   // src/client/position.js
@@ -7417,7 +7602,7 @@
   }
 
   // src/client/desktop/index.js
-  var DESKTOP_VERSION = 2;
+  var DESKTOP_VERSION = 3;
   var FONT_STACK = 'Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif';
   var DESKTOP_CSS = [
     `[data-dsh-pig][data-dsh-pig]{--ac-font:"Piggy Emoji",${FONT_STACK}}`,
@@ -7540,7 +7725,7 @@
     const after = bridge2.place(request);
     if (after && after.window) placement.remember(after.window);
   }
-  function schedule() {
+  function schedule2() {
     if (scheduled) return;
     scheduled = true;
     requestAnimationFrame(function() {
@@ -7558,7 +7743,7 @@
     document.head.appendChild(style);
     if (typeof shell.onGeometry === "function") shell.onGeometry(function(info) {
       if (info && info.window && !dragging()) placement.remember(info.window);
-      schedule();
+      schedule2();
     });
     if (typeof shell.askGeometry === "function") shell.askGeometry();
     window.__dshPiggyShell = {
@@ -7627,10 +7812,10 @@
   function start() {
     const h = host();
     if (h !== null && typeof MutationObserver === "function") {
-      new MutationObserver(schedule).observe(h, { subtree: true, childList: true, attributes: true, characterData: true });
+      new MutationObserver(schedule2).observe(h, { subtree: true, childList: true, attributes: true, characterData: true });
     }
-    window.addEventListener("resize", schedule);
-    window.addEventListener("pointerup", schedule);
+    window.addEventListener("resize", schedule2);
+    window.addEventListener("pointerup", schedule2);
     setInterval(function() {
       if (!dragging()) tick();
     }, 1e3);
@@ -7646,10 +7831,12 @@
       var exports = module.exports;
       var devMode = false;
       function apply(ctx) {
+        installCapture();
         try {
           return mount();
         } catch (error) {
           console.warn("[dsh-piggy] \u6302\u8F7D\u5931\u8D25\uFF0C\u732A\u5148\u9000\u5230\u4E00\u8FB9", error);
+          record("error", "mount", "\u6302\u8F7D\u5931\u8D25\uFF1A" + (error instanceof Error ? error.message : String(error)), { stack: error instanceof Error ? error.stack : "" });
           return () => {
           };
         }

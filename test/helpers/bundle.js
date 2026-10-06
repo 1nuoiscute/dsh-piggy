@@ -65,6 +65,9 @@ export function fakeDom() {
       }
     }
 
+    /** 真元素上就有 click()；下载兜底会用 <a>.click()。 */
+    click() { this.fire('click') }
+
     allText() { return [this.textContent, ...this.children.map(c => c.allText())].join(' ') }
     walk(visit) { visit(this); for (const child of this.children) child.walk(visit) }
   }
@@ -162,6 +165,10 @@ export async function mount(options = {}) {
   globalThis.fetch = async (url, opts) => {
     calls.push({ url, method: opts?.method ?? 'GET', body: opts?.body })
     if (String(url).includes('/extensions/online') && options.onlineResponse) return { ok: true, status: 200, async json() { return options.onlineResponse } }
+    // 日志导出：返回纯文本那一份（设置 → 日志 → 导出）。
+    if (String(url).includes('/dsh-piggy/logs/export') && options.exportText !== undefined) {
+      return { ok: true, status: 200, async text() { return options.exportText } }
+    }
     const payload = (opts?.method ?? 'GET') === 'POST' ? (options.actResult ?? options.status ?? SNAPSHOT) : (options.status ?? SNAPSHOT)
     return { ok: true, status: 200, async json() { return payload } }
   }

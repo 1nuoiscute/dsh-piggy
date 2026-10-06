@@ -8,6 +8,7 @@
 import { ACT_URL, NO_ITEM_LINE, STATE_URL } from './constants.js'
 import { el } from './dom.js'
 import { createPomodoroClock } from './pomodoro-clock.js'
+import { record } from './journal.js'
 import { num, str } from './values.js'
 
 /**
@@ -16,6 +17,8 @@ import { num, str } from './values.js'
 export function createIo(ctx) {
       /** Bumped by every action, so a stale poll can tell it has been overtaken. */
       var actionSeq = 0
+      /** 上一次轮询是不是失败了：只在「断」和「恢复」这两个转折点上记日志。 */
+      var hostDown = false
 
       /** 发一个动作。返回宿主回的整份面板数据（被挡下、失败时为 null），
        * 需要看结果的调用方（比如下载扩展）可以直接 await。
@@ -110,6 +113,7 @@ export function createIo(ctx) {
         } catch (error) {
           ctx.showBubble('操作没送到宿主', 2600)
           ctx.react('refuse', 520)
+          record('warn', 'act', '动作没送到宿主：' + action, { reason: error instanceof Error ? error.message : String(error) })
           return null
         } finally {
           ctx.busy = false
@@ -130,9 +134,18 @@ export function createIo(ctx) {
           // than ours, so painting ours would undo what the user just did.
           if (startedAt !== actionSeq) return
           ctx.render(next)
+          if (hostDown) {
+            hostDown = false
+            record('info', 'poll', '宿主恢复响应')
+          }
         } catch (error) {
           if (ctx.stopped) return
           ctx.showBubble('连接不上宿主', 4000)
+          // 轮询每几秒一次，断线时只记「刚开始连不上」和「恢复了」两条，别刷屏。
+          if (!hostDown) {
+            hostDown = true
+            record('warn', 'poll', '连不上宿主', { url: STATE_URL, reason: error instanceof Error ? error.message : String(error) })
+          }
         }
       }
 

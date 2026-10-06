@@ -22,6 +22,7 @@ import { renderTravelTab } from './tabs/travel.js'
 import { renderWorkTab } from './tabs/work.js'
 import { createEffects } from './effects.js'
 import { createIo } from './io.js'
+import { installCapture, record } from './journal.js'
 import { createLayout } from './layout.js'
 import { createPanel } from './panel.js'
 import { createScene } from './scene.js'
@@ -50,12 +51,15 @@ import { partAt } from './pet-parts.js'
     var devMode = false
 
     function apply(ctx) {
+      // 先把浏览器这半边的日志抓起来：挂载失败也要留下现场（设置 → 日志 → 导出）。
+      installCapture()
       // A client plugin that throws while activating can take the whole web boot
       // down with it, so the pig never lets an exception escape.
       try {
         return mount()
       } catch (error) {
         console.warn('[dsh-piggy] 挂载失败，猪先退到一边', error)
+        record('error', 'mount', '挂载失败：' + (error instanceof Error ? error.message : String(error)), { stack: error instanceof Error ? error.stack : '' })
         return () => {}
       }
     }

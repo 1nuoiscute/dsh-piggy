@@ -46,7 +46,12 @@ function log(...parts) {
     mkdirSync(dirname(file), { recursive: true })
     appendFile(file, line, () => {})
   } catch { /* logging must never break the pig */ }
+  // 同一句话也进游戏自己的日志：设置里导出的那一份要能看到窗口和更新出了什么事。
+  try { hostJournal?.record('info', 'shell', parts.join(' ')) } catch { /* 日志不许反过来把猪弄挂 */ }
 }
+
+/** 游戏宿主的日志本；宿主起来之前是 null。 */
+let hostJournal = null
 
 /**
  * Start again with `args`. Inside an AppImage the running copy is a temporary
@@ -603,6 +608,26 @@ ipcMain.handle('piggy:shell:install', event => {
   return { ok: true }
 })
 ipcMain.handle('piggy:quit', (event) => { if (fromPage(event)) app.quit() })
+// 设置 → 日志 → 导出：弹系统「另存为」，把日志写到用户选的位置。
+ipcMain.handle('piggy:save-log', async (event, payload) => {
+  if (!fromPage(event)) return { ok: false, reason: '来源不对' }
+  const name = typeof payload?.name === 'string' && payload.name.trim() !== '' ? payload.name.trim() : 'dsh-piggy-log.txt'
+  const text = typeof payload?.text === 'string' ? payload.text : ''
+  try {
+    const picked = await dialog.showSaveDialog(win ?? undefined, {
+      title: '导出日志',
+      defaultPath: join(app.getPath('downloads'), name),
+      filters: [{ name: '日志文本', extensions: ['txt'] }, { name: '全部文件', extensions: ['*'] }],
+    })
+    if (picked.canceled === true || typeof picked.filePath !== 'string' || picked.filePath === '') return { ok: false, canceled: true }
+    writeFileSync(picked.filePath, text, 'utf8')
+    log('log exported', picked.filePath, String(text.length))
+    return { ok: true, path: picked.filePath }
+  } catch (error) {
+    log('log export failed', String(error))
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+  }
+})
 ipcMain.handle('piggy:open', (event, url) => {
   // Only this repo's own pages: the release notes and installers.
   if (fromPage(event) && typeof url === 'string' && url.startsWith(RELEASES_PAGE.replace(/\/releases$/, '/'))) shell.openExternal(url)
@@ -625,6 +650,8 @@ app.whenReady().then(async () => {
   })
   const gameDir = versions.activeDir()
   host = await startHost(gameDir, statePath())
+  hostJournal = /** @type {any} */ (host)?.store?.journal ?? null
+  hostJournal?.record?.('info', 'shell', `桌面外壳 ${app.getVersion()} · 游戏包 ${gameDir}`)
   registerProtocol(gameDir)
   createWindow()
   createTray(gameDir)

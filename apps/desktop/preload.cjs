@@ -55,6 +55,10 @@ contextBridge.exposeInMainWorld('piggyShell', {
     onProgress: callback => { ipcRenderer.on('piggy:shell-progress', (event, fraction) => callback(fraction)) },
   },
   openPage: url => ipcRenderer.invoke('piggy:open', String(url)),
+  /** 设置 → 日志 → 导出：主进程弹系统「另存为」，写盘。 */
+  logs: {
+    save: (name, text) => ipcRenderer.invoke('piggy:save-log', { name: String(name), text: String(text) }),
+  },
   /** 主屏「退出」：存好档再关。 */
   quit: () => ipcRenderer.invoke('piggy:quit'),
 })
