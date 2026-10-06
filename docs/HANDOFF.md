@@ -252,6 +252,17 @@ PIGGY_CAPTURE=<文件> / PIGGY_CAPTURE_STEPS  # 截图自检模式
 
 ## 12. 已知问题与待办（2026-10-06）
 
+**桌面版位置（I 批次）—— 2026-10-06 深夜 Claude 交回时的状态**
+- 现在 main 上的是 020f463「家」模型（详见 [I-round 第 13 节](tasks/I-round.md)）：猪脚底中心是唯一真相，每轮从头算窗口。
+  **之前三轮（DeepSeek 的 e614abc、Claude 的 d360358）都是记账互相继承误差，别往回改，也别再加「核对补正 / 记住上一轮」。**
+- 已验证：Linux GNOME（Wayland/XWayland）。本机 17 项 + Ubuntu 测试虚拟机真鼠标 41 项（点击、开关面板、重启、四条屏幕边、长距离拖动）全部 ≤2px。
+- **还没验证**：用户本机实际使用（已请用户 `npm start` 试，等反馈）；Windows；macOS；多屏（上下叠放）；分数缩放。
+- 测试机（都在用户本机 libvirt 里，`virsh -c qemu:///system list --all`）：
+  - `ubuntu26.04`：GNOME Wayland，账号 z / 123456，IP **192.168.123.45**（装桌面后从 .44 变的），代码在 `~/dsh-piggy`，跑 `node tools/desktop-geometry-check.mjs all`（环境变量从 `systemctl --user show-environment` 取）。屏保激活时真鼠标会失效，先 `gdbus call --session --dest org.gnome.ScreenSaver --object-path /org/gnome/ScreenSaver --method org.gnome.ScreenSaver.SetActive false`。目前已关机。
+  - `win11`：本地离线账户 **pig / 123456**（安全问题答案都是 a）。初始化做到「此操作可能需要几分钟」时用户叫停，**是否进了桌面没确认**；还没装 Node/开 SSH，桌面版也没在上面跑过。
+- DeepSeek 在 020f463 之前没提交的改动（`placement.clamped()` 那版）放在 `git stash@{0}`（deepseek-uncommitted-20261006-clamped-target），方向已被 020f463 取代，确认不要后可 `git stash drop`。
+- 本轮没发版、外壳没改（还是未发布的 0.6.0）。用户验收通过后按发版规矩走。
+
 **用户反馈、未解决**
 - Windows 桌面版猪「抽动」：录屏在 `/zyx/DSH/workspaces/dsh-piggy/feedback/`（上下跳 + 一帧叠影，像窗口移动和页面重排不同步）。要那台机器的 `%APPDATA%\dsh-piggy-desktop\piggy.log` 才能定位。
 - 换皮肤后猪变小：本机没复现（皮肤立绘身子和默认猪一样大，体重放大系数也保留）。要具体皮肤、平台、截图。
