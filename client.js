@@ -4241,26 +4241,27 @@
   // src/client/tabs/achievements.js
   function renderAchievements(ui, entries) {
     const selected = entries.find((entry) => entry.key === ui.drill.pick);
-    drillHeader(ui, "dex", "\u{1F3C6} \u5C0F\u732A\u6210\u5C31", entries.filter((entry) => entry.acquired).length + "/" + entries.length);
-    if (selected) return renderAchievementDetail(ui, selected);
-    const intro = el("div", "dp-ach-intro", "\u6BCF\u4E00\u679A\u5C0F\u732A\u5FBD\u7AE0\uFF0C\u90FD\u8BB0\u7740\u4E00\u6BB5\u4E00\u8D77\u7ECF\u5386\u7684\u65E5\u5E38\u3002");
-    ui.content.appendChild(intro);
+    const earned = entries.filter((entry) => entry.acquired).length;
+    drillHeader(ui, "dex", "\u{1F3C6} \u5C0F\u732A\u6210\u5C31", earned + "/" + entries.length);
+    if (selected !== void 0) return renderAchievementDetail(ui, selected);
+    ui.content.appendChild(el("div", "dp-ach-intro", "\u6BCF\u4E00\u679A\u5C0F\u732A\u5FBD\u7AE0\uFF0C\u90FD\u8BB0\u7740\u4E00\u6BB5\u4E00\u8D77\u7ECF\u5386\u7684\u65E5\u5E38\u3002"));
     for (const group of [...new Set(entries.map((entry) => entry.group))]) {
       ui.content.appendChild(el("div", "dp-ach-group", group));
       const grid = el("div", "dp-ach-grid");
-      for (const entry of entries.filter((item) => item.group === group)) {
-        const card2 = button("dp-ach-card", { "data-achievement": entry.key, "data-earned": String(entry.acquired) }, function() {
-          ui.drill.pick = entry.key;
-          ui.renderContent();
-          ui.content.scrollTop = 0;
-        });
-        card2.appendChild(badge(entry));
-        card2.appendChild(el("b", null, entry.label));
-        card2.appendChild(el("small", null, entry.acquired ? "\u5DF2\u83B7\u5F97" : entry.progress + "/" + entry.target + " " + entry.unit));
-        grid.appendChild(card2);
-      }
+      for (const entry of entries.filter((item) => item.group === group)) grid.appendChild(achievementCard(ui, entry));
       ui.content.appendChild(grid);
     }
+  }
+  function achievementCard(ui, entry) {
+    const card2 = button("dp-ach-card", { "data-achievement": entry.key, "data-earned": String(entry.acquired) }, function() {
+      ui.drill.pick = entry.key;
+      ui.renderContent();
+      ui.content.scrollTop = 0;
+    });
+    card2.appendChild(badge(entry));
+    card2.appendChild(el("b", null, entry.label));
+    card2.appendChild(el("small", null, entry.acquired ? "\u5DF2\u83B7\u5F97" : entry.progress + "/" + entry.target + " " + entry.unit));
+    return card2;
   }
   function badge(entry) {
     const image = (

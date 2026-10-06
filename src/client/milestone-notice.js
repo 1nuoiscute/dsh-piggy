@@ -1,6 +1,10 @@
 // @ts-check
 import { str } from './values.js'
-/** These milestones deserve the pig's bubble, without replacing the action's own line. */
+/** These milestones deserve the pig's bubble, without replacing the action's own line.
+ * @param {any} ctx
+ * @param {any} event
+ * @returns {boolean} true when the event was spoken as a milestone
+ */
 export function showMilestoneNotice(ctx, event) {
   if (event.kind === 'achievement') {
     ctx.showBubble(str(event.text, '获得小猪徽章'), 4500)

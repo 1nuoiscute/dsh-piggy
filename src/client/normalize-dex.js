@@ -1,7 +1,11 @@
 // @ts-check
+/** 图鉴各分区（含成就）进入界面前的形状清洗。 */
 import { arr, num, obj, str } from './values.js'
+
+/** @param {any} raw @returns {Record<string, any[]>} */
 export function normalizeDex(raw) {
   const source = obj(raw)
+  /** @type {Record<string, any[]>} */
   const out = {}
   for (const section of ['forms', 'skins', 'fish', 'items', 'souvenirs', 'achievements']) {
     out[section] = arr(source[section]).map(function (value) {
