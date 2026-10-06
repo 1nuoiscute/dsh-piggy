@@ -473,7 +473,7 @@ C3 第一步：gh pr checkout 3 拿到 PR #3（作者 1nuoiscute）的提交，�
     残余位移跟「收起时猪离锚边多少」有关。
 - 重叠检查：HUD∩猪 0px²、HUD∩面板 0px²、气泡∩面板 0px²、角标∩HUD 0px²、角标∩气泡 0px² ✓
   （注意：这次是新鲜存档，猪还是纸盒，气泡/番茄角标都是隐藏的，这几项证据偏弱）
-- 截图：面板朝右开（猪在左上角）`/zyx/DSH/workspaces/.piggy-shots/panel-right.png` —— 纸盒在左上、
+- 截图：面板朝右开（猪在左上角）[`docs/screenshots/c-round-panel-right.png`](../screenshots/c-round-panel-right.png) —— 纸盒在左上、
   面板在它下面、`戳三下` 提示在面板上方，目视不重叠 ✓
 
 **残余位移的原因（我的判断，供 Claude 复核）**：外壳 `pinPig` 把猪钉在「离锚边 16px」，可收起时猪离窗口
@@ -523,7 +523,7 @@ bounds content {"x":1596,"y":743,"width":324,"height":271}   ← 第一步：改
 bounds anchor  {"x":1584,"y":743,"width":324,"height":271}   ← 第二步：补 12px 平移
 ```
 （补的这 12px 就是上一轮残余的十几像素。）截图（朝右开、猪在左上角）：
-`/zyx/DSH/workspaces/.piggy-shots/panel-right.png`。
+[`docs/screenshots/c-round-panel-right.png`](../screenshots/c-round-panel-right.png)。
 
 **上一轮的教训**：桌面版加载的是 `apps/desktop/game/` 里打包好的 `client.js`，改 `src/client` 后必须
 `npm run pack-game` 再实机，否则测的是旧前端。
