@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 /** Everything the desktop host imports, plus what the page loads. */
 export const GAME_FILES = [
-  'package.json', 'core.js', 'data.js', 'store.js', 'store', 'routes.js', 'snapshot.js',
+  'package.json', 'core.js', 'data.js', 'store.js', 'store', 'routes.js', 'snapshot.js', 'environment.js',
   'packages/pet-core/package.json', 'packages/pet-core/src', 'client.js', 'assets', 'channel.js',
 ]
 

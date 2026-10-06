@@ -73,6 +73,7 @@ import {
  * @property {() => void} scheduleSave - request a throttled write
  * @property {(fn: (state: object) => object) => object} mutate - run a core mutator, saving on success
  * @property {() => void} dispose - flush and stop the timer
+ * @property {object} [journal] - 运行日志（设置 → 日志 → 导出）
  */
 
 /**
@@ -81,7 +82,7 @@ import {
  * @returns {object} the store API
  */
 export function createApi(control) {
-  const { filePath, now, getState, setState, scheduleSave, mutate, dispose } = control
+  const { filePath, now, getState, setState, scheduleSave, mutate, dispose, journal } = control
 
   /** 上一次「面板轮询」的时刻，用来算在线时长；0 = 还没见过第一次。 */
   let lastPollMs = 0
@@ -89,6 +90,9 @@ export function createApi(control) {
   return {
     /** The live state (null until an egg is laid). Exposed for rendering. */
     get state() { return getState() },
+
+    /** 运行日志（设置 → 日志 → 导出）；没有就当作不记。 */
+    journal,
 
     /** Where this pig is saved. */
     get filePath() { return filePath },

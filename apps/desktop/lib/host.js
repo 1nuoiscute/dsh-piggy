@@ -17,7 +17,15 @@ export async function startHost(gameDir, statePath) {
   const load = name => import(pathToFileURL(join(gameDir, name)).href)
   const { createStore } = await load('store.js')
   const { registerRoutes } = await load('routes.js')
+  const { environmentNote } = await load('environment.js')
   const store = createStore(statePath)
+  // 桌面版的日志表头和外壳版本一起记，导出时一眼看出是哪一版外壳。
+  store.journal?.header?.(environmentNote({
+    运行形态: '桌面版',
+    存档路径: statePath,
+    Node: process.version,
+    ...(typeof process.versions.electron === 'string' ? { Electron: process.versions.electron } : {}),
+  }))
 
   /** @type {{ kind: string, path: string, handler: Function }[]} */
   const routes = []

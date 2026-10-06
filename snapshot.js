@@ -1,37 +1,19 @@
 // @ts-check
-import { achievementsView } from './core.js'
 /**
  * 面板快照：把状态序列化成界面读的那一份形状。
  *
  * 只读取状态与数值表，不算业务规则（见 docs/CONVENTIONS.md）。
  * @module dsh-piggy/snapshot
  */
-
-import { readFileSync } from 'node:fs'
-
-import { disabledParts, extensionsView } from './core.js'
+import { PACKAGE_VERSION } from './environment.js'
+import { achievementsView, disabledParts, extensionsView } from './core.js'
 import { ACTIONS, ACTION_ORDER, bodyWeightView, doctorFee, fishingView, profileView, jobFacts, JOBS, LIFE_STAGES, MAX, REVIVE_ITEM, SCHOOL_STAGES, SHOP, SUBJECTS, TRAITS, TRIPS, actionCooldownSeconds, activitySecondsLeft, adopt, ageDays, dexView, formStageView, formsView, awayBlockedReason, careView, courseView, currentIllness, dailyView, daysToNextStage, diaryView, dressView, formatWeight, pomodoroView, hasSoul, healthPercent, interestView, inventoryView, levelProgress, lifeStageFor, mood, reset, skinView, studyView, traitView } from './core.js'
 import { CERTIFICATE_AFTER, DEFAULT_OWNER_NAME, INTERESTS, SIGN_IN_CYCLE, SEXES, jobChecklist, jobRequirement, rarityByKey, traitBonus } from './data.js'
 
-/** The stage the panel shows before there is a pig: the cardboard box. */
-/**
- * The package version, surfaced in the debug tab.
- *
- * DSH composes client bundles when it starts, so a stale page and a stale
- * process look identical; without a version on screen "did my change land?"
- * can only be answered by guessing. This makes it readable in one glance.
- */
-function readPackageVersion() {
-  try {
-    const parsed = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
-    return typeof parsed.version === 'string' ? parsed.version : 'unknown'
-  } catch (error) {
-    console.warn(`[dsh-piggy] package version unavailable: ${error instanceof Error ? error.message : String(error)}`)
-    return 'unknown'
-  }
-}
+/** 版本号只有一个来源：environment.js（它也是导出日志表头的那一份）。 */
+export { PACKAGE_VERSION }
 
-export const PACKAGE_VERSION = readPackageVersion()
+/** The stage the panel shows before there is a pig: the cardboard box. */
 
 function boxStageView() {
   const box = LIFE_STAGES.find(stage => stage.key === 'box') ?? LIFE_STAGES[0]

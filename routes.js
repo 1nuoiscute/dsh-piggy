@@ -18,6 +18,10 @@ const ART_ROUTE = '/dsh-piggy/art'
 const BODY_LIMIT_BYTES = 2048
 const SKIN_ROUTE = '/dsh-piggy/skins/import'
 const SKIN_LIMIT_BYTES = 2 * 1024 * 1024
+// 设置 → 日志：导出这一份，和浏览器那半边送上来的日志。
+const LOG_EXPORT_ROUTE = '/dsh-piggy/logs/export'
+const LOG_CLIENT_ROUTE = '/dsh-piggy/logs/client'
+const LOG_LIMIT_BYTES = 256 * 1024
 
 const str = value => (typeof value === 'string' ? value : '')
 
@@ -216,8 +220,20 @@ function registerActRoute(webServer, store) {
       }
       // A throwing operation must answer, not take the route down with it: an
       // unhandled error here would leave the panel polling a dead handler.
+      const startedAt = Date.now()
       try {
         const result = await run(store, body)
+        // 每个动作都记一条：用户说「这个按钮不行」时，导出日志里能看到点过什么、结果如何。
+        if (typeof store.journal?.record === 'function') {
+          const ok = result.ok !== false
+          store.journal.record(ok ? 'info' : 'warn', 'act', `${operation} ${ok ? 'ok' : 'refused'}`, {
+            ms: Date.now() - startedAt,
+            reason: ok ? '' : str(result.reason),
+            message: ok ? '' : str(result.message),
+            key: str(body.key),
+            item: str(body.item),
+          })
+        }
         sendJson(res, 200, {
           ...snapshot(store),
           ok: result.ok !== false,
@@ -232,7 +248,9 @@ function registerActRoute(webServer, store) {
           message: result.message,
         }, { 'cache-control': 'no-store' })
       } catch (error) {
-        console.warn(`[dsh-piggy] action failed: action="${operation}" reason="${error instanceof Error ? error.message : String(error)}"`)
+        const detail = error instanceof Error ? error.message : String(error)
+        console.warn(`[dsh-piggy] action failed: action="${operation}" reason="${detail}"`)
+        store.journal?.record?.('error', 'act', `${operation} threw`, { ms: Date.now() - startedAt, reason: detail, stack: error instanceof Error ? error.stack : '' })
         sendJson(res, 500, { ok: false, reason: 'error' })
       }
     },
@@ -270,6 +288,51 @@ function registerExtRoutes(webServer, store) {
 }
 
 /**
+ * 日志的两条路由（设置 → 日志）：
+ *   GET  /dsh-piggy/logs/export  — 导出这一份纯文本（客户端负责弹「另存为」）
+ *   POST /dsh-piggy/logs/client  — 浏览器那半边的日志送进来，和宿主的一份合并
+ */
+function registerLogRoutes(webServer, store) {
+  const offExport = webServer.register({
+    kind: 'exact', path: LOG_EXPORT_ROUTE,
+    handler: async (req, res) => {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed; use GET' }, { allow: 'GET' })
+      const journal = store.journal
+      if (journal === undefined || typeof journal.text !== 'function') {
+        res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+        return res.end('这台宿主没有开日志。\n')
+      }
+      // 先把文件写到盘上，再导出：导出文件的最后几行不能缺。
+      await journal.flush()
+      res.writeHead(200, {
+        'content-type': 'text/plain; charset=utf-8',
+        'cache-control': 'no-store',
+        'content-disposition': 'attachment; filename="dsh-piggy-log.txt"',
+      })
+      res.end(journal.text(store.journalMeta ?? {}))
+    },
+  })
+  const offClient = webServer.register({
+    kind: 'exact', path: LOG_CLIENT_ROUTE,
+    handler: async (req, res) => {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed; use POST' }, { allow: 'POST' })
+      const buffer = await readBuffer(req, LOG_LIMIT_BYTES)
+      if (buffer === null) return sendJson(res, 413, { error: 'body too large' })
+      const journal = store.journal
+      if (journal === undefined || typeof journal.attachClient !== 'function') return sendJson(res, 200, { ok: true, added: 0 })
+      try {
+        const parsed = JSON.parse(buffer.toString('utf8'))
+        const added = journal.attachClient(parsed?.entries)
+        return sendJson(res, 200, { ok: true, added })
+      } catch (error) {
+        return sendJson(res, 400, { ok: false, reason: 'invalid-json', message: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  })
+  return () => { offExport(); offClient() }
+}
+
+/**
  * Register the three routes once the web seam exists.
  *
  * `ctx.inject` waits for the service instead of sampling it. The previous
@@ -292,6 +355,7 @@ export function registerRoutes(ctx, store) {
       disposers.push(registerSkinRoute(webServer, store))
       disposers.push(registerActRoute(webServer, store))
       disposers.push(registerExtRoutes(webServer, store))
+      disposers.push(registerLogRoutes(webServer, store))
     } catch (error) {
       // A route already taken: the pig stays command-only rather than breaking
       // activation, but this is a real failure and should be visible.

@@ -20,6 +20,7 @@
 
 import { dispatch, registerSlashCommand } from './commands.js'
 import { registerRoutes } from './routes.js'
+import { environmentNote } from './environment.js'
 import { createStore, moveLegacySaveDir } from './store.js'
 
 export const name = 'dsh-piggy'
@@ -55,6 +56,13 @@ export function apply(ctx, config = {}) {
   // The default save moved from $DSH_HOME/dsh-pig/ to dsh-piggy/; bring an old one along.
   if (!customPath) moveLegacySaveDir()
   const store = createStore(customPath ? config.statePath : undefined)
+  // 日志表头：出问题时先看这几行（设置 → 日志 → 导出）。
+  store.journal?.header?.(environmentNote({
+    运行形态: 'DSH 插件',
+    存档路径: store.filePath,
+    DSH_HOME: process.env.DSH_HOME ?? '',
+    Node: process.version,
+  }))
 
   registerDietListeners(ctx, store)
   registerRoutes(ctx, store)

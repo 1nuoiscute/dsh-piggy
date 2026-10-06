@@ -10,6 +10,13 @@ import { dirname, join, resolve } from 'node:path'
 
 import { STATE_VERSION, migrate } from '../core.js'
 
+/** 存档这一层的日志往日志本里记一份；没有日志本（测试）就只留 console。 */
+function report(journal, event) {
+  if (journal === undefined || journal === null) return
+  const { level = 'warn', message, ...fields } = event
+  journal.record(level, 'save', message, fields)
+}
+
 /** The harness home, matching the launcher's own resolution. */
 export function dshHome() {
   const configured = process.env.DSH_HOME
@@ -46,15 +53,19 @@ export function moveLegacySaveDir(home = dshHome(), nowMs = Date.now()) {
 }
 
 /** Copy an unusable save next to the original, then complain loudly. */
-function preserveUnusableSave(filePath, raw, reason, nowMs) {
+function preserveUnusableSave(context, raw, reason) {
+  const { filePath, nowMs, journal } = context
   const backup = `${filePath}.corrupt-${new Date(nowMs).toISOString().replace(/[:.]/g, '-')}`
   try {
     writeFileSync(backup, raw)
   } catch (error) {
-    console.warn(`[dsh-piggy] save unusable (${reason}) and the backup failed: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+    const detail = error instanceof Error ? error.message : String(error)
+    console.warn(`[dsh-piggy] save unusable (${reason}) and the backup failed: path="${filePath}" reason="${detail}"`)
+    report(journal, { level: 'error', message: '存档坏了，备份也失败', path: filePath, reason, detail })
     return
   }
   console.warn(`[dsh-piggy] save unusable (${reason}); kept a copy at "${backup}" and left the original untouched`)
+  report(journal, { level: 'error', message: '存档坏了，已留副本', path: filePath, backup, reason })
 }
 
 /**
@@ -63,13 +74,17 @@ function preserveUnusableSave(filePath, raw, reason, nowMs) {
  * An upgrade rewrites the file on the next save; if a step turns out to be
  * wrong, this copy is the only way back to the pig as it was.
  */
-function keepPreUpgradeCopy(filePath, raw, fromVersion, nowMs) {
+function keepPreUpgradeCopy(context, raw, fromVersion) {
+  const { filePath, nowMs, journal } = context
   const backup = `${filePath}.v${fromVersion}-backup-${new Date(nowMs).toISOString().replace(/[:.]/g, '-')}`
   try {
     writeFileSync(backup, raw)
     console.warn(`[dsh-piggy] upgrading save v${fromVersion} -> v${STATE_VERSION}; kept a copy at "${backup}"`)
+    report(journal, { level: 'info', message: '升级存档，升级前留了副本', from: fromVersion, to: STATE_VERSION, backup })
   } catch (error) {
-    console.warn(`[dsh-piggy] upgrading save v${fromVersion} -> v${STATE_VERSION} without a backup: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+    const detail = error instanceof Error ? error.message : String(error)
+    console.warn(`[dsh-piggy] upgrading save v${fromVersion} -> v${STATE_VERSION} without a backup: path="${filePath}" reason="${detail}"`)
+    report(journal, { level: 'warn', message: '升级存档时没能留副本', from: fromVersion, to: STATE_VERSION, path: filePath, reason: detail })
   }
 }
 
@@ -83,7 +98,8 @@ function keepPreUpgradeCopy(filePath, raw, fromVersion, nowMs) {
  * @returns {{ state: object|null, needsSave: boolean }} the migrated state (or
  *   null) and whether the file was on an older version and wants a rewrite.
  */
-export function readStateFile(filePath, nowMs) {
+export function readStateFile(filePath, nowMs, journal) {
+  const context = { filePath, nowMs, journal }
   let raw
   try {
     raw = readFileSync(filePath, 'utf8')
@@ -91,7 +107,9 @@ export function readStateFile(filePath, nowMs) {
     // A missing save is the normal first run; anything else is worth saying.
     const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
     if (code !== 'ENOENT') {
-      console.warn(`[dsh-piggy] could not read save: path="${filePath}" reason="${error instanceof Error ? error.message : String(error)}"`)
+      const detail = error instanceof Error ? error.message : String(error)
+      console.warn(`[dsh-piggy] could not read save: path="${filePath}" reason="${detail}"`)
+      report(journal, { level: 'error', message: '存档读不出来', path: filePath, reason: detail })
     }
     return { state: null, needsSave: false }
   }
@@ -100,17 +118,17 @@ export function readStateFile(filePath, nowMs) {
   try {
     parsed = JSON.parse(raw)
   } catch (error) {
-    preserveUnusableSave(filePath, raw, `invalid JSON: ${error instanceof Error ? error.message : String(error)}`, nowMs)
+    preserveUnusableSave(context, raw, `invalid JSON: ${error instanceof Error ? error.message : String(error)}`)
     return { state: null, needsSave: false }
   }
 
   const upgraded = migrate(parsed, nowMs)
   if (upgraded === null) {
-    preserveUnusableSave(filePath, raw, 'migrate() rejected the shape', nowMs)
+    preserveUnusableSave(context, raw, 'migrate() rejected the shape')
     return { state: null, needsSave: false }
   }
   const onDisk = parsed?.version
-  if (typeof onDisk === 'number' && onDisk < STATE_VERSION) keepPreUpgradeCopy(filePath, raw, onDisk, nowMs)
+  if (typeof onDisk === 'number' && onDisk < STATE_VERSION) keepPreUpgradeCopy(context, raw, onDisk)
   return { state: upgraded, needsSave: parsed?.version !== upgraded.version }
 }
 
