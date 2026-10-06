@@ -132,6 +132,20 @@ jobs:
           done
           printf '%s\n' "${keep[@]}" > upload-list.txt
           cat upload-list.txt
+      # 2026-10-06：GitHub 机房连 Gitee 传大包会 30 分钟零字节然后失败（连着两次）。
+      # 先把构建产物存成 artifact：Gitee 传不上去时，还能从网速好的机器补传。
+      - name: 保存构建产物（Gitee 传不上去时用来补传）
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitee-dist-${{ matrix.os }}
+          path: |
+            upload-list.txt
+            apps/desktop/dist/*.AppImage
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/latest*.yml
+          if-no-files-found: warn
+          retention-days: 14
       - name: 上传到 Gitee 发行版
         shell: bash
         env: { GITEE_TOKEN: '${{ secrets.GITEE_TOKEN }}' }
