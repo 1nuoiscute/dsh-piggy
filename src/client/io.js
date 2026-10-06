@@ -17,9 +17,15 @@ export function createIo(ctx) {
       /** Bumped by every action, so a stale poll can tell it has been overtaken. */
       var actionSeq = 0
 
+      /** 发一个动作。返回宿主回的整份面板数据（被挡下、失败时为 null），
+       * 需要看结果的调用方（比如下载扩展）可以直接 await。
+       * @param {string} action
+       * @param {object} [extra]
+       * @returns {Promise<any>}
+       */
       async function send(action, extra) {
-        if (ctx.busy || ctx.stopped) return
-        if (ctx.view.pig === null && action !== 'hatch') return
+        if (ctx.busy || ctx.stopped) return null
+        if (ctx.view.pig === null && action !== 'hatch') return null
         // Every action bumps the sequence: a poll that started before this
         // action is stale by the time it lands and must be dropped.
         actionSeq += 1
@@ -44,21 +50,21 @@ export function createIo(ctx) {
           if (next && next.ok === false) {
             // Answering a line that has already moved on is normal (a second
             // window, a slow poll): say nothing rather than scold the user.
-            if (next.reason === 'stale-line') return
+            if (next.reason === 'stale-line') return next
             // The pig chose not to speak up (away, ill, 免打扰): nothing to say.
-            if (next.reason === 'silent') return
+            if (next.reason === 'silent') return next
             ctx.react('refuse', 520)
             if (next.reason === 'no-item') {
               var emptyKind = str(next.kind, '')
               ctx.showBubble(NO_ITEM_LINE[emptyKind] ?? '背包里没有能用的东西', 3200)
-              return
+              return next
             }
             if (next.reason === 'contract-ineligible' || next.reason === 'coronation-ineligible') {
               var lacks = (Array.isArray(next.missing) ? next.missing : [])
                 .map(function (row) { return str(row.label, '') + ' ' + num(row.have, 0) + '/' + num(row.need, 0) }).join(' · ')
               var actionName = next.reason === 'contract-ineligible' ? '签约' : '加冕'
               ctx.showBubble(lacks === '' ? actionName + '条件还没齐' : actionName + '还差：' + lacks, 3400)
-              return
+              return next
             }
             var reasons = {
               box: '先把纸盒拆开',
@@ -100,9 +106,11 @@ export function createIo(ctx) {
             }
             ctx.showBubble(reasons[next.reason] ?? '这个操作没成', 2400)
           }
+          return next
         } catch (error) {
           ctx.showBubble('操作没送到宿主', 2600)
           ctx.react('refuse', 520)
+          return null
         } finally {
           ctx.busy = false
         }

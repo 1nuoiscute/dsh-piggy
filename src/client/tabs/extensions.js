@@ -15,6 +15,31 @@ import { arr, obj, str } from '../values.js'
 var confirming = null
 /** 在线目录：loading / 读到的 / 出错。 */
 var online = { loading: false, loaded: false, error: '', entries: /** @type {any[]} */ ([]), stamp: '' }
+/**
+ * 下载状态。放在模块上，因为面板每 4 秒轮询重画一次：
+ * 存在函数局部的话，重画就把「下载中」抹掉，用户看到的就是点了没反应。
+ * key 正在下、failed 上次失败的是谁、error 失败原因（留在卡片上，配一个「重试」）。
+ */
+var download = { key: '', failed: '', error: '' }
+
+/** 点「下载 / 更新」：立刻变成「下载中…」，失败就留在卡片上等重试。 */
+function startInstall(ui, key) {
+  if (download.key !== '') return
+  download = { key: key, failed: '', error: '' }
+  ui.renderContent()
+  Promise.resolve(ui.send('installExtension', { key: key })).then(function (result) {
+    if (download.key !== key) return
+    if (result !== null && result !== undefined && result.ok === false) {
+      download = { key: '', failed: key, error: str(result.message, '') || '下载失败，稍后再试' }
+    } else if (result === null || result === undefined) {
+      download = { key: '', failed: key, error: '刚才没能送到宿主，再点一次' }
+    } else {
+      download = { key: '', failed: '', error: '' }
+    }
+    online.loaded = false
+    ui.renderContent()
+  })
+}
 
 /** 本地装了哪些、什么版本：一变（装上、删掉、更新完）就重新读在线目录。 */
 function stampOf(view) {
@@ -42,6 +67,19 @@ function loadOnline(ui, force) {
     })
     .catch(function () { online = { loading: false, loaded: true, error: '连不上', entries: online.entries, stamp: stampOf(ui.view) } })
     .then(function () { if (['home', 'settings', 'extensions'].includes(ui.tab)) ui.renderContent() })
+}
+
+const downloading = key => download.key === key
+
+/** 下载失败留在卡片上：原因 + 一个「重试」，不用去猜刚才那下有没有生效。 */
+function failedNote(ui, key) {
+  const note = el('div', 'dp-ext-note dp-ext-failed')
+  note.appendChild(el('span', null, '没装上：' + download.error))
+  const retry = button('dp-mini', { 'data-ext-retry': key }, function () { startInstall(ui, key) })
+  retry.textContent = '重试'
+  retry.disabled = download.key !== ''
+  note.appendChild(retry)
+  return note
 }
 
 /** 主菜单与设置共用的扩展更新红点。 */
@@ -83,6 +121,7 @@ function localCard(ui, extension) {
   var note = extension.on ? closingNote(ui.view, extension.key) : ''
   if (note) card.appendChild(el('div', 'dp-ext-note', note))
   if (extension.error) card.appendChild(el('div', 'dp-ext-note', '加载出错：' + extension.error))
+  if (download.failed === extension.key) card.appendChild(failedNote(ui, extension.key))
   var newer = online.entries.find(function (entry) { return entry.key === extension.key && entry.update === true })
 
   // 开关和删除并排放在卡片左下（rc.1 反馈）。
@@ -94,11 +133,9 @@ function localCard(ui, extension) {
   toggle.appendChild(el('span', 'dp-switch-text', extension.on ? '开' : '关'))
   row.appendChild(toggle)
   if (newer) {
-    var update = button('dp-mini', { 'data-ext-update': extension.key }, function () {
-      online.loaded = false
-      ui.send('installExtension', { key: extension.key })
-    })
-    update.textContent = '更新到 ' + str(newer.version, '')
+    var update = button('dp-mini', { 'data-ext-update': extension.key }, function () { startInstall(ui, extension.key) })
+    update.textContent = downloading(extension.key) ? '更新中…' : '更新到 ' + str(newer.version, '')
+    update.disabled = download.key !== ''
     row.appendChild(update)
   }
   if (confirming === extension.key) {
@@ -136,17 +173,16 @@ function renderOnline(ui) {
       var head = el('div', 'dp-set-head')
       head.appendChild(el('span', 'dp-ext-emoji', str(entry.emoji, '🧩')))
       head.appendChild(el('b', null, str(entry.label, entry.key) + (entry.builtin ? ' · 内置' : ' ' + str(entry.version, ''))))
-      var get = button('dp-mini', { 'data-ext-install': entry.key }, function () {
-        online.loaded = false
-        ui.send('installExtension', { key: entry.key })
-      })
-      get.textContent = entry.builtin ? '重新安装' : '下载'
-      get.disabled = entry.blocked !== null && entry.blocked !== undefined
+      var get = button('dp-mini', { 'data-ext-install': entry.key }, function () { startInstall(ui, entry.key) })
+      get.textContent = downloading(entry.key) ? '下载中…' : (entry.builtin ? '重新安装' : '下载')
+      get.disabled = downloading(entry.key) || download.key !== '' || (entry.blocked !== null && entry.blocked !== undefined)
       head.appendChild(get)
       if (entry.description) head.appendChild(el('small', 'dp-dim', str(entry.description, '')))
       card.appendChild(head)
+      if (download.failed === entry.key) card.appendChild(failedNote(ui, entry.key))
       if (entry.blocked === 'game-too-old') card.appendChild(el('div', 'dp-ext-note', '需要游戏 v' + str(entry.minGame, '') + '，先更新游戏'))
       else if (entry.builtin) card.appendChild(el('div', 'dp-ext-note', '代码在游戏里，装回来不用下载，从零开始'))
+      else if (downloading(entry.key)) card.appendChild(el('div', 'dp-ext-note', '正在下载，网络慢的时候要等一会儿'))
       ui.content.appendChild(card)
     })(entries[k])
   }

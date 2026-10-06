@@ -2329,8 +2329,8 @@
   function createIo(ctx) {
     var actionSeq = 0;
     async function send(action, extra) {
-      if (ctx.busy || ctx.stopped) return;
-      if (ctx.view.pig === null && action !== "hatch") return;
+      if (ctx.busy || ctx.stopped) return null;
+      if (ctx.view.pig === null && action !== "hatch") return null;
       actionSeq += 1;
       ctx.busy = true;
       ctx.flash(action, extra);
@@ -2350,13 +2350,13 @@
           ctx.showBubble((action === "signIn" ? "\u7B7E\u5230\u6210\u529F" : "\u793C\u5305\u6253\u5F00") + (reward ? " \xB7 " + reward : ""), 4e3);
         }
         if (next && next.ok === false) {
-          if (next.reason === "stale-line") return;
-          if (next.reason === "silent") return;
+          if (next.reason === "stale-line") return next;
+          if (next.reason === "silent") return next;
           ctx.react("refuse", 520);
           if (next.reason === "no-item") {
             var emptyKind = str(next.kind, "");
             ctx.showBubble(NO_ITEM_LINE[emptyKind] ?? "\u80CC\u5305\u91CC\u6CA1\u6709\u80FD\u7528\u7684\u4E1C\u897F", 3200);
-            return;
+            return next;
           }
           if (next.reason === "contract-ineligible" || next.reason === "coronation-ineligible") {
             var lacks = (Array.isArray(next.missing) ? next.missing : []).map(function(row) {
@@ -2364,7 +2364,7 @@
             }).join(" \xB7 ");
             var actionName = next.reason === "contract-ineligible" ? "\u7B7E\u7EA6" : "\u52A0\u5195";
             ctx.showBubble(lacks === "" ? actionName + "\u6761\u4EF6\u8FD8\u6CA1\u9F50" : actionName + "\u8FD8\u5DEE\uFF1A" + lacks, 3400);
-            return;
+            return next;
           }
           var reasons = {
             box: "\u5148\u628A\u7EB8\u76D2\u62C6\u5F00",
@@ -2406,9 +2406,11 @@
           };
           ctx.showBubble(reasons[next.reason] ?? "\u8FD9\u4E2A\u64CD\u4F5C\u6CA1\u6210", 2400);
         }
+        return next;
       } catch (error) {
         ctx.showBubble("\u64CD\u4F5C\u6CA1\u9001\u5230\u5BBF\u4E3B", 2600);
         ctx.react("refuse", 520);
+        return null;
       } finally {
         ctx.busy = false;
       }
@@ -3803,6 +3805,8 @@
     ".dp-ext-intro{font-size:10.5px;line-height:1.5;color:var(--ac-text-2);margin:0 0 4px}",
     ".dp-ext-emoji{font-size:20px;line-height:1;margin-right:2px}",
     ".dp-ext-note{margin-top:6px;font-size:10px;font-weight:700;color:#c7781a}",
+    // 下载失败留在卡片上：左边原因、右边「重试」，别只闪一下气泡。
+    ".dp-ext-failed{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#b4462a}",
     ".dp-ext-later{margin-top:12px;text-align:center;font-size:10px;color:var(--ac-text-2)}",
     ".dp-ext-section{display:flex;align-items:center;justify-content:space-between;margin:12px 2px 6px;font-size:11px;font-weight:800;color:var(--ac-text-2);letter-spacing:.04em}",
     ".dp-ext-actions{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-top:8px;flex-wrap:wrap}",
@@ -5257,6 +5261,24 @@
     /** @type {any[]} */
     []
   ), stamp: "" };
+  var download = { key: "", failed: "", error: "" };
+  function startInstall(ui, key) {
+    if (download.key !== "") return;
+    download = { key, failed: "", error: "" };
+    ui.renderContent();
+    Promise.resolve(ui.send("installExtension", { key })).then(function(result) {
+      if (download.key !== key) return;
+      if (result !== null && result !== void 0 && result.ok === false) {
+        download = { key: "", failed: key, error: str(result.message, "") || "\u4E0B\u8F7D\u5931\u8D25\uFF0C\u7A0D\u540E\u518D\u8BD5" };
+      } else if (result === null || result === void 0) {
+        download = { key: "", failed: key, error: "\u521A\u624D\u6CA1\u80FD\u9001\u5230\u5BBF\u4E3B\uFF0C\u518D\u70B9\u4E00\u6B21" };
+      } else {
+        download = { key: "", failed: "", error: "" };
+      }
+      online.loaded = false;
+      ui.renderContent();
+    });
+  }
   function stampOf(view) {
     return view.extensions.map(function(extension) {
       return extension.key + "@" + extension.version + ":" + extension.installed;
@@ -5283,6 +5305,18 @@
     }).then(function() {
       if (["home", "settings", "extensions"].includes(ui.tab)) ui.renderContent();
     });
+  }
+  var downloading = (key) => download.key === key;
+  function failedNote(ui, key) {
+    const note = el("div", "dp-ext-note dp-ext-failed");
+    note.appendChild(el("span", null, "\u6CA1\u88C5\u4E0A\uFF1A" + download.error));
+    const retry = button("dp-mini", { "data-ext-retry": key }, function() {
+      startInstall(ui, key);
+    });
+    retry.textContent = "\u91CD\u8BD5";
+    retry.disabled = download.key !== "";
+    note.appendChild(retry);
+    return note;
   }
   function extensionUpdateAvailable(ui) {
     if (!online.loaded || online.stamp !== stampOf(ui.view)) loadOnline(ui, false);
@@ -5328,6 +5362,7 @@
     var note = extension.on ? closingNote(ui.view, extension.key) : "";
     if (note) card2.appendChild(el("div", "dp-ext-note", note));
     if (extension.error) card2.appendChild(el("div", "dp-ext-note", "\u52A0\u8F7D\u51FA\u9519\uFF1A" + extension.error));
+    if (download.failed === extension.key) card2.appendChild(failedNote(ui, extension.key));
     var newer = online.entries.find(function(entry) {
       return entry.key === extension.key && entry.update === true;
     });
@@ -5340,10 +5375,10 @@
     row.appendChild(toggle);
     if (newer) {
       var update = button("dp-mini", { "data-ext-update": extension.key }, function() {
-        online.loaded = false;
-        ui.send("installExtension", { key: extension.key });
+        startInstall(ui, extension.key);
       });
-      update.textContent = "\u66F4\u65B0\u5230 " + str(newer.version, "");
+      update.textContent = downloading(extension.key) ? "\u66F4\u65B0\u4E2D\u2026" : "\u66F4\u65B0\u5230 " + str(newer.version, "");
+      update.disabled = download.key !== "";
       row.appendChild(update);
     }
     if (confirming === extension.key) {
@@ -5398,16 +5433,17 @@
         head.appendChild(el("span", "dp-ext-emoji", str(entry.emoji, "\u{1F9E9}")));
         head.appendChild(el("b", null, str(entry.label, entry.key) + (entry.builtin ? " \xB7 \u5185\u7F6E" : " " + str(entry.version, ""))));
         var get = button("dp-mini", { "data-ext-install": entry.key }, function() {
-          online.loaded = false;
-          ui.send("installExtension", { key: entry.key });
+          startInstall(ui, entry.key);
         });
-        get.textContent = entry.builtin ? "\u91CD\u65B0\u5B89\u88C5" : "\u4E0B\u8F7D";
-        get.disabled = entry.blocked !== null && entry.blocked !== void 0;
+        get.textContent = downloading(entry.key) ? "\u4E0B\u8F7D\u4E2D\u2026" : entry.builtin ? "\u91CD\u65B0\u5B89\u88C5" : "\u4E0B\u8F7D";
+        get.disabled = downloading(entry.key) || download.key !== "" || entry.blocked !== null && entry.blocked !== void 0;
         head.appendChild(get);
         if (entry.description) head.appendChild(el("small", "dp-dim", str(entry.description, "")));
         card2.appendChild(head);
+        if (download.failed === entry.key) card2.appendChild(failedNote(ui, entry.key));
         if (entry.blocked === "game-too-old") card2.appendChild(el("div", "dp-ext-note", "\u9700\u8981\u6E38\u620F v" + str(entry.minGame, "") + "\uFF0C\u5148\u66F4\u65B0\u6E38\u620F"));
         else if (entry.builtin) card2.appendChild(el("div", "dp-ext-note", "\u4EE3\u7801\u5728\u6E38\u620F\u91CC\uFF0C\u88C5\u56DE\u6765\u4E0D\u7528\u4E0B\u8F7D\uFF0C\u4ECE\u96F6\u5F00\u59CB"));
+        else if (downloading(entry.key)) card2.appendChild(el("div", "dp-ext-note", "\u6B63\u5728\u4E0B\u8F7D\uFF0C\u7F51\u7EDC\u6162\u7684\u65F6\u5019\u8981\u7B49\u4E00\u4F1A\u513F"));
         ui.content.appendChild(card2);
       })(entries[k]);
     }
