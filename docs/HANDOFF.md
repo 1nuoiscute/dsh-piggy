@@ -10,7 +10,8 @@
 
 - **是什么**：一只「QQ 宠物」式的电子猪。同一份代码有两种形态：**DSH 插件**（住在 DeepSeek Harness 网页里）和**桌面版**（Electron，Windows / Linux / macOS）。
 - **代码在哪**：`/zyx/DSH/workspaces/dsh-piggy/code`（本机），远端 GitHub `CLICGGER-TYPES/dsh-piggy` 和 Gitee `clicgger/dsh-piggy`，**都只有 `main` 一个分支**。
-- **每次改完必跑**：`npm run build && npm test && npm run typecheck`（645 个测试，全绿才算完）。
+- **每次改完必跑**：`npm run build && npm test && npm run typecheck`（675 个测试，全绿才算完）。
+- **用户报问题时先让他导出日志**：「设置 → 日志 → 导出日志」，一份文件里同时有宿主、浏览器和桌面外壳三边的现场（见 [日志与导出](design/log-export.md)）。
 - **发版**：改版本号 + 写 CHANGELOG → 提交 → 推 `v*` 标签 → GitHub Actions 自动发 GitHub 和 Gitee 两套 → npm 由人手动发。详见第 9 节。
 - **最重要的三条规矩**：数值/玩法设计先问用户再做；提交信息用中文、不加 AI 署名；改了界面一定要在真实浏览器 / 桌面窗口里看一眼（测试通过 ≠ 显示正确）。
 
@@ -41,9 +42,10 @@
 |---|---|
 | `index.js` | DSH 插件入口：注册路由（`routes.js`）、斜杠命令 `/pig`（`commands.js`）、客户端脚本 |
 | `snapshot.js` | 把存档整理成面板用的「快照」（客户端只读快照，不自己算规则） |
+| `environment.js` | 版本号与环境说明（日志表头用）；`PACKAGE_VERSION` 的唯一定义处 |
 | `routes.js` | HTTP 接口：`/dsh-piggy/state`（取快照）、`/dsh-piggy/act`（所有操作，body `{action, ...}`）、`/dsh-piggy/art`、`/dsh-piggy/ext/*` |
 | `packages/pet-core/src/` | **领域库**：`data/`（数值表）、`core/`（纯函数规则）。根目录 `core.js` / `data.js` 只是再导出 |
-| `store/` | 存档读写（原子写）、迁移、扩展运行时 `ext-runtime.js` |
+| `store/` | 存档读写（原子写）、迁移、扩展运行时 `ext-runtime.js`、运行日志 `journal.js` |
 | `src/client/` | 面板前端源码（原生 JS + DOM，不用框架）→ `npm run build` 打成根目录 `client.js`（**产物要提交**） |
 | `extensions/` | 可下载扩展（`blindbox` `gacha` `farm` `mine`）+ 在线目录 `registry.json` / `registry-gitee.json` |
 | `assets/` | 立绘 SVG（形态、皮肤、动作、App 图标） |
@@ -147,6 +149,7 @@ cd /zyx/DSH/deepseek-harness && DSH_HOME=/tmp/pig-home node --import tsx/esm app
 - 接口可以直接调：`fetch('/dsh-piggy/act', {method:'POST', body: JSON.stringify({action:'hatch'})})`；`/dsh-piggy/state` 看快照。
 - **调试模式**：主菜单底下的版本号 3 秒内连点 7 次，出现「调试」App（改数值、快进时间、切形态 / 体重档等）。接口 `{action:'dev', patch:{...}}`。
 - 不支持的改动（比如扩展数据）：停服 → 改 `state.json` → 再启动。
+- **排障先看日志**：设置 → 日志 → 导出日志。也可以直接 `curl /dsh-piggy/logs/export` 看那一份纯文本；落盘的那份在存档目录 `logs/dsh-piggy.log`（一行一条 JSON，满 1.5 MB 轮转）。
 
 ### 8.2 桌面版
 
@@ -161,7 +164,7 @@ PIGGY_SHAPE=1                         # Windows 退回旧的窗口形状做法�
 PIGGY_CAPTURE=<文件> / PIGGY_CAPTURE_STEPS  # 截图自检模式
 # 加 --remote-debugging-port=9333 可以用 Playwright 连上去操作页面
 ```
-- 日志：userData 下 `piggy.log`（Windows `%APPDATA%\dsh-piggy-desktop\piggy.log`）。用户报桌面问题时先要这个。
+- 日志：外壳的窗口 / 更新记录写在 userData 下 `piggy.log`（Windows `%APPDATA%\dsh-piggy-desktop\piggy.log`）；**这些行现在也会同步进游戏日志**，所以让用户「设置 → 日志 → 导出日志」一份就够，不用再手工找两个文件。
 - Linux：Wayland 下 `--ozone-platform=x11` 必须在命令行带（代码里已自动重启带上）；`capturePage()` 截到图不代表窗口真的显示了，要看真实屏幕像素。
 - Windows：透明全屏窗口拖动会卡整机，窗口要开到内容大小；分数缩放下 `getBounds` 和 `setBounds` 会差 1px（已有 2px 容差）。
 
@@ -180,7 +183,7 @@ PIGGY_CAPTURE=<文件> / PIGGY_CAPTURE_STEPS  # 截图自检模式
 |---|---|---|
 | 游戏版本 | 根 `package.json` `version` | 每次发版 |
 | 别名包 | `packages/dsh-plugin-piggy/package.json` 的 `version` 和 `dependencies.dsh-piggy` | 和游戏版本同步 |
-| 桌面外壳 | `apps/desktop/package.json` `version` | 只有改了外壳代码才升 |
+| 桌面外壳 | `apps/desktop/package.json` `version` | 只有改了外壳代码才升（当前 0.5.0；加基础动作时同时升 `src/client/desktop/index.js` 的 `DESKTOP_VERSION`） |
 | 存档 | `STATE_VERSION` | 只有存档结构变了才升（配迁移） |
 | 扩展 | `extensions/<key>/manifest.json` | 扩展改了就升，`minGame` 写需要的最低游戏版本 |
 
@@ -255,6 +258,7 @@ PIGGY_CAPTURE=<文件> / PIGGY_CAPTURE_STEPS  # 截图自检模式
 - Linux 桌面版面板收起时拖猪，猪前面出现白块：已在拖动时隐藏礼包 / 戳一戳气泡，用户说还在，暂时搁置。
 
 **风险**
+- **扩展下载在国内直连 GitHub 会超时**（2026-10-06 查清）：插件进程用的是 Node 的 `fetch`（undici），它**不读系统代理**，而浏览器会读，所以网页上能开 GitHub、插件下载却卡住。已经做的：每个文件 12 秒超时、最多 3 次重试、并行下载、失败说清是哪一步，界面立刻显示「下载中…」并留可重试的失败提示。**没做的**：让插件的出网走系统代理（用户当时选了「只做超时重试反馈」，没要 Gitee 镜像兜底）。下次再有人报「下载不了」，先看导出日志里的 `ext` 行，确认是不是这类超时。
 - Gitee Windows 安装包离 100MiB 只剩约 0.5MiB；下次再超要继续瘦身（如 Windows 的 WebGPU 组件 dxcompiler / dxil）。
 - Gitee 附件总量：一版约 472MB，发版时新旧并存约 944MB，贴近 1GB。
 
@@ -282,5 +286,5 @@ PIGGY_CAPTURE=<文件> / PIGGY_CAPTURE_STEPS  # 截图自检模式
 ## 14. 文档索引
 
 - 玩家：[怎么玩](guides/gameplay.md) · [桌面版](guides/desktop.md) · [更新机制](guides/updates.md) · [换肤](guides/skins.md) · [做皮肤](guides/creating-skins.md) · [皮肤包格式](guides/skin-pack-format.md)
-- 开发：[开发指南](DEVELOPMENT.md) · [编码规范](CONVENTIONS.md) · [设计说明](DESIGN.md) · [美术规格](ART-SPEC.md) · [扩展下载](design/extension-download.md) · [扩展中心设计](design/extension-center.md)
+- 开发：[开发指南](DEVELOPMENT.md) · [编码规范](CONVENTIONS.md) · [设计说明](DESIGN.md) · [美术规格](ART-SPEC.md) · [扩展下载](design/extension-download.md) · [扩展中心设计](design/extension-center.md) · [日志与导出](design/log-export.md)
 - 历史：[CHANGELOG](../CHANGELOG.md) · [任务卡](tasks/README.md) · [数值单](tasks/numbers/) · [开发过程记录](PROCESS.md) · [旧交接 2026-10-03](HANDOFF-2026-10-03.md)
