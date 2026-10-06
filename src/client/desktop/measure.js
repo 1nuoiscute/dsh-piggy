@@ -113,7 +113,8 @@ export function createMeasure(env) {
       ? raw.boxes ?? {} : (raw !== null && typeof raw === 'object' && raw.v === undefined ? raw : {})
     if (raw !== null && typeof raw === 'object' && raw.v !== undefined && raw.v !== OPEN_BOX_VERSION) openBoxes = {}
   } catch { openBoxes = {} }
-  const state = { vertical: 'bottom', horizontal: 'right', pinned: '', compact: false, bubbleHeight: null }
+  /** shift：收起时窗口被夹回工作区，整块内容在窗口里反向挪多少（猪的屏幕位置不变，只裁掉透明留白）。 */
+  const state = { vertical: 'bottom', horizontal: 'right', pinned: '', compact: false, bubbleHeight: null, shift: { x: 0, y: 0 } }
   try {
     const sides = JSON.parse(localStorage.getItem(SIDES_KEY) || 'null')
     if (sides && (sides.vertical === 'top' || sides.vertical === 'bottom')) state.vertical = sides.vertical
@@ -269,10 +270,11 @@ export function createMeasure(env) {
   /** 让整块内容离窗口锚边正好 PAD。 @param {any} host */
   function pin(host, side, hostBox, contentBox) {
     const want = { left: 'auto', right: 'auto', top: 'auto', bottom: 'auto' }
-    if (side.horizontal === 'left') want.left = Math.round(hostBox.x - contentBox.left + PAD) + 'px'
-    else want.right = Math.round(contentBox.right - hostBox.x - hostBox.width + PAD) + 'px'
-    if (side.vertical === 'top') want.top = Math.round(hostBox.y - contentBox.top + PAD) + 'px'
-    else want.bottom = Math.round(contentBox.bottom - hostBox.y - hostBox.height + PAD) + 'px'
+    const shift = state.shift
+    if (side.horizontal === 'left') want.left = Math.round(hostBox.x - contentBox.left + PAD + shift.x) + 'px'
+    else want.right = Math.round(contentBox.right - hostBox.x - hostBox.width + PAD - shift.x) + 'px'
+    if (side.vertical === 'top') want.top = Math.round(hostBox.y - contentBox.top + PAD + shift.y) + 'px'
+    else want.bottom = Math.round(contentBox.bottom - hostBox.y - hostBox.height + PAD - shift.y) + 'px'
     const key = [side.vertical, side.horizontal, want.left, want.right, want.top, want.bottom].join('|')
     if (key === state.pinned) return
     state.pinned = key

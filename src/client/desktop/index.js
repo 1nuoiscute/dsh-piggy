@@ -6,7 +6,7 @@
  * 现在桌面程序只提供基础动作（piggyShell.place / setHit / beginDrag …），量尺寸、钉位置、
  * 窗口摆哪、哪里可点都在这里，跟着游戏包热更新。
  */
-import { pigCorrection, sameBounds } from './geometry.js'
+import { sameBounds } from './geometry.js'
 import { createMeasure, layoutBox } from './measure.js'
 import { createPlacement } from './place.js'
 
@@ -27,13 +27,9 @@ const DESKTOP_CSS = [
   '[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-daily,[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-poke-hint{visibility:hidden!important}',
 ].join('\n')
 
-/** 非拖动时窗口差这么多以内就不改（Windows 分数缩放下读回来常差 1px）。 */
+/** 窗口差这么多以内就不改。取 2 而不是 0/1：Windows 分数缩放下读回来常差 1px，Electron 源码自己也说
+ *  GetWindowBoundsInScreen 有约 1px 误差（native_window_views.cc）。贴着噪声改就会来回抖。 */
 const TOLERANCE = 2
-/** 摆完核对猪的屏幕坐标时容忍多少像素。
- *  取 2 而不是 1：Electron 源码自己写了「GetWindowBoundsInScreen 有约 1px 误差，DIP↔像素
- *  来回换算会丢精度」（shell/browser/native_window_views.cc 的 OnWidgetBoundsChanged，
- *  它自己用 IsApproximatelyEqual(..., 1) 比较）。容差贴着噪声就会变成来回纠正。 */
-const VERIFY_TOLERANCE = 2
 
 let bridge = /** @type {any} */ (null)
 let measure = /** @type {any} */ (null)
@@ -44,8 +40,6 @@ let hitRects = []
 let lastHit = null
 let mouse = { x: -1, y: -1 }
 let scheduled = false
-/** 待核对的摆放：{target, budget}。摆完一轮设上，核对过就清掉。 */
-let pendingVerify = /** @type {{target:{x:number,y:number}, budget:number, waits:number}|null} */ (null)
 /** 页面布局从什么时候开始和窗口尺寸对不上（见 layoutStale）。 */
 let staleSince = /** @type {number|null} */ (null)
 /** 布局迟迟跟不上窗口尺寸时最多等多久（系统不肯给这个尺寸、或分数缩放取整时，不能一直不量）。 */
@@ -118,11 +112,10 @@ function tick() {
   staleSince = null
   let next = measure.boxes(h)
   if (next === null) return
-  // 钉边之前量到的猪本地框：开面板那一刻记「猪的原位」必须用它。
-  // 钉边（pin）会改猪在窗口里的 left/top，用钉边之后的值配上还没挪的窗口，
-  // 记下来的「原位」天生差几像素（2026-10-06 实测：开面板时猪稳定跳 3~4px）。
-  const pigBoxBeforePin = { x: next.pigBox.x, y: next.pigBox.y }
   const side = measure.sides(h)
+  const open = h.getAttribute('data-open') === 'true'
+  // 面板开着不做「内容在窗口里挪」：那时放不下就是挪猪（收起后按家摆回去）。
+  if (open) resetShift()
   measure.pin(h, side, next.hostBox, next.contentBox)
   next = measure.boxes(h)
   if (next === null) return
@@ -130,78 +123,62 @@ function tick() {
   hitRects = next.shape
   if (mouse.x >= 0) updateHit(mouse.x, mouse.y)
 
-  // 先核对上一次摆放：窗口真的落到位了、猪也画出来了，这时量到的才是真的。
-  // 只有真的超差才补一次 setBounds，补完这一轮就结束（下一轮再处理内容变化）。
-  if (verifyPending()) return
-
-  const key = measure.keyOf(next)
-  if (key === lastKey) return
-  lastKey = key
-  // 决策用「同步回读」的窗口（tick 开头读的），不用可能过期的缓存：面板开着拖完再点，缓存里还是拖动前的位置。
   // 还没拿到窗口在哪：先不摆（以前按 (0,0) 算，启动时会把窗口摆错一次）。几何一到会再量。
   if (info === null || !info.window) { lastKey = null; return }
+  // 窗口还在动（X11 下 setBounds 是异步的，回读和页面的 screenX 一时对不上）：这一轮不摆，等它落定。
+  if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1) { lastKey = null; return }
   const bounds = info.window
+  const areas = info.workAreas ?? [info.workArea]
+  // 每一轮都按「家」重新算窗口（不看上一轮算了什么）：上一轮哪怕错了，这一轮按真实布局自己纠正。
   const grownX = side.horizontal === 'right' ? next.content.width - bounds.width : 0
   const grownY = side.vertical === 'bottom' ? next.content.height - bounds.height : 0
   const want = placement.decide({
-    width: next.content.width, height: next.content.height, anchor: side, pig: next.pig,
+    width: next.content.width, height: next.content.height, pig: next.pig,
     pigWindow: { x: next.pigBox.x + grownX, y: next.pigBox.y + grownY },
     pigNow: { x: next.pigBox.x, y: next.pigBox.y },
-    pigBeforePin: pigBoxBeforePin,
-    panelOpen: h.getAttribute('data-open') === 'true',
-  }, bounds, info?.workAreas ?? (info ? [info.workArea] : []))
-  const request = { shape: next.shape, bounds: want !== null && !sameBounds(want, bounds, TOLERANCE) ? want : undefined }
+    shift: measure.state.shift,
+    panelOpen: open,
+  }, bounds, areas)
+  placement.persist(areas)
+  // want 是按「内容没挪过」的布局算的。收起时窗口被夹回工作区（猪贴着屏幕边，窗口的透明留白伸出去了）：
+  // 窗口照夹，整块内容在窗口里反向挪同样多，猪的屏幕位置不变，只裁掉透明留白。
+  // 以前是窗口连猪一起被推回来——拖到屏幕边上一松手猪就弹开 30～200 多像素（2026-10-06 虚拟机真拖复现）。
+  const clamp = placement.clamp()
+  const old = measure.state.shift
+  const fresh = open ? { x: 0, y: 0 } : { x: -clamp.dx, y: -clamp.dy }
+  if (fresh.x !== old.x || fresh.y !== old.y) {
+    measure.state.shift = fresh
+    measure.pin(h, side, next.hostBox, next.contentBox)
+    const dx = fresh.x - old.x
+    const dy = fresh.y - old.y
+    next.shape = next.shape.map(rect => ({ ...rect, x: rect.x + dx, y: rect.y + dy }))
+    hitRects = next.shape
+  }
+  const move = !sameBounds(want, bounds, TOLERANCE)
+  const key = measure.keyOf(next)
+  if (!move && key === lastKey) return
+  lastKey = key
+  const request = { shape: next.shape, bounds: move ? want : undefined }
   // 每次要挪窗口都写进桌面程序日志（piggy.log）：平时开关面板、摸猪不会挪窗口，所以很少写；
   // 万一玩家看到「整块跳一下」，日志里就能看出是哪次、为什么挪。
-  if (request.bounds !== undefined) {
+  if (move) {
     console.warn('[piggy-desktop] move ' + JSON.stringify({ open: h.getAttribute('data-open'), side, from: bounds, to: want,
+      home: placement.home(), shift: measure.state.shift,
       content: { w: next.content.width, h: next.content.height }, pigBox: next.pigBox, ghosts: h.querySelectorAll('[data-ghost]').length,
       display: displayNote(info) }))
   }
-  const after = bridge.place(request)
-  if (after && after.window) {
-    // 记下这次想让猪落在哪：下一轮（窗口 resize 生效后）用它核对。
-    const reachable = placement.reachable()
-    pendingVerify = reachable === null ? null : { target: reachable, budget: 1, waits: 4 }
-    placement.remember(after.window, info?.workAreas ?? [])
-  }
+  bridge.place(request)
 }
 
-/**
- * 摆放之后核对一次：用回读的窗口 + 实测的猪本地框算猪的屏幕点。
- * 超差就补一次（budget 用完只记账不再动，避免来回抖）。
- * @returns {boolean} 这一轮是否已经补正过（补了就不再往下走）
- */
-function verifyPending() {
-  if (pendingVerify === null || dragging()) return false
+/** 猪在窗口里的框：页面已按当前窗口重排就量真实布局；还没重排（刚改完窗口）就按家和窗口算。 */
+function pigInWindow(win) {
   const h = host()
-  const { target, budget, waits } = pendingVerify
-  const info = readGeometry()
-  if (h === null || info === null || !info.window) return false
-  const pigNode = h.querySelector('.dp-pig')
-  if (pigNode === null) return false
-  // 窗口还在动的时候不核对：X11 下外壳的 getBounds() 和渲染端的 window.screenX 不是同一时刻的值
-  //（实测追踪里 screenX 整整落后一步），拿一个正在移动的窗口去核对，算出来的是假偏差，
-  // 照着它 setBounds 只会越修越抖。等两边对上了再核，最多等几轮。
-  // 尺寸也一样：页面还没按新尺寸重排时量到的猪位置属于旧布局（见 layoutStale）。
-  if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1 || layoutStale(info.window)) {
-    if (waits <= 0) { pendingVerify = null; return false }
-    pendingVerify = { target, budget, waits: waits - 1 }
-    return false
-  }
-  pendingVerify = null
-  const pig = layoutBox(pigNode)
-  const fix = pigCorrection(info.window, pig, target, VERIFY_TOLERANCE)
-  if (fix === null) return false
-  if (budget <= 0) {
-    // 补过还是差：只记账，不再动窗口（宁可差一点，也不要抖）。
-    console.warn('[piggy-desktop] verify still off ' + JSON.stringify({ dx: fix.dx, dy: fix.dy, window: info.window }))
-    return false
-  }
-  console.warn('[piggy-desktop] verify correcting ' + JSON.stringify({ dx: fix.dx, dy: fix.dy, from: info.window, to: fix.bounds, display: displayNote(info) }))
-  const after = bridge.place({ bounds: fix.bounds })
-  if (after && after.window) pendingVerify = { target, budget: budget - 1, waits: 4 }
-  return true
+  const pigNode = h?.querySelector('.dp-pig')
+  const size = placement.pigSize()
+  const homeTL = placement.homeTopLeft()
+  if (pigNode && !layoutStale(win)) return layoutBox(pigNode)
+  if (homeTL !== null) return { x: homeTL.x - win.x, y: homeTL.y - win.y, width: size.width, height: size.height }
+  return pigNode ? layoutBox(pigNode) : null
 }
 
 /** 窗口在哪块屏、那块屏什么缩放：Windows 分数缩放的问题只能靠这个在日志里看出来。 */
@@ -222,6 +199,12 @@ function readGeometry() {
     if (fresh !== null && fresh !== undefined && fresh.window) return fresh
   }
   return geometry()
+}
+
+/** 内容回到贴着窗口锚边的正常位置（拖动、开面板时用；需要时下一轮会重新算）。 */
+function resetShift() {
+  if (measure.state.shift.x === 0 && measure.state.shift.y === 0) return
+  measure.state.shift = { x: 0, y: 0 }
 }
 
 function schedule() {
@@ -245,61 +228,56 @@ export function install(shell) {
     ;/** @type {any} */ (window).__dshPiggyShellOutdated = true
   }
   placement = createPlacement({ platform: shell.platform || '' })
-  measure = createMeasure({ platform: shell.platform || '', geometry, anchor: () => placement.resting() })
+  measure = createMeasure({ platform: shell.platform || '', geometry, anchor: () => placement.homeTopLeft() })
   const style = document.createElement('style')
   style.setAttribute('data-piggy-desktop-style', '')
   style.textContent = DESKTOP_CSS
   document.head.appendChild(style)
-  if (typeof shell.onGeometry === 'function') shell.onGeometry(function (info) {
-    if (info && info.window && !dragging()) placement.remember(info.window, info.workAreas ?? [])
-    schedule()
-  })
+  if (typeof shell.onGeometry === 'function') shell.onGeometry(function () { schedule() })
   if (typeof shell.askGeometry === 'function') shell.askGeometry()
   ;/** @type {any} */ (window).__dshPiggyShell = {
     room,
     refreshRoom: function () { closedRoom = null },
     beginDrag: function () {
-      placement.dragStarted()
       const h = host()
       if (h !== null && h.getAttribute('data-open') === 'false') {
+        // 收起时拖：窗口先缩成只包住猪（和气泡区），猪不动。
         measure.state.compact = true
+        resetShift()
         tick()
-        const pigNode = h.querySelector('.dp-pig')
-        if (pigNode !== null) {
-          // tick 刚把窗口缩成拖动尺寸，页面多半还没重排：这时量到的是旧布局里的位置，
-          // 主进程拿它当猪在窗口里的偏移，拖到屏幕边上夹取会差一个尺寸变化量。用刚算出的新位置。
-          const now = readGeometry()
-          const predicted = placement.pigWindow()
-          const pigBox = now !== null && now.window && layoutStale(now.window) && predicted !== null
-            ? { ...predicted, ...placement.pigSize() } : layoutBox(pigNode)
-          shell.beginDrag({ x: pigBox.x, y: pigBox.y, width: pigBox.width, height: pigBox.height })
-          return
-        }
       }
-      const pig = placement.pigWindow()
-      const size = placement.pigSize()
-      shell.beginDrag(pig === null ? null : { x: pig.x, y: pig.y, width: size.width, height: size.height })
+      // 告诉主进程猪在窗口里哪儿：刚缩完窗口页面多半还没重排，按家和窗口算，不量旧布局。
+      const info = readGeometry()
+      const pig = info && info.window ? pigInWindow(info.window) : null
+      shell.beginDrag(pig === null ? null : { x: pig.x, y: pig.y, width: pig.width, height: pig.height })
     },
     dragHeartbeat: function () { if (typeof shell.dragHeartbeat === 'function') shell.dragHeartbeat() },
     endDrag: function () {
       shell.endDrag()
       const compact = measure.state.compact
+      // 拖动结束和同步读几何按 IPC 顺序处理，读到的就是最后一帧之后的窗口。
+      const info = readGeometry()
+      if (info && info.window) {
+        // 猪的新家 = 它此刻真实画在哪（窗口 + 猪在窗口里的框）。拖动是唯一由用户决定位置的事。
+        const pig = pigInWindow(info.window)
+        if (pig !== null) {
+          placement.rehome(info.window, pig, info.workAreas ?? [info.workArea])
+          if (compact) measure.collapsedSide(pig, info)
+        }
+      }
       measure.state.compact = false
-      const h = host()
-      const pigNode = h?.querySelector('.dp-pig')
-      // 拖动结束和同步读几何按 IPC 顺序处理，避免用到最后一帧之前的窗口位置。
-      const info = typeof shell.place === 'function' ? shell.place({}) : null
-      if (compact && pigNode !== null && pigNode !== undefined && info !== null) measure.collapsedSide(layoutBox(pigNode), info)
-      // 拖动期间窗口被主进程挪了几十上百次，页面一次都没跟上（拖动中不 tick）。
-      // 以前只有收起态才在这里重新标定，面板开着拖完，缓存里留着的是拖动前的位置，
-      // 下一次内容变化就把这段落差当成真实位移用掉（用户 2026-10-06 报的偏移来源之一）。
       lastKey = null
-      pendingVerify = null
       tick()
     },
     syncGeometry: function () { tick() },
     // 桌面散步（G 批次）：用外壳本来就有的 moveBy 挪窗口，新位置由主进程推回来的几何记住。
-    moveBy: typeof shell.moveBy === 'function' ? function (dx, dy) { shell.moveBy(dx, dy) } : undefined,
+    moveBy: typeof shell.moveBy === 'function' ? function (dx, dy) {
+      shell.moveBy(dx, dy)
+      // 散步是猪自己走：走完按窗口真实位置重定家（主进程可能在屏幕边上夹过）。
+      const info = readGeometry()
+      const pig = info && info.window ? pigInWindow(info.window) : null
+      if (pig !== null) placement.rehome(info.window, pig, info.workAreas ?? [info.workArea])
+    } : undefined,
   }
   // 系统原生的 title 小提示在 Windows 透明置顶窗口上会画坏：鼠标移上去时改成 aria-label。
   document.addEventListener('mouseover', function (event) {

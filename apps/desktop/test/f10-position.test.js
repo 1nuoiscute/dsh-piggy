@@ -107,9 +107,9 @@ test('显示器对账兜底：漏了 display 事件也能自愈', () => {
   assert.match(main, /displayWatchTimer = setInterval\([\s\S]*?screen\.getAllDisplays\(\)[\s\S]*?reclamp\('reconcile'/, '每 10 秒比一次工作区列表')
 })
 
-test('核对容差不贴着 Electron 的 ±1px 噪声（容差 1 会来回纠正）', () => {
+test('窗口改动容差不贴着 Electron 的 ±1px 噪声（容差 1 会来回纠正）', () => {
   const index = readFileSync(new URL('../../../src/client/desktop/index.js', import.meta.url), 'utf8')
-  assert.match(index, /const VERIFY_TOLERANCE = 2/)
+  assert.match(index, /const TOLERANCE = 2/)
   assert.match(index, /~1 ?像素误差|约 1px 误差|1px 误差/)
 })
 

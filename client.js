@@ -5004,13 +5004,13 @@
         s.vel = Math.min(0, s.vel);
       }
       moveFish(dt);
-      const inside = s.fishY >= s.zone && s.fishY <= s.zone + s.zoneH;
-      s.progress = Math.max(0, Math.min(100, s.progress + (inside ? 0.028 : -0.022 - d * 1e-4) * dt));
+      const inside2 = s.fishY >= s.zone && s.fishY <= s.zone + s.zoneH;
+      s.progress = Math.max(0, Math.min(100, s.progress + (inside2 ? 0.028 : -0.022 - d * 1e-4) * dt));
       zone.style.bottom = s.zone + "px";
       zone.style.height = s.zoneH + "px";
       swimmer.style.bottom = s.fishY + "px";
       fill.style.height = s.progress + "%";
-      stage.setAttribute("data-inside", inside ? "true" : "false");
+      stage.setAttribute("data-inside", inside2 ? "true" : "false");
       stage.setAttribute("data-progress", s.progress.toFixed(0));
       if (s.progress >= 100) return finish(true);
       if (s.progress <= 0) return finish(false);
@@ -7266,12 +7266,6 @@
       height
     };
   }
-  function resizedPigScreenPoint(point, before, after) {
-    return {
-      x: round(point.x + (before.width - after.width) / 2),
-      y: round(point.y + before.height - after.height)
-    };
-  }
   function nearestArea(point, areas) {
     let best = null;
     let bestDistance = Infinity;
@@ -7288,21 +7282,6 @@
   }
   function sameBounds(a, b, tolerance) {
     return Math.abs(a.x - b.x) <= tolerance && Math.abs(a.y - b.y) <= tolerance && Math.abs(a.width - b.width) <= tolerance && Math.abs(a.height - b.height) <= tolerance;
-  }
-  function pigCorrection(windowBounds, pigLocal, targetPigScreen, tolerance) {
-    const dx = round(windowBounds.x) + round(pigLocal.x) - round(targetPigScreen.x);
-    const dy = round(windowBounds.y) + round(pigLocal.y) - round(targetPigScreen.y);
-    if (Math.abs(dx) <= tolerance && Math.abs(dy) <= tolerance) return null;
-    return {
-      dx,
-      dy,
-      bounds: {
-        x: round(windowBounds.x) - dx,
-        y: round(windowBounds.y) - dy,
-        width: round(windowBounds.width),
-        height: round(windowBounds.height)
-      }
-    };
   }
 
   // src/client/desktop/measure.js
@@ -7376,7 +7355,7 @@
     } catch {
       openBoxes = {};
     }
-    const state2 = { vertical: "bottom", horizontal: "right", pinned: "", compact: false, bubbleHeight: null };
+    const state2 = { vertical: "bottom", horizontal: "right", pinned: "", compact: false, bubbleHeight: null, shift: { x: 0, y: 0 } };
     try {
       const sides2 = JSON.parse(localStorage.getItem(SIDES_KEY) || "null");
       if (sides2 && (sides2.vertical === "top" || sides2.vertical === "bottom")) state2.vertical = sides2.vertical;
@@ -7541,10 +7520,11 @@
     }
     function pin(host2, side, hostBox, contentBox) {
       const want = { left: "auto", right: "auto", top: "auto", bottom: "auto" };
-      if (side.horizontal === "left") want.left = Math.round(hostBox.x - contentBox.left + PAD) + "px";
-      else want.right = Math.round(contentBox.right - hostBox.x - hostBox.width + PAD) + "px";
-      if (side.vertical === "top") want.top = Math.round(hostBox.y - contentBox.top + PAD) + "px";
-      else want.bottom = Math.round(contentBox.bottom - hostBox.y - hostBox.height + PAD) + "px";
+      const shift = state2.shift;
+      if (side.horizontal === "left") want.left = Math.round(hostBox.x - contentBox.left + PAD + shift.x) + "px";
+      else want.right = Math.round(contentBox.right - hostBox.x - hostBox.width + PAD - shift.x) + "px";
+      if (side.vertical === "top") want.top = Math.round(hostBox.y - contentBox.top + PAD + shift.y) + "px";
+      else want.bottom = Math.round(contentBox.bottom - hostBox.y - hostBox.height + PAD - shift.y) + "px";
       const key = [side.vertical, side.horizontal, want.left, want.right, want.top, want.bottom].join("|");
       if (key === state2.pinned) return;
       state2.pinned = key;
@@ -7571,117 +7551,61 @@
 
   // src/client/desktop/place.js
   var PIG_SCREEN_KEY = "dsh-piggy:desktop-pig";
-  var STARTUP_MS = 4e3;
+  var STORE_VERSION = 3;
+  function inside(area, point) {
+    return point.x >= area.x && point.x < area.x + area.width && point.y >= area.y && point.y < area.y + area.height;
+  }
+  function areaOf(point, areas) {
+    if (!Array.isArray(areas) || areas.length === 0) return null;
+    return areas.find((area) => inside(area, point)) ?? nearestArea(point, areas);
+  }
   function createPlacement(options = {}) {
-    const now = options.now ?? (() => Date.now());
-    let lastContent = null;
-    let lastPigWindow = null;
-    let lastPigWindowFor = null;
-    let lastMeasuredPig = null;
-    let lastPigSize = { width: 56, height: 56 };
-    let resting = null;
-    let saved = null;
-    let lastTarget = null;
-    let lastReachable = null;
-    const startedAt = now();
+    void options;
+    let home = null;
+    let pending = (
+      /** @type {any} */
+      void 0
+    );
     let stored = "";
-    let loaded = false;
-    function readSaved(areas) {
+    let lastClamp = { dx: 0, dy: 0 };
+    let lastPigSize = { width: 56, height: 56 };
+    function readSaved() {
       let raw = null;
       try {
         raw = JSON.parse(localStorage.getItem(PIG_SCREEN_KEY) || "null");
       } catch {
         return null;
       }
-      if (raw === null || typeof raw !== "object") return null;
-      if (raw.v === 2 && Number.isFinite(raw.x) && Number.isFinite(raw.y)) {
-        const list = Array.isArray(areas) ? areas : [];
-        const same = raw.area === null || raw.area === void 0 ? null : list.find((area2) => area2.x === raw.area.x && area2.y === raw.area.y && area2.width === raw.area.width && area2.height === raw.area.height) ?? null;
-        const area = same ?? areaOf({ x: (raw.area?.x ?? 0) + raw.x, y: (raw.area?.y ?? 0) + raw.y }, list);
-        const point = area === null ? { x: raw.x, y: raw.y } : { x: Math.round(area.x + raw.x), y: Math.round(area.y + raw.y) };
-        return Number.isFinite(raw.w) && Number.isFinite(raw.h) ? { ...point, w: raw.w, h: raw.h } : point;
-      }
-      return Number.isFinite(raw.x) && Number.isFinite(raw.y) ? { x: raw.x, y: raw.y } : null;
+      if (raw === null || typeof raw !== "object" || !Number.isFinite(raw.x) || !Number.isFinite(raw.y)) return null;
+      return raw;
     }
-    function areaOf(point, areas) {
-      if (!Array.isArray(areas) || areas.length === 0) return null;
-      let best = null;
-      let bestDistance = Infinity;
-      for (const area of areas) {
-        const inside = point.x >= area.x && point.x < area.x + area.width && point.y >= area.y && point.y < area.y + area.height;
-        const dx = Math.max(area.x - point.x, 0, point.x - (area.x + area.width));
-        const dy = Math.max(area.y - point.y, 0, point.y - (area.y + area.height));
-        const distance = inside ? -1 : dx * dx + dy * dy;
-        if (distance < bestDistance) {
-          best = area;
-          bestDistance = distance;
-        }
+    function homeFromSaved(raw, pigSize2, areas) {
+      const list = Array.isArray(areas) ? areas : [];
+      const relative = raw.v === STORE_VERSION || raw.v === 2;
+      const same = relative && raw.area ? list.find((a) => a.x === raw.area.x && a.y === raw.area.y && a.width === raw.area.width && a.height === raw.area.height) : null;
+      const origin = relative && raw.area ? same ?? raw.area : { x: 0, y: 0 };
+      let point = { x: origin.x + raw.x, y: origin.y + raw.y };
+      if (raw.v !== STORE_VERSION) {
+        const w = Number.isFinite(raw.w) ? raw.w : pigSize2.width;
+        const h = Number.isFinite(raw.h) ? raw.h : pigSize2.height;
+        point = { x: point.x + w / 2, y: point.y + h };
       }
-      return best;
+      if (relative && raw.area && same === null) {
+        const area = areaOf(point, list);
+        if (area !== null) point = clampInto(point, area);
+      }
+      return { x: Math.round(point.x), y: Math.round(point.y) };
     }
-    function decide(report, bounds, areas) {
-      if (!loaded) {
-        loaded = true;
-        saved = readSaved(areas);
-        stored = saved === null ? "" : JSON.stringify({ x: saved.x, y: saved.y });
-      }
-      const width = report.width;
-      const height = report.height;
-      const anchor = report.anchor;
-      const pigWindow = report.pigWindow;
-      const pigNow = report.pigNow;
-      const pigSize2 = report.pig.width > 0 && report.pig.height > 0 ? { width: report.pig.width, height: report.pig.height } : lastPigSize;
-      const panelOpen = report.panelOpen === true;
-      const sizeChanged = lastPigWindow !== null && (lastPigSize.width !== pigSize2.width || lastPigSize.height !== pigSize2.height);
-      const changed = lastContent === null || lastContent.width !== width || lastContent.height !== height || lastContent.anchor.vertical !== anchor.vertical || lastContent.anchor.horizontal !== anchor.horizontal || sizeChanged || lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y);
-      const sameWindow = lastPigWindowFor !== null && lastPigWindowFor.width === bounds.width && lastPigWindowFor.height === bounds.height;
-      const measuredPig = Number.isFinite(report.pigBeforePin?.x) && Number.isFinite(report.pigBeforePin?.y) ? report.pigBeforePin : null;
-      const previousPig = sameWindow ? lastPigWindow : measuredPig;
-      lastMeasuredPig = pigWindow;
-      if (saved !== null) {
-        const nowPig = pigNow;
-        const realPig = saved.w === void 0 || pigSize2.width === saved.w && pigSize2.height === saved.h;
-        const settled = realPig && bounds.width === Math.max(MIN_WINDOW.width, Math.round(width)) && bounds.height === Math.max(MIN_WINDOW.height, Math.round(height)) && Math.abs(bounds.x + nowPig.x - saved.x) <= 1 && Math.abs(bounds.y + nowPig.y - saved.y) <= 1;
-        if (settled || panelOpen || now() - startedAt > STARTUP_MS) saved = null;
-      }
-      if (panelOpen && lastContent?.panelOpen !== true) {
-        const base = previousPig ?? pigWindow;
-        resting = saved ?? { x: bounds.x + base.x, y: bounds.y + base.y };
-      }
-      let next = null;
-      if (changed) {
-        const before = previousPig ?? pigNow;
-        const pigBefore = saved ?? { x: bounds.x + before.x, y: bounds.y + before.y };
-        const target = saved !== null ? { x: saved.x, y: saved.y } : sizeChanged ? resizedPigScreenPoint(resting ?? pigBefore, lastPigSize, pigSize2) : resting ?? pigBefore;
-        if (sizeChanged && resting !== null) resting = target;
-        const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
-        next = contentBoundsForPig({ width, height, pigWindow: { ...pigWindow, ...pigSize2 }, panelOpen, allowPanelOverflow: sizeChanged }, target, area);
-        next.x = Math.max(area.x, Math.min(next.x, area.x + area.width - next.width));
-        next.y = Math.max(area.y, Math.min(next.y, area.y + area.height - next.height));
-        lastTarget = target;
-        lastReachable = { x: next.x + Math.round(pigWindow.x), y: next.y + Math.round(pigWindow.y) };
-      }
-      if (!panelOpen) resting = null;
-      lastContent = { width, height, anchor, panelOpen };
-      lastPigWindow = pigWindow;
-      lastPigWindowFor = next === null ? { width: bounds.width, height: bounds.height } : { width: next.width, height: next.height };
-      lastPigSize = pigSize2;
-      return next;
+    function clampInto(point, area) {
+      return {
+        x: Math.max(area.x, Math.min(point.x, area.x + area.width - 1)),
+        y: Math.max(area.y + 1, Math.min(point.y, area.y + area.height))
+      };
     }
-    function dragStarted() {
-      resting = null;
-      saved = null;
-      lastTarget = null;
-      lastReachable = null;
-    }
-    function remember(windowBounds, areas) {
-      if (lastMeasuredPig === null || saved !== null) return;
-      const x = windowBounds.x + lastMeasuredPig.x;
-      const y = windowBounds.y + lastMeasuredPig.y;
-      const area = areaOf({ x, y }, areas);
-      const w = lastPigSize.width;
-      const h = lastPigSize.height;
-      const payload = area === null ? { v: 2, area: null, x, y, w, h } : { v: 2, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: x - area.x, y: y - area.y, w, h };
+    function persist(areas) {
+      if (home === null) return;
+      const area = areaOf(home, areas);
+      const payload = area === null ? { v: STORE_VERSION, area: null, x: home.x, y: home.y } : { v: STORE_VERSION, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: home.x - area.x, y: home.y - area.y };
       const key = JSON.stringify(payload);
       if (key === stored) return;
       stored = key;
@@ -7690,23 +7614,54 @@
       } catch {
       }
     }
+    function decide(report, bounds, areas) {
+      const pigSize2 = report.pig.width > 0 && report.pig.height > 0 ? { width: report.pig.width, height: report.pig.height } : lastPigSize;
+      lastPigSize = pigSize2;
+      if (pending === void 0) pending = readSaved();
+      if (home === null) {
+        home = pending !== null ? homeFromSaved(pending, pigSize2, areas) : { x: Math.round(bounds.x + report.pigNow.x + pigSize2.width / 2), y: Math.round(bounds.y + report.pigNow.y + pigSize2.height) };
+        pending = null;
+      }
+      const list = Array.isArray(areas) ? areas : [];
+      if (list.length > 0 && !list.some((area2) => inside(area2, home))) {
+        const area2 = (
+          /** @type {any} */
+          nearestArea(home, list)
+        );
+        home = {
+          x: Math.round(Math.max(area2.x + pigSize2.width / 2, Math.min(home.x, area2.x + area2.width - pigSize2.width / 2))),
+          y: Math.round(Math.max(area2.y + pigSize2.height, Math.min(home.y, area2.y + area2.height)))
+        };
+      }
+      const shift = report.shift ?? { x: 0, y: 0 };
+      const pigPlain = { x: report.pigWindow.x - shift.x, y: report.pigWindow.y - shift.y, ...pigSize2 };
+      const topLeft = { x: home.x - pigSize2.width / 2, y: home.y - pigSize2.height };
+      const area = nearestArea(home, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
+      const next = contentBoundsForPig({ width: report.width, height: report.height, pigWindow: pigPlain, panelOpen: report.panelOpen === true }, topLeft, area);
+      const rawX = next.x;
+      const rawY = next.y;
+      next.x = Math.max(area.x, Math.min(next.x, area.x + area.width - next.width));
+      next.y = Math.max(area.y, Math.min(next.y, area.y + area.height - next.height));
+      lastClamp = { dx: next.x - rawX, dy: next.y - rawY };
+      return next;
+    }
+    function rehome(windowPos, pigLocal, areas) {
+      home = { x: Math.round(windowPos.x + pigLocal.x + pigLocal.width / 2), y: Math.round(windowPos.y + pigLocal.y + pigLocal.height) };
+      pending = null;
+      persist(areas);
+    }
     return {
       decide,
-      dragStarted,
-      remember,
-      pigWindow: () => lastPigWindow,
-      /** 面板开着时记下的猪原位（收起时要摆回这里）；没有就是 null。 */
-      resting: () => resting,
-      pigSize: () => lastPigSize,
-      /** 上一次 decide 想让猪落在哪（意图）。 */
-      target: () => lastTarget,
-      /** 上一次摆放里猪实际能落到的点（夹进工作区之后），闭环核对用这个。 */
-      reachable: () => lastReachable,
-      /** 核对通过（或放弃）以后清掉，避免重复修。 */
-      targetDone: () => {
-        lastTarget = null;
-        lastReachable = null;
-      }
+      rehome,
+      /** 家写盘（启动换算完、显示器变了之后调一次）。 */
+      persist,
+      /** 猪的家（脚底中心）；还不知道是 null。 */
+      home: () => home,
+      /** 猪在家时左上角在哪（面板预留范围按它判断放不放得下）。 */
+      homeTopLeft: () => home === null ? null : { x: home.x - lastPigSize.width / 2, y: home.y - lastPigSize.height },
+      /** 上一轮算出来的窗口被工作区夹了多少。 */
+      clamp: () => lastClamp,
+      pigSize: () => lastPigSize
     };
   }
 
@@ -7724,7 +7679,6 @@
     '[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-daily,[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-poke-hint{visibility:hidden!important}'
   ].join("\n");
   var TOLERANCE = 2;
-  var VERIFY_TOLERANCE = 2;
   var bridge2 = (
     /** @type {any} */
     null
@@ -7743,10 +7697,6 @@
   var lastHit = null;
   var mouse = { x: -1, y: -1 };
   var scheduled = false;
-  var pendingVerify = (
-    /** @type {{target:{x:number,y:number}, budget:number, waits:number}|null} */
-    null
-  );
   var staleSince = (
     /** @type {number|null} */
     null
@@ -7789,14 +7739,14 @@
   function updateHit(x, y) {
     mouse = { x, y };
     if (typeof bridge2.setHit !== "function") return;
-    let inside = dragging();
-    for (let i = 0; !inside && i < hitRects.length; i += 1) {
+    let inside2 = dragging();
+    for (let i = 0; !inside2 && i < hitRects.length; i += 1) {
       const r = hitRects[i];
-      inside = x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height;
+      inside2 = x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height;
     }
-    if (inside === lastHit) return;
-    lastHit = inside;
-    bridge2.setHit(inside);
+    if (inside2 === lastHit) return;
+    lastHit = inside2;
+    bridge2.setHit(inside2);
   }
   function layoutStale(win) {
     return Math.abs(window.innerWidth - win.width) > 1 || Math.abs(window.innerHeight - win.height) > 1;
@@ -7816,82 +7766,76 @@
     staleSince = null;
     let next = measure.boxes(h);
     if (next === null) return;
-    const pigBoxBeforePin = { x: next.pigBox.x, y: next.pigBox.y };
     const side = measure.sides(h);
+    const open = h.getAttribute("data-open") === "true";
+    if (open) resetShift();
     measure.pin(h, side, next.hostBox, next.contentBox);
     next = measure.boxes(h);
     if (next === null) return;
     hitRects = next.shape;
     if (mouse.x >= 0) updateHit(mouse.x, mouse.y);
-    if (verifyPending()) return;
-    const key = measure.keyOf(next);
-    if (key === lastKey) return;
-    lastKey = key;
     if (info === null || !info.window) {
       lastKey = null;
       return;
     }
+    if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1) {
+      lastKey = null;
+      return;
+    }
     const bounds = info.window;
+    const areas = info.workAreas ?? [info.workArea];
     const grownX = side.horizontal === "right" ? next.content.width - bounds.width : 0;
     const grownY = side.vertical === "bottom" ? next.content.height - bounds.height : 0;
     const want = placement.decide({
       width: next.content.width,
       height: next.content.height,
-      anchor: side,
       pig: next.pig,
       pigWindow: { x: next.pigBox.x + grownX, y: next.pigBox.y + grownY },
       pigNow: { x: next.pigBox.x, y: next.pigBox.y },
-      pigBeforePin: pigBoxBeforePin,
-      panelOpen: h.getAttribute("data-open") === "true"
-    }, bounds, info?.workAreas ?? (info ? [info.workArea] : []));
-    const request = { shape: next.shape, bounds: want !== null && !sameBounds(want, bounds, TOLERANCE) ? want : void 0 };
-    if (request.bounds !== void 0) {
+      shift: measure.state.shift,
+      panelOpen: open
+    }, bounds, areas);
+    placement.persist(areas);
+    const clamp = placement.clamp();
+    const old = measure.state.shift;
+    const fresh = open ? { x: 0, y: 0 } : { x: -clamp.dx, y: -clamp.dy };
+    if (fresh.x !== old.x || fresh.y !== old.y) {
+      measure.state.shift = fresh;
+      measure.pin(h, side, next.hostBox, next.contentBox);
+      const dx = fresh.x - old.x;
+      const dy = fresh.y - old.y;
+      next.shape = next.shape.map((rect) => ({ ...rect, x: rect.x + dx, y: rect.y + dy }));
+      hitRects = next.shape;
+    }
+    const move = !sameBounds(want, bounds, TOLERANCE);
+    const key = measure.keyOf(next);
+    if (!move && key === lastKey) return;
+    lastKey = key;
+    const request = { shape: next.shape, bounds: move ? want : void 0 };
+    if (move) {
       console.warn("[piggy-desktop] move " + JSON.stringify({
         open: h.getAttribute("data-open"),
         side,
         from: bounds,
         to: want,
+        home: placement.home(),
+        shift: measure.state.shift,
         content: { w: next.content.width, h: next.content.height },
         pigBox: next.pigBox,
         ghosts: h.querySelectorAll("[data-ghost]").length,
         display: displayNote(info)
       }));
     }
-    const after = bridge2.place(request);
-    if (after && after.window) {
-      const reachable = placement.reachable();
-      pendingVerify = reachable === null ? null : { target: reachable, budget: 1, waits: 4 };
-      placement.remember(after.window, info?.workAreas ?? []);
-    }
+    bridge2.place(request);
   }
-  function verifyPending() {
-    if (pendingVerify === null || dragging()) return false;
+  function pigInWindow(win) {
     const h = host();
-    const { target, budget, waits } = pendingVerify;
-    const info = readGeometry();
-    if (h === null || info === null || !info.window) return false;
-    const pigNode = h.querySelector(".dp-pig");
-    if (pigNode === null) return false;
-    if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1 || layoutStale(info.window)) {
-      if (waits <= 0) {
-        pendingVerify = null;
-        return false;
-      }
-      pendingVerify = { target, budget, waits: waits - 1 };
-      return false;
-    }
-    pendingVerify = null;
-    const pig = layoutBox(pigNode);
-    const fix = pigCorrection(info.window, pig, target, VERIFY_TOLERANCE);
-    if (fix === null) return false;
-    if (budget <= 0) {
-      console.warn("[piggy-desktop] verify still off " + JSON.stringify({ dx: fix.dx, dy: fix.dy, window: info.window }));
-      return false;
-    }
-    console.warn("[piggy-desktop] verify correcting " + JSON.stringify({ dx: fix.dx, dy: fix.dy, from: info.window, to: fix.bounds, display: displayNote(info) }));
-    const after = bridge2.place({ bounds: fix.bounds });
-    if (after && after.window) pendingVerify = { target, budget: budget - 1, waits: 4 };
-    return true;
+    const pigNode = h?.querySelector(".dp-pig");
+    const size = placement.pigSize();
+    const homeTL = placement.homeTopLeft();
+    if (pigNode && !layoutStale(win)) return layoutBox(pigNode);
+    if (homeTL !== null) return { x: homeTL.x - win.x, y: homeTL.y - win.y, width: size.width, height: size.height };
+    return pigNode ? layoutBox(pigNode) : null;
   }
   function displayNote(info) {
     const list = info?.displays;
@@ -7907,6 +7851,10 @@
       if (fresh !== null && fresh !== void 0 && fresh.window) return fresh;
     }
     return geometry();
+  }
+  function resetShift() {
+    if (measure.state.shift.x === 0 && measure.state.shift.y === 0) return;
+    measure.state.shift = { x: 0, y: 0 };
   }
   function schedule2() {
     if (scheduled) return;
@@ -7924,13 +7872,12 @@
       window.__dshPiggyShellOutdated = true;
     }
     placement = createPlacement({ platform: shell.platform || "" });
-    measure = createMeasure({ platform: shell.platform || "", geometry, anchor: () => placement.resting() });
+    measure = createMeasure({ platform: shell.platform || "", geometry, anchor: () => placement.homeTopLeft() });
     const style = document.createElement("style");
     style.setAttribute("data-piggy-desktop-style", "");
     style.textContent = DESKTOP_CSS;
     document.head.appendChild(style);
-    if (typeof shell.onGeometry === "function") shell.onGeometry(function(info) {
-      if (info && info.window && !dragging()) placement.remember(info.window, info.workAreas ?? []);
+    if (typeof shell.onGeometry === "function") shell.onGeometry(function() {
       schedule2();
     });
     if (typeof shell.askGeometry === "function") shell.askGeometry();
@@ -7940,23 +7887,15 @@
         closedRoom = null;
       },
       beginDrag: function() {
-        placement.dragStarted();
         const h = host();
         if (h !== null && h.getAttribute("data-open") === "false") {
           measure.state.compact = true;
+          resetShift();
           tick();
-          const pigNode = h.querySelector(".dp-pig");
-          if (pigNode !== null) {
-            const now = readGeometry();
-            const predicted = placement.pigWindow();
-            const pigBox = now !== null && now.window && layoutStale(now.window) && predicted !== null ? { ...predicted, ...placement.pigSize() } : layoutBox(pigNode);
-            shell.beginDrag({ x: pigBox.x, y: pigBox.y, width: pigBox.width, height: pigBox.height });
-            return;
-          }
         }
-        const pig = placement.pigWindow();
-        const size = placement.pigSize();
-        shell.beginDrag(pig === null ? null : { x: pig.x, y: pig.y, width: size.width, height: size.height });
+        const info = readGeometry();
+        const pig = info && info.window ? pigInWindow(info.window) : null;
+        shell.beginDrag(pig === null ? null : { x: pig.x, y: pig.y, width: pig.width, height: pig.height });
       },
       dragHeartbeat: function() {
         if (typeof shell.dragHeartbeat === "function") shell.dragHeartbeat();
@@ -7964,13 +7903,16 @@
       endDrag: function() {
         shell.endDrag();
         const compact = measure.state.compact;
+        const info = readGeometry();
+        if (info && info.window) {
+          const pig = pigInWindow(info.window);
+          if (pig !== null) {
+            placement.rehome(info.window, pig, info.workAreas ?? [info.workArea]);
+            if (compact) measure.collapsedSide(pig, info);
+          }
+        }
         measure.state.compact = false;
-        const h = host();
-        const pigNode = h?.querySelector(".dp-pig");
-        const info = typeof shell.place === "function" ? shell.place({}) : null;
-        if (compact && pigNode !== null && pigNode !== void 0 && info !== null) measure.collapsedSide(layoutBox(pigNode), info);
         lastKey = null;
-        pendingVerify = null;
         tick();
       },
       syncGeometry: function() {
@@ -7979,6 +7921,9 @@
       // 桌面散步（G 批次）：用外壳本来就有的 moveBy 挪窗口，新位置由主进程推回来的几何记住。
       moveBy: typeof shell.moveBy === "function" ? function(dx, dy) {
         shell.moveBy(dx, dy);
+        const info = readGeometry();
+        const pig = info && info.window ? pigInWindow(info.window) : null;
+        if (pig !== null) placement.rehome(info.window, pig, info.workAreas ?? [info.workArea]);
       } : void 0
     };
     document.addEventListener("mouseover", function(event) {

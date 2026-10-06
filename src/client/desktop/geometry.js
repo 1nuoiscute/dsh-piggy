@@ -50,14 +50,6 @@ export function contentBoundsForPig(content, targetPigScreen, area) {
   }
 }
 
-/** 猪换大小时保持脚底中心不动。 */
-export function resizedPigScreenPoint(point, before, after) {
-  return {
-    x: round(point.x + (before.width - after.width) / 2),
-    y: round(point.y + before.height - after.height),
-  }
-}
-
 /**
  * 离某个点最近的屏幕工作区（点在哪块屏里就用哪块，都不在就取最近的）。
  * @param {{x:number,y:number}} point
@@ -79,33 +71,4 @@ export function nearestArea(point, areas) {
 export function sameBounds(a, b, tolerance) {
   return Math.abs(a.x - b.x) <= tolerance && Math.abs(a.y - b.y) <= tolerance
     && Math.abs(a.width - b.width) <= tolerance && Math.abs(a.height - b.height) <= tolerance
-}
-
-/**
- * 摆放之后核对：猪实际落在哪里，和「该在的地方」差多少。
- *
- * 这是 2026-10-06 补上的闭环：以前摆完就完事，系统取整、夹取、DPI 缩放造成的偏差
- * 没人回读，误差会被下一次计算继承（用户看到的「偏了就一直在那儿」）。
- * 只有真的超差才返回修正值，容忍范围内返回 null —— 免得每次内容变化都多一次 setBounds。
- *
- * @param {{x:number,y:number,width:number,height:number}} windowBounds 回读到的窗口
- * @param {{x:number,y:number}} pigLocal 实测的猪在窗口客户区里的位置
- * @param {{x:number,y:number}} targetPigScreen 这次摆放想让猪落在哪
- * @param {number} tolerance 容忍多少像素
- * @returns {{bounds:{x:number,y:number,width:number,height:number}, dx:number, dy:number}|null}
- */
-export function pigCorrection(windowBounds, pigLocal, targetPigScreen, tolerance) {
-  const dx = round(windowBounds.x) + round(pigLocal.x) - round(targetPigScreen.x)
-  const dy = round(windowBounds.y) + round(pigLocal.y) - round(targetPigScreen.y)
-  if (Math.abs(dx) <= tolerance && Math.abs(dy) <= tolerance) return null
-  return {
-    dx,
-    dy,
-    bounds: {
-      x: round(windowBounds.x) - dx,
-      y: round(windowBounds.y) - dy,
-      width: round(windowBounds.width),
-      height: round(windowBounds.height),
-    },
-  }
 }

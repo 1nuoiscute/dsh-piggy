@@ -1,198 +1,158 @@
 // @ts-check
 /**
- * 桌面版：内容变了以后窗口摆哪（从桌面程序 main.js 的 piggy:content 搬进游戏包）。
+ * 桌面版：窗口摆哪（从桌面程序 main.js 的 piggy:content 搬进游戏包）。
  *
- * 规矩：
- *   - 猪在屏幕上一像素都不动；窗口按「猪的目标位置 − 猪在窗口里的位置」一次摆好。
- *   - 开、关面板本身不挪窗口（收起时窗口按打开时的范围留着位置）；只在打开那一刻记下猪的原位，
- *     面板开着时内容变化要按它摆回。
- *   - 拖动开始后原位作废。
- *   - 启动时按上次存下的猪位置摆，直到页面量到的实际位置和它对上（最多管几秒）。
- *   - 猪换大小时保持脚底中心不动。
+ * 只有一个真相：猪的「家」= 猪脚底中心在屏幕上的点（home）。
+ *   - 只有三件事能改它：用户拖动（松手时按猪真实落点重定）、散步（挪完按真实位置重定）、启动时读存档。
+ *   - 开关面板、冒气泡、切页、换皮肤/换立绘大小、更新、预留面板范围变化，一律不改它。
+ *   - 每一轮都按「家 − 猪现在在窗口里的位置」重新算窗口，不在上一轮的结果上累加：
+ *     算错一次下一轮就自己纠正，误差攒不起来（2026-10-06 之前的版本靠「上一轮猪在哪」「原位」「目标点」
+ *     几套记账互相推，任何一处差一点都会被继承，用户看到的就是越用越偏、拖完弹回去）。
+ *   - 用脚底中心而不是左上角：立绘换大小（占位纸盒 → 真猪、73x58 ↔ 54x54）脚底中心不变，不用特殊处理。
+ *
+ * 面板开着、两边都放不下时 contentBoundsForPig 会把窗口连猪挪开——这是唯一允许猪离开家的情况，
+ * 收起后下一轮自然按家摆回去。
  */
-import { MIN_WINDOW, contentBoundsForPig, nearestArea, resizedPigScreenPoint } from './geometry.js'
+import { contentBoundsForPig, nearestArea } from './geometry.js'
 
 const PIG_SCREEN_KEY = 'dsh-piggy:desktop-pig'
-const STARTUP_MS = 4000
+const STORE_VERSION = 3
 
-/** @param {{ now?: () => number, platform?: string }} [options] */
+/** @param {{x:number,y:number,width:number,height:number}} area @param {{x:number,y:number}} point */
+function inside(area, point) {
+  return point.x >= area.x && point.x < area.x + area.width && point.y >= area.y && point.y < area.y + area.height
+}
+
+/** 点落在哪块屏的工作区里；都不在就取最近的。 */
+function areaOf(point, areas) {
+  if (!Array.isArray(areas) || areas.length === 0) return null
+  return areas.find(area => inside(area, point)) ?? nearestArea(point, areas)
+}
+
+/** @param {{ platform?: string }} [options] */
 export function createPlacement(options = {}) {
-  const now = options.now ?? (() => Date.now())
-  let lastContent = null
-  let lastPigWindow = null
-  /** lastPigWindow 是按哪个窗口尺寸算的：尺寸对不上（比如别处改过窗口）就不能拿它当「猪现在在哪」。 */
-  let lastPigWindowFor = null
-  let lastMeasuredPig = null
-  let lastPigSize = { width: 56, height: 56 }
-  let resting = null
-  let saved = null
-  /** 这次摆放想让猪落在的屏幕点（意图）。 */
-  let lastTarget = null
-  /** 夹进工作区之后猪真正能落在的点（核对用这个）。 */
-  let lastReachable = null
-  const startedAt = now()
+  void options
+  /** 猪脚底中心的屏幕点；还不知道就是 null。 */
+  let home = null
+  /** 存档里读出来、还没换算成家的位置（v2 旧格式存的是左上角，要等知道猪多大才能换算）。 */
+  let pending = /** @type {any} */ (undefined)
   let stored = ''
-  let loaded = false
+  /** 这一轮窗口被工作区夹了多少（夹后 − 夹前），页面据此把内容在窗口里反向挪。 */
+  let lastClamp = { dx: 0, dy: 0 }
+  let lastPigSize = { width: 56, height: 56 }
 
-  /**
-   * 位置存「哪块显示器 + 相对它工作区的偏移」，不存绝对屏幕坐标。
-   * 绝对坐标在换分辨率、换显示器排列、拔掉一块屏之后就失去意义了（旧格式就是这么烂掉的）。
-   * 认显示器用工作区矩形：矩形一样就是同一块（Electron 的 workArea 在同一排列下是稳定的）。
-   * @param {Array<{x:number,y:number,width:number,height:number}>} areas
-   */
-  function readSaved(areas) {
+  /** 读存档：v3 存脚底中心相对工作区的偏移；v2 存左上角（可能带猪大小）；更早的是绝对坐标。 */
+  function readSaved() {
     let raw = null
     try { raw = JSON.parse(localStorage.getItem(PIG_SCREEN_KEY) || 'null') } catch { return null }
-    if (raw === null || typeof raw !== 'object') return null
-    if (raw.v === 2 && Number.isFinite(raw.x) && Number.isFinite(raw.y)) {
-      const list = Array.isArray(areas) ? areas : []
-      const same = raw.area === null || raw.area === undefined ? null
-        : list.find(area => area.x === raw.area.x && area.y === raw.area.y && area.width === raw.area.width && area.height === raw.area.height) ?? null
-      const area = same ?? areaOf({ x: (raw.area?.x ?? 0) + raw.x, y: (raw.area?.y ?? 0) + raw.y }, list)
-      // 显示器拔了：按最近的那块屏重新落地（用户 2026-10-06 确认这是预期行为）。
-      const point = area === null ? { x: raw.x, y: raw.y } : { x: Math.round(area.x + raw.x), y: Math.round(area.y + raw.y) }
-      return Number.isFinite(raw.w) && Number.isFinite(raw.h) ? { ...point, w: raw.w, h: raw.h } : point
-    }
-    // 旧格式（绝对屏幕坐标）：能用就先用，下次写入自动升级成 v2。
-    return Number.isFinite(raw.x) && Number.isFinite(raw.y) ? { x: raw.x, y: raw.y } : null
+    if (raw === null || typeof raw !== 'object' || !Number.isFinite(raw.x) || !Number.isFinite(raw.y)) return null
+    return raw
   }
 
-  /** 点落在哪块屏的工作区里；都不在就取最近的。 */
-  function areaOf(point, areas) {
-    if (!Array.isArray(areas) || areas.length === 0) return null
-    let best = null
-    let bestDistance = Infinity
-    for (const area of areas) {
-      const inside = point.x >= area.x && point.x < area.x + area.width && point.y >= area.y && point.y < area.y + area.height
-      const dx = Math.max(area.x - point.x, 0, point.x - (area.x + area.width))
-      const dy = Math.max(area.y - point.y, 0, point.y - (area.y + area.height))
-      const distance = inside ? -1 : dx * dx + dy * dy
-      if (distance < bestDistance) { best = area; bestDistance = distance }
+  /** 存档 → 家（屏幕上的脚底中心）。显示器拔了就落到最近的屏上（用户 2026-10-06 确认这是预期行为）。 */
+  function homeFromSaved(raw, pigSize, areas) {
+    const list = Array.isArray(areas) ? areas : []
+    const relative = raw.v === STORE_VERSION || raw.v === 2
+    const same = relative && raw.area ? list.find(a => a.x === raw.area.x && a.y === raw.area.y && a.width === raw.area.width && a.height === raw.area.height) : null
+    const origin = relative && raw.area ? (same ?? raw.area) : { x: 0, y: 0 }
+    let point = { x: origin.x + raw.x, y: origin.y + raw.y }
+    if (raw.v !== STORE_VERSION) {
+      // v2 / 绝对坐标存的是左上角：按存下的猪大小（没有就用现在的）换成脚底中心。
+      const w = Number.isFinite(raw.w) ? raw.w : pigSize.width
+      const h = Number.isFinite(raw.h) ? raw.h : pigSize.height
+      point = { x: point.x + w / 2, y: point.y + h }
     }
-    return best
+    if (relative && raw.area && same === null) {
+      // 原来那块屏不在了：保持相对偏移，落到离它最近的屏上，再夹进那块屏。
+      const area = areaOf(point, list)
+      if (area !== null) point = clampInto(point, area)
+    }
+    return { x: Math.round(point.x), y: Math.round(point.y) }
   }
 
-
-  /**
-   * @param {any} report 页面这一轮量到的：width/height/anchor/pig/pigWindow（改完窗口后的预测位置）/pigNow/panelOpen
-   * @param {{x:number,y:number,width:number,height:number}} bounds 当前窗口
-   * @param {Array<any>} areas 所有屏的工作区
-   * @returns {{x:number,y:number,width:number,height:number}|null} 要改成的窗口；不用改就是 null
-   */
-  function decide(report, bounds, areas) {
-    // 存档要等拿到显示器列表才能换算成绝对坐标（v2 存的是显示器相对位置）。
-    if (!loaded) { loaded = true; saved = readSaved(areas); stored = saved === null ? '' : JSON.stringify({ x: saved.x, y: saved.y }) }
-    const width = report.width
-    const height = report.height
-    const anchor = report.anchor
-    const pigWindow = report.pigWindow
-    const pigNow = report.pigNow
-    const pigSize = report.pig.width > 0 && report.pig.height > 0 ? { width: report.pig.width, height: report.pig.height } : lastPigSize
-    const panelOpen = report.panelOpen === true
-    const sizeChanged = lastPigWindow !== null && (lastPigSize.width !== pigSize.width || lastPigSize.height !== pigSize.height)
-    const changed = lastContent === null
-      || lastContent.width !== width || lastContent.height !== height
-      || lastContent.anchor.vertical !== anchor.vertical || lastContent.anchor.horizontal !== anchor.horizontal
-      || sizeChanged
-      || (lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y))
-
-    // 「猪变化之前在哪」= 上一轮猪在窗口里的位置（它就是按当前窗口尺寸摆的，摆完有核对）。
-    // 不能用这一轮量到的值：这一轮 DOM 已经变了——开面板时卡片插在猪上面、整块内容还钉在上沿，
-    // 猪在窗口里已经被挤下去了，拿它当原位，猪就跟着被挪走（低处开面板猪往下掉 66px，2026-10-06 复现）。
-    // 以前说的「预测值和真实布局差 3~4px」查清是猪自己的待机动画，不是预测错（见 I-round.md）。
-    const sameWindow = lastPigWindowFor !== null && lastPigWindowFor.width === bounds.width && lastPigWindowFor.height === bounds.height
-    const measuredPig = Number.isFinite(report.pigBeforePin?.x) && Number.isFinite(report.pigBeforePin?.y)
-      ? report.pigBeforePin : null
-    const previousPig = sameWindow ? lastPigWindow : measuredPig
-    // 记位置用「摆完之后猪在新窗口里的位置」：remember() 是拿摆完的窗口加它算猪的屏幕点。
-    lastMeasuredPig = pigWindow
-
-    if (saved !== null) {
-      // 落定看的是「这一轮画出来的猪」现在在哪，不是上一轮的：纸盒换成真猪那一轮两者不一样。
-      const nowPig = pigNow
-      // 存了猪的大小就要等真猪画出来（大小对上）才算落定：启动先画的是占位纸盒，
-      // 在纸盒阶段就判落定，换成真猪时会按「脚底中心不动」挪一下，每次重启猪都偏 (10,4) 左右、越攒越多。
-      const realPig = saved.w === undefined || (pigSize.width === saved.w && pigSize.height === saved.h)
-      const settled = realPig && bounds.width === Math.max(MIN_WINDOW.width, Math.round(width))
-        && bounds.height === Math.max(MIN_WINDOW.height, Math.round(height))
-        && Math.abs(bounds.x + nowPig.x - saved.x) <= 1 && Math.abs(bounds.y + nowPig.y - saved.y) <= 1
-      if (settled || panelOpen || now() - startedAt > STARTUP_MS) saved = null
+  function clampInto(point, area) {
+    return {
+      x: Math.max(area.x, Math.min(point.x, area.x + area.width - 1)),
+      y: Math.max(area.y + 1, Math.min(point.y, area.y + area.height)),
     }
-    if (panelOpen && lastContent?.panelOpen !== true) {
-      // 开面板那一刻记下猪的原位：用钉边之前的实测值，面板开着期间不再变。
-      const base = previousPig ?? pigWindow
-      resting = saved ?? { x: bounds.x + base.x, y: bounds.y + base.y }
-    }
-    let next = null
-    if (changed) {
-      const before = previousPig ?? pigNow
-      const pigBefore = saved ?? { x: bounds.x + before.x, y: bounds.y + before.y }
-      // 启动时先画的是占位纸盒，换成真猪的尺寸变化不按脚底中心挪，直接摆回存下的位置。
-      const target = saved !== null ? { x: saved.x, y: saved.y }
-        : sizeChanged ? resizedPigScreenPoint(resting ?? pigBefore, lastPigSize, pigSize) : (resting ?? pigBefore)
-      if (sizeChanged && resting !== null) resting = target
-      const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
-      next = contentBoundsForPig({ width, height, pigWindow: { ...pigWindow, ...pigSize }, panelOpen, allowPanelOverflow: sizeChanged }, target, area)
-      // 永远不要请求一个会被系统拒绝的窗口矩形。
-      // 现场证据（用户 2026-10-06 的真实日志）：请求 {y:501, height:656} → 底边 1157，而工作区底边
-      // 是 1014；系统把窗口整体顶回 y=358（=1014−656），而代码不知道，于是猪偏 143px，
-      // 闭环核对又拿着这个被改过的位置算出假偏差（20px），照它再挪一次 —— 越修越偏。
-      // macOS 还多一条：Electron 会把 y 小于托盘高度（20~40px）的窗口静默夹到托盘下沿。
-      next.x = Math.max(area.x, Math.min(next.x, area.x + area.width - next.width))
-      next.y = Math.max(area.y, Math.min(next.y, area.y + area.height - next.height))
-      lastTarget = target
-      // 夹过之后猪实际会落在哪：闭环核对要用**可达目标**，否则它会一直去追一个系统不允许的
-      // 位置，然后一直判自己「还是差」（用户日志里那两条 verify still off 就是这么来的）。
-      lastReachable = { x: next.x + Math.round(pigWindow.x), y: next.y + Math.round(pigWindow.y) }
-    }
-    if (!panelOpen) resting = null
-    lastContent = { width, height, anchor, panelOpen }
-    lastPigWindow = pigWindow
-    lastPigWindowFor = next === null ? { width: bounds.width, height: bounds.height } : { width: next.width, height: next.height }
-    lastPigSize = pigSize
-    return next
   }
 
-  /** 拖动开始：原位、启动位置都作废。 */
-  function dragStarted() {
-    resting = null
-    saved = null
-    lastTarget = null
-    lastReachable = null
-  }
-
-  /**
-   * 记下猪在屏幕上的位置，下次启动按它摆。
-   * 存「哪块显示器 + 相对偏移」，而且用**实测**的猪本地框（以前存的是预测值，
-   * 偏差会被存下来当成下次启动的位置）。@param {Array<object>} [areas] */
-  function remember(windowBounds, areas) {
-    // 启动复位还没完成时不记：那时页面可能还画着占位纸盒，记下来下次启动猪就被摆错位置。
-    if (lastMeasuredPig === null || saved !== null) return
-    const x = windowBounds.x + lastMeasuredPig.x
-    const y = windowBounds.y + lastMeasuredPig.y
-    const area = areaOf({ x, y }, areas)
-    const w = lastPigSize.width
-    const h = lastPigSize.height
+  /** 家写进存档（只在家变了的时候写）。 */
+  function persist(areas) {
+    if (home === null) return
+    const area = areaOf(home, areas)
     const payload = area === null
-      ? { v: 2, area: null, x, y, w, h }
-      : { v: 2, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: x - area.x, y: y - area.y, w, h }
+      ? { v: STORE_VERSION, area: null, x: home.x, y: home.y }
+      : { v: STORE_VERSION, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: home.x - area.x, y: home.y - area.y }
     const key = JSON.stringify(payload)
     if (key === stored) return
     stored = key
-    try { localStorage.setItem(PIG_SCREEN_KEY, key) } catch { /* 存不下就按窗口位置恢复 */ }
+    try { localStorage.setItem(PIG_SCREEN_KEY, key) } catch { /* 存不下就下次从默认位置开始 */ }
+  }
+
+  /**
+   * 按家算这一轮窗口该在哪。
+   * @param {any} report 页面这一轮量到的：width/height（内容=窗口大小）、pig（猪的大小）、
+   *   pigWindow（换成这个窗口大小后猪在窗口里的左上角，含 shift）、pigNow（猪现在在当前窗口里的左上角）、
+   *   panelOpen、shift（内容在窗口里被挪了多少）
+   * @param {{x:number,y:number,width:number,height:number}} bounds 当前窗口
+   * @param {Array<any>} areas 所有屏的工作区
+   * @returns {{x:number,y:number,width:number,height:number}} 窗口应该在的位置和大小
+   */
+  function decide(report, bounds, areas) {
+    const pigSize = report.pig.width > 0 && report.pig.height > 0 ? { width: report.pig.width, height: report.pig.height } : lastPigSize
+    lastPigSize = pigSize
+    if (pending === undefined) pending = readSaved()
+    if (home === null) {
+      home = pending !== null ? homeFromSaved(pending, pigSize, areas)
+        : { x: Math.round(bounds.x + report.pigNow.x + pigSize.width / 2), y: Math.round(bounds.y + report.pigNow.y + pigSize.height) }
+      pending = null
+    }
+    // 家不在任何一块屏上（拔了显示器、改了分辨率）：落到最近那块屏里，整只猪看得见。
+    const list = Array.isArray(areas) ? areas : []
+    if (list.length > 0 && !list.some(area => inside(area, home))) {
+      const area = /** @type {any} */ (nearestArea(home, list))
+      home = {
+        x: Math.round(Math.max(area.x + pigSize.width / 2, Math.min(home.x, area.x + area.width - pigSize.width / 2))),
+        y: Math.round(Math.max(area.y + pigSize.height, Math.min(home.y, area.y + area.height))),
+      }
+    }
+    const shift = report.shift ?? { x: 0, y: 0 }
+    // 按「内容没在窗口里挪过」的布局算窗口；被夹了多少交给页面去挪内容（只在收起时）。
+    const pigPlain = { x: report.pigWindow.x - shift.x, y: report.pigWindow.y - shift.y, ...pigSize }
+    const topLeft = { x: home.x - pigSize.width / 2, y: home.y - pigSize.height }
+    const area = nearestArea(home, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+    const next = contentBoundsForPig({ width: report.width, height: report.height, pigWindow: pigPlain, panelOpen: report.panelOpen === true }, topLeft, area)
+    // 永远不请求会被系统拒绝的窗口矩形：系统（mutter 等）会把伸出工作区的窗口整块推回来，
+    // 而页面不知道（用户 2026-10-06 日志里的 143px）。收起时页面会把内容反向挪回去，猪不动。
+    const rawX = next.x
+    const rawY = next.y
+    next.x = Math.max(area.x, Math.min(next.x, area.x + area.width - next.width))
+    next.y = Math.max(area.y, Math.min(next.y, area.y + area.height - next.height))
+    lastClamp = { dx: next.x - rawX, dy: next.y - rawY }
+    return next
+  }
+
+  /**
+   * 猪被用户（拖动）或散步挪到了新地方：按真实落点重定家。
+   * @param {{x:number,y:number}} windowPos 窗口现在的位置 @param {{x:number,y:number,width:number,height:number}} pigLocal 猪在窗口里的框
+   */
+  function rehome(windowPos, pigLocal, areas) {
+    home = { x: Math.round(windowPos.x + pigLocal.x + pigLocal.width / 2), y: Math.round(windowPos.y + pigLocal.y + pigLocal.height) }
+    pending = null
+    persist(areas)
   }
 
   return {
-    decide, dragStarted, remember,
-    pigWindow: () => lastPigWindow,
-    /** 面板开着时记下的猪原位（收起时要摆回这里）；没有就是 null。 */
-    resting: () => resting,
+    decide, rehome,
+    /** 家写盘（启动换算完、显示器变了之后调一次）。 */
+    persist,
+    /** 猪的家（脚底中心）；还不知道是 null。 */
+    home: () => home,
+    /** 猪在家时左上角在哪（面板预留范围按它判断放不放得下）。 */
+    homeTopLeft: () => home === null ? null : { x: home.x - lastPigSize.width / 2, y: home.y - lastPigSize.height },
+    /** 上一轮算出来的窗口被工作区夹了多少。 */
+    clamp: () => lastClamp,
     pigSize: () => lastPigSize,
-    /** 上一次 decide 想让猪落在哪（意图）。 */
-    target: () => lastTarget,
-    /** 上一次摆放里猪实际能落到的点（夹进工作区之后），闭环核对用这个。 */
-    reachable: () => lastReachable,
-    /** 核对通过（或放弃）以后清掉，避免重复修。 */
-    targetDone: () => { lastTarget = null; lastReachable = null },
   }
 }
