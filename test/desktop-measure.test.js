@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { createMeasure, reservedOutline, chooseCollapsedVertical, validOpenBox } from '../src/client/desktop/measure.js'
+import { createMeasure, reservedOutline, chooseCollapsedVertical, validOpenBox, fittingOpenBox } from '../src/client/desktop/measure.js'
 
 test('紧凑拖动不加收起面板的预留框，气泡预留区仍保留', () => {
   const content = { x: 20, y: 80, r: 90, b: 140 }
@@ -116,4 +116,17 @@ test('面板范围存储：认不出的版本直接丢掉，不让它撑大收�
     globalThis.document = oldDocument
     globalThis.getComputedStyle = oldStyle
   }
+})
+
+test('收起时的面板预留放不进工作区就换朝向，都放不下就不留（低处一点猪就被拽上去的回归）', () => {
+  // 用户机器上的数字：工作区 0,29,1920,985；面板朝下开时整块范围相对猪 {l:-232,t:-104,r:60,b:594}
+  const area = { x: 0, y: 29, width: 1920, height: 985 }
+  const pig = { width: 54, height: 54 }
+  const down = { l: -232, t: -104, r: 60, b: 594 }
+  const up = { l: -232, t: -640, r: 60, b: 70 }
+  assert.deepEqual(fittingOpenBox({ 'top|right|14': down }, 'top', 'right', pig, { x: 1400, y: 300 }, area), { vertical: 'top', box: down })
+  assert.equal(fittingOpenBox({ 'top|right|14': down }, 'top', 'right', pig, { x: 1400, y: 500 }, area), null, '往下放不下、也没往上开过：不留')
+  assert.deepEqual(fittingOpenBox({ 'top|right|14': down, 'bottom|right|14': up }, 'top', 'right', pig, { x: 1400, y: 800 }, area),
+    { vertical: 'bottom', box: up }, '往上放得下就按往上留')
+  assert.equal(fittingOpenBox({ 'top|right|14': down }, 'top', 'right', pig, { x: 100, y: 300 }, area), null, '横向也要放得下')
 })

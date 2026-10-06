@@ -20,6 +20,8 @@ export function createPlacement(options = {}) {
   const now = options.now ?? (() => Date.now())
   let lastContent = null
   let lastPigWindow = null
+  /** lastPigWindow 是按哪个窗口尺寸算的：尺寸对不上（比如别处改过窗口）就不能拿它当「猪现在在哪」。 */
+  let lastPigWindowFor = null
   let lastMeasuredPig = null
   let lastPigSize = { width: 56, height: 56 }
   let resting = null
@@ -48,7 +50,8 @@ export function createPlacement(options = {}) {
         : list.find(area => area.x === raw.area.x && area.y === raw.area.y && area.width === raw.area.width && area.height === raw.area.height) ?? null
       const area = same ?? areaOf({ x: (raw.area?.x ?? 0) + raw.x, y: (raw.area?.y ?? 0) + raw.y }, list)
       // 显示器拔了：按最近的那块屏重新落地（用户 2026-10-06 确认这是预期行为）。
-      return area === null ? { x: raw.x, y: raw.y } : { x: Math.round(area.x + raw.x), y: Math.round(area.y + raw.y) }
+      const point = area === null ? { x: raw.x, y: raw.y } : { x: Math.round(area.x + raw.x), y: Math.round(area.y + raw.y) }
+      return Number.isFinite(raw.w) && Number.isFinite(raw.h) ? { ...point, w: raw.w, h: raw.h } : point
     }
     // 旧格式（绝对屏幕坐标）：能用就先用，下次写入自动升级成 v2。
     return Number.isFinite(raw.x) && Number.isFinite(raw.y) ? { x: raw.x, y: raw.y } : null
@@ -93,31 +96,39 @@ export function createPlacement(options = {}) {
       || sizeChanged
       || (lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y))
 
-    // 「猪现在在哪」一律用实测值（这一轮钉边之前量到的本地框），不用上一次的预测值。
-    // 预测值（lastPigWindow）是「按新的窗口尺寸推出来的」，和真实布局差 3~4px；
-    // 开关面板两个方向各用一个基准，就会看到猪稳定跳一下（2026-10-06 实测）。
+    // 「猪变化之前在哪」= 上一轮猪在窗口里的位置（它就是按当前窗口尺寸摆的，摆完有核对）。
+    // 不能用这一轮量到的值：这一轮 DOM 已经变了——开面板时卡片插在猪上面、整块内容还钉在上沿，
+    // 猪在窗口里已经被挤下去了，拿它当原位，猪就跟着被挪走（低处开面板猪往下掉 66px，2026-10-06 复现）。
+    // 以前说的「预测值和真实布局差 3~4px」查清是猪自己的待机动画，不是预测错（见 I-round.md）。
+    const sameWindow = lastPigWindowFor !== null && lastPigWindowFor.width === bounds.width && lastPigWindowFor.height === bounds.height
     const measuredPig = Number.isFinite(report.pigBeforePin?.x) && Number.isFinite(report.pigBeforePin?.y)
       ? report.pigBeforePin : null
-    if (measuredPig !== null) lastMeasuredPig = measuredPig
+    const previousPig = sameWindow ? lastPigWindow : measuredPig
+    // 记位置用「摆完之后猪在新窗口里的位置」：remember() 是拿摆完的窗口加它算猪的屏幕点。
+    lastMeasuredPig = pigWindow
 
     if (saved !== null) {
-      const nowPig = measuredPig ?? pigNow
-      const settled = bounds.width === Math.max(MIN_WINDOW.width, Math.round(width))
+      // 落定看的是「这一轮画出来的猪」现在在哪，不是上一轮的：纸盒换成真猪那一轮两者不一样。
+      const nowPig = pigNow
+      // 存了猪的大小就要等真猪画出来（大小对上）才算落定：启动先画的是占位纸盒，
+      // 在纸盒阶段就判落定，换成真猪时会按「脚底中心不动」挪一下，每次重启猪都偏 (10,4) 左右、越攒越多。
+      const realPig = saved.w === undefined || (pigSize.width === saved.w && pigSize.height === saved.h)
+      const settled = realPig && bounds.width === Math.max(MIN_WINDOW.width, Math.round(width))
         && bounds.height === Math.max(MIN_WINDOW.height, Math.round(height))
         && Math.abs(bounds.x + nowPig.x - saved.x) <= 1 && Math.abs(bounds.y + nowPig.y - saved.y) <= 1
       if (settled || panelOpen || now() - startedAt > STARTUP_MS) saved = null
     }
     if (panelOpen && lastContent?.panelOpen !== true) {
       // 开面板那一刻记下猪的原位：用钉边之前的实测值，面板开着期间不再变。
-      const base = measuredPig ?? lastPigWindow ?? pigWindow
+      const base = previousPig ?? pigWindow
       resting = saved ?? { x: bounds.x + base.x, y: bounds.y + base.y }
     }
     let next = null
     if (changed) {
-      const before = measuredPig ?? lastPigWindow ?? pigNow
+      const before = previousPig ?? pigNow
       const pigBefore = saved ?? { x: bounds.x + before.x, y: bounds.y + before.y }
       // 启动时先画的是占位纸盒，换成真猪的尺寸变化不按脚底中心挪，直接摆回存下的位置。
-      const target = saved !== null ? saved
+      const target = saved !== null ? { x: saved.x, y: saved.y }
         : sizeChanged ? resizedPigScreenPoint(resting ?? pigBefore, lastPigSize, pigSize) : (resting ?? pigBefore)
       if (sizeChanged && resting !== null) resting = target
       const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
@@ -137,6 +148,7 @@ export function createPlacement(options = {}) {
     if (!panelOpen) resting = null
     lastContent = { width, height, anchor, panelOpen }
     lastPigWindow = pigWindow
+    lastPigWindowFor = next === null ? { width: bounds.width, height: bounds.height } : { width: next.width, height: next.height }
     lastPigSize = pigSize
     return next
   }
@@ -159,9 +171,11 @@ export function createPlacement(options = {}) {
     const x = windowBounds.x + lastMeasuredPig.x
     const y = windowBounds.y + lastMeasuredPig.y
     const area = areaOf({ x, y }, areas)
+    const w = lastPigSize.width
+    const h = lastPigSize.height
     const payload = area === null
-      ? { v: 2, area: null, x, y }
-      : { v: 2, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: x - area.x, y: y - area.y }
+      ? { v: 2, area: null, x, y, w, h }
+      : { v: 2, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: x - area.x, y: y - area.y, w, h }
     const key = JSON.stringify(payload)
     if (key === stored) return
     stored = key
@@ -171,6 +185,8 @@ export function createPlacement(options = {}) {
   return {
     decide, dragStarted, remember,
     pigWindow: () => lastPigWindow,
+    /** 面板开着时记下的猪原位（收起时要摆回这里）；没有就是 null。 */
+    resting: () => resting,
     pigSize: () => lastPigSize,
     /** 上一次 decide 想让猪落在哪（意图）。 */
     target: () => lastTarget,

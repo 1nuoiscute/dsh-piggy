@@ -46,6 +46,10 @@ let mouse = { x: -1, y: -1 }
 let scheduled = false
 /** 待核对的摆放：{target, budget}。摆完一轮设上，核对过就清掉。 */
 let pendingVerify = /** @type {{target:{x:number,y:number}, budget:number, waits:number}|null} */ (null)
+/** 页面布局从什么时候开始和窗口尺寸对不上（见 layoutStale）。 */
+let staleSince = /** @type {number|null} */ (null)
+/** 布局迟迟跟不上窗口尺寸时最多等多久（系统不肯给这个尺寸、或分数缩放取整时，不能一直不量）。 */
+const STALE_WAIT_MS = 500
 
 function host() { return /** @type {any} */ (document.querySelector('[data-dsh-pig]')) }
 function geometry() { return typeof bridge.geometry === 'function' ? bridge.geometry() : null }
@@ -90,9 +94,28 @@ function updateHit(x, y) {
   bridge.setHit(inside)
 }
 
+/**
+ * 窗口已经改了尺寸、页面还没按新尺寸重排：这时量到的猪位置属于旧布局。
+ * 主进程的同步回读（place({})）在 setBounds 之后立刻就是新尺寸，而页面要等 resize 才重排；
+ * 拿「新窗口 + 旧布局」去算，猪的位置会差出整整一个尺寸变化量。用户 2026-10-06 的日志里
+ * 每点一下猪就往左跑 20px（304↔324 宽），就是这一拍里算出了错的目标，核对又照着它把窗口挪了。
+ * @param {{width:number,height:number}} win
+ */
+function layoutStale(win) {
+  return Math.abs(window.innerWidth - win.width) > 1 || Math.abs(window.innerHeight - win.height) > 1
+}
+
 function tick() {
   const h = host()
   if (h === null) return
+  const info = readGeometry()
+  if (info !== null && info.window && layoutStale(info.window)) {
+    // 等页面重排（resize 事件会再排一次 tick）；等太久就照常量，避免系统改不了尺寸时卡死。
+    const at = typeof performance === 'object' ? performance.now() : Date.now()
+    if (staleSince === null) staleSince = at
+    if (at - staleSince < STALE_WAIT_MS) { lastKey = null; return }
+  }
+  staleSince = null
   let next = measure.boxes(h)
   if (next === null) return
   // 钉边之前量到的猪本地框：开面板那一刻记「猪的原位」必须用它。
@@ -114,8 +137,7 @@ function tick() {
   const key = measure.keyOf(next)
   if (key === lastKey) return
   lastKey = key
-  // 决策用「同步回读」的窗口，不用可能过期的缓存：面板开着拖完再点，缓存里还是拖动前的位置。
-  const info = readGeometry()
+  // 决策用「同步回读」的窗口（tick 开头读的），不用可能过期的缓存：面板开着拖完再点，缓存里还是拖动前的位置。
   // 还没拿到窗口在哪：先不摆（以前按 (0,0) 算，启动时会把窗口摆错一次）。几何一到会再量。
   if (info === null || !info.window) { lastKey = null; return }
   const bounds = info.window
@@ -161,7 +183,8 @@ function verifyPending() {
   // 窗口还在动的时候不核对：X11 下外壳的 getBounds() 和渲染端的 window.screenX 不是同一时刻的值
   //（实测追踪里 screenX 整整落后一步），拿一个正在移动的窗口去核对，算出来的是假偏差，
   // 照着它 setBounds 只会越修越抖。等两边对上了再核，最多等几轮。
-  if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1) {
+  // 尺寸也一样：页面还没按新尺寸重排时量到的猪位置属于旧布局（见 layoutStale）。
+  if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1 || layoutStale(info.window)) {
     if (waits <= 0) { pendingVerify = null; return false }
     pendingVerify = { target, budget, waits: waits - 1 }
     return false
@@ -221,8 +244,8 @@ export function install(shell) {
     console.warn('[piggy-desktop] shell is too old, missing: ' + missing.join(', ') + '（请更新桌面程序）')
     ;/** @type {any} */ (window).__dshPiggyShellOutdated = true
   }
-  measure = createMeasure({ platform: shell.platform || '', geometry })
   placement = createPlacement({ platform: shell.platform || '' })
+  measure = createMeasure({ platform: shell.platform || '', geometry, anchor: () => placement.resting() })
   const style = document.createElement('style')
   style.setAttribute('data-piggy-desktop-style', '')
   style.textContent = DESKTOP_CSS
@@ -243,7 +266,12 @@ export function install(shell) {
         tick()
         const pigNode = h.querySelector('.dp-pig')
         if (pigNode !== null) {
-          const pigBox = layoutBox(pigNode)
+          // tick 刚把窗口缩成拖动尺寸，页面多半还没重排：这时量到的是旧布局里的位置，
+          // 主进程拿它当猪在窗口里的偏移，拖到屏幕边上夹取会差一个尺寸变化量。用刚算出的新位置。
+          const now = readGeometry()
+          const predicted = placement.pigWindow()
+          const pigBox = now !== null && now.window && layoutStale(now.window) && predicted !== null
+            ? { ...predicted, ...placement.pigSize() } : layoutBox(pigNode)
           shell.beginDrag({ x: pigBox.x, y: pigBox.y, width: pigBox.width, height: pigBox.height })
           return
         }

@@ -7335,6 +7335,17 @@
     if (below !== void 0 && pigTop + below.b + PAD <= area.y + area.height) return "top";
     return current;
   }
+  function fittingOpenBox(openBoxes, vertical, horizontal, pigBox, pigScreen, area) {
+    const other = vertical === "top" ? "bottom" : "top";
+    for (const side of [vertical, other]) {
+      const box = validOpenBox(openBoxes, side, horizontal, pigBox);
+      if (box === void 0) continue;
+      if (pigScreen === null || area === null || area === void 0) return { vertical: side, box };
+      const fits = pigScreen.x + box.l - PAD >= area.x && pigScreen.x + box.r + PAD <= area.x + area.width && pigScreen.y + box.t - PAD >= area.y && pigScreen.y + box.b + PAD <= area.y + area.height;
+      if (fits) return { vertical: side, box };
+    }
+    return null;
+  }
   function panelSide(cardBox, pigBox) {
     return {
       vertical: cardBox.y + cardBox.height / 2 < pigBox.y + pigBox.height / 2 ? "bottom" : "top",
@@ -7457,9 +7468,18 @@
             } catch {
             }
           }
-        } else if (!open) {
-          const saved = validOpenBox(openBoxes, state2.vertical, state2.horizontal, pigBox);
-          outline = reservedOutline(outline, saved, pigBox, state2.compact);
+        } else if (!open && !state2.compact) {
+          const anchor = typeof env.anchor === "function" ? env.anchor() : null;
+          const pigScreen = anchor ?? (geometry2 === null ? null : { x: geometry2.window.x + pigBox.x, y: geometry2.window.y + pigBox.y });
+          const chosen = fittingOpenBox(openBoxes, state2.vertical, state2.horizontal, pigBox, pigScreen, geometry2?.workArea);
+          if (chosen !== null && chosen.vertical !== state2.vertical) {
+            state2.vertical = chosen.vertical;
+            try {
+              localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical: state2.vertical, horizontal: state2.horizontal }));
+            } catch {
+            }
+          }
+          outline = reservedOutline(outline, chosen?.box, pigBox, state2.compact);
         }
       }
       let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
@@ -7556,6 +7576,7 @@
     const now = options.now ?? (() => Date.now());
     let lastContent = null;
     let lastPigWindow = null;
+    let lastPigWindowFor = null;
     let lastMeasuredPig = null;
     let lastPigSize = { width: 56, height: 56 };
     let resting = null;
@@ -7577,7 +7598,8 @@
         const list = Array.isArray(areas) ? areas : [];
         const same = raw.area === null || raw.area === void 0 ? null : list.find((area2) => area2.x === raw.area.x && area2.y === raw.area.y && area2.width === raw.area.width && area2.height === raw.area.height) ?? null;
         const area = same ?? areaOf({ x: (raw.area?.x ?? 0) + raw.x, y: (raw.area?.y ?? 0) + raw.y }, list);
-        return area === null ? { x: raw.x, y: raw.y } : { x: Math.round(area.x + raw.x), y: Math.round(area.y + raw.y) };
+        const point = area === null ? { x: raw.x, y: raw.y } : { x: Math.round(area.x + raw.x), y: Math.round(area.y + raw.y) };
+        return Number.isFinite(raw.w) && Number.isFinite(raw.h) ? { ...point, w: raw.w, h: raw.h } : point;
       }
       return Number.isFinite(raw.x) && Number.isFinite(raw.y) ? { x: raw.x, y: raw.y } : null;
     }
@@ -7612,22 +7634,25 @@
       const panelOpen = report.panelOpen === true;
       const sizeChanged = lastPigWindow !== null && (lastPigSize.width !== pigSize2.width || lastPigSize.height !== pigSize2.height);
       const changed = lastContent === null || lastContent.width !== width || lastContent.height !== height || lastContent.anchor.vertical !== anchor.vertical || lastContent.anchor.horizontal !== anchor.horizontal || sizeChanged || lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y);
+      const sameWindow = lastPigWindowFor !== null && lastPigWindowFor.width === bounds.width && lastPigWindowFor.height === bounds.height;
       const measuredPig = Number.isFinite(report.pigBeforePin?.x) && Number.isFinite(report.pigBeforePin?.y) ? report.pigBeforePin : null;
-      if (measuredPig !== null) lastMeasuredPig = measuredPig;
+      const previousPig = sameWindow ? lastPigWindow : measuredPig;
+      lastMeasuredPig = pigWindow;
       if (saved !== null) {
-        const nowPig = measuredPig ?? pigNow;
-        const settled = bounds.width === Math.max(MIN_WINDOW.width, Math.round(width)) && bounds.height === Math.max(MIN_WINDOW.height, Math.round(height)) && Math.abs(bounds.x + nowPig.x - saved.x) <= 1 && Math.abs(bounds.y + nowPig.y - saved.y) <= 1;
+        const nowPig = pigNow;
+        const realPig = saved.w === void 0 || pigSize2.width === saved.w && pigSize2.height === saved.h;
+        const settled = realPig && bounds.width === Math.max(MIN_WINDOW.width, Math.round(width)) && bounds.height === Math.max(MIN_WINDOW.height, Math.round(height)) && Math.abs(bounds.x + nowPig.x - saved.x) <= 1 && Math.abs(bounds.y + nowPig.y - saved.y) <= 1;
         if (settled || panelOpen || now() - startedAt > STARTUP_MS) saved = null;
       }
       if (panelOpen && lastContent?.panelOpen !== true) {
-        const base = measuredPig ?? lastPigWindow ?? pigWindow;
+        const base = previousPig ?? pigWindow;
         resting = saved ?? { x: bounds.x + base.x, y: bounds.y + base.y };
       }
       let next = null;
       if (changed) {
-        const before = measuredPig ?? lastPigWindow ?? pigNow;
+        const before = previousPig ?? pigNow;
         const pigBefore = saved ?? { x: bounds.x + before.x, y: bounds.y + before.y };
-        const target = saved !== null ? saved : sizeChanged ? resizedPigScreenPoint(resting ?? pigBefore, lastPigSize, pigSize2) : resting ?? pigBefore;
+        const target = saved !== null ? { x: saved.x, y: saved.y } : sizeChanged ? resizedPigScreenPoint(resting ?? pigBefore, lastPigSize, pigSize2) : resting ?? pigBefore;
         if (sizeChanged && resting !== null) resting = target;
         const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
         next = contentBoundsForPig({ width, height, pigWindow: { ...pigWindow, ...pigSize2 }, panelOpen, allowPanelOverflow: sizeChanged }, target, area);
@@ -7639,6 +7664,7 @@
       if (!panelOpen) resting = null;
       lastContent = { width, height, anchor, panelOpen };
       lastPigWindow = pigWindow;
+      lastPigWindowFor = next === null ? { width: bounds.width, height: bounds.height } : { width: next.width, height: next.height };
       lastPigSize = pigSize2;
       return next;
     }
@@ -7653,7 +7679,9 @@
       const x = windowBounds.x + lastMeasuredPig.x;
       const y = windowBounds.y + lastMeasuredPig.y;
       const area = areaOf({ x, y }, areas);
-      const payload = area === null ? { v: 2, area: null, x, y } : { v: 2, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: x - area.x, y: y - area.y };
+      const w = lastPigSize.width;
+      const h = lastPigSize.height;
+      const payload = area === null ? { v: 2, area: null, x, y, w, h } : { v: 2, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: x - area.x, y: y - area.y, w, h };
       const key = JSON.stringify(payload);
       if (key === stored) return;
       stored = key;
@@ -7667,6 +7695,8 @@
       dragStarted,
       remember,
       pigWindow: () => lastPigWindow,
+      /** 面板开着时记下的猪原位（收起时要摆回这里）；没有就是 null。 */
+      resting: () => resting,
       pigSize: () => lastPigSize,
       /** 上一次 decide 想让猪落在哪（意图）。 */
       target: () => lastTarget,
@@ -7717,6 +7747,11 @@
     /** @type {{target:{x:number,y:number}, budget:number, waits:number}|null} */
     null
   );
+  var staleSince = (
+    /** @type {number|null} */
+    null
+  );
+  var STALE_WAIT_MS = 500;
   function host() {
     return (
       /** @type {any} */
@@ -7763,9 +7798,22 @@
     lastHit = inside;
     bridge2.setHit(inside);
   }
+  function layoutStale(win) {
+    return Math.abs(window.innerWidth - win.width) > 1 || Math.abs(window.innerHeight - win.height) > 1;
+  }
   function tick() {
     const h = host();
     if (h === null) return;
+    const info = readGeometry();
+    if (info !== null && info.window && layoutStale(info.window)) {
+      const at = typeof performance === "object" ? performance.now() : Date.now();
+      if (staleSince === null) staleSince = at;
+      if (at - staleSince < STALE_WAIT_MS) {
+        lastKey = null;
+        return;
+      }
+    }
+    staleSince = null;
     let next = measure.boxes(h);
     if (next === null) return;
     const pigBoxBeforePin = { x: next.pigBox.x, y: next.pigBox.y };
@@ -7779,7 +7827,6 @@
     const key = measure.keyOf(next);
     if (key === lastKey) return;
     lastKey = key;
-    const info = readGeometry();
     if (info === null || !info.window) {
       lastKey = null;
       return;
@@ -7825,7 +7872,7 @@
     if (h === null || info === null || !info.window) return false;
     const pigNode = h.querySelector(".dp-pig");
     if (pigNode === null) return false;
-    if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1) {
+    if (Math.abs(window.screenX - info.window.x) > 1 || Math.abs(window.screenY - info.window.y) > 1 || layoutStale(info.window)) {
       if (waits <= 0) {
         pendingVerify = null;
         return false;
@@ -7876,8 +7923,8 @@
       console.warn("[piggy-desktop] shell is too old, missing: " + missing.join(", ") + "\uFF08\u8BF7\u66F4\u65B0\u684C\u9762\u7A0B\u5E8F\uFF09");
       window.__dshPiggyShellOutdated = true;
     }
-    measure = createMeasure({ platform: shell.platform || "", geometry });
     placement = createPlacement({ platform: shell.platform || "" });
+    measure = createMeasure({ platform: shell.platform || "", geometry, anchor: () => placement.resting() });
     const style = document.createElement("style");
     style.setAttribute("data-piggy-desktop-style", "");
     style.textContent = DESKTOP_CSS;
@@ -7900,7 +7947,9 @@
           tick();
           const pigNode = h.querySelector(".dp-pig");
           if (pigNode !== null) {
-            const pigBox = layoutBox(pigNode);
+            const now = readGeometry();
+            const predicted = placement.pigWindow();
+            const pigBox = now !== null && now.window && layoutStale(now.window) && predicted !== null ? { ...predicted, ...placement.pigSize() } : layoutBox(pigNode);
             shell.beginDrag({ x: pigBox.x, y: pigBox.y, width: pigBox.width, height: pigBox.height });
             return;
           }

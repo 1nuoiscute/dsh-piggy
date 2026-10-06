@@ -184,6 +184,40 @@ test('绝不请求会被系统拒绝的窗口矩形（用户 2026-10-06 日志�
   assert.deepEqual(reachable, { x: next.x + 197, y: next.y + 120 })
 })
 
+test('开面板时 DOM 已经把猪挤下去了，原位仍按上一轮的位置（低处开面板猪掉 66px 的回归）', () => {
+  memory.clear()
+  const place = createPlacement({ now: () => 0 })
+  const area = [{ x: 0, y: 29, width: 1920, height: 985 }]
+  // 收起：304x204 的窗口，猪在 (228,120)，屏幕点 (1400,800)
+  const win = { x: 1172, y: 680, width: 304, height: 204 }
+  const closed = { width: 304, height: 204, anchor: { vertical: 'top', horizontal: 'right' }, pig: { x: 228, y: 120, width: 54, height: 54 },
+    pigWindow: { x: 228, y: 120 }, pigNow: { x: 228, y: 120 }, pigBeforePin: { x: 228, y: 120 } }
+  place.decide(closed, win, area)
+  // 开面板这一轮：卡片插在猪上面，钉边之前猪已经被挤到 y=186（2026-10-06 真机复现的数字）
+  const next = place.decide({ ...closed, width: 324, height: 692, anchor: { vertical: 'bottom', horizontal: 'right' }, panelOpen: true,
+    pigWindow: { x: 248, y: 610 }, pigNow: { x: 228, y: 122 }, pigBeforePin: { x: 228, y: 186 } }, win, area)
+  assert.deepEqual(place.target(), { x: 1400, y: 800 }, '原位是开面板之前猪在的地方')
+  assert.deepEqual({ x: next.x + 248, y: next.y + 610 }, { x: 1400, y: 800 }, '猪一像素都不动')
+})
+
+test('存了猪的大小：占位纸盒阶段不算启动复位完成，换成真猪也摆回原位（每次重启偏 (10,4) 的回归）', () => {
+  memory.clear()
+  memory.set('dsh-piggy:desktop-pig', JSON.stringify({ v: 2, area: { x: 0, y: 29, width: 1920, height: 985 }, x: 1400, y: 671, w: 54, h: 54 }))
+  const place = createPlacement({ now: () => 0 })
+  const area = [{ x: 0, y: 29, width: 1920, height: 985 }]
+  const box = { width: 304, height: 204, anchor: { vertical: 'top', horizontal: 'right' }, pig: { x: 232, y: 120, width: 70, height: 56 },
+    pigWindow: { x: 232, y: 120 }, pigNow: { x: 232, y: 120 }, pigBeforePin: { x: 232, y: 120 } }
+  const first = place.decide(box, { x: 0, y: 0, width: 304, height: 204 }, area)
+  const win = { ...first }
+  assert.equal(place.decide(box, win, area), null, '纸盒已经摆在存档位置')
+  const real = place.decide({ ...box, pig: { x: 228, y: 120, width: 54, height: 54 }, pigWindow: { x: 228, y: 120 }, pigNow: { x: 228, y: 120 } }, win, area)
+  const landed = real === null ? { x: win.x + 228, y: win.y + 120 } : { x: real.x + 228, y: real.y + 120 }
+  assert.deepEqual(landed, { x: 1400, y: 700 }, '真猪落在存下的位置，不按纸盒的脚底中心挪')
+  place.remember(real ?? win, area)
+  const stored = JSON.parse(memory.get('dsh-piggy:desktop-pig'))
+  assert.deepEqual({ w: stored.w, h: stored.h }, { w: 54, h: 54 }, '存档带上猪的大小')
+})
+
 test('游戏包导出桌面模块；更新页只推荐正式版、测试版折叠，可选的外壳更新不再红字', () => {
   const index = readFileSync(new URL('../src/client/index.js', import.meta.url), 'utf8')
   assert.match(index, /exports\.desktop = desktop/)

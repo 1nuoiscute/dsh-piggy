@@ -283,6 +283,8 @@ PIGGY_CAPTURE=<文件> / PIGGY_CAPTURE_STEPS  # 截图自检模式
 - 桌面版改了外壳代码却没升外壳版本 → 用户只更新游戏包拿不到修复。
 - 截图验证大文件要等几秒再截，否则截到加载中的空白。
 - DSH 本身更新后要 `pnpm install && pnpm build`，否则启动时会报找不到 `lib/*.js`。
+- **桌面版几何的验收只看一条：猪的屏幕点有没有动**（点猪、开关面板、重启前后差 ≤2px）。「窗口在工作区内」「核对 0 次不符」「测试全绿」都不等于猪没动——2026-10-06 就是这么三次误判「修好了」。改完跑 `tools/desktop-geometry-check.mjs`（真 Electron + CDP 点击），它跑不过就是没修好；真拖动、多屏、Windows 还要人工在真机上试。
+- 桌面页面里 `piggyShell.place({})` 回读的窗口尺寸在 setBounds 后立刻就是新的，但页面要等 resize 才重排：两者对不上的那一拍不能量（`index.js` 的 `layoutStale`），否则算出的猪位置差一个尺寸变化量。
 
 ---
 

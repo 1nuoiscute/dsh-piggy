@@ -53,6 +53,26 @@ export function chooseCollapsedVertical(openBoxes, horizontal, width, height, pi
   return current
 }
 
+/**
+ * 收起时按哪个面板范围留位置：当前朝向放得下就用它，放不下换另一朝向，都放不下就不留。
+ * 留出来的范围放不进工作区时，窗口会被系统（或我们自己）整块推回屏幕里，猪就跟着跳走——
+ * 用户 2026-10-06 的日志：猪放在屏幕下半部，一点就被拽上去 143～452px。预留只是为了开面板时
+ * 不改窗口，不能拿猪的位置去换。
+ * @returns {{vertical:string, box:{l:number,t:number,r:number,b:number}}|null}
+ */
+export function fittingOpenBox(openBoxes, vertical, horizontal, pigBox, pigScreen, area) {
+  const other = vertical === 'top' ? 'bottom' : 'top'
+  for (const side of [vertical, other]) {
+    const box = validOpenBox(openBoxes, side, horizontal, pigBox)
+    if (box === undefined) continue
+    if (pigScreen === null || area === null || area === undefined) return { vertical: side, box }
+    const fits = pigScreen.x + box.l - PAD >= area.x && pigScreen.x + box.r + PAD <= area.x + area.width
+      && pigScreen.y + box.t - PAD >= area.y && pigScreen.y + box.b + PAD <= area.y + area.height
+    if (fits) return { vertical: side, box }
+  }
+  return null
+}
+
 /** 从卡片和猪的实际位置判断面板朝向，供量框和锚边共用。 */
 function panelSide(cardBox, pigBox) {
   return {
@@ -81,7 +101,7 @@ function visible(node) {
 }
 
 /**
- * @param {{ platform: string, geometry: () => any }} env
+ * @param {{ platform: string, geometry: () => any, anchor?: () => ({x:number,y:number}|null) }} env
  */
 export function createMeasure(env) {
   let openBoxes = {}
@@ -187,9 +207,16 @@ export function createMeasure(env) {
           openBoxes[key] = rel
           try { localStorage.setItem(OPEN_BOX_KEY, JSON.stringify({ v: OPEN_BOX_VERSION, boxes: openBoxes })) } catch { /* 存不下就每次启动重新量 */ }
         }
-      } else if (!open) {
-        const saved = validOpenBox(openBoxes, state.vertical, state.horizontal, pigBox)
-        outline = reservedOutline(outline, saved, pigBox, state.compact)
+      } else if (!open && !state.compact) {
+        // 猪要落在哪：收起那一轮要摆回开面板前的原位（面板两边都放不下时猪被挪开过），按原位判断放不放得下。
+        const anchor = typeof env.anchor === 'function' ? env.anchor() : null
+        const pigScreen = anchor ?? (geometry === null ? null : { x: geometry.window.x + pigBox.x, y: geometry.window.y + pigBox.y })
+        const chosen = fittingOpenBox(openBoxes, state.vertical, state.horizontal, pigBox, pigScreen, geometry?.workArea)
+        if (chosen !== null && chosen.vertical !== state.vertical) {
+          state.vertical = chosen.vertical
+          try { localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical: state.vertical, horizontal: state.horizontal })) } catch { /* 下次启动从默认朝向恢复 */ }
+        }
+        outline = reservedOutline(outline, chosen?.box, pigBox, state.compact)
       }
     }
     let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
