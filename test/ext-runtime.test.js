@@ -30,7 +30,7 @@ const PACKAGE = {
   'client.js': 'window.dshPiggyExtensions && window.dshPiggyExtensions.register("piggybank", { render: function () {} })',
 }
 
-function setup({ minGame, corrupt, pkg = PACKAGE } = {}) {
+function setup({ minGame, corrupt, pkg = PACKAGE, flaky = 0, dead = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'dsh-piggy-ext-'))
   const seed = hatchEgg(Date.now() - 2 * HOUR)
   seed.coins = 100
@@ -43,17 +43,30 @@ function setup({ minGame, corrupt, pkg = PACKAGE } = {}) {
     { key: 'fishing', label: '钓鱼', emoji: '🎣', builtin: true },
     { key: 'piggybank', label: '存钱罐', emoji: '🏺', version: '1.0.0', ...(minGame ? { minGame } : {}), files },
   ] }
+  /** 每个文件地址被请求了几次；flaky / dead 用来模拟「直连 GitHub 连不上」。 */
+  const tries = new Map()
   const fetch = async url => {
     if (url === 'https://example.test/registry.json') return { ok: true, status: 200, json: async () => registry }
     const name = url.replace('https://example.test/', '')
+    tries.set(name, (tries.get(name) ?? 0) + 1)
+    // 第一次连不上、过一会儿就好：国内直连 GitHub 的常态。
+    if (dead || tries.get(name) <= flaky) {
+      const error = new Error('fetch failed')
+      error.name = 'TimeoutError'
+      error.cause = { code: 'UND_ERR_CONNECT_TIMEOUT' }
+      throw error
+    }
     if (pkg[name] === undefined) return { ok: false, status: 404 }
     return { ok: true, status: 200, arrayBuffer: async () => new TextEncoder().encode(pkg[name]).buffer }
   }
-  const runtime = createExtRuntime(store, { gameVersion: '0.30.0', fetch, registryUrl: 'https://example.test/registry.json' })
+  const runtime = createExtRuntime(store, {
+    gameVersion: '0.30.0', fetch, registryUrl: 'https://example.test/registry.json',
+    sleep: async () => {}, // 重试间隔在测试里不真等
+  })
   store.ext = runtime
   /** 在假目录里「发布」新版本：pkg 已经改好，这里重算校验值、改版本号。 */
   const publish = version => { const entry = registry.extensions.find(e => e.key === 'piggybank'); entry.version = version; entry.files = filesOf() }
-  return { dir, store, runtime, publish, done: () => { store.dispose(); rmSync(dir, { recursive: true, force: true }) } }
+  return { dir, store, runtime, publish, tries, done: () => { store.dispose(); rmSync(dir, { recursive: true, force: true }) } }
 }
 
 test('versions compare by number, ignoring a preview suffix', () => {
@@ -132,8 +145,7 @@ test('a file that does not match its checksum, or a game that is too old, is ref
   } finally { old.done() }
 })
 
-test('an installed extension updates in place: new code, same data', async () => {
-  const pkg = { ...PACKAGE }
+test('an installed extension updates in place: new code, same data', async () => {  const pkg = { ...PACKAGE }
   const { store, runtime, publish, done } = setup({ pkg })
   try {
     assert.equal((await runtime.install('piggybank')).ok, true)
@@ -152,4 +164,45 @@ test('an installed extension updates in place: new code, same data', async () =>
     assert.equal(store.state.extData.piggybank.saved, 20)
     assert.equal((await runtime.onlineView(true)).entries.find(e => e.key === 'piggybank').update, false)
   } finally { done() }
+})
+
+test('a download that cannot connect is retried before giving up', async () => {
+  // 直连 GitHub 的常态：头两次连不上，第三次就好。
+  const { store, runtime, tries, done } = setup({ flaky: 2 })
+  try {
+    const installed = await runtime.install('piggybank')
+    assert.equal(installed.ok, true, JSON.stringify(installed))
+    assert.equal(tries.get('manifest.json'), 3, 'retried until the third attempt')
+    assert.equal(tries.get('server.js'), 3)
+    assert.equal(tries.get('client.js'), 3)
+    assert.deepEqual(store.state.extData.piggybank, { saved: 0 })
+  } finally { done() }
+})
+
+test('when every attempt fails the refusal names the file and the retry count', async () => {
+  const { runtime, done } = setup({ dead: true })
+  try {
+    const result = await runtime.install('piggybank')
+    assert.equal(result.ok, false)
+    assert.equal(result.reason, 'download-failed')
+    assert.match(result.message, /下载失败：连接 example\.test 超时/)
+    assert.match(result.message, /（试了 3 次）/)
+    // 说清楚是哪个文件，用户和日志都能看懂。
+    assert.match(result.message, /(manifest\.json|server\.js|client\.js)/)
+  } finally { done() }
+})
+
+test('an unreachable registry is reported instead of leaving the list empty and silent', async () => {
+  const runtime = createExtRuntime(
+    { filePath: undefined, state: null, mutate: () => ({ ok: true }) },
+    {
+      gameVersion: '0.30.0',
+      registryUrl: 'https://example.test/registry.json',
+      fetch: async () => { const error = new Error('fetch failed'); error.cause = { code: 'ENOTFOUND' }; throw error },
+      sleep: async () => {},
+    },
+  )
+  const view = await runtime.onlineView(true)
+  assert.deepEqual(view.entries, [])
+  assert.match(view.error, /连不上 GitHub|域名 example\.test 解析不了/)
 })

@@ -26,6 +26,43 @@ const FILES = ['manifest.json', 'server.js', 'client.js']
 const KEY = /^[a-z0-9-]{2,24}$/
 const REGISTRY_TTL_MS = 10 * 60_000
 const MAX_FILE_BYTES = 512 * 1024
+/**
+ * 国内直连 GitHub 很抖：同一个地址常常第一次连不上、几秒后就好了。
+ * 所以每个文件都要有超时和重试，别让一次抖动变成「点了没反应」。
+ */
+const DOWNLOAD_ATTEMPTS = 3
+const DOWNLOAD_TIMEOUT_MS = 12_000
+const RETRY_BACKOFF_MS = [400, 1200]
+const REGISTRY_ATTEMPTS = 2
+const REGISTRY_TIMEOUT_MS = 10_000
+
+/** 渠道名给日志和错误文案用（Gitee 包里不能写 GitHub）。 */
+const CHANNEL_LABEL = { github: 'GitHub', gitee: 'Gitee' }[CHANNEL.name] ?? CHANNEL.name
+
+/** 顺着 cause 链找最里层的错误码：fetch 失败时真正的原因藏在 cause 里。 */
+function causeCode(error) {
+  let current = error
+  for (let depth = 0; depth < 5 && current !== null && typeof current === 'object'; depth += 1) {
+    if (typeof current.code === 'string' && current.code !== '') return current.code
+    current = current.cause
+  }
+  return ''
+}
+
+/** 一句话说清「为什么连不上」，给用户看也留给日志。 */
+function describeFetchError(error, url) {
+  let host = url
+  try { host = new URL(url).host } catch { /* 地址本身就不成形时原样写出来 */ }
+  const code = causeCode(error)
+  if (error?.name === 'TimeoutError' || code === 'UND_ERR_CONNECT_TIMEOUT' || code === 'ETIMEDOUT') return `连接 ${host} 超时`
+  if (code === 'ECONNRESET' || code === 'UND_ERR_SOCKET') return `连接 ${host} 被中断`
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return `域名 ${host} 解析不了`
+  if (error?.name === 'AbortError') return `${host} 响应太慢`
+  const detail = code !== '' ? code : (error instanceof Error ? error.message : String(error))
+  return `连不上 ${host}（${detail}）`
+}
+
+const sleep = ms => new Promise(resolve => { setTimeout(resolve, ms) })
 
 /** 「0.31.0」≥「0.30.2」吗（测试版后缀不管）。 */
 export function versionAtLeast(have, need) {
@@ -47,16 +84,62 @@ const sha256 = buffer => createHash('sha256').update(buffer).digest('hex')
  * @param {typeof fetch} [options.fetch]
  * @param {string} [options.registryUrl] - 测试用；正式版永远是 REGISTRY_URL
  * @param {() => number} [options.now]
+ * @param {(ms: number) => Promise<void>} [options.sleep] - 测试用，免得真等重试间隔
  */
 export function createExtRuntime(store, options) {
   const doFetch = options.fetch ?? globalThis.fetch
   const registryUrl = options.registryUrl ?? REGISTRY_URL
   const now = options.now ?? (() => Date.now())
+  const wait = options.sleep ?? sleep
   // 没有存档路径（测试里的假存档）就当一个扩展都没装。
   const root = () => typeof store.filePath === 'string' ? join(dirname(store.filePath), 'extensions') : ''
   /** @type {Map<string, {manifest: any, module: any, error: string|null}>} */
   const loaded = new Map()
   let registry = { at: 0, entries: /** @type {any[]} */ ([]), error: /** @type {string|null} */ (null) }
+
+  /** 下载和目录读取的失败都从这里出去：控制台一份（进日志），返回值一份（进界面）。 */
+  function warn(message) {
+    console.warn(`[dsh-piggy] ${message}`)
+    if (typeof store.journal === 'function') store.journal('warn', 'ext', message)
+  }
+
+  /** 拉一个文件：超时、网络抖动、坏包都再试；HTTP 4xx 和超大文件不重试。
+   * @returns {Promise<{ok:boolean, retryable:boolean, message:string, buffer?:Buffer}>} */
+  async function downloadOnce(name, spec) {
+    let response
+    try {
+      response = await doFetch(spec.url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) })
+    } catch (error) {
+      return { ok: false, retryable: true, message: `${name} 下载失败：${describeFetchError(error, spec.url)}` }
+    }
+    if (!response.ok) {
+      return { ok: false, retryable: response.status >= 500, message: `${name} 下载失败：HTTP ${response.status}` }
+    }
+    let buffer
+    try {
+      buffer = Buffer.from(await response.arrayBuffer())
+    } catch (error) {
+      return { ok: false, retryable: true, message: `${name} 下载中断：${describeFetchError(error, spec.url)}` }
+    }
+    if (buffer.length > MAX_FILE_BYTES) return { ok: false, retryable: false, message: `${name} 太大（${buffer.length} 字节）` }
+    if (sha256(buffer) !== spec.sha256.toLowerCase()) return { ok: false, retryable: true, message: `${name} 校验不对，可能下载坏了` }
+    return { ok: true, retryable: false, message: '', buffer }
+  }
+
+  /** 带重试的下载。每次失败都留一行日志，事后能看出是哪一步、试了几次。
+   * @returns {Promise<Buffer>} 试完还不行就抛错，错误文案直接给用户看。 */
+  async function downloadFile(name, spec) {
+    let result = { ok: false, retryable: false, message: `${name} 没有下载` }
+    let attempt = 0
+    for (attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt += 1) {
+      result = await downloadOnce(name, spec)
+      if (result.ok === true && result.buffer !== undefined) return result.buffer
+      warn(`extension download failed: file="${name}" attempt=${attempt}/${DOWNLOAD_ATTEMPTS} url="${spec.url}" reason="${result.message}"`)
+      if (result.retryable !== true || attempt === DOWNLOAD_ATTEMPTS) break
+      await wait(RETRY_BACKOFF_MS[attempt - 1] ?? 1200)
+    }
+    throw new Error(result.message + (attempt > 1 ? `（试了 ${attempt} 次）` : ''))
+  }
 
   function readManifest(key) {
     try {
@@ -163,19 +246,36 @@ export function createExtRuntime(store, options) {
   const shelves = state => parts(state, 'shelf')
   const dex = state => parts(state, 'dex')
 
+  /** 读在线目录，带超时和一次重试：目录站也会抖。 */
+  async function readRegistry() {
+    let lastError = null
+    for (let attempt = 1; attempt <= REGISTRY_ATTEMPTS; attempt += 1) {
+      try {
+        const response = await doFetch(registryUrl, {
+          headers: { accept: 'application/json' },
+          signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS),
+        })
+        if (response.status === 404) throw new Error('目录还没发布')
+        if (!response.ok) throw new Error(`${CHANNEL_LABEL} 返回 ${response.status}`)
+        const parsed = await response.json()
+        return Array.isArray(parsed?.extensions) ? parsed.extensions.filter(entry => KEY.test(entry?.key ?? '')) : []
+      } catch (error) {
+        lastError = error
+        warn(`extension registry failed: attempt=${attempt}/${REGISTRY_ATTEMPTS} url="${registryUrl}" reason="${describeFetchError(error, registryUrl)}"`)
+        if (attempt < REGISTRY_ATTEMPTS) await wait(RETRY_BACKOFF_MS[0])
+      }
+    }
+    throw lastError
+  }
+
   /** 在线目录（带缓存）；`force` 时重新读。 */
   async function online(force = false) {
     if (!force && now() - registry.at < REGISTRY_TTL_MS && registry.error === null && registry.at > 0) return registry
     try {
-      const response = await doFetch(registryUrl, { headers: { accept: 'application/json' } })
-      if (response.status === 404) throw new Error('目录还没发布')
-      if (!response.ok) throw new Error('GitHub 返回 ' + response.status)
-      const parsed = await response.json()
-      const entries = Array.isArray(parsed?.extensions) ? parsed.extensions.filter(entry => KEY.test(entry?.key ?? '')) : []
-      registry = { at: now(), entries, error: null }
+      registry = { at: now(), entries: await readRegistry(), error: null }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      registry = { at: now(), entries: registry.entries, error: /fetch failed|ENOTFOUND|ECONN|timed? ?out/i.test(message) ? '连不上 GitHub' : message }
+      registry = { at: now(), entries: registry.entries, error: /fetch failed|ENOTFOUND|ECONN|timed? ?out/i.test(message) ? `连不上 ${CHANNEL_LABEL}` : message }
     }
     return registry
   }
@@ -210,26 +310,25 @@ export function createExtRuntime(store, options) {
     if (entry === undefined) return { ok: false, reason: 'unknown-extension' }
     if (entry.builtin === true) return store.mutate(state => installExtension(state, key))
     if (typeof entry.minGame === 'string' && !versionAtLeast(options.gameVersion, entry.minGame)) return { ok: false, reason: 'game-too-old', need: entry.minGame }
+    const specs = FILES.map(name => ({ name, spec: entry.files?.[name] }))
+    for (const { name, spec } of specs) {
+      if (spec === undefined || typeof spec.url !== 'string' || typeof spec.sha256 !== 'string') return { ok: false, reason: 'download-failed', message: '目录里缺少 ' + name }
+      if (!ALLOWED_SOURCES.some(prefix => spec.url.startsWith(prefix)) && options.registryUrl === undefined) return { ok: false, reason: 'download-failed', message: '来源不对：' + name }
+    }
     const staging = join(root(), '.' + key + '-' + now())
     try {
       mkdirSync(staging, { recursive: true })
-      for (const name of FILES) {
-        const spec = entry.files?.[name]
-        if (spec === undefined || typeof spec.url !== 'string' || typeof spec.sha256 !== 'string') throw new Error('目录里缺少 ' + name)
-        if (!ALLOWED_SOURCES.some(prefix => spec.url.startsWith(prefix)) && options.registryUrl === undefined) throw new Error('来源不对：' + name)
-        const response = await doFetch(spec.url)
-        if (!response.ok) throw new Error(name + ' 下载失败（HTTP ' + response.status + '）')
-        const buffer = Buffer.from(await response.arrayBuffer())
-        if (buffer.length > MAX_FILE_BYTES) throw new Error(name + ' 太大')
-        if (sha256(buffer) !== spec.sha256.toLowerCase()) throw new Error(name + ' 校验不对，可能下载坏了')
-        writeFileSync(join(staging, name), buffer)
-      }
+      // 三个文件一起下：慢的那个只拖自己，不把另外两个的时间叠上去。
+      const buffers = await Promise.all(specs.map(({ name, spec }) => downloadFile(name, spec)))
+      for (let index = 0; index < specs.length; index += 1) writeFileSync(join(staging, specs[index].name), buffers[index])
       const target = join(root(), key)
       rmSync(target, { recursive: true, force: true })
       renameSync(staging, target)
     } catch (error) {
       rmSync(staging, { recursive: true, force: true })
-      return { ok: false, reason: 'download-failed', message: error instanceof Error ? error.message : String(error) }
+      const message = error instanceof Error ? error.message : String(error)
+      warn(`extension install failed: key="${key}" reason="${message}"`)
+      return { ok: false, reason: 'download-failed', message }
     }
     const entryLoaded = await load(key)
     if (entryLoaded === null || entryLoaded.module === null) return { ok: false, reason: 'broken-extension', message: entryLoaded?.error ?? '' }
