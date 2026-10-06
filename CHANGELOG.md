@@ -5,7 +5,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
-## [Unreleased]
+## [0.32.0] — 2026-10-06 · 小猪成就、日志导出与扩展下载修复
 
 ### 小猪成就系统（贡献者 [@1nuoiscute](https://github.com/1nuoiscute)，[#6](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/6)）
 
