@@ -52,6 +52,8 @@ function log(...parts) {
 
 /** 游戏宿主的日志本；宿主起来之前是 null。 */
 let hostJournal = null
+/** 显示器兜底对账的定时器（见 app.whenReady 里的 displayWatchTimer）。 */
+let displayWatchTimer = null
 
 /**
  * Start again with `args`. Inside an AppImage the running copy is a temporary
@@ -683,6 +685,18 @@ app.whenReady().then(async () => {
   })
   screen.on('display-added', (event, display) => reclamp('added', { id: display?.id, bounds: display?.bounds, scale: display?.scaleFactor }))
   screen.on('display-removed', (event, display) => reclamp('removed', { id: display?.id, bounds: display?.bounds }))
+  // 兜底对账：显示器事件在个别平台/驱动下会漏（Shimeji 干脆每 5 秒轮询一次，因为 AWT 没有事件）。
+  // 我们订阅了事件，再每 10 秒比一次工作区列表，不一样就当作「显示器变了」处理一次。
+  let lastDisplayKey = ''
+  displayWatchTimer = setInterval(() => {
+    if (win === null || win.isDestroyed()) return
+    const key = JSON.stringify(screen.getAllDisplays().map(display =>
+      [display.id, display.workArea.x, display.workArea.y, display.workArea.width, display.workArea.height, display.scaleFactor]))
+    if (key === lastDisplayKey) return
+    lastDisplayKey = key
+    reclamp('reconcile', { displays: screen.getAllDisplays().length })
+  }, 10000)
+  displayWatchTimer.unref?.()
   win.webContents.on('did-finish-load', () => pushGeometry())
   pushGeometry()
 })

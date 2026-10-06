@@ -92,3 +92,23 @@ test('显示器变化要主动告诉游戏包：窗口没挪动也得推几何',
   assert.match(reclamp, /pushGeometry\(\)/, '无条件推几何')
   assert.match(reclamp, /log\('display'/, '记一行，导出日志里能看见是哪块屏、变了什么')
 })
+
+test('窗口位置必须在构造时就给，不能先建再挪（Electron 自己的 DPI 坑）', () => {
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  // Electron 源码 shell/browser/native_window_views.cc 里写着：构造时不给 x/y 的话，
+  // HWND 会先按主屏 DPI 建在 (0,0)、之后再挪，副屏上会「缩水」（secondary-creation
+  // deflation symptom）。所以 start 必须摊进构造参数。
+  const ctor = main.slice(main.indexOf('new BrowserWindow({'), main.indexOf('win.setAlwaysOnTop'))
+  assert.match(ctor, /\.\.\.start/, '构造时就带上算好的 x/y/width/height')
+})
+
+test('显示器对账兜底：漏了 display 事件也能自愈', () => {
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  assert.match(main, /displayWatchTimer = setInterval\([\s\S]*?screen\.getAllDisplays\(\)[\s\S]*?reclamp\('reconcile'/, '每 10 秒比一次工作区列表')
+})
+
+test('核对容差不贴着 Electron 的 ±1px 噪声（容差 1 会来回纠正）', () => {
+  const index = readFileSync(new URL('../../../src/client/desktop/index.js', import.meta.url), 'utf8')
+  assert.match(index, /const VERIFY_TOLERANCE = 2/)
+  assert.match(index, /~1 ?像素误差|约 1px 误差|1px 误差/)
+})

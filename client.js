@@ -7684,7 +7684,7 @@
     '[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-daily,[data-dsh-pig] .dp-scene[data-dragging="true"] .dp-poke-hint{visibility:hidden!important}'
   ].join("\n");
   var TOLERANCE = 2;
-  var VERIFY_TOLERANCE = 1;
+  var VERIFY_TOLERANCE = 2;
   var bridge2 = (
     /** @type {any} */
     null

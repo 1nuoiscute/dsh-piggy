@@ -29,8 +29,11 @@ const DESKTOP_CSS = [
 
 /** 非拖动时窗口差这么多以内就不改（Windows 分数缩放下读回来常差 1px）。 */
 const TOLERANCE = 2
-/** 摆完核对猪的屏幕坐标时容忍多少像素：超过就补一次。 */
-const VERIFY_TOLERANCE = 1
+/** 摆完核对猪的屏幕坐标时容忍多少像素。
+ *  取 2 而不是 1：Electron 源码自己写了「GetWindowBoundsInScreen 有约 1px 误差，DIP↔像素
+ *  来回换算会丢精度」（shell/browser/native_window_views.cc 的 OnWidgetBoundsChanged，
+ *  它自己用 IsApproximatelyEqual(..., 1) 比较）。容差贴着噪声就会变成来回纠正。 */
+const VERIFY_TOLERANCE = 2
 
 let bridge = /** @type {any} */ (null)
 let measure = /** @type {any} */ (null)

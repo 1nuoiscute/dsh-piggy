@@ -178,6 +178,28 @@ npm start                 # 窗口没出来就换 npm start -- --ozone-platform=
 
 ---
 
+## 9. 同行调研结论（2026-10-06，用户要求「不要自己造轮子」）
+
+调研了 Shimeji-Desktop、eSheep/desktopPet、CppGoose（Desktop Goose 的 Linux 版）、SSP（伺か）、Convai Desktop Pets，以及 Electron 自己的源码注释。
+
+**最重要的一条：架构 A（窗口紧贴精灵 + setBounds）不是错的**——两个活到今天的经典桌宠（Shimeji、eSheep）都用它。我们的漂移更可能是三件具体可修的事，而不是架构选错：
+
+| 来源 | 结论 | 对我们的动作 |
+|---|---|---|
+| Electron `shell/browser/native_window_views.cc` 注释 | 构造 `BrowserWindow` 时不给 x/y，HWND 会先按主屏 DPI 建在 (0,0) 再挪，副屏上会「缩水」（secondary-creation deflation）；不挪也不该「先建再挪」 | R2：我们本来就把 `...start` 摊进构造参数 ✓，加测试锁住 |
+| 同一文件 `OnWidgetBoundsChanged` | `GetWindowBoundsInScreen` 有约 1px 误差，DIP↔像素来回换算丢精度，它自己用 `IsApproximatelyEqual(..., 1)`；把 move/resize 事件回灌 setBounds 会「constant false positives」 | R3：核对容差从 1px 抬到 **2px**（贴着噪声就是来回纠正） |
+| Shimeji（Java） | 显示设备**每 5000ms 轮询**一次，因为 AWT 没有可靠的显示器变化事件 | R6：我们订阅了 Electron 的 `display-*` 事件，再加一个 **10 秒兜底对账** |
+| eSheep（C#） | 缓存显示器索引在拔屏/RDP 后失效；**每次决策只取一份 `Screen.AllScreens` 快照** | R6：我们每次都用 `getAllDisplays()` 现取、且位置存的是矩形不是索引 ✓ |
+| CppGoose（架构 B，每屏一个全屏覆盖窗口） | README「Known limitations」：**分数缩放和混合 DPI 在屏幕边界附近仍会有位置偏差** | **不要为 DPI 迁移到架构 B**（B 不解决这个问题）；B 真正的理由是 Wayland 和多屏简化 |
+| Electron PR #10183 / issue #40213 | `setIgnoreMouseEvents(true, {forward:true})` 是**低级鼠标钩子合成的**事件，在 Wacom 数位板下会静默失效，issue 被 closed as `not_planned` | 架构 B 的点击穿透有真实支持负担（用户用笔/数位板时） |
+| eSheep `FormPet.CheckFullScreen()` | 前台窗口铺满屏幕时**主动去掉 TopMost**（changelog 里连这个功能的误判 bug 都修过） | R4：待办——全屏游戏/视频时让猪让位。这是 `alwaysOnTop` 的问题，A/B 都有，B 更暴露 |
+| SSP（伺か）`seriko.dpi` | 素材**自己声明**作者按什么 DPI 画的（96/120/144/168/192 ↔ 100–200%） | R5：待办——每套立绘带一个 authoredDpi，换算 `display.scaleFactor / (authoredDpi/96)` |
+| Shimeji `contains()` 重写 / SSP 文档 | 点击区域**就是**精灵的透明遮罩（Shimeji 逐像素查 alpha；SSP 直接规定透明区不可点），两边都不做每帧命中测试 | R1：我们 Windows 上已经在用「命中区域 + `setHit`」，方向一致 |
+| Electron `setBounds` 文档 | macOS 上 y 不能小于托盘高度（20–40px），**低于就会被静默夹住** | 待办：检查 macOS 下的顶部夹取，这可能本身就是一类「偏移」 |
+| Electron 文档 | Wayland 下无法用程序移动/定位窗口，`getPosition()` 返回 `[0,0]`，`setAlwaysOnTop` 不支持 | 我们已经强制 `--ozone-platform=x11` ✓ |
+
+**修正一条我自己先前的判断**：我一度认为「全屏覆盖（架构 B）结构上就没有 DPI 问题」——CppGoose 的 README 证明这是错的，B 在分数缩放下同样会在屏幕边界附近偏。B 的正当理由只有 Wayland 和多屏简化，**不是** DPI。
+
 ## 验证记录
 
 ### 阶段 0 · 观测（2026-10-06）
