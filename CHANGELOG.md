@@ -11,6 +11,7 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 - 成功照顾与实际完成学习、工作、旅行，以及钓鱼收藏和晋升记录驱动解锁；合并同时获得的徽章提示。
 - 记录和累计次数跨领养保留；完整重置清空。旧档只补录可验证经历，未知完成日期明确标注，存档版本保持 v12。
 - 增加隔离试玩入口与规则草案，首版只奖励徽章，不改属性或金币。
+- 成就系统（含十六张徽章立绘、规则、测试和文档）由贡献者 [@1nuoiscute](https://github.com/1nuoiscute) 设计并实现（[#6](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/6)）。
 
 ## [0.31.0] — 2026-10-05 · 扭蛋、菜园、矿洞和盲盒寻访
 
