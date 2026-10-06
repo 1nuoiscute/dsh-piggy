@@ -20,17 +20,53 @@ export function createPlacement(options = {}) {
   const now = options.now ?? (() => Date.now())
   let lastContent = null
   let lastPigWindow = null
+  let lastMeasuredPig = null
   let lastPigSize = { width: 56, height: 56 }
   let resting = null
   let saved = null
   /** 这次摆放想让猪落在的屏幕点：摆完用它核对（见 geometry.js 的 pigCorrection）。 */
   let lastTarget = null
-  try {
-    const raw = JSON.parse(localStorage.getItem(PIG_SCREEN_KEY) || 'null')
-    if (raw !== null && Number.isFinite(raw.x) && Number.isFinite(raw.y)) saved = { x: raw.x, y: raw.y }
-  } catch { saved = null }
   const startedAt = now()
-  let stored = saved === null ? '' : saved.x + ',' + saved.y
+  let stored = ''
+  let loaded = false
+
+  /**
+   * 位置存「哪块显示器 + 相对它工作区的偏移」，不存绝对屏幕坐标。
+   * 绝对坐标在换分辨率、换显示器排列、拔掉一块屏之后就失去意义了（旧格式就是这么烂掉的）。
+   * 认显示器用工作区矩形：矩形一样就是同一块（Electron 的 workArea 在同一排列下是稳定的）。
+   * @param {Array<{x:number,y:number,width:number,height:number}>} areas
+   */
+  function readSaved(areas) {
+    let raw = null
+    try { raw = JSON.parse(localStorage.getItem(PIG_SCREEN_KEY) || 'null') } catch { return null }
+    if (raw === null || typeof raw !== 'object') return null
+    if (raw.v === 2 && Number.isFinite(raw.x) && Number.isFinite(raw.y)) {
+      const list = Array.isArray(areas) ? areas : []
+      const same = raw.area === null || raw.area === undefined ? null
+        : list.find(area => area.x === raw.area.x && area.y === raw.area.y && area.width === raw.area.width && area.height === raw.area.height) ?? null
+      const area = same ?? areaOf({ x: (raw.area?.x ?? 0) + raw.x, y: (raw.area?.y ?? 0) + raw.y }, list)
+      // 显示器拔了：按最近的那块屏重新落地（用户 2026-10-06 确认这是预期行为）。
+      return area === null ? { x: raw.x, y: raw.y } : { x: Math.round(area.x + raw.x), y: Math.round(area.y + raw.y) }
+    }
+    // 旧格式（绝对屏幕坐标）：能用就先用，下次写入自动升级成 v2。
+    return Number.isFinite(raw.x) && Number.isFinite(raw.y) ? { x: raw.x, y: raw.y } : null
+  }
+
+  /** 点落在哪块屏的工作区里；都不在就取最近的。 */
+  function areaOf(point, areas) {
+    if (!Array.isArray(areas) || areas.length === 0) return null
+    let best = null
+    let bestDistance = Infinity
+    for (const area of areas) {
+      const inside = point.x >= area.x && point.x < area.x + area.width && point.y >= area.y && point.y < area.y + area.height
+      const dx = Math.max(area.x - point.x, 0, point.x - (area.x + area.width))
+      const dy = Math.max(area.y - point.y, 0, point.y - (area.y + area.height))
+      const distance = inside ? -1 : dx * dx + dy * dy
+      if (distance < bestDistance) { best = area; bestDistance = distance }
+    }
+    return best
+  }
+
 
   /**
    * @param {any} report 页面这一轮量到的：width/height/anchor/pig/pigWindow（改完窗口后的预测位置）/pigNow/panelOpen
@@ -39,6 +75,8 @@ export function createPlacement(options = {}) {
    * @returns {{x:number,y:number,width:number,height:number}|null} 要改成的窗口；不用改就是 null
    */
   function decide(report, bounds, areas) {
+    // 存档要等拿到显示器列表才能换算成绝对坐标（v2 存的是显示器相对位置）。
+    if (!loaded) { loaded = true; saved = readSaved(areas); stored = saved === null ? '' : JSON.stringify({ x: saved.x, y: saved.y }) }
     const width = report.width
     const height = report.height
     const anchor = report.anchor
@@ -58,6 +96,7 @@ export function createPlacement(options = {}) {
     // 开关面板两个方向各用一个基准，就会看到猪稳定跳一下（2026-10-06 实测）。
     const measuredPig = Number.isFinite(report.pigBeforePin?.x) && Number.isFinite(report.pigBeforePin?.y)
       ? report.pigBeforePin : null
+    if (measuredPig !== null) lastMeasuredPig = measuredPig
 
     if (saved !== null) {
       const nowPig = measuredPig ?? pigNow
@@ -97,16 +136,23 @@ export function createPlacement(options = {}) {
     lastTarget = null
   }
 
-  /** 记下猪在屏幕上的位置，下次启动按它摆。 */
-  function remember(windowBounds) {
+  /**
+   * 记下猪在屏幕上的位置，下次启动按它摆。
+   * 存「哪块显示器 + 相对偏移」，而且用**实测**的猪本地框（以前存的是预测值，
+   * 偏差会被存下来当成下次启动的位置）。@param {Array<object>} [areas] */
+  function remember(windowBounds, areas) {
     // 启动复位还没完成时不记：那时页面可能还画着占位纸盒，记下来下次启动猪就被摆错位置。
-    if (lastPigWindow === null || saved !== null) return
-    const x = windowBounds.x + lastPigWindow.x
-    const y = windowBounds.y + lastPigWindow.y
-    const key = x + ',' + y
+    if (lastMeasuredPig === null || saved !== null) return
+    const x = windowBounds.x + lastMeasuredPig.x
+    const y = windowBounds.y + lastMeasuredPig.y
+    const area = areaOf({ x, y }, areas)
+    const payload = area === null
+      ? { v: 2, area: null, x, y }
+      : { v: 2, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: x - area.x, y: y - area.y }
+    const key = JSON.stringify(payload)
     if (key === stored) return
     stored = key
-    try { localStorage.setItem(PIG_SCREEN_KEY, JSON.stringify({ x, y })) } catch { /* 存不下就按窗口位置恢复 */ }
+    try { localStorage.setItem(PIG_SCREEN_KEY, key) } catch { /* 存不下就按窗口位置恢复 */ }
   }
 
   return {

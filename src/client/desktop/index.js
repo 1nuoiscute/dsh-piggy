@@ -136,7 +136,7 @@ function tick() {
   if (after && after.window) {
     // 记下这次想让猪落在哪：下一轮（窗口 resize 生效后）用它核对。
     pendingVerify = placement.target() === null ? null : { target: placement.target(), budget: 1 }
-    placement.remember(after.window)
+    placement.remember(after.window, info?.workAreas ?? [])
   }
 }
 
@@ -204,7 +204,7 @@ export function install(shell) {
   style.textContent = DESKTOP_CSS
   document.head.appendChild(style)
   if (typeof shell.onGeometry === 'function') shell.onGeometry(function (info) {
-    if (info && info.window && !dragging()) placement.remember(info.window)
+    if (info && info.window && !dragging()) placement.remember(info.window, info.workAreas ?? [])
     schedule()
   })
   if (typeof shell.askGeometry === 'function') shell.askGeometry()

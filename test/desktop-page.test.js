@@ -101,6 +101,58 @@ test('拖动开始会作废目标点（拖动由主进程摆，页面不再核�
   assert.equal(place.target(), null)
 })
 
+test('位置存成「显示器 + 相对偏移」，不再存绝对屏幕坐标', () => {
+  memory.clear()
+  const place = createPlacement({ now: () => 0 })
+  const areas = [{ x: 0, y: 0, width: 1920, height: 1040 }, { x: 0, y: 1080, width: 1920, height: 1080 }]
+  const win = { x: 1400, y: 1300, width: 324, height: 692 }
+  place.decide(report({ pigBeforePin: { x: 250, y: 610 } }), win, areas)
+  place.remember(win, areas)
+  const stored = JSON.parse(memory.get('dsh-piggy:desktop-pig'))
+  assert.equal(stored.v, 2, '带存储版本')
+  assert.deepEqual(stored.area, areas[1], '记下猪在哪块屏')
+  assert.deepEqual({ x: stored.x, y: stored.y }, { x: win.x + 250 - areas[1].x, y: win.y + 610 - areas[1].y }, '存相对偏移')
+})
+
+test('重启后按「显示器相对」换算回绝对坐标（同一套屏幕排列）', () => {
+  memory.clear()
+  memory.set('dsh-piggy:desktop-pig', JSON.stringify({ v: 2, area: { x: 0, y: 1080, width: 1920, height: 1080 }, x: 1650, y: 830 }))
+  const place = createPlacement({ now: () => 0 })
+  const areas = [{ x: 0, y: 0, width: 1920, height: 1040 }, { x: 0, y: 1080, width: 1920, height: 1080 }]
+  const next = place.decide(report(), { x: 100, y: 100, width: 98, height: 139 }, areas)
+  assert.equal(next.x + 250, 1650, 'x = 屏原点 + 相对偏移')
+  assert.equal(next.y + 610, 1910)
+})
+
+test('显示器拔掉：按最近的那块屏落地，不留在一块不存在的屏上', () => {
+  memory.clear()
+  memory.set('dsh-piggy:desktop-pig', JSON.stringify({ v: 2, area: { x: 0, y: 1080, width: 1920, height: 1080 }, x: 1650, y: 830 }))
+  const place = createPlacement({ now: () => 0 })
+  const only = [{ x: 0, y: 0, width: 1920, height: 1040 }]
+  const next = place.decide(report(), { x: 100, y: 100, width: 98, height: 139 }, only)
+  assert.equal(next.y + 610, 830, '下屏拔了就落在剩下的屏上（用户 2026-10-06 确认这是预期行为）')
+  assert.ok(next.y + 610 <= 1040)
+})
+
+test('旧格式（绝对屏幕坐标）还能用，启动复位结束后写入自动升级成 v2', () => {
+  memory.clear()
+  memory.set('dsh-piggy:desktop-pig', JSON.stringify({ x: 1700, y: 900 }))
+  let clock = 0
+  const place = createPlacement({ now: () => clock })
+  const win = { x: 100, y: 100, width: 98, height: 139 }
+  const next = place.decide(report({ pigBeforePin: { x: 250, y: 610 } }), win, AREA)
+  assert.equal(next.x + 250, 1700, '旧位置照用')
+  // 启动复位期间不写盘（怕把占位纸盒的位置记下来）；过了 4 秒才允许记。
+  place.remember({ x: next.x, y: next.y, width: 324, height: 692 }, AREA)
+  assert.equal(memory.get('dsh-piggy:desktop-pig'), JSON.stringify({ x: 1700, y: 900 }), '复位期间不覆盖')
+  clock = 5000
+  place.decide(report({ pigBeforePin: { x: 250, y: 610 }, width: 340 }), win, AREA)
+  place.remember({ x: 1650, y: 900, width: 340, height: 692 }, AREA)
+  const stored = JSON.parse(memory.get('dsh-piggy:desktop-pig'))
+  assert.equal(stored.v, 2, '下次写入升级成 v2')
+  assert.deepEqual(stored.area, AREA[0])
+})
+
 test('游戏包导出桌面模块；更新页只推荐正式版、测试版折叠，可选的外壳更新不再红字', () => {
   const index = readFileSync(new URL('../src/client/index.js', import.meta.url), 'utf8')
   assert.match(index, /exports\.desktop = desktop/)

@@ -7309,13 +7309,17 @@
   var BUBBLE_ZONE = { width: 272, height: 104 };
   var SHAPE_SLACK = 6;
   var OPEN_BOX_KEY = "dsh-piggy:desktop-open-box";
+  var OPEN_BOX_VERSION = 2;
   var SIDES_KEY = "dsh-piggy:desktop-sides";
   function reservedOutline(outline, saved, pigBox, compact) {
     if (compact || saved === void 0) return outline;
     return outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }]);
   }
+  function openBoxKey(vertical, horizontal, pigBox) {
+    return vertical + "|" + horizontal + "|" + Math.round(pigBox.width / 4);
+  }
   function validOpenBox(openBoxes, vertical, horizontal, pigBox) {
-    const saved = openBoxes[vertical + "|" + horizontal + "|" + Math.round(pigBox.width)];
+    const saved = openBoxes[openBoxKey(vertical, horizontal, pigBox)];
     if (saved === null || saved === void 0 || ![saved.l, saved.t, saved.r, saved.b].every(Number.isFinite)) return void 0;
     if (saved.l >= saved.r || saved.t >= saved.b) return void 0;
     if (vertical === "bottom" && saved.t >= -pigBox.height) return void 0;
@@ -7355,7 +7359,9 @@
   function createMeasure(env) {
     let openBoxes = {};
     try {
-      openBoxes = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || "{}") || {};
+      const raw = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || "null");
+      openBoxes = raw !== null && typeof raw === "object" && raw.v === OPEN_BOX_VERSION && typeof raw.boxes === "object" ? raw.boxes ?? {} : raw !== null && typeof raw === "object" && raw.v === void 0 ? raw : {};
+      if (raw !== null && typeof raw === "object" && raw.v !== void 0 && raw.v !== OPEN_BOX_VERSION) openBoxes = {};
     } catch {
       openBoxes = {};
     }
@@ -7432,7 +7438,7 @@
       if (reserves && pigNode !== null) {
         if (open && cardBox !== null && card2.hidden !== true && cardBox.width > 0 && cardBox.height > 0) {
           const side = panelSide(cardBox, pigBox);
-          const key = side.vertical + "|" + side.horizontal + "|" + Math.round(pigBox.width);
+          const key = openBoxKey(side.vertical, side.horizontal, pigBox);
           let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
           for (const o of outline) {
             l = Math.min(l, o.x);
@@ -7445,7 +7451,7 @@
           if (old === void 0 || old.l !== rel.l || old.t !== rel.t || old.r !== rel.r || old.b !== rel.b) {
             openBoxes[key] = rel;
             try {
-              localStorage.setItem(OPEN_BOX_KEY, JSON.stringify(openBoxes));
+              localStorage.setItem(OPEN_BOX_KEY, JSON.stringify({ v: OPEN_BOX_VERSION, boxes: openBoxes }));
             } catch {
             }
           }
@@ -7548,19 +7554,52 @@
     const now = options.now ?? (() => Date.now());
     let lastContent = null;
     let lastPigWindow = null;
+    let lastMeasuredPig = null;
     let lastPigSize = { width: 56, height: 56 };
     let resting = null;
     let saved = null;
     let lastTarget = null;
-    try {
-      const raw = JSON.parse(localStorage.getItem(PIG_SCREEN_KEY) || "null");
-      if (raw !== null && Number.isFinite(raw.x) && Number.isFinite(raw.y)) saved = { x: raw.x, y: raw.y };
-    } catch {
-      saved = null;
-    }
     const startedAt = now();
-    let stored = saved === null ? "" : saved.x + "," + saved.y;
+    let stored = "";
+    let loaded = false;
+    function readSaved(areas) {
+      let raw = null;
+      try {
+        raw = JSON.parse(localStorage.getItem(PIG_SCREEN_KEY) || "null");
+      } catch {
+        return null;
+      }
+      if (raw === null || typeof raw !== "object") return null;
+      if (raw.v === 2 && Number.isFinite(raw.x) && Number.isFinite(raw.y)) {
+        const list = Array.isArray(areas) ? areas : [];
+        const same = raw.area === null || raw.area === void 0 ? null : list.find((area2) => area2.x === raw.area.x && area2.y === raw.area.y && area2.width === raw.area.width && area2.height === raw.area.height) ?? null;
+        const area = same ?? areaOf({ x: (raw.area?.x ?? 0) + raw.x, y: (raw.area?.y ?? 0) + raw.y }, list);
+        return area === null ? { x: raw.x, y: raw.y } : { x: Math.round(area.x + raw.x), y: Math.round(area.y + raw.y) };
+      }
+      return Number.isFinite(raw.x) && Number.isFinite(raw.y) ? { x: raw.x, y: raw.y } : null;
+    }
+    function areaOf(point, areas) {
+      if (!Array.isArray(areas) || areas.length === 0) return null;
+      let best = null;
+      let bestDistance = Infinity;
+      for (const area of areas) {
+        const inside = point.x >= area.x && point.x < area.x + area.width && point.y >= area.y && point.y < area.y + area.height;
+        const dx = Math.max(area.x - point.x, 0, point.x - (area.x + area.width));
+        const dy = Math.max(area.y - point.y, 0, point.y - (area.y + area.height));
+        const distance = inside ? -1 : dx * dx + dy * dy;
+        if (distance < bestDistance) {
+          best = area;
+          bestDistance = distance;
+        }
+      }
+      return best;
+    }
     function decide(report, bounds, areas) {
+      if (!loaded) {
+        loaded = true;
+        saved = readSaved(areas);
+        stored = saved === null ? "" : JSON.stringify({ x: saved.x, y: saved.y });
+      }
       const width = report.width;
       const height = report.height;
       const anchor = report.anchor;
@@ -7571,6 +7610,7 @@
       const sizeChanged = lastPigWindow !== null && (lastPigSize.width !== pigSize2.width || lastPigSize.height !== pigSize2.height);
       const changed = lastContent === null || lastContent.width !== width || lastContent.height !== height || lastContent.anchor.vertical !== anchor.vertical || lastContent.anchor.horizontal !== anchor.horizontal || sizeChanged || lastPigWindow !== null && (pigWindow.x !== lastPigWindow.x || pigWindow.y !== lastPigWindow.y);
       const measuredPig = Number.isFinite(report.pigBeforePin?.x) && Number.isFinite(report.pigBeforePin?.y) ? report.pigBeforePin : null;
+      if (measuredPig !== null) lastMeasuredPig = measuredPig;
       if (saved !== null) {
         const nowPig = measuredPig ?? pigNow;
         const settled = bounds.width === Math.max(MIN_WINDOW.width, Math.round(width)) && bounds.height === Math.max(MIN_WINDOW.height, Math.round(height)) && Math.abs(bounds.x + nowPig.x - saved.x) <= 1 && Math.abs(bounds.y + nowPig.y - saved.y) <= 1;
@@ -7601,15 +7641,17 @@
       saved = null;
       lastTarget = null;
     }
-    function remember(windowBounds) {
-      if (lastPigWindow === null || saved !== null) return;
-      const x = windowBounds.x + lastPigWindow.x;
-      const y = windowBounds.y + lastPigWindow.y;
-      const key = x + "," + y;
+    function remember(windowBounds, areas) {
+      if (lastMeasuredPig === null || saved !== null) return;
+      const x = windowBounds.x + lastMeasuredPig.x;
+      const y = windowBounds.y + lastMeasuredPig.y;
+      const area = areaOf({ x, y }, areas);
+      const payload = area === null ? { v: 2, area: null, x, y } : { v: 2, area: { x: area.x, y: area.y, width: area.width, height: area.height }, x: x - area.x, y: y - area.y };
+      const key = JSON.stringify(payload);
       if (key === stored) return;
       stored = key;
       try {
-        localStorage.setItem(PIG_SCREEN_KEY, JSON.stringify({ x, y }));
+        localStorage.setItem(PIG_SCREEN_KEY, key);
       } catch {
       }
     }
@@ -7760,7 +7802,7 @@
     const after = bridge2.place(request);
     if (after && after.window) {
       pendingVerify = placement.target() === null ? null : { target: placement.target(), budget: 1 };
-      placement.remember(after.window);
+      placement.remember(after.window, info?.workAreas ?? []);
     }
   }
   function verifyPending() {
@@ -7813,7 +7855,7 @@
     style.textContent = DESKTOP_CSS;
     document.head.appendChild(style);
     if (typeof shell.onGeometry === "function") shell.onGeometry(function(info) {
-      if (info && info.window && !dragging()) placement.remember(info.window);
+      if (info && info.window && !dragging()) placement.remember(info.window, info.workAreas ?? []);
       schedule2();
     });
     if (typeof shell.askGeometry === "function") shell.askGeometry();

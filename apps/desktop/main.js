@@ -375,11 +375,13 @@ function dragTick() {
   if (win === null || win.isDestroyed() || dragSession === null) return
   if (dragHeartbeatExpired(dragSession.lastHeartbeat, Date.now())) { stopDrag(); return }
   const cursor = screen.getCursorScreenPoint()
-  const area = screen.getDisplayNearestPoint(cursor).workArea
+  // 夹取按「所有屏」算，不按鼠标当前在哪块屏：鼠标一过两块屏的缝就换夹取范围，
+  // 会把猪整只弹回去（上下屏最明显）。见 lib/window-geometry.js 的 dragPigBounds。
+  const areas = screen.getAllDisplays().map(display => display.workArea)
   // 按「猪」算，不按起始窗口算：拖动中窗口大小可能变（冒气泡、面板换页），
   // 用起始窗口的大小去 setBounds 会把窗口来回改大改小，猪就一抽一抽的。
   const pig = dragSession.pig ?? { ...(lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }), ...lastPigSize }
-  applyBounds(dragPigBounds(win.getBounds(), pig, dragSession.pigScreen, dragSession.cursor, cursor, area), 'drag')
+  applyBounds(dragPigBounds(win.getBounds(), pig, dragSession.pigScreen, dragSession.cursor, cursor, areas), 'drag')
 }
 function stopDrag() {
   if (dragTimer !== null) clearInterval(dragTimer)

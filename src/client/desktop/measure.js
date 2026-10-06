@@ -12,8 +12,12 @@ import { PANEL_MAX_HEIGHT } from '../constants.js'
 const BUBBLE_ZONE = { width: 272, height: 104 }
 /** 可点区域四周放宽几像素：礼包浮动、猪摇摆会越出布局盒一点。 */
 const SHAPE_SLACK = 6
-/** 面板打开时整块内容相对猪的外框，按朝向和猪大小记在本机；收起时窗口仍按它留位置。 */
+/** 面板打开时整块内容相对猪的外框，按朝向和猪大小记在本机；收起时窗口仍按它留位置。
+ *  v2（2026-10-06）：加存储版本 + 猪宽按 4px 量化——更新可能改立绘/字体/CSS 让猪宽差一两像素，
+ *  旧实现用整数像素做 key，一差就整条记录作废，收起态不再预留面板，于是「更新后第一次右键」
+ *  成了第一次真的改窗口（用户报的偏移就是这么显形的）。 */
 const OPEN_BOX_KEY = 'dsh-piggy:desktop-open-box'
+const OPEN_BOX_VERSION = 2
 /** 面板上次朝哪边开：启动后第一次打开就按它留位置，不用先变一次窗口。 */
 const SIDES_KEY = 'dsh-piggy:desktop-sides'
 
@@ -23,9 +27,14 @@ export function reservedOutline(outline, saved, pigBox, compact) {
   return outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }])
 }
 
+/** 存放 key：朝向 + 猪宽（4px 一档，抖动不算变）。 */
+export function openBoxKey(vertical, horizontal, pigBox) {
+  return vertical + '|' + horizontal + '|' + Math.round(pigBox.width / 4)
+}
+
 /** 旧存档可能把另一朝向的范围写进当前 key；只读确实向该侧伸出的范围。 */
 export function validOpenBox(openBoxes, vertical, horizontal, pigBox) {
-  const saved = openBoxes[vertical + '|' + horizontal + '|' + Math.round(pigBox.width)]
+  const saved = openBoxes[openBoxKey(vertical, horizontal, pigBox)]
   if (saved === null || saved === undefined || ![saved.l, saved.t, saved.r, saved.b].every(Number.isFinite)) return undefined
   if (saved.l >= saved.r || saved.t >= saved.b) return undefined
   if (vertical === 'bottom' && saved.t >= -pigBox.height) return undefined
@@ -76,7 +85,14 @@ function visible(node) {
  */
 export function createMeasure(env) {
   let openBoxes = {}
-  try { openBoxes = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || '{}') || {} } catch { openBoxes = {} }
+  try {
+    const raw = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || 'null')
+    // v2：{ v: 2, boxes: {...} }；旧格式就是一个平铺的 map（键还是老算法），
+    // 读进来照用（validOpenBox 会校验朝向），下次写入自动升级。
+    openBoxes = raw !== null && typeof raw === 'object' && raw.v === OPEN_BOX_VERSION && typeof raw.boxes === 'object'
+      ? raw.boxes ?? {} : (raw !== null && typeof raw === 'object' && raw.v === undefined ? raw : {})
+    if (raw !== null && typeof raw === 'object' && raw.v !== undefined && raw.v !== OPEN_BOX_VERSION) openBoxes = {}
+  } catch { openBoxes = {} }
   const state = { vertical: 'bottom', horizontal: 'right', pinned: '', compact: false }
   try {
     const sides = JSON.parse(localStorage.getItem(SIDES_KEY) || 'null')
@@ -155,14 +171,14 @@ export function createMeasure(env) {
     if (reserves && pigNode !== null) {
       if (open && cardBox !== null && card.hidden !== true && cardBox.width > 0 && cardBox.height > 0) {
         const side = panelSide(cardBox, pigBox)
-        const key = side.vertical + '|' + side.horizontal + '|' + Math.round(pigBox.width)
+        const key = openBoxKey(side.vertical, side.horizontal, pigBox)
         let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity
         for (const o of outline) { l = Math.min(l, o.x); t = Math.min(t, o.y); r = Math.max(r, o.r); b = Math.max(b, o.b) }
         const rel = { l: Math.round(l - pigBox.x), t: Math.round(t - pigBox.y), r: Math.round(r - pigBox.x), b: Math.round(b - pigBox.y) }
         const old = openBoxes[key]
         if (old === undefined || old.l !== rel.l || old.t !== rel.t || old.r !== rel.r || old.b !== rel.b) {
           openBoxes[key] = rel
-          try { localStorage.setItem(OPEN_BOX_KEY, JSON.stringify(openBoxes)) } catch { /* 存不下就每次启动重新量 */ }
+          try { localStorage.setItem(OPEN_BOX_KEY, JSON.stringify({ v: OPEN_BOX_VERSION, boxes: openBoxes })) } catch { /* 存不下就每次启动重新量 */ }
         }
       } else if (!open) {
         const saved = validOpenBox(openBoxes, state.vertical, state.horizontal, pigBox)

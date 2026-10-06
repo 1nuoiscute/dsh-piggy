@@ -14,7 +14,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, movedBounds, moveAcrossDisplays, quantizeKey } from '../lib/window-geometry.js'
+import { ANCHOR_TOLERANCE, WINDOW_PADDING, anchorCorrection, clampBounds, contentBounds, dragPigBounds, movedBounds, moveAcrossDisplays, quantizeKey } from '../lib/window-geometry.js'
 
 const SHELL = readFileSync(new URL('../renderer/shell.js', import.meta.url), 'utf8')
 
@@ -540,4 +540,49 @@ test('收敛不折腾：差值在容差内就不动窗口', () => {
   // 差 10px 才动，且正好补掉差值
   const fixed = anchorCorrection(win, { x: 26, y: 16 }, { x: 516, y: 316 }, AREA)
   assert.deepEqual({ x: fixed.x, y: fixed.y }, { x: 490, y: 300 })
+})
+
+// ---------------------------------------------------------------------------
+// 上下屏（2026-10-06 I 批次）：夹取按「所有屏」算，不按鼠标在哪块屏
+// ---------------------------------------------------------------------------
+
+const UPPER = { x: 0, y: 0, width: 1920, height: 1040 }
+const LOWER = { x: 0, y: 1080, width: 1920, height: 1040 }
+
+test('上下屏：鼠标刚过缝，猪跟着走，不被整只弹回上面那块屏', () => {
+  const pigWindow = { x: 60, y: 60, width: 56, height: 56 }
+  const bounds = { x: 40, y: 1440, width: 200, height: 200 }
+  const startCursor = { x: 130, y: 1530 }
+  const startPigScreen = { x: 100, y: 1500 }
+  // 鼠标往上 430px：猪该从 1500 走到 1070（1070 已经在缝上面那块屏里）
+  const moved = dragPigBounds(bounds, pigWindow, startPigScreen, startCursor, { x: 130, y: 1100 }, [UPPER, LOWER])
+  const pigY = moved.y + pigWindow.y
+  assert.equal(pigY, 1070, '跟手：走多少鼠标就走多少')
+  // 旧实现按「鼠标所在那块屏」夹：maxY = 1040 - 60 - 56 = 924，猪被弹回 86px。
+  assert.ok(pigY > 924 + 100, '不该被弹回上面那块屏的范围内')
+})
+
+test('上下屏：猪停在缝上（一半上、一半下）是允许的', () => {
+  const pigWindow = { x: 60, y: 60, width: 56, height: 56 }
+  const bounds = { x: 40, y: 1020, width: 200, height: 200 }
+  const moved = dragPigBounds(bounds, pigWindow, { x: 100, y: 1080 }, { x: 130, y: 1110 }, { x: 130, y: 1110 }, [UPPER, LOWER])
+  assert.equal(moved.y + pigWindow.y, 1080, '跨缝位置原样保留')
+})
+
+test('L 形排列的死角：窗口走进没有任何屏幕的地方就拉回来', () => {
+  const upper = { x: 0, y: 0, width: 1920, height: 1040 }
+  const lower = { x: 0, y: 1080, width: 2560, height: 1040 }
+  // 下屏比上屏宽：下屏最右（x 2000）往上走到上屏的高度带，那里没有任何屏幕。
+  const moved = moveAcrossDisplays({ x: 2000, y: 1100, width: 120, height: 120 }, 0, -1000, [upper, lower])
+  assert.ok(moved.x + moved.width <= 1920, '拉回上屏里，不留在没有屏幕的地方：x=' + moved.x)
+  assert.ok(moved.y >= 0 && moved.y + moved.height <= 1040, 'y 也在屏内：' + moved.y)
+})
+
+test('所有屏的工作区并集仍然是拖动范围（并排屏照旧跨得过去）', () => {
+  const left = { x: 0, y: 0, width: 1920, height: 1040 }
+  const right = { x: 1920, y: 0, width: 1920, height: 1040 }
+  const pigWindow = { x: 60, y: 60, width: 56, height: 56 }
+  const bounds = { x: 1880, y: 400, width: 200, height: 200 }
+  const moved = dragPigBounds(bounds, pigWindow, { x: 1940, y: 460 }, { x: 1970, y: 490 }, { x: 2070, y: 490 }, [left, right])
+  assert.equal(moved.x + pigWindow.x, 2040, '并排屏之间照旧跨过去')
 })
