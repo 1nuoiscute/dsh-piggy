@@ -269,7 +269,8 @@ PIGGY_CAPTURE=<文件> / PIGGY_CAPTURE_STEPS  # 截图自检模式
 - 自定义导演系统、游戏内社区（好友 / 联机）：延期。
 
 **已解决（2026-10-06）**
-- 「主菜单图标」设置已恢复（内置手绘 / 系统表情），网页版也自带 emoji 字体子集，见 CHANGELOG 的 Unreleased。
+- 网页版也自带 emoji 字体子集，「设置 → Emoji 样式」在网页版也能选了（以前只有桌面版有），见 CHANGELOG 的 Unreleased。
+- 主菜单图标**保持一律用 emoji**：手绘 SVG 那一版（旧「主菜单图标」设置）用户明确说不要，别再恢复。
 
 ---
 

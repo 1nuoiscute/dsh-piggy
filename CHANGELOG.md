@@ -7,16 +7,12 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ## [Unreleased]
 
-### 恢复「主菜单图标」设置
-
-- 设置里重新能切换主菜单图标：**内置**（随游戏附带的手绘 SVG）或**系统**（这台设备的表情）。2026-10-05 按当时的反馈摘掉过，用户确认要用，现已恢复；老的 `dsh-piggy:icon-style` 存值继续有效。
-- 这个设置只改主菜单图标，和「Emoji 样式」（换整套 emoji 字体）是两件事。
-
-### 网页版也自带 emoji 字体
+### 「Emoji 样式」在网页版也能用（猪自带的那套 emoji）
 
 - 以前只有桌面版内置 Noto Color Emoji（整套 10.2MB），网页版靠系统字体：机器上没有的表情会缺字，或用完全不同的画法。
 - 现在网页版也带一套瘦身子集 `assets/piggy-emoji.woff2`（0.9MB、387 个字形，覆盖游戏里用到的全部 emoji），由插件路由 `/dsh-piggy/emoji.woff2` 提供并缓存一小时；「设置 → Emoji 样式」在网页版也能选了，默认就是内置那套。
 - 桌面版仍然用外壳提供的完整字体，行为不变。
+- 注：主菜单图标继续一律用 emoji。手绘 SVG 那一版（旧「主菜单图标」设置）用户 2026-10-06 明确不要，不恢复。
 - 重新生成网页字体：`python tools/slim-emoji-font.py --web-out assets/piggy-emoji.woff2`（需要 fonttools）。
 
 ## [0.32.0] — 2026-10-06 · 小猪成就、日志导出与扩展下载修复

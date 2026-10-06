@@ -10,7 +10,6 @@
   var MOUNTED = "data-dsh-pig";
   var OPEN_KEY = "dsh-piggy:open";
   var POSITION_KEY = "dsh-piggy:position";
-  var ICON_STYLE_KEY = "dsh-piggy:icon-style";
   var PANEL_WIDTH = 292;
   var PANEL_GAP = 8;
   var PANEL_MARGIN = 10;
@@ -5252,12 +5251,8 @@
     "quit",
     "dev"
   ]);
-  var ICON_STYLES = Object.freeze(["built-in", "system"]);
   function iconStyle() {
-    return readStore(ICON_STYLE_KEY) === "built-in" ? "built-in" : "system";
-  }
-  function setIconStyle(style) {
-    writeStore(ICON_STYLE_KEY, style === "built-in" ? "built-in" : "system");
+    return "system";
   }
   function appIcon(key, emoji, className) {
     if (iconStyle() !== "built-in" || !BUNDLED.has(key)) return el("span", className, emoji);
@@ -6690,14 +6685,6 @@
       ui.renderContent();
       ui.fitPanel();
       desktopShell()?.syncGeometry?.();
-    });
-    const icons = section(ui, "\u4E3B\u83DC\u5355\u56FE\u6807", "\u5185\u7F6E\u662F\u968F\u6E38\u620F\u9644\u5E26\u7684\u624B\u7ED8\u56FE\u6807\uFF0C\u7CFB\u7EDF\u7528\u8FD9\u53F0\u8BBE\u5907\u7684\u8868\u60C5");
-    segmented(icons, "data-icon-style", [
-      { key: "built-in", label: "\u5185\u7F6E" },
-      { key: "system", label: "\u7CFB\u7EDF" }
-    ], iconStyle(), function(key) {
-      setIconStyle(key);
-      ui.renderContent();
     });
     if (hasBundledEmoji()) {
       const emoji = section(ui, "Emoji \u6837\u5F0F", "\u5185\u7F6E\u662F\u968F\u6E38\u620F\u9644\u5E26\u7684\u4E00\u6574\u5957 Noto \u5F69\u8272 emoji\uFF0C\u5404\u7CFB\u7EDF\u770B\u8D77\u6765\u4E00\u6837");

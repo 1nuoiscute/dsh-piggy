@@ -8,7 +8,6 @@ import { button, el } from '../dom.js'
 import { autoCollapseEnabled, setAutoCollapse } from '../auto-collapse.js'
 import { desktopShell } from '../desktop-shell.js'
 import { emojiStyle, hasBundledEmoji, setEmojiStyle, applyEmojiStyle } from '../emoji-style.js'
-import { iconStyle, setIconStyle } from '../icon-style.js'
 import { PIG_SIZES, displayedPigSize, pigSize, setPigSize } from '../pig-size.js'
 import { setWalk, walkEnabled } from '../life.js'
 import { exportLogs } from '../log-export.js'
@@ -64,15 +63,6 @@ export function renderSettingsTab(ui) {
     ui.renderContent()
     ui.fitPanel()
     desktopShell()?.syncGeometry?.()
-  })
-
-  const icons = section(ui, '主菜单图标', '内置是随游戏附带的手绘图标，系统用这台设备的表情')
-  segmented(icons, 'data-icon-style', [
-    { key: 'built-in', label: '内置' },
-    { key: 'system', label: '系统' },
-  ], iconStyle(), function (key) {
-    setIconStyle(key)
-    ui.renderContent()
   })
 
   // 网页版和桌面版都自带了这套 emoji，所以两边都能选（旧外壳没有这个字体，就不显示）。
