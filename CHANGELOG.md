@@ -5,6 +5,14 @@ All notable changes to `dsh-pig`. Versions follow the plugin's own
 
 ---
 
+## [Unreleased]
+
+- 为菜园、矿洞、扭蛋和盲盒新增 12 项成就与小猪 SVG 徽章，累计、收藏与最高探索层数由公共进度事件记录。
+- 新增扩展 `api.emit` 与可选历史 `progress` 钩子；成功动作事务提交，拒绝和异常回滚，重复上报不重复计数。
+- 旧扩展数据只补录可证明经历，日期未知不编造；更新保留基线，卸载/领养保留主成就进度，新安装可继续积累。旧扩展详情提示更新。
+- 修复试玩页宿主按钮样式挤偏返回箭头：限制演示样式作用范围，并让返回按钮显式居中。
+- 四个扩展增加兼容报告：farm/mine/gacha 1.1.0、blindbox 2.2.0；公开下载目录在实际发布附件后再更新，详见扩展成就文档。
+
 ## [0.32.0] — 2026-10-06 · 小猪成就、日志导出与扩展下载修复
 
 ### 小猪成就系统（贡献者 [@1nuoiscute](https://github.com/1nuoiscute)，[#6](https://github.com/CLICGGER-TYPES/dsh-piggy/pull/6)）
