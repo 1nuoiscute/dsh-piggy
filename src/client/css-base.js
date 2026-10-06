@@ -25,8 +25,12 @@ export const CSS_BASE = [
   //   · motion is 0.15-0.35s on cubic-bezier(.4,0,.2,1)
   //   · focus rings are yellow or teal, never blue
   // ---------------------------------------------------------------------
+  // 设置 → Emoji 样式 → 系统自带：去掉内置那套，用这台设备的 emoji。
+  '[data-dsh-pig][data-dsh-pig][data-emoji="system"]{--ac-font:Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;}',
   '[data-dsh-pig]{',
-  '--ac-font:Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;',
+  // 内置 emoji 排在前面：它只有表情字形，普通文字会自然落到后面的字体。
+  // 桌面版的外壳提供同一个字体家族；网页版由 scene.js 注入 @font-face（assets/piggy-emoji.woff2）。
+  '--ac-font:"Piggy Emoji",Nunito,"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;',
   '--ac-primary:#19c8b9;--ac-primary-hover:#3dd4c6;--ac-primary-active:#11a89b;',
   '--ac-primary-bg:#e6f9f6;',
   '--ac-text:#794f27;--ac-text-body:#725d42;--ac-text-2:#9f927d;--ac-text-muted:#8a7b66;',

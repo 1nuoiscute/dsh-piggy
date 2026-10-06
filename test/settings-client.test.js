@@ -24,15 +24,29 @@ test('扩展收进设置；有扩展更新时设置方块和入口都有红点�
   assert.ok(findByAttr(contentOf(dom), 'data-open-extensions', 'true'))
 })
 
-test('设置里没有「主菜单图标」选项；以前存过手绘图标的设备也显示 emoji', async () => {
+test('设置里能切换「主菜单图标」：内置手绘 ↔ 系统表情，选完立刻生效并记住', async () => {
   const { dom, store } = await mount()
-  store.set('dsh-piggy:icon-style', 'built-in')
   openPanel(dom)
+  // 默认系统表情：主菜单用 emoji，不加载手绘 SVG。
   assert.equal(findByAttr(contentOf(dom), 'data-app', 'shop').allText().includes('🛒'), true)
   assert.equal(findByClass(findByAttr(contentOf(dom), 'data-app', 'shop'), 'dp-tile-svg'), undefined)
+
   findByAttr(contentOf(dom), 'data-app', 'settings').fire('click')
-  assert.equal(findByAttr(contentOf(dom), 'data-icon-style', 'system'), undefined)
-  assert.equal(findByAttr(contentOf(dom), 'data-icon-style', 'built-in'), undefined)
+  const builtIn = findByAttr(contentOf(dom), 'data-icon-style', 'built-in')
+  assert.ok(builtIn, 'the icon setting must be back in settings')
+  assert.equal(builtIn.disabled, false)
+  assert.equal(findByAttr(contentOf(dom), 'data-icon-style', 'system').disabled, true, 'current choice is the pressed one')
+
+  builtIn.fire('click')
+  assert.equal(store.get('dsh-piggy:icon-style'), 'built-in', 'the choice is remembered on this device')
+  findByAttr(contentOf(dom), 'data-home', 'true').fire('click')
+  const shop = findByAttr(contentOf(dom), 'data-app', 'shop')
+  assert.equal(findByClass(shop, 'dp-tile-svg') !== undefined, true, 'the hand-drawn icon shows up right away')
+
+  findByAttr(contentOf(dom), 'data-app', 'settings').fire('click')
+  assert.equal(findByAttr(contentOf(dom), 'data-icon-style', 'built-in').disabled, true)
+  findByAttr(contentOf(dom), 'data-icon-style', 'system').fire('click')
+  assert.equal(store.get('dsh-piggy:icon-style'), 'system')
 })
 
 test('every App icon in the bundle has a real SVG asset', () => {

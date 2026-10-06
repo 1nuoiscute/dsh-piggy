@@ -9,6 +9,7 @@ renderer/index.html 的 unicode-range 不用改：字体里没有的字，浏览
 用法：python tools/slim-emoji-font.py   （需要 fonttools；本机用 uv run --with fonttools python ...）
 """
 import re
+import sys
 from pathlib import Path
 from fontTools import subset
 from fontTools.ttLib import TTFont
@@ -37,5 +38,18 @@ options.drop_tables = []
 sub = subset.Subsetter(options)
 sub.populate(unicodes=keep)
 sub.subset(font)
-font.save(FONT)
-print(f'emoji font: {before / 1048576:.2f}MB -> {FONT.stat().st_size / 1048576:.2f}MB, {len(keep)} code points')
+
+# 网页版（DSH 插件）也要自带这套 emoji：很多机器没有对应的表情，或长得完全不一样。
+# 那一份单独产出成 woff2 放进 assets/，随 npm 包和游戏包发（网页版没有安装包体积的压力，
+# 但也没必要塞 10MB 全套）。用 --web-out 时不动桌面那份字体，方便在任意机器上重新生成。
+WEB_OUT = None
+if '--web-out' in sys.argv:
+    WEB_OUT = Path(sys.argv[sys.argv.index('--web-out') + 1])
+
+if WEB_OUT is not None:
+    font.flavor = 'woff2'
+    font.save(WEB_OUT)
+    print(f'web emoji font: {WEB_OUT.stat().st_size / 1048576:.2f}MB, {len(keep)} code points -> {WEB_OUT}')
+else:
+    font.save(FONT)
+    print(f'emoji font: {before / 1048576:.2f}MB -> {FONT.stat().st_size / 1048576:.2f}MB, {len(keep)} code points')
