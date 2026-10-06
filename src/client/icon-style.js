@@ -9,8 +9,9 @@ const BUNDLED = new Set([
 ])
 
 /**
- * 主菜单图标一律用 emoji（用户 2026-10-05：要的只是 Emoji 样式，「主菜单图标」选项多余，已从设置里拿掉）。
- * 以前存过 built-in 的设备也回到 emoji，免得卡在一个看不到的选项上。手绘 SVG 素材先留着。
+ * 主菜单图标一律用 emoji。手绘 SVG 那一版用户 2026-10-06 明确说不要
+ * （「变的什么手绘的 svg 是不要的」），所以要的是「Emoji 样式」那行——换整套
+ * emoji 字体，不是换图标画法。以前存过 built-in 的设备也回到 emoji。
  */
 export function iconStyle() {
   return 'system'

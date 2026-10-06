@@ -131,13 +131,19 @@ export function movedBounds(windowBounds, dx, dy, area) {
 /** During a drag the window may straddle monitors; clamp to the virtual desktop instead of the current screen. */
 export function moveAcrossDisplays(windowBounds, dx, dy, areas) {
   if (!Array.isArray(areas) || areas.length === 0) return windowBounds
-  const union = {
-    x: Math.min(...areas.map(area => area.x)),
-    y: Math.min(...areas.map(area => area.y)),
+  const moved = movedBounds(windowBounds, dx, dy, unionOf(areas))
+  // 并集外接矩形在 L 形/错位排列下包含「不属于任何屏」的死角：窗口一半以上都不在屏上就
+  // 拉回重叠最多的那块。散步和旧游戏包走这条，别让猪走到看不见的地方。
+  let best = null
+  let bestOverlap = 0
+  for (const area of areas) {
+    const overlap = overlapArea(moved, area)
+    if (overlap > bestOverlap) { best = area; bestOverlap = overlap }
   }
-  const right = Math.max(...areas.map(area => area.x + area.width))
-  const bottom = Math.max(...areas.map(area => area.y + area.height))
-  return movedBounds(windowBounds, dx, dy, { ...union, width: right - union.x, height: bottom - union.y })
+  if (bestOverlap * 2 >= moved.width * moved.height) return moved
+  // 一个屏都不沾（L 形排列的死角）时 best 会是 null：按离窗口中心最近的屏拉回去。
+  const center = { x: moved.x + moved.width / 2, y: moved.y + moved.height / 2 }
+  return clampBounds(moved, best ?? nearestAreaTo(center, areas))
 }
 
 /**
@@ -152,6 +158,14 @@ export function moveAcrossDisplays(windowBounds, dx, dy, areas) {
  * @param {{x:number,y:number,width:number,height:number}} area
  */
 export function absoluteDragBounds(startBounds, startCursor, cursor, pigWindow, area) {
+  if (area === null || area === undefined) {
+    return {
+      x: round(startBounds.x + cursor.x - startCursor.x),
+      y: round(startBounds.y + cursor.y - startCursor.y),
+      width: round(startBounds.width),
+      height: round(startBounds.height),
+    }
+  }
   const width = round(startBounds.width)
   const height = round(startBounds.height)
   const pigX = round(pigWindow.x)
@@ -172,25 +186,85 @@ export function absoluteDragBounds(startBounds, startCursor, cursor, pigWindow, 
   }
 }
 
+/** 猪的框和一块工作区重叠多少面积（像素²）。 */
+function overlapArea(box, area) {
+  const width = Math.max(0, Math.min(box.x + box.width, area.x + area.width) - Math.max(box.x, area.x))
+  const height = Math.max(0, Math.min(box.y + box.height, area.y + area.height) - Math.max(box.y, area.y))
+  return width * height
+}
+
+/** 离某个点最近的屏（点在里面距离为 0）。 */
+function nearestAreaTo(point, areas) {
+  let best = areas[0]
+  let bestDistance = Infinity
+  for (const area of areas) {
+    const dx = Math.max(area.x - point.x, 0, point.x - (area.x + area.width))
+    const dy = Math.max(area.y - point.y, 0, point.y - (area.y + area.height))
+    const distance = dx * dx + dy * dy
+    if (distance < bestDistance) { best = area; bestDistance = distance }
+  }
+  return best
+}
+
+/** 所有工作区的并集外接矩形。 */
+function unionOf(areas) {
+  return {
+    x: Math.min(...areas.map(area => area.x)),
+    y: Math.min(...areas.map(area => area.y)),
+    width: Math.max(...areas.map(area => area.x + area.width)) - Math.min(...areas.map(area => area.x)),
+    height: Math.max(...areas.map(area => area.y + area.height)) - Math.min(...areas.map(area => area.y)),
+  }
+}
+
 /**
  * 拖动：按住时记下猪的屏幕位置和鼠标位置，之后猪 = 起点 + 鼠标位移。
  * 用**当前**窗口大小和猪在窗口里的**当前**位置反推窗口原点 —— 拖动中窗口可能因为
  * 冒气泡、换页改了大小，按起始窗口算会把大小改回去，窗口就一抽一抽的。
- * 只夹猪：猪留在鼠标所在屏的工作区里，留白和面板可以暂时出界。
+ *
+ * 夹取按**屏幕集合**算，不按「鼠标现在在哪块屏」：
+ *   - 先按所有工作区的并集外接矩形夹位置，跨屏缝、半上半下都放行；
+ *   - 再要求猪至少一半落在某块屏上；不够（L 形排列的死角）才整只拉进最近的那块屏。
+ * 旧做法要求整只猪落在鼠标所在那块屏里，鼠标一过缝就把猪整只弹回去
+ * （2026-10-06 实测模拟：上下屏缝上鼠标移 10px，猪弹 86px）。
+ *
  * @param {{x:number,y:number,width:number,height:number}} bounds 当前窗口
  * @param {{x:number,y:number,width:number,height:number}} pigWindow 猪在窗口里的位置和大小
  * @param {{x:number,y:number}} startPigScreen 按下时猪的屏幕位置
  * @param {{x:number,y:number}} startCursor
  * @param {{x:number,y:number}} cursor
- * @param {{x:number,y:number,width:number,height:number}} area
+ * @param {Array<{x:number,y:number,width:number,height:number}>} areas 所有屏的工作区
  */
-export function dragPigBounds(bounds, pigWindow, startPigScreen, startCursor, cursor, area) {
-  return absoluteDragBounds({
+export function dragPigBounds(bounds, pigWindow, startPigScreen, startCursor, cursor, areas) {
+  const width = round(bounds.width)
+  const height = round(bounds.height)
+  const startBounds = {
     x: round(startPigScreen.x) - round(pigWindow.x),
     y: round(startPigScreen.y) - round(pigWindow.y),
-    width: round(bounds.width),
-    height: round(bounds.height),
-  }, startCursor, cursor, pigWindow, area)
+    width,
+    height,
+  }
+  const list = Array.isArray(areas) && areas.length > 0 ? areas : null
+  if (list === null) return absoluteDragBounds(startBounds, startCursor, cursor, pigWindow, null)
+  const pigX = round(pigWindow.x)
+  const pigY = round(pigWindow.y)
+  const pigWidth = Math.max(1, round(pigWindow.width))
+  const pigHeight = Math.max(1, round(pigWindow.height))
+  const union = unionOf(list)
+  const wantedX = round(startBounds.x + cursor.x - startCursor.x)
+  const wantedY = round(startBounds.y + cursor.y - startCursor.y)
+  const x = Math.max(round(union.x) - pigX, Math.min(wantedX, round(union.x + union.width) - pigX - pigWidth))
+  const y = Math.max(round(union.y) - pigY, Math.min(wantedY, round(union.y + union.height) - pigY - pigHeight))
+  const pig = { x: x + pigX, y: y + pigY, width: pigWidth, height: pigHeight }
+  // 一半以上还看得见就放行（跨缝时就是这种）；掉进 L 形排列的死角才拉回整块屏。
+  let best = null
+  let bestOverlap = 0
+  for (const area of list) {
+    const overlap = overlapArea(pig, area)
+    if (overlap > bestOverlap) { best = area; bestOverlap = overlap }
+  }
+  if (best !== null && bestOverlap * 2 >= pigWidth * pigHeight) return { x, y, width, height }
+  if (best === null) return { x, y, width, height }
+  return absoluteDragBounds(startBounds, startCursor, cursor, pigWindow, best)
 }
 
 /** 收敛容差：猪的屏幕位置差这么点就不管了。 */

@@ -17,6 +17,8 @@ const ACT_ROUTE = '/dsh-piggy/act'
 const ART_ROUTE = '/dsh-piggy/art'
 const BODY_LIMIT_BYTES = 2048
 const SKIN_ROUTE = '/dsh-piggy/skins/import'
+// 网页版自带的 emoji 字体（assets/piggy-emoji.woff2）：很多机器的系统 emoji 缺字或长得不一样。
+const EMOJI_ROUTE = '/dsh-piggy/emoji.woff2'
 const SKIN_LIMIT_BYTES = 2 * 1024 * 1024
 // 设置 → 日志：导出这一份，和浏览器那半边送上来的日志。
 const LOG_EXPORT_ROUTE = '/dsh-piggy/logs/export'
@@ -288,6 +290,29 @@ function registerExtRoutes(webServer, store) {
 }
 
 /**
+ * GET /dsh-piggy/emoji.woff2 — 网页版自带的那套 emoji 字体。
+ *
+ * 只发这一个固定文件名，请求里带什么都改不了它读哪个文件。
+ * 缓存一小时（跟立绘一个策略）：字体跟着版本走，改一次最多一小时生效。
+ */
+function registerEmojiRoute(webServer) {
+  return webServer.register({
+    kind: 'exact', path: EMOJI_ROUTE,
+    handler: (req, res) => {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed; use GET' }, { allow: 'GET' })
+      try {
+        const font = readFileSync(new URL('./assets/piggy-emoji.woff2', import.meta.url))
+        res.writeHead(200, { 'content-type': 'font/woff2', 'cache-control': 'max-age=3600' })
+        res.end(font)
+      } catch (error) {
+        console.warn(`[dsh-piggy] emoji font missing: reason="${error instanceof Error ? error.message : String(error)}"`)
+        sendJson(res, 404, { error: 'not found' })
+      }
+    },
+  })
+}
+
+/**
  * 日志的两条路由（设置 → 日志）：
  *   GET  /dsh-piggy/logs/export  — 导出这一份纯文本（客户端负责弹「另存为」）
  *   POST /dsh-piggy/logs/client  — 浏览器那半边的日志送进来，和宿主的一份合并
@@ -356,6 +381,7 @@ export function registerRoutes(ctx, store) {
       disposers.push(registerActRoute(webServer, store))
       disposers.push(registerExtRoutes(webServer, store))
       disposers.push(registerLogRoutes(webServer, store))
+      disposers.push(registerEmojiRoute(webServer))
     } catch (error) {
       // A route already taken: the pig stays command-only rather than breaking
       // activation, but this is a real failure and should be visible.

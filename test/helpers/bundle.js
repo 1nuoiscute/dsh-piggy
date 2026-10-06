@@ -162,6 +162,10 @@ export async function mount(options = {}) {
   // Extra window globals, e.g. the desktop shell seam (apps/desktop).
   Object.assign(globalThis.window, options?.windowExtra ?? {})
   globalThis.document = dom.document
+  // 字体：自带 emoji 的开关按 document.fonts 里有没有 'Piggy Emoji' 决定。
+  if (options?.fonts !== undefined) {
+    dom.document.fonts = { forEach: fn => options.fonts.forEach(face => fn(typeof face === 'string' ? { family: face } : face)) }
+  }
   globalThis.fetch = async (url, opts) => {
     calls.push({ url, method: opts?.method ?? 'GET', body: opts?.body })
     if (String(url).includes('/extensions/online') && options.onlineResponse) return { ok: true, status: 200, async json() { return options.onlineResponse } }

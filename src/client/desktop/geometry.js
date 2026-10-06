@@ -50,14 +50,6 @@ export function contentBoundsForPig(content, targetPigScreen, area) {
   }
 }
 
-/** 猪换大小时保持脚底中心不动。 */
-export function resizedPigScreenPoint(point, before, after) {
-  return {
-    x: round(point.x + (before.width - after.width) / 2),
-    y: round(point.y + before.height - after.height),
-  }
-}
-
 /**
  * 离某个点最近的屏幕工作区（点在哪块屏里就用哪块，都不在就取最近的）。
  * @param {{x:number,y:number}} point

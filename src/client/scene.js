@@ -7,8 +7,13 @@
  * @module dsh-piggy/client/scene
  */
 import { MOUNTED } from './constants.js'
+import { desktopShell } from './desktop-shell.js'
 import { el } from './dom.js'
 import { CSS } from './styles.js'
+
+/** 网页版的 emoji 字体：跟着插件一起发，用不用得上由 --ac-font 说了算。 */
+var WEB_EMOJI_FACE = '@font-face{font-family:"Piggy Emoji";font-style:normal;font-weight:400;'
+  + 'font-display:swap;src:url(/dsh-piggy/emoji.woff2) format("woff2")}'
 
 /** Build the widget once and hand every element back to the shell. */
 export function createScene() {
@@ -19,7 +24,9 @@ font.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;70
 document.head.appendChild(font)
 
 var style = document.createElement('style')
-style.textContent = CSS
+// 网页版自带这套 emoji：很多机器没有对应的表情，或者长得跟别处完全不一样（Windows 10 缺新表情）。
+// 桌面版由外壳提供同一个字体家族，这里不能再声明一次，否则同名字体两边打架。
+style.textContent = (desktopShell() === null ? WEB_EMOJI_FACE : '') + CSS
 document.head.appendChild(style)
 
 var host = document.createElement('div')

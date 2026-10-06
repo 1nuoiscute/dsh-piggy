@@ -52,6 +52,8 @@ function log(...parts) {
 
 /** 游戏宿主的日志本；宿主起来之前是 null。 */
 let hostJournal = null
+/** 显示器兜底对账的定时器（见 app.whenReady 里的 displayWatchTimer）。 */
+let displayWatchTimer = null
 
 /**
  * Start again with `args`. Inside an AppImage the running copy is a temporary
@@ -184,7 +186,17 @@ function pushGeometry() {
 
 /** 窗口、它所在屏的工作区、所有屏的工作区：游戏包里的桌面逻辑按这些自己算窗口摆哪。 */
 function geometryOf(bounds, seq) {
-  return { window: bounds, workArea: workAreaFor(bounds), workAreas: screen.getAllDisplays().map(display => display.workArea), seq }
+  const displays = screen.getAllDisplays()
+  return {
+    window: bounds,
+    workArea: workAreaFor(bounds),
+    workAreas: displays.map(display => display.workArea),
+    // 显示器清单（含每块屏的缩放）：Windows 125%/150% 下的问题一直只能靠 2px 容差硬扛，
+    // 把这些发给游戏包，日志里才能看出「是哪块屏、什么缩放」。
+    displays: displays.map(display => ({ id: display.id, label: display.label,
+      bounds: display.bounds, workArea: display.workArea, scaleFactor: display.scaleFactor, internal: display.internal })),
+    seq,
+  }
 }
 
 /**
@@ -254,7 +266,10 @@ function createWindow() {
     transparent: true, frame: false, resizable: false, movable: false, hasShadow: false,
     alwaysOnTop: true, skipTaskbar: true, focusable: true, show: false,
     backgroundColor: '#00000000',
-    webPreferences: { preload: join(HERE, 'preload.cjs'), contextIsolation: true, sandbox: true },
+    // backgroundThrottling: 这个窗口从不获得焦点（showInactive + skipTaskbar），Chromium 默认
+    // 会把「后台窗口」的 rAF/定时器降频；而页面测量、闭环核对、形状上报全走 rAF，
+    // 被降频就会表现为「猪慢半拍 / 挪完窗口猪还在旧位置」。桌宠没有省电的必要，关掉。
+    webPreferences: { preload: join(HERE, 'preload.cjs'), contextIsolation: true, sandbox: true, backgroundThrottling: false },
   })
   win.setAlwaysOnTop(true, 'floating')
   // 30fps：猪的动画够看，整窗合成的次数砍一半（D1 第 3 条）。
@@ -375,11 +390,13 @@ function dragTick() {
   if (win === null || win.isDestroyed() || dragSession === null) return
   if (dragHeartbeatExpired(dragSession.lastHeartbeat, Date.now())) { stopDrag(); return }
   const cursor = screen.getCursorScreenPoint()
-  const area = screen.getDisplayNearestPoint(cursor).workArea
+  // 夹取按「所有屏」算，不按鼠标当前在哪块屏：鼠标一过两块屏的缝就换夹取范围，
+  // 会把猪整只弹回去（上下屏最明显）。见 lib/window-geometry.js 的 dragPigBounds。
+  const areas = screen.getAllDisplays().map(display => display.workArea)
   // 按「猪」算，不按起始窗口算：拖动中窗口大小可能变（冒气泡、面板换页），
   // 用起始窗口的大小去 setBounds 会把窗口来回改大改小，猪就一抽一抽的。
   const pig = dragSession.pig ?? { ...(lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }), ...lastPigSize }
-  applyBounds(dragPigBounds(win.getBounds(), pig, dragSession.pigScreen, dragSession.cursor, cursor, area), 'drag')
+  applyBounds(dragPigBounds(win.getBounds(), pig, dragSession.pigScreen, dragSession.cursor, cursor, areas), 'drag')
 }
 function stopDrag() {
   if (dragTimer !== null) clearInterval(dragTimer)
@@ -411,6 +428,9 @@ ipcMain.on('piggy:drag:start', (event, given) => {
   // 会把窗口拽回原位 —— 用户看到的「瞬移」「拖着拖着卡在原地」。
   restingPigScreen = null
   savedPigScreen = null
+  // 拖动期间每一帧都不写日志（60Hz 会刷爆），但起止各记一行：出问题时能看出拖了多远、
+  // 起始窗口和猪的位置对不对得上（2026-10-06 的偏移排查就是缺这一段）。
+  log('drag start', JSON.stringify({ bounds, pigScreen: dragSession.pigScreen, pigFromPage: pigFromPage !== null }))
   dragTimer = setInterval(dragTick, 1000 / 60)
 })
 ipcMain.on('piggy:drag:heartbeat', event => {
@@ -423,6 +443,14 @@ ipcMain.on('piggy:drag:heartbeat', event => {
 ipcMain.on('piggy:drag:end', event => {
   if (!fromPage(event)) return
   dragTick()
+  if (dragSession !== null) {
+    const bounds = win === null || win.isDestroyed() ? null : win.getBounds()
+    // 猪在窗口里的位置：页面给了就用它，没给就用上次量到的（和 dragTick 同一套兜底）。
+    const pig = dragSession.pig ?? lastPigWindow ?? { x: WINDOW_PADDING, y: WINDOW_PADDING }
+    const startWindow = { x: dragSession.pigScreen.x - pig.x, y: dragSession.pigScreen.y - pig.y }
+    log('drag end', JSON.stringify({ bounds, from: startWindow, movedBy: bounds === null ? null
+      : { x: bounds.x - startWindow.x, y: bounds.y - startWindow.y } }))
+  }
   stopDrag()
   restingPigScreen = null
 })
@@ -436,6 +464,15 @@ ipcMain.on('piggy:place', (event, request) => {
   const b = request?.bounds
   if (b && [b.x, b.y, b.width, b.height].every(Number.isFinite)) {
     applyBounds({ x: Math.round(b.x), y: Math.round(b.y), width: Math.max(MIN_WINDOW.width, Math.round(b.width)), height: Math.max(MIN_WINDOW.height, Math.round(b.height)) }, 'place')
+  }
+  // setBounds 是异步的（X11 要等 ConfigureNotify 回来），紧跟其后的 getBounds() 可能还是旧值。
+  // 页面拿这个旧值做闭环核对，就会算出假偏差、再照着它挪窗口 —— 用户看到的「越修越偏」。
+  // 这里把「请求值 vs 立刻回读值」的差记下来，先把机制钉死。
+  if (b && [b.x, b.y, b.width, b.height].every(Number.isFinite)) {
+    const after = win.getBounds()
+    if (Math.abs(after.x - Math.round(b.x)) > 1 || Math.abs(after.y - Math.round(b.y)) > 1) {
+      log('place-stale', JSON.stringify({ asked: { x: Math.round(b.x), y: Math.round(b.y) }, read: after }))
+    }
   }
   if (Array.isArray(request?.shape)) {
     applyShape(request.shape.slice(0, 64).map(r => ({
@@ -655,15 +692,36 @@ app.whenReady().then(async () => {
   registerProtocol(gameDir)
   createWindow()
   createTray(gameDir)
+  // 用户机器上到底是什么显示器、什么缩放：以前日志里没有，Windows 的问题只能靠猜。
+  log('displays', JSON.stringify(screen.getAllDisplays().map(display => ({ id: display.id, label: display.label,
+    bounds: display.bounds, workArea: display.workArea, scale: display.scaleFactor, internal: display.internal }))))
   // The window follows its screen's work area when it changes (taskbar moved, resolution changed).
-  const reclamp = () => {
+  // 显式告诉游戏包「显示器变了」：applyBounds 有 2px 死区，窗口不需要挪的时候它不会推几何，
+  // 页面手里的 workAreas 就会一直用旧的那份（分辨率变了但窗口刚好没动 → 用的是旧工作区）。
+  const reclamp = (why, detail) => {
     if (win === null || win.isDestroyed()) return
     const bounds = win.getBounds()
     applyBounds(clampBounds(bounds, workAreaFor(bounds)), 'display')
+    pushGeometry()
+    log('display', why, JSON.stringify(detail ?? {}))
   }
-  screen.on('display-metrics-changed', reclamp)
-  screen.on('display-added', reclamp)
-  screen.on('display-removed', reclamp)
+  screen.on('display-metrics-changed', (event, display, changedMetrics) => {
+    reclamp('metrics-changed', { id: display?.id, scale: display?.scaleFactor, workArea: display?.workArea, changed: changedMetrics })
+  })
+  screen.on('display-added', (event, display) => reclamp('added', { id: display?.id, bounds: display?.bounds, scale: display?.scaleFactor }))
+  screen.on('display-removed', (event, display) => reclamp('removed', { id: display?.id, bounds: display?.bounds }))
+  // 兜底对账：显示器事件在个别平台/驱动下会漏（Shimeji 干脆每 5 秒轮询一次，因为 AWT 没有事件）。
+  // 我们订阅了事件，再每 10 秒比一次工作区列表，不一样就当作「显示器变了」处理一次。
+  let lastDisplayKey = ''
+  displayWatchTimer = setInterval(() => {
+    if (win === null || win.isDestroyed()) return
+    const key = JSON.stringify(screen.getAllDisplays().map(display =>
+      [display.id, display.workArea.x, display.workArea.y, display.workArea.width, display.workArea.height, display.scaleFactor]))
+    if (key === lastDisplayKey) return
+    lastDisplayKey = key
+    reclamp('reconcile', { displays: screen.getAllDisplays().length })
+  }, 10000)
+  displayWatchTimer.unref?.()
   win.webContents.on('did-finish-load', () => pushGeometry())
   pushGeometry()
 })

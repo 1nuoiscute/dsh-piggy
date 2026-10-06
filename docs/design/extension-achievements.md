@@ -102,3 +102,5 @@ if (typeof api.emit === 'function') {
 正式 DSH 隔离实例、Electron 安装包及公网扩展发布未验收；本次不改外壳。
 
 完整回归 **692 / 692** 通过，build、typecheck、diff --check 通过。游戏预览 tarball 解包验证了 28 张徽章、真实菜园收获解锁、重复结算去重与 client.js 字节一致；四个扩展 zip 解压后与源文件逐一核对一致。
+
+同步上游 main `020f463` 后：保留最新桌面位置修复和网页版 emoji 字体，合并双方 Unreleased 记录；重新 build/typecheck，完整测试 **714 / 714** 通过。隔离真实页面确认 28 枚徽章全部成功加载。

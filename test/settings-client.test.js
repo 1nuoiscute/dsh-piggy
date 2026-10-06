@@ -24,15 +24,16 @@ test('扩展收进设置；有扩展更新时设置方块和入口都有红点�
   assert.ok(findByAttr(contentOf(dom), 'data-open-extensions', 'true'))
 })
 
-test('设置里没有「主菜单图标」选项；以前存过手绘图标的设备也显示 emoji', async () => {
+test('设置里没有「主菜单图标」选项：主菜单一律用 emoji，手绘 SVG 不上设置', async () => {
   const { dom, store } = await mount()
   store.set('dsh-piggy:icon-style', 'built-in')
   openPanel(dom)
+  // 主角是 emoji，不是手绘 SVG（用户 2026-10-06：手绘那版不要）。
   assert.equal(findByAttr(contentOf(dom), 'data-app', 'shop').allText().includes('🛒'), true)
   assert.equal(findByClass(findByAttr(contentOf(dom), 'data-app', 'shop'), 'dp-tile-svg'), undefined)
   findByAttr(contentOf(dom), 'data-app', 'settings').fire('click')
-  assert.equal(findByAttr(contentOf(dom), 'data-icon-style', 'system'), undefined)
   assert.equal(findByAttr(contentOf(dom), 'data-icon-style', 'built-in'), undefined)
+  assert.equal(findByAttr(contentOf(dom), 'data-icon-style', 'system'), undefined)
 })
 
 test('every App icon in the bundle has a real SVG asset', () => {

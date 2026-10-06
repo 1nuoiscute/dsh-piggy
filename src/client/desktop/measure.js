@@ -12,8 +12,12 @@ import { PANEL_MAX_HEIGHT } from '../constants.js'
 const BUBBLE_ZONE = { width: 272, height: 104 }
 /** 可点区域四周放宽几像素：礼包浮动、猪摇摆会越出布局盒一点。 */
 const SHAPE_SLACK = 6
-/** 面板打开时整块内容相对猪的外框，按朝向和猪大小记在本机；收起时窗口仍按它留位置。 */
+/** 面板打开时整块内容相对猪的外框，按朝向和猪大小记在本机；收起时窗口仍按它留位置。
+ *  v2（2026-10-06）：加存储版本 + 猪宽按 4px 量化——更新可能改立绘/字体/CSS 让猪宽差一两像素，
+ *  旧实现用整数像素做 key，一差就整条记录作废，收起态不再预留面板，于是「更新后第一次右键」
+ *  成了第一次真的改窗口（用户报的偏移就是这么显形的）。 */
 const OPEN_BOX_KEY = 'dsh-piggy:desktop-open-box'
+const OPEN_BOX_VERSION = 2
 /** 面板上次朝哪边开：启动后第一次打开就按它留位置，不用先变一次窗口。 */
 const SIDES_KEY = 'dsh-piggy:desktop-sides'
 
@@ -23,9 +27,14 @@ export function reservedOutline(outline, saved, pigBox, compact) {
   return outline.concat([{ x: pigBox.x + saved.l, y: pigBox.y + saved.t, r: pigBox.x + saved.r, b: pigBox.y + saved.b }])
 }
 
+/** 存放 key：朝向 + 猪宽（4px 一档，抖动不算变）。 */
+export function openBoxKey(vertical, horizontal, pigBox) {
+  return vertical + '|' + horizontal + '|' + Math.round(pigBox.width / 4)
+}
+
 /** 旧存档可能把另一朝向的范围写进当前 key；只读确实向该侧伸出的范围。 */
 export function validOpenBox(openBoxes, vertical, horizontal, pigBox) {
-  const saved = openBoxes[vertical + '|' + horizontal + '|' + Math.round(pigBox.width)]
+  const saved = openBoxes[openBoxKey(vertical, horizontal, pigBox)]
   if (saved === null || saved === undefined || ![saved.l, saved.t, saved.r, saved.b].every(Number.isFinite)) return undefined
   if (saved.l >= saved.r || saved.t >= saved.b) return undefined
   if (vertical === 'bottom' && saved.t >= -pigBox.height) return undefined
@@ -42,6 +51,26 @@ export function chooseCollapsedVertical(openBoxes, horizontal, width, height, pi
   if (above !== undefined && pigTop + above.t - PAD >= area.y) return 'bottom'
   if (below !== undefined && pigTop + below.b + PAD <= area.y + area.height) return 'top'
   return current
+}
+
+/**
+ * 收起时按哪个面板范围留位置：当前朝向放得下就用它，放不下换另一朝向，都放不下就不留。
+ * 留出来的范围放不进工作区时，窗口会被系统（或我们自己）整块推回屏幕里，猪就跟着跳走——
+ * 用户 2026-10-06 的日志：猪放在屏幕下半部，一点就被拽上去 143～452px。预留只是为了开面板时
+ * 不改窗口，不能拿猪的位置去换。
+ * @returns {{vertical:string, box:{l:number,t:number,r:number,b:number}}|null}
+ */
+export function fittingOpenBox(openBoxes, vertical, horizontal, pigBox, pigScreen, area) {
+  const other = vertical === 'top' ? 'bottom' : 'top'
+  for (const side of [vertical, other]) {
+    const box = validOpenBox(openBoxes, side, horizontal, pigBox)
+    if (box === undefined) continue
+    if (pigScreen === null || area === null || area === undefined) return { vertical: side, box }
+    const fits = pigScreen.x + box.l - PAD >= area.x && pigScreen.x + box.r + PAD <= area.x + area.width
+      && pigScreen.y + box.t - PAD >= area.y && pigScreen.y + box.b + PAD <= area.y + area.height
+    if (fits) return { vertical: side, box }
+  }
+  return null
 }
 
 /** 从卡片和猪的实际位置判断面板朝向，供量框和锚边共用。 */
@@ -72,12 +101,20 @@ function visible(node) {
 }
 
 /**
- * @param {{ platform: string, geometry: () => any }} env
+ * @param {{ platform: string, geometry: () => any, anchor?: () => ({x:number,y:number}|null) }} env
  */
 export function createMeasure(env) {
   let openBoxes = {}
-  try { openBoxes = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || '{}') || {} } catch { openBoxes = {} }
-  const state = { vertical: 'bottom', horizontal: 'right', pinned: '', compact: false }
+  try {
+    const raw = JSON.parse(localStorage.getItem(OPEN_BOX_KEY) || 'null')
+    // v2：{ v: 2, boxes: {...} }；旧格式就是一个平铺的 map（键还是老算法），
+    // 读进来照用（validOpenBox 会校验朝向），下次写入自动升级。
+    openBoxes = raw !== null && typeof raw === 'object' && raw.v === OPEN_BOX_VERSION && typeof raw.boxes === 'object'
+      ? raw.boxes ?? {} : (raw !== null && typeof raw === 'object' && raw.v === undefined ? raw : {})
+    if (raw !== null && typeof raw === 'object' && raw.v !== undefined && raw.v !== OPEN_BOX_VERSION) openBoxes = {}
+  } catch { openBoxes = {} }
+  /** shift：收起时窗口被夹回工作区，整块内容在窗口里反向挪多少（猪的屏幕位置不变，只裁掉透明留白）。 */
+  const state = { vertical: 'bottom', horizontal: 'right', pinned: '', compact: false, bubbleHeight: null, shift: { x: 0, y: 0 } }
   try {
     const sides = JSON.parse(localStorage.getItem(SIDES_KEY) || 'null')
     if (sides && (sides.vertical === 'top' || sides.vertical === 'bottom')) state.vertical = sides.vertical
@@ -119,7 +156,14 @@ export function createMeasure(env) {
     let bubbleZone = null
     if (reserves && pigNode !== null) {
       const above = geometry === null ? BUBBLE_ZONE.height : geometry.window.y + pigBox.y - geometry.workArea.y - PAD
-      const height = Math.max(0, Math.min(BUBBLE_ZONE.height, Math.round(above)))
+      // 滞回：预留区高度是「窗口当前在哪」的函数，而窗口位置又是「内容框（含这个预留区）」的函数，
+      // 结构上是一个反馈环（量化到 4px 后可能变成极限环）。预留区只是「留多少位置」的估计，
+      // 差不到两档就不改，环就断了。
+      // 注意：2026-10-06 查的那 3~4px 抖动**不是**这条环造成的，是猪自己的待机动画（见 I-round.md），
+      // 这里保留只是因为依赖方向确实成环，且代价为零。
+      const want = Math.max(0, Math.min(BUBBLE_ZONE.height, Math.round(above)))
+      if (state.bubbleHeight === null || Math.abs(want - state.bubbleHeight) >= STEP * 2) state.bubbleHeight = want
+      const height = state.bubbleHeight
       const zoneLeft = host.getAttribute('data-panel-side') === 'right' ? hostBox.x : hostBox.x + hostBox.width - BUBBLE_ZONE.width
       if (height > 0) bubbleZone = { x: zoneLeft, y: pigBox.y - height, r: zoneLeft + BUBBLE_ZONE.width, b: pigBox.y }
     }
@@ -155,24 +199,33 @@ export function createMeasure(env) {
     if (reserves && pigNode !== null) {
       if (open && cardBox !== null && card.hidden !== true && cardBox.width > 0 && cardBox.height > 0) {
         const side = panelSide(cardBox, pigBox)
-        const key = side.vertical + '|' + side.horizontal + '|' + Math.round(pigBox.width)
+        const key = openBoxKey(side.vertical, side.horizontal, pigBox)
         let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity
         for (const o of outline) { l = Math.min(l, o.x); t = Math.min(t, o.y); r = Math.max(r, o.r); b = Math.max(b, o.b) }
         const rel = { l: Math.round(l - pigBox.x), t: Math.round(t - pigBox.y), r: Math.round(r - pigBox.x), b: Math.round(b - pigBox.y) }
         const old = openBoxes[key]
         if (old === undefined || old.l !== rel.l || old.t !== rel.t || old.r !== rel.r || old.b !== rel.b) {
           openBoxes[key] = rel
-          try { localStorage.setItem(OPEN_BOX_KEY, JSON.stringify(openBoxes)) } catch { /* 存不下就每次启动重新量 */ }
+          try { localStorage.setItem(OPEN_BOX_KEY, JSON.stringify({ v: OPEN_BOX_VERSION, boxes: openBoxes })) } catch { /* 存不下就每次启动重新量 */ }
         }
-      } else if (!open) {
-        const saved = validOpenBox(openBoxes, state.vertical, state.horizontal, pigBox)
-        outline = reservedOutline(outline, saved, pigBox, state.compact)
+      } else if (!open && !state.compact) {
+        // 猪要落在哪：收起那一轮要摆回开面板前的原位（面板两边都放不下时猪被挪开过），按原位判断放不放得下。
+        const anchor = typeof env.anchor === 'function' ? env.anchor() : null
+        const pigScreen = anchor ?? (geometry === null ? null : { x: geometry.window.x + pigBox.x, y: geometry.window.y + pigBox.y })
+        const chosen = fittingOpenBox(openBoxes, state.vertical, state.horizontal, pigBox, pigScreen, geometry?.workArea)
+        if (chosen !== null && chosen.vertical !== state.vertical) {
+          state.vertical = chosen.vertical
+          try { localStorage.setItem(SIDES_KEY, JSON.stringify({ vertical: state.vertical, horizontal: state.horizontal })) } catch { /* 下次启动从默认朝向恢复 */ }
+        }
+        outline = reservedOutline(outline, chosen?.box, pigBox, state.compact)
       }
     }
     let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
     for (const o of outline) { left = Math.min(left, o.x); top = Math.min(top, o.y); right = Math.max(right, o.r); bottom = Math.max(bottom, o.b) }
     const content = { x: left - PAD, y: top - PAD,
       width: Math.ceil((right - left + PAD * 2) / STEP) * STEP, height: Math.ceil((bottom - top + PAD * 2) / STEP) * STEP }
+    // 实测：给内容尺寸也加滞回并不能消掉那 3~4px（2026-10-06），所以没留——
+    // 它影响面更大（会推迟真变化），没有证据就不该在代码里。
     const pig = { x: pigBox.x - content.x, y: pigBox.y - content.y, width: pigBox.width, height: pigBox.height }
     const shape = rects.concat(bubbleRects).map(function (rect) {
       const x = Math.max(0, Math.floor(rect.x) - SHAPE_SLACK)
@@ -217,10 +270,11 @@ export function createMeasure(env) {
   /** 让整块内容离窗口锚边正好 PAD。 @param {any} host */
   function pin(host, side, hostBox, contentBox) {
     const want = { left: 'auto', right: 'auto', top: 'auto', bottom: 'auto' }
-    if (side.horizontal === 'left') want.left = Math.round(hostBox.x - contentBox.left + PAD) + 'px'
-    else want.right = Math.round(contentBox.right - hostBox.x - hostBox.width + PAD) + 'px'
-    if (side.vertical === 'top') want.top = Math.round(hostBox.y - contentBox.top + PAD) + 'px'
-    else want.bottom = Math.round(contentBox.bottom - hostBox.y - hostBox.height + PAD) + 'px'
+    const shift = state.shift
+    if (side.horizontal === 'left') want.left = Math.round(hostBox.x - contentBox.left + PAD + shift.x) + 'px'
+    else want.right = Math.round(contentBox.right - hostBox.x - hostBox.width + PAD - shift.x) + 'px'
+    if (side.vertical === 'top') want.top = Math.round(hostBox.y - contentBox.top + PAD + shift.y) + 'px'
+    else want.bottom = Math.round(contentBox.bottom - hostBox.y - hostBox.height + PAD - shift.y) + 'px'
     const key = [side.vertical, side.horizontal, want.left, want.right, want.top, want.bottom].join('|')
     if (key === state.pinned) return
     state.pinned = key

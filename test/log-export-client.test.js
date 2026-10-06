@@ -31,6 +31,13 @@ test('设置里有「导出日志」，点一下就把这一份交给外壳保�
   })
   const button = findByAttr(contentOf(dom), 'data-export-logs', 'true')
   assert.ok(button, 'the log entry must be in settings')
+  // 设置行里的按钮统一是 dp-mini（和「更新」「扩展」同一套尺寸和样式），
+  // 这是用户 2026-10-06 明确要求的：新功能不许自己造一个按钮样子。
+  assert.match(button.className, /(^|\s)dp-mini(\s|$)/, 'the entry must use the shared dp-mini button')
+  for (const other of ['[data-open-update]', '[data-open-extensions]']) {
+    const peer = findByAttr(contentOf(dom), other.slice(1, -1).split('=')[0], 'true')
+    assert.match(peer.className, /(^|\s)dp-mini(\s|$)/, 'its peers use dp-mini too')
+  }
   button.fire('click')
   await settle()
   await settle()

@@ -79,3 +79,46 @@ test('F12 lets only transparent panel padding cross the edge during a size chang
   assert.equal(box.x + 230, 1834)
   assert.ok(box.x + 230 + 72 <= 1920)
 })
+
+test('显示器变化要主动告诉游戏包：窗口没挪动也得推几何', () => {
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  // applyBounds 有 2px 死区：分辨率/缩放变了但窗口刚好不用挪时，它不会推几何，
+  // 页面就会一直用旧的工作区列表。所以显示器事件必须自己再推一次并记一行。
+  assert.match(main, /screen\.on\('display-metrics-changed',\s*\(event, display, changedMetrics\)\s*=>/)
+  assert.match(main, /reclamp\('metrics-changed',\s*\{[^}]*changed:\s*changedMetrics\s*\}\)/)
+  assert.match(main, /screen\.on\('display-added'/)
+  assert.match(main, /screen\.on\('display-removed'/)
+  const reclamp = main.slice(main.indexOf('const reclamp ='), main.indexOf("screen.on('display-metrics-changed'"))
+  assert.match(reclamp, /pushGeometry\(\)/, '无条件推几何')
+  assert.match(reclamp, /log\('display'/, '记一行，导出日志里能看见是哪块屏、变了什么')
+})
+
+test('窗口位置必须在构造时就给，不能先建再挪（Electron 自己的 DPI 坑）', () => {
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  // Electron 源码 shell/browser/native_window_views.cc 里写着：构造时不给 x/y 的话，
+  // HWND 会先按主屏 DPI 建在 (0,0)、之后再挪，副屏上会「缩水」（secondary-creation
+  // deflation symptom）。所以 start 必须摊进构造参数。
+  const ctor = main.slice(main.indexOf('new BrowserWindow({'), main.indexOf('win.setAlwaysOnTop'))
+  assert.match(ctor, /\.\.\.start/, '构造时就带上算好的 x/y/width/height')
+})
+
+test('显示器对账兜底：漏了 display 事件也能自愈', () => {
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  assert.match(main, /displayWatchTimer = setInterval\([\s\S]*?screen\.getAllDisplays\(\)[\s\S]*?reclamp\('reconcile'/, '每 10 秒比一次工作区列表')
+})
+
+test('窗口改动容差不贴着 Electron 的 ±1px 噪声（容差 1 会来回纠正）', () => {
+  const index = readFileSync(new URL('../../../src/client/desktop/index.js', import.meta.url), 'utf8')
+  assert.match(index, /const TOLERANCE = 2/)
+  assert.match(index, /~1 ?像素误差|约 1px 误差|1px 误差/)
+})
+
+test('量几何稳定性不能量精灵本身：它一直在做待机动画（dp-bob）', () => {
+  const css = readFileSync(new URL('../../../src/client/css-base.js', import.meta.url), 'utf8')
+  // 这条测试是提醒：F10/I 批次都踩过——拿 .dp-pig 的 getBoundingClientRect() 当「猪的屏幕坐标」，
+  // 量到的是动画（±2px 平滑周期），会误判成窗口几何在漂。要量就量 window.screenX/screenY
+  // 或 geometry().window。
+  assert.match(css, /animation:dp-bob 1\.8s ease-in-out infinite/, '猪有待机上下晃的动画')
+  const doc = readFileSync(new URL('../../../docs/tasks/I-round.md', import.meta.url), 'utf8')
+  assert.match(doc, /量几何稳定性\*\*不能量精灵自己/, '任务卡里写明正确的测量方法')
+})

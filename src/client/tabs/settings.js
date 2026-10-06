@@ -65,7 +65,8 @@ export function renderSettingsTab(ui) {
     desktopShell()?.syncGeometry?.()
   })
 
-  if (desktopShell() !== null && hasBundledEmoji()) {
+  // 网页版和桌面版都自带了这套 emoji，所以两边都能选（旧外壳没有这个字体，就不显示）。
+  if (hasBundledEmoji()) {
     const emoji = section(ui, 'Emoji 样式', '内置是随游戏附带的一整套 Noto 彩色 emoji，各系统看起来一样')
     segmented(emoji, 'data-emoji-style', [
       { key: 'bundled', label: '内置' },
