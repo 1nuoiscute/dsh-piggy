@@ -65,5 +65,7 @@ test('外壳 0.3.0 起：加载器优先用游戏包自带的桌面逻辑，老�
   assert.match(loader, /old\.src = 'shell\.js'/)
   const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
   assert.match(main, /ipcMain\.on\('piggy:place'/)
-  assert.match(main, /workAreas: screen\.getAllDisplays\(\)/)
+  assert.match(main, /workAreas: displays\.map\(display => display\.workArea\)/)
+  // 几何里还要带上每块屏的缩放：Windows 分数缩放的问题靠它才看得见。
+  assert.match(main, /scaleFactor: display\.scaleFactor/)
 })

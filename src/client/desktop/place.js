@@ -15,7 +15,7 @@ import { MIN_WINDOW, contentBoundsForPig, nearestArea, resizedPigScreenPoint } f
 const PIG_SCREEN_KEY = 'dsh-piggy:desktop-pig'
 const STARTUP_MS = 4000
 
-/** @param {{ now?: () => number }} [options] */
+/** @param {{ now?: () => number, platform?: string }} [options] */
 export function createPlacement(options = {}) {
   const now = options.now ?? (() => Date.now())
   let lastContent = null
@@ -120,6 +120,9 @@ export function createPlacement(options = {}) {
       if (sizeChanged && resting !== null) resting = target
       const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
       next = contentBoundsForPig({ width, height, pigWindow: { ...pigWindow, ...pigSize }, panelOpen, allowPanelOverflow: sizeChanged }, target, area)
+      // macOS：Electron 会把 y 小于托盘高度（20~40px，随系统版本变）的窗口**静默**夹到托盘下沿，
+      // 模型算出来的位置永远到不了。自己先按工作区上沿夹一下，免得闭环核对一直追一个到不了的目标。
+      if (options.platform === 'darwin') next.y = Math.max(next.y, area.y)
       lastTarget = target
     }
     if (!panelOpen) resting = null

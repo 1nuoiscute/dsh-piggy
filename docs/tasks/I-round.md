@@ -200,6 +200,19 @@ npm start                 # 窗口没出来就换 npm start -- --ozone-platform=
 
 **修正一条我自己先前的判断**：我一度认为「全屏覆盖（架构 B）结构上就没有 DPI 问题」——CppGoose 的 README 证明这是错的，B 在分数缩放下同样会在屏幕边界附近偏。B 的正当理由只有 Wayland 和多屏简化，**不是** DPI。
 
+## 10. Windows / macOS 这一轮做了什么（2026-10-06）
+
+用户问「windows呢？」——这里没有 Windows 机器，所以策略是**让 Windows 变得可观测**，同时修掉两个平台专属的坑：
+
+| 做了什么 | 为什么 |
+|---|---|
+| **`backgroundThrottling: false`** | 这个窗口从不获得焦点（`showInactive` + `skipTaskbar`）。Chromium 默认给后台窗口的 rAF/定时器降频，而页面测量、闭环核对、形状上报**全走 rAF**——被降频就是「挪完窗口猪还慢半拍 / 拖着拖着跟不上」。这是 Windows 上「抽动、一帧叠影」最可能的放大器之一 |
+| **启动时把显示器清单写进日志**（id/名称/bounds/workArea/**scaleFactor**/是否内置） | 以前日志里没有这些，Windows 的问题只能靠猜。现在导出的日志第一屏就能看到用户机器是什么配置 |
+| **几何里带 `displays`（含每块屏缩放）**，挪窗口/核对日志里加 `display:{id,scale,count}` | Windows 125%/150% 一直在靠 2px 容差硬扛，现在能直接看出「哪块屏、什么缩放、当时差多少」 |
+| **macOS：自己先按工作区上沿夹窗口** | Electron 文档写明 `setBounds` 的 y 小于托盘高度（20–40px）会被**静默**夹住。不自己夹的话，模型算的目标永远到不了，闭环核对会一直追一个到不了的目标 |
+
+另外确认过一条**不用改**的：Windows 穿透模式（`setIgnoreMouseEvents(true, { forward: true })`）参数是对的——`forward` 必须有，否则穿透之后页面收不到 mousemove，就再也判断不出鼠标何时回到猪身上（`main.js:223`）。
+
 ## 验证记录
 
 ### 阶段 0 · 观测（2026-10-06）

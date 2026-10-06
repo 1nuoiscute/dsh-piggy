@@ -186,7 +186,17 @@ function pushGeometry() {
 
 /** 窗口、它所在屏的工作区、所有屏的工作区：游戏包里的桌面逻辑按这些自己算窗口摆哪。 */
 function geometryOf(bounds, seq) {
-  return { window: bounds, workArea: workAreaFor(bounds), workAreas: screen.getAllDisplays().map(display => display.workArea), seq }
+  const displays = screen.getAllDisplays()
+  return {
+    window: bounds,
+    workArea: workAreaFor(bounds),
+    workAreas: displays.map(display => display.workArea),
+    // 显示器清单（含每块屏的缩放）：Windows 125%/150% 下的问题一直只能靠 2px 容差硬扛，
+    // 把这些发给游戏包，日志里才能看出「是哪块屏、什么缩放」。
+    displays: displays.map(display => ({ id: display.id, label: display.label,
+      bounds: display.bounds, workArea: display.workArea, scaleFactor: display.scaleFactor, internal: display.internal })),
+    seq,
+  }
 }
 
 /**
@@ -256,7 +266,10 @@ function createWindow() {
     transparent: true, frame: false, resizable: false, movable: false, hasShadow: false,
     alwaysOnTop: true, skipTaskbar: true, focusable: true, show: false,
     backgroundColor: '#00000000',
-    webPreferences: { preload: join(HERE, 'preload.cjs'), contextIsolation: true, sandbox: true },
+    // backgroundThrottling: 这个窗口从不获得焦点（showInactive + skipTaskbar），Chromium 默认
+    // 会把「后台窗口」的 rAF/定时器降频；而页面测量、闭环核对、形状上报全走 rAF，
+    // 被降频就会表现为「猪慢半拍 / 挪完窗口猪还在旧位置」。桌宠没有省电的必要，关掉。
+    webPreferences: { preload: join(HERE, 'preload.cjs'), contextIsolation: true, sandbox: true, backgroundThrottling: false },
   })
   win.setAlwaysOnTop(true, 'floating')
   // 30fps：猪的动画够看，整窗合成的次数砍一半（D1 第 3 条）。
@@ -670,6 +683,9 @@ app.whenReady().then(async () => {
   registerProtocol(gameDir)
   createWindow()
   createTray(gameDir)
+  // 用户机器上到底是什么显示器、什么缩放：以前日志里没有，Windows 的问题只能靠猜。
+  log('displays', JSON.stringify(screen.getAllDisplays().map(display => ({ id: display.id, label: display.label,
+    bounds: display.bounds, workArea: display.workArea, scale: display.scaleFactor, internal: display.internal }))))
   // The window follows its screen's work area when it changes (taskbar moved, resolution changed).
   // 显式告诉游戏包「显示器变了」：applyBounds 有 2px 死区，窗口不需要挪的时候它不会推几何，
   // 页面手里的 workAreas 就会一直用旧的那份（分辨率变了但窗口刚好没动 → 用的是旧工作区）。

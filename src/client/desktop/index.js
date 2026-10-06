@@ -133,7 +133,8 @@ function tick() {
   // 万一玩家看到「整块跳一下」，日志里就能看出是哪次、为什么挪。
   if (request.bounds !== undefined) {
     console.warn('[piggy-desktop] move ' + JSON.stringify({ open: h.getAttribute('data-open'), side, from: bounds, to: want,
-      content: { w: next.content.width, h: next.content.height }, pigBox: next.pigBox, ghosts: h.querySelectorAll('[data-ghost]').length }))
+      content: { w: next.content.width, h: next.content.height }, pigBox: next.pigBox, ghosts: h.querySelectorAll('[data-ghost]').length,
+      display: displayNote(info) }))
   }
   const after = bridge.place(request)
   if (after && after.window) {
@@ -165,10 +166,21 @@ function verifyPending() {
     console.warn('[piggy-desktop] verify still off ' + JSON.stringify({ dx: fix.dx, dy: fix.dy, window: info.window }))
     return false
   }
-  console.warn('[piggy-desktop] verify correcting ' + JSON.stringify({ dx: fix.dx, dy: fix.dy, from: info.window, to: fix.bounds }))
+  console.warn('[piggy-desktop] verify correcting ' + JSON.stringify({ dx: fix.dx, dy: fix.dy, from: info.window, to: fix.bounds, display: displayNote(info) }))
   const after = bridge.place({ bounds: fix.bounds })
   if (after && after.window) pendingVerify = { target, budget: budget - 1 }
   return true
+}
+
+/** 窗口在哪块屏、那块屏什么缩放：Windows 分数缩放的问题只能靠这个在日志里看出来。 */
+function displayNote(info) {
+  const list = info?.displays
+  if (!Array.isArray(list) || list.length === 0) return null
+  const win = info.window
+  const hit = list.find(display => win.x >= display.workArea.x && win.x < display.workArea.x + display.workArea.width
+    && win.y >= display.workArea.y && win.y < display.workArea.y + display.workArea.height)
+  const one = hit ?? list[0]
+  return { id: one.id, scale: one.scaleFactor, count: list.length }
 }
 
 /** 同步回读真实窗口几何；外壳给不了就退回缓存（老外壳没有同步 place）。 */
@@ -201,7 +213,7 @@ export function install(shell) {
     ;/** @type {any} */ (window).__dshPiggyShellOutdated = true
   }
   measure = createMeasure({ platform: shell.platform || '', geometry })
-  placement = createPlacement()
+  placement = createPlacement({ platform: shell.platform || '' })
   const style = document.createElement('style')
   style.setAttribute('data-piggy-desktop-style', '')
   style.textContent = DESKTOP_CSS

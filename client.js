@@ -7628,6 +7628,7 @@
         if (sizeChanged && resting !== null) resting = target;
         const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
         next = contentBoundsForPig({ width, height, pigWindow: { ...pigWindow, ...pigSize2 }, panelOpen, allowPanelOverflow: sizeChanged }, target, area);
+        if (options.platform === "darwin") next.y = Math.max(next.y, area.y);
         lastTarget = target;
       }
       if (!panelOpen) resting = null;
@@ -7796,7 +7797,8 @@
         to: want,
         content: { w: next.content.width, h: next.content.height },
         pigBox: next.pigBox,
-        ghosts: h.querySelectorAll("[data-ghost]").length
+        ghosts: h.querySelectorAll("[data-ghost]").length,
+        display: displayNote(info)
       }));
     }
     const after = bridge2.place(request);
@@ -7821,10 +7823,18 @@
       console.warn("[piggy-desktop] verify still off " + JSON.stringify({ dx: fix.dx, dy: fix.dy, window: info.window }));
       return false;
     }
-    console.warn("[piggy-desktop] verify correcting " + JSON.stringify({ dx: fix.dx, dy: fix.dy, from: info.window, to: fix.bounds }));
+    console.warn("[piggy-desktop] verify correcting " + JSON.stringify({ dx: fix.dx, dy: fix.dy, from: info.window, to: fix.bounds, display: displayNote(info) }));
     const after = bridge2.place({ bounds: fix.bounds });
     if (after && after.window) pendingVerify = { target, budget: budget - 1 };
     return true;
+  }
+  function displayNote(info) {
+    const list = info?.displays;
+    if (!Array.isArray(list) || list.length === 0) return null;
+    const win = info.window;
+    const hit = list.find((display) => win.x >= display.workArea.x && win.x < display.workArea.x + display.workArea.width && win.y >= display.workArea.y && win.y < display.workArea.y + display.workArea.height);
+    const one = hit ?? list[0];
+    return { id: one.id, scale: one.scaleFactor, count: list.length };
   }
   function readGeometry() {
     if (typeof bridge2.place === "function") {
@@ -7849,7 +7859,7 @@
       window.__dshPiggyShellOutdated = true;
     }
     measure = createMeasure({ platform: shell.platform || "", geometry });
-    placement = createPlacement();
+    placement = createPlacement({ platform: shell.platform || "" });
     const style = document.createElement("style");
     style.setAttribute("data-piggy-desktop-style", "");
     style.textContent = DESKTOP_CSS;

@@ -153,6 +153,16 @@ test('旧格式（绝对屏幕坐标）还能用，启动复位结束后写入�
   assert.deepEqual(stored.area, AREA[0])
 })
 
+test('macOS：不把窗口摆到托盘高度里（Electron 会静默夹住，模型就永远对不上）', () => {
+  memory.clear()
+  const area = { x: 0, y: 25, width: 1920, height: 1055 }
+  const place = createPlacement({ now: () => 0, platform: 'darwin' })
+  // 猪贴着屏幕顶边：窗口原点会被算到 y=25 以上
+  const next = place.decide(report({ pig: { x: 250, y: 0, width: 54, height: 54 }, pigWindow: { x: 250, y: 0 }, pigNow: { x: 250, y: 0 } }),
+    { x: 1400, y: 300, width: 324, height: 692 }, [area])
+  assert.ok(next.y >= area.y, '窗口 y 不能进托盘：' + next.y)
+})
+
 test('游戏包导出桌面模块；更新页只推荐正式版、测试版折叠，可选的外壳更新不再红字', () => {
   const index = readFileSync(new URL('../src/client/index.js', import.meta.url), 'utf8')
   assert.match(index, /exports\.desktop = desktop/)
