@@ -24,8 +24,10 @@ export function createPlacement(options = {}) {
   let lastPigSize = { width: 56, height: 56 }
   let resting = null
   let saved = null
-  /** 这次摆放想让猪落在的屏幕点：摆完用它核对（见 geometry.js 的 pigCorrection）。 */
+  /** 这次摆放想让猪落在的屏幕点（意图）。 */
   let lastTarget = null
+  /** 夹进工作区之后猪真正能落在的点（核对用这个）。 */
+  let lastReachable = null
   const startedAt = now()
   let stored = ''
   let loaded = false
@@ -120,10 +122,17 @@ export function createPlacement(options = {}) {
       if (sizeChanged && resting !== null) resting = target
       const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
       next = contentBoundsForPig({ width, height, pigWindow: { ...pigWindow, ...pigSize }, panelOpen, allowPanelOverflow: sizeChanged }, target, area)
-      // macOS：Electron 会把 y 小于托盘高度（20~40px，随系统版本变）的窗口**静默**夹到托盘下沿，
-      // 模型算出来的位置永远到不了。自己先按工作区上沿夹一下，免得闭环核对一直追一个到不了的目标。
-      if (options.platform === 'darwin') next.y = Math.max(next.y, area.y)
+      // 永远不要请求一个会被系统拒绝的窗口矩形。
+      // 现场证据（用户 2026-10-06 的真实日志）：请求 {y:501, height:656} → 底边 1157，而工作区底边
+      // 是 1014；系统把窗口整体顶回 y=358（=1014−656），而代码不知道，于是猪偏 143px，
+      // 闭环核对又拿着这个被改过的位置算出假偏差（20px），照它再挪一次 —— 越修越偏。
+      // macOS 还多一条：Electron 会把 y 小于托盘高度（20~40px）的窗口静默夹到托盘下沿。
+      next.x = Math.max(area.x, Math.min(next.x, area.x + area.width - next.width))
+      next.y = Math.max(area.y, Math.min(next.y, area.y + area.height - next.height))
       lastTarget = target
+      // 夹过之后猪实际会落在哪：闭环核对要用**可达目标**，否则它会一直去追一个系统不允许的
+      // 位置，然后一直判自己「还是差」（用户日志里那两条 verify still off 就是这么来的）。
+      lastReachable = { x: next.x + Math.round(pigWindow.x), y: next.y + Math.round(pigWindow.y) }
     }
     if (!panelOpen) resting = null
     lastContent = { width, height, anchor, panelOpen }
@@ -137,6 +146,7 @@ export function createPlacement(options = {}) {
     resting = null
     saved = null
     lastTarget = null
+    lastReachable = null
   }
 
   /**
@@ -162,9 +172,11 @@ export function createPlacement(options = {}) {
     decide, dragStarted, remember,
     pigWindow: () => lastPigWindow,
     pigSize: () => lastPigSize,
-    /** 上一次 decide 想让猪落在哪；没有待核对的摆放时是 null。 */
+    /** 上一次 decide 想让猪落在哪（意图）。 */
     target: () => lastTarget,
+    /** 上一次摆放里猪实际能落到的点（夹进工作区之后），闭环核对用这个。 */
+    reachable: () => lastReachable,
     /** 核对通过（或放弃）以后清掉，避免重复修。 */
-    targetDone: () => { lastTarget = null },
+    targetDone: () => { lastTarget = null; lastReachable = null },
   }
 }

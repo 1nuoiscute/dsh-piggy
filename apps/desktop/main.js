@@ -465,6 +465,15 @@ ipcMain.on('piggy:place', (event, request) => {
   if (b && [b.x, b.y, b.width, b.height].every(Number.isFinite)) {
     applyBounds({ x: Math.round(b.x), y: Math.round(b.y), width: Math.max(MIN_WINDOW.width, Math.round(b.width)), height: Math.max(MIN_WINDOW.height, Math.round(b.height)) }, 'place')
   }
+  // setBounds 是异步的（X11 要等 ConfigureNotify 回来），紧跟其后的 getBounds() 可能还是旧值。
+  // 页面拿这个旧值做闭环核对，就会算出假偏差、再照着它挪窗口 —— 用户看到的「越修越偏」。
+  // 这里把「请求值 vs 立刻回读值」的差记下来，先把机制钉死。
+  if (b && [b.x, b.y, b.width, b.height].every(Number.isFinite)) {
+    const after = win.getBounds()
+    if (Math.abs(after.x - Math.round(b.x)) > 1 || Math.abs(after.y - Math.round(b.y)) > 1) {
+      log('place-stale', JSON.stringify({ asked: { x: Math.round(b.x), y: Math.round(b.y) }, read: after }))
+    }
+  }
   if (Array.isArray(request?.shape)) {
     applyShape(request.shape.slice(0, 64).map(r => ({
       x: Math.max(0, Math.round(Number(r.x) || 0)), y: Math.max(0, Math.round(Number(r.y) || 0)),

@@ -139,7 +139,8 @@ function tick() {
   const after = bridge.place(request)
   if (after && after.window) {
     // 记下这次想让猪落在哪：下一轮（窗口 resize 生效后）用它核对。
-    pendingVerify = placement.target() === null ? null : { target: placement.target(), budget: 1, waits: 4 }
+    const reachable = placement.reachable()
+    pendingVerify = reachable === null ? null : { target: reachable, budget: 1, waits: 4 }
     placement.remember(after.window, info?.workAreas ?? [])
   }
 }

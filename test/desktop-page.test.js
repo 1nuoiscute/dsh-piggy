@@ -163,6 +163,27 @@ test('macOS：不把窗口摆到托盘高度里（Electron 会静默夹住，模
   assert.ok(next.y >= area.y, '窗口 y 不能进托盘：' + next.y)
 })
 
+test('绝不请求会被系统拒绝的窗口矩形（用户 2026-10-06 日志里的 143px 偏移）', () => {
+  memory.clear()
+  const place = createPlacement({ now: () => 0 })
+  // 用户现场：工作区 0,29 起、高 985（底边 1014）；猪在屏幕中段 y≈478；
+  // 面板朝下开，内容 656 高。旧代码请求了 {y:501, height:656}（底边 1157），
+  // 系统把它整体顶回 358（=1014−656），猪就偏了 143px，而代码不知道。
+  const area = { x: 0, y: 29, width: 1920, height: 985 }
+  const win = { x: 1376, y: 501, width: 304, height: 204 }
+  const next = place.decide(report({
+    width: 324, height: 656, panelOpen: true,
+    pig: { x: 197, y: 120, width: 73, height: 58 },
+    pigWindow: { x: 197, y: 120 }, pigNow: { x: 197, y: 120 }, pigBeforePin: { x: 197, y: 120 },
+  }), win, [area])
+  assert.notEqual(next, null)
+  assert.ok(next.y + next.height <= area.y + area.height, '底边不能超出工作区：' + JSON.stringify(next))
+  assert.ok(next.y >= area.y, '顶边也不能')
+  // 核对要用「夹过之后猪真正落在哪」，不然它会一直追一个系统不允许的位置。
+  const reachable = place.reachable()
+  assert.deepEqual(reachable, { x: next.x + 197, y: next.y + 120 })
+})
+
 test('游戏包导出桌面模块；更新页只推荐正式版、测试版折叠，可选的外壳更新不再红字', () => {
   const index = readFileSync(new URL('../src/client/index.js', import.meta.url), 'utf8')
   assert.match(index, /exports\.desktop = desktop/)

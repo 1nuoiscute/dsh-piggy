@@ -7561,6 +7561,7 @@
     let resting = null;
     let saved = null;
     let lastTarget = null;
+    let lastReachable = null;
     const startedAt = now();
     let stored = "";
     let loaded = false;
@@ -7630,8 +7631,10 @@
         if (sizeChanged && resting !== null) resting = target;
         const area = nearestArea(target, areas) ?? { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
         next = contentBoundsForPig({ width, height, pigWindow: { ...pigWindow, ...pigSize2 }, panelOpen, allowPanelOverflow: sizeChanged }, target, area);
-        if (options.platform === "darwin") next.y = Math.max(next.y, area.y);
+        next.x = Math.max(area.x, Math.min(next.x, area.x + area.width - next.width));
+        next.y = Math.max(area.y, Math.min(next.y, area.y + area.height - next.height));
         lastTarget = target;
+        lastReachable = { x: next.x + Math.round(pigWindow.x), y: next.y + Math.round(pigWindow.y) };
       }
       if (!panelOpen) resting = null;
       lastContent = { width, height, anchor, panelOpen };
@@ -7643,6 +7646,7 @@
       resting = null;
       saved = null;
       lastTarget = null;
+      lastReachable = null;
     }
     function remember(windowBounds, areas) {
       if (lastMeasuredPig === null || saved !== null) return;
@@ -7664,11 +7668,14 @@
       remember,
       pigWindow: () => lastPigWindow,
       pigSize: () => lastPigSize,
-      /** 上一次 decide 想让猪落在哪；没有待核对的摆放时是 null。 */
+      /** 上一次 decide 想让猪落在哪（意图）。 */
       target: () => lastTarget,
+      /** 上一次摆放里猪实际能落到的点（夹进工作区之后），闭环核对用这个。 */
+      reachable: () => lastReachable,
       /** 核对通过（或放弃）以后清掉，避免重复修。 */
       targetDone: () => {
         lastTarget = null;
+        lastReachable = null;
       }
     };
   }
@@ -7805,7 +7812,8 @@
     }
     const after = bridge2.place(request);
     if (after && after.window) {
-      pendingVerify = placement.target() === null ? null : { target: placement.target(), budget: 1, waits: 4 };
+      const reachable = placement.reachable();
+      pendingVerify = reachable === null ? null : { target: reachable, budget: 1, waits: 4 };
       placement.remember(after.window, info?.workAreas ?? []);
     }
   }
