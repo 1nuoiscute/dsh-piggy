@@ -79,3 +79,16 @@ test('F12 lets only transparent panel padding cross the edge during a size chang
   assert.equal(box.x + 230, 1834)
   assert.ok(box.x + 230 + 72 <= 1920)
 })
+
+test('显示器变化要主动告诉游戏包：窗口没挪动也得推几何', () => {
+  const main = readFileSync(new URL('../main.js', import.meta.url), 'utf8')
+  // applyBounds 有 2px 死区：分辨率/缩放变了但窗口刚好不用挪时，它不会推几何，
+  // 页面就会一直用旧的工作区列表。所以显示器事件必须自己再推一次并记一行。
+  assert.match(main, /screen\.on\('display-metrics-changed',\s*\(event, display, changedMetrics\)\s*=>/)
+  assert.match(main, /reclamp\('metrics-changed',\s*\{[^}]*changed:\s*changedMetrics\s*\}\)/)
+  assert.match(main, /screen\.on\('display-added'/)
+  assert.match(main, /screen\.on\('display-removed'/)
+  const reclamp = main.slice(main.indexOf('const reclamp ='), main.indexOf("screen.on('display-metrics-changed'"))
+  assert.match(reclamp, /pushGeometry\(\)/, '无条件推几何')
+  assert.match(reclamp, /log\('display'/, '记一行，导出日志里能看见是哪块屏、变了什么')
+})

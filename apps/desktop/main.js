@@ -669,14 +669,20 @@ app.whenReady().then(async () => {
   createWindow()
   createTray(gameDir)
   // The window follows its screen's work area when it changes (taskbar moved, resolution changed).
-  const reclamp = () => {
+  // 显式告诉游戏包「显示器变了」：applyBounds 有 2px 死区，窗口不需要挪的时候它不会推几何，
+  // 页面手里的 workAreas 就会一直用旧的那份（分辨率变了但窗口刚好没动 → 用的是旧工作区）。
+  const reclamp = (why, detail) => {
     if (win === null || win.isDestroyed()) return
     const bounds = win.getBounds()
     applyBounds(clampBounds(bounds, workAreaFor(bounds)), 'display')
+    pushGeometry()
+    log('display', why, JSON.stringify(detail ?? {}))
   }
-  screen.on('display-metrics-changed', reclamp)
-  screen.on('display-added', reclamp)
-  screen.on('display-removed', reclamp)
+  screen.on('display-metrics-changed', (event, display, changedMetrics) => {
+    reclamp('metrics-changed', { id: display?.id, scale: display?.scaleFactor, workArea: display?.workArea, changed: changedMetrics })
+  })
+  screen.on('display-added', (event, display) => reclamp('added', { id: display?.id, bounds: display?.bounds, scale: display?.scaleFactor }))
+  screen.on('display-removed', (event, display) => reclamp('removed', { id: display?.id, bounds: display?.bounds }))
   win.webContents.on('did-finish-load', () => pushGeometry())
   pushGeometry()
 })
